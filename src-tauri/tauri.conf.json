@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Shop Management System",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.shop.management.system",
   "build": {
     "beforeDevCommand": "npm run dev",

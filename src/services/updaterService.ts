@@ -1,7 +1,7 @@
 import { backupService } from './backupService.ts';
 import type { UpdateInfo, UpdateStatus } from '../types/updater.ts';
 
-const CURRENT_APP_VERSION = '1.0.0';
+const CURRENT_APP_VERSION = '1.0.1';
 const UPDATER_STATE_KEY = 'shop_updater_state_v1';
 
 // Initial state
@@ -193,40 +193,38 @@ export const updaterService = {
 
     try {
       if (isTauriEnvironment()) {
-        try {
-          const { check } = await import('@tauri-apps/plugin-updater');
-          const update = await check();
+        const { check } = await import('@tauri-apps/plugin-updater');
+        const update = await check();
 
-          if (update && update.available) {
-            let downloaded = 0;
-            let contentLength = 0;
+        if (update && update.available) {
+          let downloaded = 0;
+          let contentLength = 0;
 
-            await update.downloadAndInstall((event: any) => {
-              if (event.event === 'Started') {
-                contentLength = event.data.contentLength || 0;
-              } else if (event.event === 'Progress') {
-                downloaded += event.data.chunkLength;
-                const percent = contentLength > 0 ? Math.min(100, Math.round((downloaded / contentLength) * 100)) : 50;
-                notifyListeners({
-                  ...getStoredState(),
-                  status: 'DOWNLOADING',
-                  downloadProgress: percent,
-                });
-                if (onProgress) onProgress(percent);
-              } else if (event.event === 'Finished') {
-                notifyListeners({
-                  ...getStoredState(),
-                  status: 'READY_TO_INSTALL',
-                  downloadProgress: 100,
-                });
-                if (onProgress) onProgress(100);
-              }
-            });
+          await update.downloadAndInstall((event: any) => {
+            if (event.event === 'Started') {
+              contentLength = event.data.contentLength || 0;
+            } else if (event.event === 'Progress') {
+              downloaded += event.data.chunkLength;
+              const percent = contentLength > 0 ? Math.min(100, Math.round((downloaded / contentLength) * 100)) : 50;
+              notifyListeners({
+                ...getStoredState(),
+                status: 'DOWNLOADING',
+                downloadProgress: percent,
+              });
+              if (onProgress) onProgress(percent);
+            } else if (event.event === 'Finished') {
+              notifyListeners({
+                ...getStoredState(),
+                status: 'READY_TO_INSTALL',
+                downloadProgress: 100,
+              });
+              if (onProgress) onProgress(100);
+            }
+          });
 
-            return { success: true, backupCreated, backupFilename };
-          }
-        } catch (tauriErr) {
-          console.warn('Native download and install fallback:', tauriErr);
+          return { success: true, backupCreated, backupFilename };
+        } else {
+          throw new Error('لا يوجد تحديث متوفر حالياً للتحميل والتثبيت.');
         }
       }
 

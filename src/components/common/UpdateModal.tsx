@@ -87,14 +87,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
       size="md"
       footer={
         <div className="flex items-center justify-between w-full">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSimulateUpdate}
-            className="text-xs text-slate-400 hover:text-slate-600"
-          >
-            تجربة محاكاة التحديث
-          </Button>
+          {import.meta.env.DEV ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSimulateUpdate}
+              className="text-xs text-slate-400 hover:text-slate-600"
+            >
+              تجربة محاكاة التحديث
+            </Button>
+          ) : (
+            <div />
+          )}
 
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>

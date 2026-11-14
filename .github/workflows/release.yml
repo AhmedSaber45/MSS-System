@@ -37,10 +37,19 @@ jobs:
         run: npm ci
 
       - name: Run Test Verification Suite
-        run: node --experimental-strip-types --test tests/products.test.mjs tests/updater_release.test.mjs
+        run: npm test
 
       - name: Build Frontend Assets
         run: npm run build
+
+      - name: Verify Release Secrets Configuration
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "::error::CRITICAL: TAURI_SIGNING_PRIVATE_KEY secret is missing! Please configure it in GitHub repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "Release signing secrets verified."
 
       - name: Build Tauri Desktop Package & Sign Release
         uses: tauri-apps/tauri-action@action-v1.0.0

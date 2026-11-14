@@ -1,6 +1,6 @@
 [package]
 name = "shop-management-system"
-version = "1.0.0"
+version = "1.0.1"
 description = "Shop Management System desktop backend"
 authors = ["Shop System Team"]
 edition = "2021"
