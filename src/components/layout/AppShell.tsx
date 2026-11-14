@@ -89,7 +89,7 @@ export const AppShell: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100/70 select-none">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 select-none">
       {/* Permanent Right Sidebar (RTL) */}
       <Sidebar />
 
@@ -99,8 +99,8 @@ export const AppShell: React.FC = () => {
         <TopHeader onOpenShowcase={() => setShowcaseOpen(true)} />
 
         {/* Scrollable Viewport */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-7xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto p-5 md:p-6">
+          <div className="max-w-7xl mx-auto pb-10">
             {renderContent()}
           </div>
         </main>

@@ -7,11 +7,9 @@ import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { Card, StatsCard } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
-import { Alert } from '@/components/common/Alert';
 import {
   Plus,
   Search,
-  Filter,
   Edit,
   Trash2,
   Eye,
@@ -19,11 +17,8 @@ import {
   Package,
   AlertTriangle,
   Boxes,
-  DollarSign,
-  Barcode,
   TrendingUp,
-  Tag,
-  CheckCircle2,
+  Barcode,
   RefreshCw,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -98,19 +93,20 @@ export const ProductsView: React.FC = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [fetchedProducts, fetchedCategories, fetchedMetrics] = await Promise.all([
+      const [prods, cats, mets] = await Promise.all([
         productsService.getProducts(),
         productsService.getCategories(),
         productsService.getMetrics(),
       ]);
-      setProducts(fetchedProducts);
-      setCategories(fetchedCategories);
-      setMetrics(fetchedMetrics);
+
+      setProducts(prods);
+      setCategories(cats);
+      setMetrics(mets);
     } catch (err: any) {
       showNotification({
         type: 'error',
-        title: 'خطأ في جلب البيانات',
-        message: err?.message || 'تعذر تحميل المنتجات من قاعدة البيانات المحلية',
+        title: 'خطأ في تحميل المنتجات',
+        message: err?.message || 'تعذر جلب قائمة الأصناف من قاعدة البيانات المحلية',
       });
     } finally {
       setIsLoading(false);
@@ -121,80 +117,75 @@ export const ProductsView: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Barcode scanner integration: handles scanning from hardware USB scanner
-  const handleHardwareScan = useCallback(
-    async (scannedCode: string) => {
+  // Barcode scanner integration for rapid lookups
+  useBarcodeScanner({
+    onScan: scannedCode => {
       setLastScannedBarcode(scannedCode);
 
-      // If Add or Edit modal is open, auto-populate the barcode field
-      if (isAddModalOpen || isEditModalOpen) {
+      // If Add Modal is open, populate the barcode field directly
+      if (isAddModalOpen) {
         setFormData(prev => ({ ...prev, barcode: scannedCode }));
         showNotification({
           type: 'info',
-          title: 'تم مسح الباركود بنجاح',
-          message: `تم إدراج الباركود: ${scannedCode}`,
+          title: 'تم مسح الباركود',
+          message: `تم إدراج الباركود (${scannedCode}) في بطاقة الصنف الجديد`,
         });
         return;
       }
 
-      // Otherwise search for the product in the product table
-      setSearchQuery(scannedCode);
-      const found = await productsService.getProductByBarcode(scannedCode);
-      if (found) {
+      // If Edit Modal is open, populate barcode
+      if (isEditModalOpen) {
+        setFormData(prev => ({ ...prev, barcode: scannedCode }));
         showNotification({
-          type: 'success',
-          title: 'تم العثور على الصنف بالماسح',
-          message: `${found.name} (الكود: ${found.code}) - الرصيد: ${found.stock}`,
+          type: 'info',
+          title: 'تم مسح الباركود',
+          message: `تم تحديث الباركود (${scannedCode}) للصنف الحالي`,
         });
-      } else {
-        showNotification({
-          type: 'warning',
-          title: 'الباركود غير مسجل',
-          message: `لم يتم العثور على صنف بالباركود: ${scannedCode}`,
-        });
+        return;
       }
-    },
-    [isAddModalOpen, isEditModalOpen, showNotification]
-  );
 
-  useBarcodeScanner({
-    onScan: handleHardwareScan,
+      // Otherwise, filter table by the scanned barcode
+      setSearchQuery(scannedCode);
+      showNotification({
+        type: 'info',
+        title: 'بحث فوري بالباركود',
+        message: `جاري البحث عن الصنف المطابق للرمز: ${scannedCode}`,
+      });
+    },
     enabled: true,
   });
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
-    let result = products;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        p =>
-          p.name.toLowerCase().includes(q) ||
-          p.code.toLowerCase().includes(q) ||
-          (p.barcode && p.barcode.toLowerCase().includes(q)) ||
-          (p.category && p.category.toLowerCase().includes(q))
-      );
-    }
-
-    if (selectedCategory !== 'all') {
-      result = result.filter(p => p.category === selectedCategory);
-    }
-
-    if (selectedStockFilter !== 'all') {
-      if (selectedStockFilter === 'out_of_stock') {
-        result = result.filter(p => p.stock === 0);
-      } else if (selectedStockFilter === 'low_stock') {
-        result = result.filter(p => p.stock > 0 && p.stock <= p.low_stock_threshold);
-      } else if (selectedStockFilter === 'in_stock') {
-        result = result.filter(p => p.stock > p.low_stock_threshold);
+    return products.filter(product => {
+      // 1. Text Search (Name, Code, Barcode)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesName = product.name.toLowerCase().includes(q);
+        const matchesCode = product.code.toLowerCase().includes(q);
+        const matchesBarcode = product.barcode ? product.barcode.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesCode && !matchesBarcode) return false;
       }
-    }
 
-    return result;
+      // 2. Category Filter
+      if (selectedCategory !== 'all') {
+        if (product.category !== selectedCategory) return false;
+      }
+
+      // 3. Stock Status Filter
+      if (selectedStockFilter === 'in_stock') {
+        if (product.stock <= product.low_stock_threshold) return false;
+      } else if (selectedStockFilter === 'low_stock') {
+        if (product.stock === 0 || product.stock > product.low_stock_threshold) return false;
+      } else if (selectedStockFilter === 'out_of_stock') {
+        if (product.stock > 0) return false;
+      }
+
+      return true;
+    });
   }, [products, searchQuery, selectedCategory, selectedStockFilter]);
 
-  // Form validation
+  // Form Validation
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -232,7 +223,6 @@ export const ProductsView: React.FC = () => {
 
   // Open Add Modal
   const handleOpenAddModal = () => {
-    // Generate suggested code (e.g. PRD-xxx)
     const nextCodeNumber = products.length + 1;
     const suggestedCode = `PRD-${String(nextCodeNumber).padStart(3, '0')}`;
 
@@ -395,7 +385,7 @@ export const ProductsView: React.FC = () => {
       key: 'code',
       header: 'كود الصنف',
       render: item => (
-        <span className="font-mono font-semibold text-slate-800 bg-slate-100/80 px-2 py-0.5 rounded text-xs border border-slate-200">
+        <span className="font-mono text-xs text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/70 tabular-nums">
           {item.code}
         </span>
       ),
@@ -405,7 +395,7 @@ export const ProductsView: React.FC = () => {
       header: 'اسم المنتج',
       render: item => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-900">{item.name}</span>
+          <span className="font-medium text-slate-900 text-xs">{item.name}</span>
           {item.description && (
             <span className="text-[11px] text-slate-400 truncate max-w-xs">{item.description}</span>
           )}
@@ -417,7 +407,7 @@ export const ProductsView: React.FC = () => {
       header: 'الباركود',
       render: item =>
         item.barcode ? (
-          <span className="barcode-value text-xs text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 font-mono">
+          <span className="barcode-value text-xs text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/70 font-mono tabular-nums">
             {item.barcode}
           </span>
         ) : (
@@ -439,28 +429,28 @@ export const ProductsView: React.FC = () => {
     {
       key: 'cost',
       header: 'سعر التكلفة',
-      render: item => <span className="font-mono text-slate-600 text-xs">{formatCurrency(item.cost)}</span>,
+      render: item => <span className="font-mono tabular-nums text-slate-600 text-xs">{formatCurrency(item.cost)}</span>,
     },
     {
       key: 'price',
       header: 'سعر البيع',
-      render: item => <span className="font-bold text-blue-700 text-sm">{formatCurrency(item.price)}</span>,
+      render: item => <span className="font-semibold text-slate-900 font-mono tabular-nums text-xs">{formatCurrency(item.price)}</span>,
     },
     {
       key: 'stock',
       header: 'الرصيد المتاح',
       render: item => {
         if (item.stock === 0) {
-          return <Badge variant="danger">نفد الرصيد (0)</Badge>;
+          return <Badge variant="danger" size="sm">نفد الرصيد (0)</Badge>;
         }
         if (item.stock <= item.low_stock_threshold) {
           return (
-            <Badge variant="warning">
+            <Badge variant="warning" size="sm">
               منخفض ({item.stock}) / الحد: {item.low_stock_threshold}
             </Badge>
           );
         }
-        return <Badge variant="success">{item.stock} قطعة</Badge>;
+        return <Badge variant="success" size="sm">{item.stock} قطعة</Badge>;
       },
     },
     {
@@ -468,27 +458,27 @@ export const ProductsView: React.FC = () => {
       header: 'إجراءات',
       align: 'center',
       render: item => (
-        <div className="flex items-center justify-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => handleOpenViewModal(item)}
-            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="عرض التفاصيل الكاملة"
+            className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
+            title="عرض التفاصيل"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleOpenEditModal(item)}
-            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+            className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
             title="تعديل الصنف"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleOpenDeleteModal(item)}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
             title="حذف الصنف"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       ),
@@ -496,7 +486,7 @@ export const ProductsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="إدارة منتجات وأسعار الإكسسوارات"
         subtitle="قاعدة بيانات SQLite المحلية المستقلة — إدارة الأصناف، الأسعار، الباركود وتنبيهات النواقص"
@@ -507,7 +497,7 @@ export const ProductsView: React.FC = () => {
               size="sm"
               onClick={loadData}
               isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-500" />}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5 text-slate-500" />}
             >
               تحديث البيانات
             </Button>
@@ -515,7 +505,7 @@ export const ProductsView: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={handleOpenAddModal}
-              leftIcon={<Plus className="w-4 h-4" />}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
               إضافة صنف جديد
             </Button>
@@ -524,55 +514,51 @@ export const ProductsView: React.FC = () => {
       />
 
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <StatsCard
           title="إجمالي عدد الأصناف"
           value={`${metrics.totalProducts} صنف`}
           subtitle={`إجمالي المخزون: ${metrics.totalUnits} قطعة`}
           icon={Package}
-          accentColor="blue"
         />
         <StatsCard
           title="قيمة المخزون بالتكلفة"
           value={formatCurrency(metrics.totalCostValue)}
-          subtitle="رأس المال المستثمر في بضاعة المحل"
+          subtitle="رأس المال المستثمر في البضاعة"
           icon={Boxes}
-          accentColor="indigo"
         />
         <StatsCard
           title="القيمة السوقية للبيع"
           value={formatCurrency(metrics.totalSalesValue)}
-          subtitle={`ربح متوقع: ${formatCurrency(Math.max(0, metrics.totalSalesValue - metrics.totalCostValue))}`}
+          subtitle={`ربح مقدر: ${formatCurrency(Math.max(0, metrics.totalSalesValue - metrics.totalCostValue))}`}
           icon={TrendingUp}
-          accentColor="emerald"
         />
         <StatsCard
           title="تنبيهات النواقص والنفاد"
           value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
           subtitle={`منها ${metrics.outOfStockCount} أصناف منعدمة تماماً`}
           icon={AlertTriangle}
-          accentColor={metrics.outOfStockCount > 0 ? 'rose' : metrics.lowStockCount > 0 ? 'amber' : 'blue'}
         />
       </div>
 
       {/* Hardware Scanner & Search Alert */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-blue-50/70 rounded-xl border border-blue-200/80 text-xs text-blue-900">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 p-2.5 bg-slate-50 rounded-lg border border-slate-200/90 text-xs text-slate-700">
         <div className="flex items-center gap-2">
-          <ScanBarcode className="w-4 h-4 text-blue-600 shrink-0" />
+          <ScanBarcode className="w-4 h-4 text-slate-600 shrink-0" />
           <span>
-            <strong>الماسح الضوئي (Barcode Scanner) جاهز ونشط:</strong> يمكنك مسح أي باركود مباشرة للبحث الفوري أو لإدراج الباركود في بطاقة الصنف.
+            <strong>الماسح الضوئي (Barcode Scanner) نشط:</strong> يمكنك مسح أي باركود للبحث الفوري أو لإدراجه في بطاقة الصنف.
           </span>
         </div>
         {lastScannedBarcode && (
-          <span className="font-mono bg-blue-100 text-blue-800 px-2.5 py-1 rounded-md font-bold">
-            آخر باركود: {lastScannedBarcode}
+          <span className="font-mono tabular-nums bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded text-xs font-medium">
+            آخر مسح: {lastScannedBarcode}
           </span>
         )}
       </div>
 
       {/* Filter and Search Panel */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+      <Card className="p-3">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
           {/* Search Box */}
           <div className="md:col-span-6">
             <Input
@@ -580,7 +566,7 @@ export const ProductsView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-3.5 h-3.5" />}
               scannerReady
             />
           </div>
@@ -607,7 +593,7 @@ export const ProductsView: React.FC = () => {
               onChange={e => setSelectedStockFilter(e.target.value as StockStatusFilter)}
             >
               <option value="all">جميع حالات المخزون</option>
-              <option value="in_stock">المتوفر بكميات آمنة</option>
+              <option value="in_stock">المتوفر بكميات كافية</option>
               <option value="low_stock">المخزون المنخفض (تحت حد الطلب)</option>
               <option value="out_of_stock">المنعدم تماماً (رصيد 0)</option>
             </Select>
@@ -616,9 +602,9 @@ export const ProductsView: React.FC = () => {
 
         {/* Active Filters Summary */}
         {(searchQuery || selectedCategory !== 'all' || selectedStockFilter !== 'all') && (
-          <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-xs text-slate-500">
+          <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-100 text-xs text-slate-500">
             <div>
-              تم العثور على <strong>{filteredProducts.length}</strong> صنف مطابق لمعايير البحث والفلترة.
+              تم العثور على <strong className="tabular-nums text-slate-800">{filteredProducts.length}</strong> صنف مطابق للبحث.
             </div>
             <button
               onClick={() => {
@@ -626,9 +612,9 @@ export const ProductsView: React.FC = () => {
                 setSelectedCategory('all');
                 setSelectedStockFilter('all');
               }}
-              className="text-blue-600 hover:text-blue-800 font-semibold underline"
+              className="text-slate-700 hover:text-slate-900 font-medium underline"
             >
-              إلغاء التصفية وإظهار الكل
+              إلغاء التصفية
             </button>
           </div>
         )}
@@ -667,15 +653,15 @@ export const ProductsView: React.FC = () => {
               size="sm"
               onClick={handleAddSubmit}
               isLoading={isSubmitting}
-              leftIcon={<Plus className="w-4 h-4" />}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
               حفظ المنتج الجديد
             </Button>
           </>
         }
       >
-        <form onSubmit={handleAddSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleAddSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
               label="اسم المنتج *"
               placeholder="مثال: شاحن سريع 20 واط Type-C"
@@ -695,7 +681,7 @@ export const ProductsView: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
               label="الباركود (اختياري)"
               placeholder="امسح بالماسح الضوئي أو اكتب الباركود..."
@@ -703,7 +689,7 @@ export const ProductsView: React.FC = () => {
               onChange={e => setFormData({ ...formData, barcode: e.target.value })}
               scannerReady
               isMonospace
-              leftIcon={<Barcode className="w-4 h-4" />}
+              leftIcon={<Barcode className="w-3.5 h-3.5" />}
               onClear={() => setFormData({ ...formData, barcode: '' })}
               helperText="يمكن مسحه مباشرة باستخدام قارئ الباركود"
             />
@@ -735,7 +721,7 @@ export const ProductsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
             <Input
               label="سعر التكلفة (ج.م) *"
               type="number"
@@ -780,12 +766,12 @@ export const ProductsView: React.FC = () => {
           </div>
 
           {Number(formData.price) > 0 && Number(formData.cost) > 0 && (
-            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-800">
-              <span className="flex items-center gap-1 font-semibold">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-700">
+              <span className="flex items-center gap-1 font-medium">
+                <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
                 هامش الربح المتوقع للقطعة:
               </span>
-              <span className="font-bold font-mono">
+              <span className="font-semibold font-mono tabular-nums text-emerald-800">
                 +{formatCurrency(Number(formData.price) - Number(formData.cost))} (
                 {Math.round(
                   ((Number(formData.price) - Number(formData.cost)) / Number(formData.cost)) * 100
@@ -796,12 +782,12 @@ export const ProductsView: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               ملاحظات أو وصف إضافي (اختياري)
             </label>
             <textarea
               rows={2}
-              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-colors"
               placeholder="أي تفاصيل تخص اللون، التوافق، أو الموديل..."
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -838,8 +824,8 @@ export const ProductsView: React.FC = () => {
           </>
         }
       >
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleEditSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
               label="اسم المنتج *"
               value={formData.name}
@@ -856,14 +842,14 @@ export const ProductsView: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
               label="الباركود (اختياري)"
               value={formData.barcode}
               onChange={e => setFormData({ ...formData, barcode: e.target.value })}
               scannerReady
               isMonospace
-              leftIcon={<Barcode className="w-4 h-4" />}
+              leftIcon={<Barcode className="w-3.5 h-3.5" />}
               onClear={() => setFormData({ ...formData, barcode: '' })}
             />
 
@@ -894,7 +880,7 @@ export const ProductsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
             <Input
               label="سعر التكلفة (ج.م) *"
               type="number"
@@ -935,12 +921,12 @@ export const ProductsView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               ملاحظات أو وصف إضافي
             </label>
             <textarea
               rows={2}
-              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-colors"
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
             />
@@ -964,7 +950,7 @@ export const ProductsView: React.FC = () => {
                 setIsViewModalOpen(false);
                 if (selectedProduct) handleOpenEditModal(selectedProduct);
               }}
-              leftIcon={<Edit className="w-4 h-4" />}
+              leftIcon={<Edit className="w-3.5 h-3.5" />}
             >
               تعديل بيانات الصنف
             </Button>
@@ -975,21 +961,21 @@ export const ProductsView: React.FC = () => {
         }
       >
         {selectedProduct && (
-          <div className="space-y-4 text-xs">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+          <div className="space-y-3 text-xs">
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/90 space-y-2">
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">اسم المنتج:</span>
-                <span className="font-bold text-slate-900 text-sm">{selectedProduct.name}</span>
+                <span className="font-semibold text-slate-900 text-xs">{selectedProduct.name}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">كود الصنف:</span>
-                <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                <span className="font-mono font-medium text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded tabular-nums">
                   {selectedProduct.code}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">الباركود:</span>
-                <span className="font-mono text-slate-700 font-bold">
+                <span className="font-mono text-slate-700 font-medium tabular-nums">
                   {selectedProduct.barcode || 'غير مسجل'}
                 </span>
               </div>
@@ -999,19 +985,19 @@ export const ProductsView: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">سعر التكلفة:</span>
-                <span className="font-mono text-slate-800 font-bold">
+                <span className="font-mono text-slate-700 tabular-nums">
                   {formatCurrency(selectedProduct.cost)}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">سعر البيع الافتراضي:</span>
-                <span className="font-mono text-blue-700 font-bold text-sm">
+                <span className="font-mono text-slate-900 font-semibold tabular-nums">
                   {formatCurrency(selectedProduct.price)}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">هامش الربح للقطعة:</span>
-                <span className="font-bold text-emerald-600 font-mono">
+                <span className="font-semibold text-emerald-800 font-mono tabular-nums">
                   +{formatCurrency(selectedProduct.price - selectedProduct.cost)} (
                   {selectedProduct.cost > 0
                     ? Math.round(
@@ -1026,30 +1012,30 @@ export const ProductsView: React.FC = () => {
                 <span className="text-slate-500">الرصيد الفعلي الحالي:</span>
                 <div>
                   {selectedProduct.stock === 0 ? (
-                    <Badge variant="danger">نفد الرصيد (0)</Badge>
+                    <Badge variant="danger" size="sm">نفد الرصيد (0)</Badge>
                   ) : selectedProduct.stock <= selectedProduct.low_stock_threshold ? (
-                    <Badge variant="warning">
+                    <Badge variant="warning" size="sm">
                       رصيد منخفض ({selectedProduct.stock}) / الحد الأدنى:{' '}
                       {selectedProduct.low_stock_threshold}
                     </Badge>
                   ) : (
-                    <Badge variant="success">{selectedProduct.stock} قطعة متوفرة</Badge>
+                    <Badge variant="success" size="sm">{selectedProduct.stock} قطعة متوفرة</Badge>
                   )}
                 </div>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200">
                 <span className="text-slate-500">تاريخ الإضافة:</span>
-                <span className="text-slate-600">{formatDate(selectedProduct.created_at)}</span>
+                <span className="text-slate-600 font-mono tabular-nums">{formatDate(selectedProduct.created_at)}</span>
               </div>
               <div className="flex justify-between items-center py-1">
                 <span className="text-slate-500">آخر تحديث:</span>
-                <span className="text-slate-600">{formatDate(selectedProduct.updated_at)}</span>
+                <span className="text-slate-600 font-mono tabular-nums">{formatDate(selectedProduct.updated_at)}</span>
               </div>
             </div>
 
             {selectedProduct.description && (
-              <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <h5 className="font-bold text-slate-700 mb-1">ملاحظات الصنف:</h5>
+              <div className="p-3 bg-white rounded-lg border border-slate-200">
+                <h5 className="font-medium text-slate-700 mb-1">ملاحظات الصنف:</h5>
                 <p className="text-slate-600 leading-relaxed">{selectedProduct.description}</p>
               </div>
             )}
@@ -1090,14 +1076,14 @@ export const ProductsView: React.FC = () => {
             <p>
               هل أنت متأكد من رغبتك في حذف الصنف التالي نهائياً من قاعدة بيانات الإكسسوارات؟
             </p>
-            <div className="p-3 bg-slate-100 rounded-lg font-semibold text-slate-800 space-y-1">
+            <div className="p-3 bg-slate-50 rounded-lg font-medium text-slate-800 space-y-1 border border-slate-200">
               <div>{selectedProduct.name}</div>
-              <div className="text-slate-500 font-mono text-[11px]">
+              <div className="text-slate-500 font-mono text-[11px] tabular-nums">
                 الكود: {selectedProduct.code} | الرصيد: {selectedProduct.stock} قطعة
               </div>
             </div>
             {selectedProduct.stock > 0 && (
-              <p className="text-rose-600 font-bold bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+              <p className="text-rose-800 font-medium bg-rose-50 p-2.5 rounded-lg border border-rose-200">
                 تنبيه: هذا الصنف يحتوي حالياً على رصيد ({selectedProduct.stock} قطعة) في المحل.
               </p>
             )}

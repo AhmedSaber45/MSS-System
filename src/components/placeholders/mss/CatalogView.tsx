@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
+import { Select } from '@/components/common/Select';
+import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
@@ -16,10 +17,8 @@ import {
   Edit,
   Trash2,
   Cpu,
-  HardDrive,
   Tv,
   CheckCircle,
-  Cloud,
   LayoutGrid,
   List,
 } from 'lucide-react';
@@ -37,7 +36,7 @@ const CATEGORIES: { id: string; label: string }[] = [
   { id: 'ALL', label: 'جميع الموديلات' },
   { id: 'لابتوب', label: 'لابتوب' },
   { id: 'شاشة', label: 'شاشات' },
-  { id: 'أخرى', label: 'أجهزة وملحقات أخرى' },
+  { id: 'أخرى', label: 'أخرى / ملحقات' },
 ];
 
 export const CatalogView: React.FC = () => {
@@ -234,21 +233,20 @@ export const CatalogView: React.FC = () => {
   }, [models, availability]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="كتالوج موديلات الأجهزة (MSS Shared Catalog)"
-        subtitle="المواصفات الفنية الموحدة، الأسعار الاسترشادية المشتركة، والأرصدة المتوفرة في محل 1 ومحل 2"
+        title="كتالوج موديلات الأجهزة"
+        subtitle="المواصفات الفنية الموحدة والأسعار الاسترشادية المشتركة والأرصدة المتوفرة بين المحلين"
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="primary"
               size="sm"
               onClick={handleOpenAddModal}
-              className="bg-teal-700 hover:bg-teal-800 font-bold shadow-sm"
               leftIcon={<Plus className="w-4 h-4" />}
             >
-              إضافة موديل جديد للكتالوج
+              إضافة موديل جديد
             </Button>
           </div>
         }
@@ -256,52 +254,52 @@ export const CatalogView: React.FC = () => {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">إجمالي الموديلات</span>
-            <Layers className="w-4 h-4 text-teal-600" />
+            <span className="text-xs font-medium text-slate-500">إجمالي الموديلات</span>
+            <Layers className="w-4 h-4 text-slate-400" />
           </div>
-          <p className="text-xl font-black text-slate-900 font-mono mt-2">{stats.totalCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1">موديل مسجل بالكتالوج المشترك</p>
+          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.totalCount}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">موديل مسجل بالكتالوج</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">موديلات اللابتوب</span>
-            <Laptop className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-medium text-slate-500">موديلات اللابتوب</span>
+            <Laptop className="w-4 h-4 text-slate-400" />
           </div>
-          <p className="text-xl font-black text-blue-700 font-mono mt-2">{stats.laptops}</p>
-          <p className="text-[11px] text-slate-400 mt-1">موديلات أجهزة محمولة</p>
+          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.laptops}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">موديلات أجهزة محمولة</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">موديلات الشاشات</span>
-            <Monitor className="w-4 h-4 text-purple-600" />
+            <span className="text-xs font-medium text-slate-500">موديلات الشاشات</span>
+            <Monitor className="w-4 h-4 text-slate-400" />
           </div>
-          <p className="text-xl font-black text-purple-700 font-mono mt-2">{stats.monitors}</p>
-          <p className="text-[11px] text-slate-400 mt-1">شاشات عرض احترافية</p>
+          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.monitors}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">شاشات عرض احترافية</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">الأجهزة المتاحة بالمحلين</span>
-            <Store className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-medium text-slate-500">الأجهزة المتاحة بالمحلين</span>
+            <Store className="w-4 h-4 text-slate-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xs font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+            <span className="text-xs font-mono tabular-nums font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
               محل 1: {stats.totalAvailShop1}
             </span>
-            <span className="text-xs font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+            <span className="text-xs font-mono tabular-nums font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
               محل 2: {stats.totalAvailShop2}
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">جاهزة للبيع فوراً</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">جاهزة للبيع فوراً</p>
         </Card>
       </div>
 
       {/* Filter & Search Toolbar */}
-      <Card className="p-3 bg-white border-slate-200 shadow-2xs space-y-3">
+      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search Input */}
           <div className="w-full md:w-96">
@@ -311,21 +309,21 @@ export const CatalogView: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
               leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-              className="py-1.5 text-xs"
+              className="text-xs"
             />
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+          {/* Category Filter Segmented Control */}
+          <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80 text-xs">
             {CATEGORIES.map(c => (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap ${
                   selectedCategory === c.id
-                    ? 'bg-teal-700 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {c.label}
@@ -334,12 +332,12 @@ export const CatalogView: React.FC = () => {
           </div>
 
           {/* View Toggle */}
-          <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
+          <div className="inline-flex rounded-lg border border-slate-200/80 bg-slate-100 p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md ${
-                viewMode === 'table' ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="عرض كجدول"
             >
@@ -348,8 +346,8 @@ export const CatalogView: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-md ${
-                viewMode === 'cards' ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="عرض كبطاقات"
             >
@@ -361,24 +359,24 @@ export const CatalogView: React.FC = () => {
 
       {/* Models Listing */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
           <Spinner size="lg" />
           <p className="text-xs text-slate-500 mt-3">جارٍ تحميل كتالوج الموديلات السحابي...</p>
         </div>
       ) : models.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-200 space-y-3">
-          <Layers className="w-12 h-12 text-slate-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-800">لا توجد موديلات مطابقة في الكتالوج</p>
+        <div className="p-16 text-center bg-white rounded-xl border border-slate-200/80 space-y-3">
+          <Layers className="w-10 h-10 text-slate-300 mx-auto" />
+          <p className="text-sm font-semibold text-slate-800">لا توجد موديلات مطابقة في الكتالوج</p>
           <p className="text-xs text-slate-400">
             يمكنك إضافة موديل لابتوب أو شاشة جديد بالضغط على زر الإضافة أعلاه
           </p>
         </div>
       ) : viewMode === 'table' ? (
         /* ==================== TABLE VIEW ==================== */
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-right">
-              <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-200">
+              <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                 <tr>
                   <th className="py-2.5 px-3">الماركة والموديل</th>
                   <th className="py-2.5 px-3">النوع</th>
@@ -398,23 +396,23 @@ export const CatalogView: React.FC = () => {
                   };
 
                   return (
-                    <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="primary" size="sm">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {m.brand}
-                          </Badge>
-                          <span className="font-bold text-slate-900 text-sm">{m.model_name}</span>
+                          </span>
+                          <span className="font-medium text-slate-900 text-xs">{m.model_name}</span>
                         </div>
                         {m.specifications && (
-                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 max-w-xs">
+                          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1 max-w-xs">
                             {m.specifications}
                           </p>
                         )}
                       </td>
 
                       <td className="py-2.5 px-3">
-                        <Badge variant={m.category === 'لابتوب' ? 'purple' : 'default'} size="sm">
+                        <Badge variant="default" size="sm">
                           {m.category}
                         </Badge>
                       </td>
@@ -441,29 +439,17 @@ export const CatalogView: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-3 text-left font-mono font-bold text-teal-700 text-sm">
+                      <td className="py-2.5 px-3 text-left font-mono font-semibold text-slate-900 text-xs tabular-nums">
                         {formatCurrency(m.default_list_price)}
                       </td>
 
                       {/* Separate shop availability display */}
                       <td className="py-2.5 px-3 text-center">
-                        <div className="inline-flex items-center gap-1.5 font-bold text-[11px]">
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              avail.available_shop1 > 0
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-slate-50 text-slate-400 border-slate-200'
-                            }`}
-                          >
+                        <div className="inline-flex items-center gap-1.5 font-medium text-[11px] font-mono tabular-nums">
+                          <span className="px-2 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
                             محل 1: {avail.available_shop1}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              avail.available_shop2 > 0
-                                ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                : 'bg-slate-50 text-slate-400 border-slate-200'
-                            }`}
-                          >
+                          <span className="px-2 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
                             محل 2: {avail.available_shop2}
                           </span>
                           <span className="text-slate-400 text-[10px]">
@@ -477,7 +463,7 @@ export const CatalogView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(m)}
-                            className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded"
+                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
                             title="تعديل الموديل والسعر"
                           >
                             <Edit className="w-3.5 h-3.5" />
@@ -485,7 +471,7 @@ export const CatalogView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setModelToDelete(m)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
                             title="حذف من الكتالوج"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -510,31 +496,31 @@ export const CatalogView: React.FC = () => {
             };
 
             return (
-              <Card key={m.id} className="bg-white border-slate-200 shadow-2xs p-4 space-y-3">
+              <Card key={m.id} className="bg-white border-slate-200/80 shadow-2xs p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Badge variant="primary" size="sm">
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                         {m.brand}
-                      </Badge>
-                      <Badge variant={m.category === 'لابتوب' ? 'purple' : 'default'} size="sm">
+                      </span>
+                      <Badge variant="default" size="sm">
                         {m.category}
                       </Badge>
                     </div>
-                    <h4 className="font-bold text-slate-900 text-sm">{m.model_name}</h4>
+                    <h4 className="font-medium text-slate-900 text-xs">{m.model_name}</h4>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(m)}
-                      className="p-1 text-slate-400 hover:text-teal-700 rounded"
+                      className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setModelToDelete(m)}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -544,28 +530,28 @@ export const CatalogView: React.FC = () => {
                 {/* Specs Box */}
                 <div className="space-y-1.5 text-xs">
                   {m.processor && m.processor !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-700">
+                    <div className="flex items-center gap-1.5 text-slate-600">
                       <Cpu className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-mono text-[11px] truncate">{m.processor}</span>
                     </div>
                   )}
                   {m.ram && m.ram !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-700">
+                    <div className="flex items-center gap-1.5 text-slate-600">
                       <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-mono text-[11px]">{m.ram}</span>
                       {m.storage && m.storage !== '-' && (
-                        <span className="font-mono text-slate-500 text-[11px]">| {m.storage}</span>
+                        <span className="font-mono text-slate-400 text-[11px]">| {m.storage}</span>
                       )}
                     </div>
                   )}
                   {m.screen_size && m.screen_size !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-700">
+                    <div className="flex items-center gap-1.5 text-slate-600">
                       <Tv className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="text-[11px]">{m.screen_size}</span>
                     </div>
                   )}
                   {m.specifications && (
-                    <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 line-clamp-2">
+                    <p className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 line-clamp-2">
                       {m.specifications}
                     </p>
                   )}
@@ -574,29 +560,17 @@ export const CatalogView: React.FC = () => {
                 {/* Availability and Price footer */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">السعر الاسترشادي:</span>
-                    <span className="font-mono font-black text-teal-700 text-sm">
+                    <span className="text-[10px] text-slate-400 block mb-0.5">السعر الاسترشادي:</span>
+                    <span className="font-mono font-semibold text-slate-900 text-xs tabular-nums">
                       {formatCurrency(m.default_list_price)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-[11px] font-bold">
-                    <span
-                      className={`px-1.5 py-0.5 rounded border ${
-                        avail.available_shop1 > 0
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-slate-50 text-slate-400 border-slate-200'
-                      }`}
-                    >
+                  <div className="flex items-center gap-1 text-[11px] font-mono tabular-nums">
+                    <span className="px-1.5 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
                       م1: {avail.available_shop1}
                     </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded border ${
-                        avail.available_shop2 > 0
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-slate-50 text-slate-400 border-slate-200'
-                      }`}
-                    >
+                    <span className="px-1.5 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
                       م2: {avail.available_shop2}
                     </span>
                   </div>
@@ -630,7 +604,6 @@ export const CatalogView: React.FC = () => {
                 size="sm"
                 onClick={handleSubmitModel}
                 disabled={isSubmitting}
-                className="bg-teal-700 hover:bg-teal-800 font-bold"
                 leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
               >
                 {isSubmitting ? 'جارٍ الحفظ...' : editingModel ? 'حفظ التعديلات' : 'إضافة الموديل للكتالوج'}
@@ -641,93 +614,90 @@ export const CatalogView: React.FC = () => {
           <form onSubmit={handleSubmitModel} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">
-                  الماركة (Brand) <span className="text-rose-500">*</span>:
+                <label className="font-medium text-slate-700 block mb-1">
+                  الماركة (Brand) <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  placeholder="مثال: Lenovo, Dell, HP, Apple..."
+                  placeholder="مثال: Lenovo, Dell, HP..."
                   value={brand}
                   onChange={e => setBrand(e.target.value)}
-                  className="py-1.5 text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">
-                  اسم الموديل (Model Name) <span className="text-rose-500">*</span>:
+                <label className="font-medium text-slate-700 block mb-1">
+                  اسم الموديل (Model Name) <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  placeholder="مثال: ThinkPad T480, Latitude 5420..."
+                  placeholder="مثال: ThinkPad T480..."
                   value={modelName}
                   onChange={e => setModelName(e.target.value)}
-                  className="py-1.5 text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">النوع:</label>
-                <select
+                <label className="font-medium text-slate-700 block mb-1">النوع</label>
+                <Select
                   value={category}
                   onChange={e => setCategory(e.target.value as MSSCategory)}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-500"
-                >
-                  <option value="لابتوب">لابتوب</option>
-                  <option value="شاشة">شاشة</option>
-                  <option value="أخرى">أخرى / ملحقات</option>
-                </select>
+                  options={[
+                    { value: 'لابتوب', label: 'لابتوب' },
+                    { value: 'شاشة', label: 'شاشة' },
+                    { value: 'أخرى', label: 'أخرى / ملحقات' },
+                  ]}
+                />
               </div>
             </div>
 
             {/* Hardware Specs Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">المعالج (CPU):</label>
+                <label className="font-medium text-slate-700 block mb-1">المعالج (CPU)</label>
                 <Input
                   placeholder="مثال: Intel Core i5-8350U, i7-1185G7..."
                   value={processor}
                   onChange={e => setProcessor(e.target.value)}
-                  className="py-1.5 text-xs font-mono"
+                  className="font-mono text-xs"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">الذاكرة العشوائية (RAM):</label>
+                <label className="font-medium text-slate-700 block mb-1">الذاكرة العشوائية (RAM)</label>
                 <Input
                   placeholder="مثال: 16 GB DDR4, 32 GB..."
                   value={ram}
                   onChange={e => setRam(e.target.value)}
-                  className="py-1.5 text-xs font-mono"
+                  className="font-mono text-xs"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">سعة التخزين (Storage):</label>
+                <label className="font-medium text-slate-700 block mb-1">سعة التخزين (Storage)</label>
                 <Input
                   placeholder="مثال: 512 GB NVMe SSD, 1 TB..."
                   value={storage}
                   onChange={e => setStorage(e.target.value)}
-                  className="py-1.5 text-xs font-mono"
+                  className="font-mono text-xs"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">حجم ومواصفات الشاشة:</label>
+                <label className="font-medium text-slate-700 block mb-1">حجم ومواصفات الشاشة</label>
                 <Input
                   placeholder='مثال: 14" FHD IPS, 24" 144Hz...'
                   value={screenSize}
                   onChange={e => setScreenSize(e.target.value)}
-                  className="py-1.5 text-xs"
                 />
               </div>
             </div>
 
             {/* Price and Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-200/80">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">
-                  السعر الاسترشادي المشترك (Default List Price):
+                <label className="font-medium text-slate-700 block mb-1">
+                  السعر الاسترشادي المشترك
                 </label>
                 <Input
                   type="number"
@@ -735,21 +705,20 @@ export const CatalogView: React.FC = () => {
                   step="50"
                   value={defaultListPrice}
                   onChange={e => setDefaultListPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="py-1.5 text-xs font-mono font-bold text-teal-800"
+                  className="font-mono font-medium"
                   required
                 />
                 <p className="text-[10px] text-slate-400 mt-1">سعر العرض المعتمد بين المحلين</p>
               </div>
 
               <div className="md:col-span-2">
-                <label className="font-bold text-slate-700 block mb-1">
-                  مواصفات وتجهيزات إضافية:
+                <label className="font-medium text-slate-700 block mb-1">
+                  مواصفات وتجهيزات إضافية
                 </label>
                 <Input
-                  placeholder="مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي، بطارية مزدوجة..."
+                  placeholder="مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي..."
                   value={specifications}
                   onChange={e => setSpecifications(e.target.value)}
-                  className="py-1.5 text-xs"
                 />
               </div>
             </div>
@@ -771,10 +740,9 @@ export const CatalogView: React.FC = () => {
                 إلغاء
               </Button>
               <Button
-                variant="primary"
+                variant="danger"
                 size="sm"
                 onClick={handleConfirmDelete}
-                className="bg-rose-600 hover:bg-rose-700 font-bold"
               >
                 تأكيد الحذف
               </Button>

@@ -8,7 +8,7 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Eye, Printer, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, ShieldCheck } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
@@ -152,27 +152,27 @@ export const MSSSalesView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="نقطة بيع أجهزة MSS (Device Sales POS)"
+        title="نقطة بيع أجهزة MSS"
         subtitle="توثيق بيع الأجهزة بالسيريال الفردي مع تثبيت فرع البيع ومصدر المخزون وحساب الربح الفعلي الدقيق"
       />
 
       {/* Attribution & Stock Source Alert (Rule 9 & 16) */}
       <Alert
         type="info"
-        title="قاعدة إسناد البيع ومصدر المخزون (Attribution & Stock Source — Rule 9 & 16)"
+        title="قاعدة إسناد البيع ومصدر المخزون (Rule 9 & Rule 16)"
         message="يمكن لمحل 1 بيع جهاز متواجد فعلياً في مخزن محل 2 مباشرة دون الحاجة لنقل مادي مسبق. يسجل البيع لصالح فرع البيع، ويخصم الجهاز تلقائياً من مخزون المحل المتواجد به."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column: Device selection & Branches */}
         <div className="lg:col-span-2 space-y-4">
           {/* Card 1: Select Device */}
-          <Card className="p-5 space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Laptop className="w-4 h-4 text-teal-600" />
-              1. اختيار الجهاز بالسيريال نمبر الفريد
+          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs space-y-3.5">
+            <h3 className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+              <Laptop className="w-4 h-4 text-slate-500" />
+              <span>1. اختيار الجهاز بالسيريال نمبر الفريد</span>
             </h3>
 
             <div className="flex gap-2">
@@ -189,7 +189,7 @@ export const MSSSalesView: React.FC = () => {
 
             {/* Quick dropdown for available devices */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 أو اختر من قائمة الأجهزة المتاحة حالياً ({availableDevices.length} جهاز):
               </label>
               <Select
@@ -199,55 +199,52 @@ export const MSSSalesView: React.FC = () => {
                   if (dev) handleSelectDevice(dev);
                 }}
                 disabled={isLoadingDevices || availableDevices.length === 0}
-              >
-                {availableDevices.length === 0 ? (
-                  <option value="">لا توجد أجهزة متوفرة للبيع حالياً</option>
-                ) : (
-                  availableDevices.map(d => (
-                    <option key={d.id} value={d.id}>
-                      [{d.serial_number}] - {d.brand} {d.model_name} (موقع التخزين: {d.stock_location}) -{' '}
-                      {formatCurrency(d.list_price)}
-                    </option>
-                  ))
-                )}
-              </Select>
+                options={
+                  availableDevices.length === 0
+                    ? [{ value: '', label: 'لا توجد أجهزة متوفرة للبيع حالياً' }]
+                    : availableDevices.map(d => ({
+                        value: d.id,
+                        label: `[${d.serial_number}] - ${d.brand} ${d.model_name} (موقع التخزين: ${d.stock_location}) - ${formatCurrency(d.list_price)}`,
+                      }))
+                }
+              />
             </div>
 
             {/* Selected Device Preview Card */}
             {selectedDevice && (
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2.5">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 text-xs space-y-2">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">
+                    <h4 className="font-semibold text-slate-900 text-xs">
                       {selectedDevice.brand} {selectedDevice.model_name}
                     </h4>
-                    <p className="text-slate-500 font-mono">
+                    <p className="text-slate-400 font-mono text-[11px]">
                       {[selectedDevice.model?.processor, selectedDevice.model?.ram, selectedDevice.model?.storage]
                         .filter(Boolean)
                         .join(' • ')}
                     </p>
                   </div>
-                  <span className="font-mono font-bold text-xs bg-slate-900 text-teal-300 px-2.5 py-1 rounded">
+                  <span className="font-mono font-semibold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
                     {selectedDevice.serial_number}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-slate-600">
                   <div>
-                    <span className="text-slate-400 block">سعر العرض:</span>
-                    <strong className="text-slate-800 text-sm">{formatCurrency(selectedDevice.list_price)}</strong>
+                    <span className="text-slate-400 block text-[10px]">سعر العرض:</span>
+                    <strong className="text-slate-800 text-xs font-mono tabular-nums">{formatCurrency(selectedDevice.list_price)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">التكلفة المسجلة:</span>
-                    <strong className="font-mono text-slate-700">{formatCurrency(selectedDevice.purchase_cost)}</strong>
+                    <span className="text-slate-400 block text-[10px]">التكلفة المسجلة:</span>
+                    <strong className="font-mono text-slate-700 text-xs tabular-nums">{formatCurrency(selectedDevice.purchase_cost)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">الحالة الظاهرية:</span>
-                    <strong className="text-slate-700">{selectedDevice.physical_condition}</strong>
+                    <span className="text-slate-400 block text-[10px]">الحالة الظاهرية:</span>
+                    <strong className="text-slate-700 text-xs">{selectedDevice.physical_condition}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">موقع التخزين الحالي:</span>
-                    <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'purple'}>
+                    <span className="text-slate-400 block text-[10px]">موقع التخزين:</span>
+                    <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}>
                       {selectedDevice.stock_location}
                     </Badge>
                   </div>
@@ -257,45 +254,46 @@ export const MSSSalesView: React.FC = () => {
           </Card>
 
           {/* Card 2: Branch Attribution */}
-          <Card className="p-5 space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Store className="w-4 h-4 text-teal-600" />
-              2. تحديد فروع العملية (البيع والمخزون)
+          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs space-y-3.5">
+            <h3 className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+              <Store className="w-4 h-4 text-slate-500" />
+              <span>2. تحديد فروع العملية (البيع والمخزون)</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  فرع البيع (المحل القائم بالبيع للعميل) *
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  فرع البيع (المحل القائم بالبيع للعميل) <span className="text-rose-500">*</span>
                 </label>
                 <Select
                   value={sellingBranch}
                   onChange={e => setSellingBranch(e.target.value as MSSStockLocation)}
-                >
-                  <option value="محل 1">محل 1 (الفرع الأول)</option>
-                  <option value="محل 2">محل 2 (الفرع الثاني)</option>
-                </Select>
-                <p className="text-[11px] text-slate-400 mt-1">تُنسب الفاتورة والأداء التشغيلي لهذا الفرع</p>
+                  options={[
+                    { value: 'محل 1', label: 'محل 1 (الفرع الأول)' },
+                    { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
+                  ]}
+                />
+                <p className="text-[10px] text-slate-400 mt-1">تُنسب الفاتورة والأداء التشغيلي لهذا الفرع</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
                   فرع مصدر المخزون (الموقع الفعلي للتخزين)
                 </label>
-                <div className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-700 font-semibold flex items-center justify-between">
+                <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs text-slate-700 font-medium flex items-center justify-between">
                   <span>{sourceBranch}</span>
-                  <Badge variant={sourceBranch === 'محل 1' ? 'primary' : 'purple'}>
+                  <Badge variant={sourceBranch === 'محل 1' ? 'primary' : 'default'}>
                     موقع الجهاز الفعلي
                   </Badge>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">يُخصم الجهاز مباشرة من مخزون هذا المحل</p>
+                <p className="text-[10px] text-slate-400 mt-1">يُخصم الجهاز مباشرة من مخزون هذا المحل</p>
               </div>
             </div>
 
             {/* Cross-Branch Alert */}
             {isCrossBranch && (
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center gap-2.5">
-                <ArrowRightLeft className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 text-xs text-slate-700 flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4 text-slate-500 shrink-0" />
                 <span>
                   <strong>تنبيه عملية بيع مشتركة بين الفروع:</strong> الجهاز مسحوب ومخصوم من مخزون{' '}
                   <strong>({sourceBranch})</strong> وبيعه منسوب تشغيلياً إلى <strong>({sellingBranch})</strong>.
@@ -305,10 +303,10 @@ export const MSSSalesView: React.FC = () => {
           </Card>
 
           {/* Card 3: Customer & Warranty Details */}
-          <Card className="p-5 space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-teal-600" />
-              3. بيانات العميل والضمان
+          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs space-y-3.5">
+            <h3 className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-slate-500" />
+              <span>3. بيانات العميل والضمان</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -346,20 +344,20 @@ export const MSSSalesView: React.FC = () => {
 
         {/* Right Column: Pricing & Confirmation Summary */}
         <div className="space-y-4">
-          <Card className="border-teal-200 shadow-lg sticky top-4">
-            <CardHeader className="bg-teal-50/70 border-b border-teal-100">
-              <CardTitle className="text-sm text-teal-950">ملخص التسعير والأرباح</CardTitle>
+          <Card className="bg-white border-slate-200/80 shadow-2xs sticky top-4">
+            <CardHeader className="bg-slate-50/75 border-b border-slate-200/80 py-3 px-4">
+              <CardTitle className="text-xs font-semibold text-slate-900">ملخص التسعير والأرباح</CardTitle>
             </CardHeader>
 
-            <CardContent className="p-5 space-y-4">
+            <CardContent className="p-4 space-y-3.5">
               {formError && (
                 <Alert type="danger" title="خطأ" message={formError} />
               )}
 
               {/* Actual Selling Price Input */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  سعر البيع الفعلي المتفق عليه (ج.م) *
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  سعر البيع الفعلي المتفق عليه (ج.م) <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   type="number"
@@ -371,17 +369,17 @@ export const MSSSalesView: React.FC = () => {
                     setActualPrice(p);
                     setDiscountAmount(Math.max(0, listPriceSnapshot - p));
                   }}
-                  className="font-bold text-lg text-teal-900"
+                  className="font-semibold text-base text-slate-900"
                   required
                 />
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[10px] text-slate-400 mt-1">
                   يمكن التفاوض وتعديل السعر الفعلي لكل عملية
                 </p>
               </div>
 
               {/* Discount Input */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
                   قيمة الخصم إن وجد (ج.م)
                 </label>
                 <Input
@@ -397,50 +395,50 @@ export const MSSSalesView: React.FC = () => {
               </div>
 
               {/* Financial Snapshot Summary (Rule 8) */}
-              <div className="p-4 bg-slate-50 rounded-xl space-y-2.5 text-xs border border-slate-200">
+              <div className="p-3.5 bg-slate-50 rounded-lg space-y-2 text-xs border border-slate-200/80">
                 <div className="flex justify-between">
                   <span className="text-slate-500">سعر العرض الأصلي:</span>
-                  <span className="font-bold text-slate-700">{formatCurrency(listPriceSnapshot)}</span>
+                  <span className="font-medium text-slate-700 font-mono tabular-nums">{formatCurrency(listPriceSnapshot)}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-slate-500">الخصم المطبق:</span>
-                  <span className="font-semibold text-rose-600">
+                  <span className="font-medium text-rose-600 font-mono tabular-nums">
                     {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '0.00 ج.م'}
                   </span>
                 </div>
 
-                <div className="flex justify-between font-bold pt-2 border-t border-slate-200">
+                <div className="flex justify-between font-semibold pt-2 border-t border-slate-200/80">
                   <span className="text-slate-800">سعر البيع الفعلي:</span>
-                  <span className="text-teal-900 text-sm">{formatCurrency(actualPrice)}</span>
+                  <span className="text-slate-900 font-mono tabular-nums">{formatCurrency(actualPrice)}</span>
                 </div>
 
                 <div className="flex justify-between text-slate-500">
                   <span>تكلفة الجهاز المحفوظة:</span>
-                  <span className="font-mono">{formatCurrency(costSnapshot)}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(costSnapshot)}</span>
                 </div>
 
-                <div className="flex justify-between font-bold text-sm pt-2 border-t border-slate-200">
+                <div className="flex justify-between font-semibold text-xs pt-2 border-t border-slate-200/80">
                   <span className="text-slate-800">مجمل الربح الفعلي:</span>
-                  <span className={grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                  <span className={`font-mono tabular-nums ${grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {grossProfit >= 0 ? `+${formatCurrency(grossProfit)}` : formatCurrency(grossProfit)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                * ملاحظة: يتم حفظ لقطات الأسعار والتكلفة بشكل دائم، ولا تتأثر الفاتورة مستقبلاً بأي تعديل في أسعار الكتالوج.
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                ملاحظة: يتم حفظ لقطات الأسعار والتكلفة بشكل دائم، ولا تتأثر الفاتورة مستقبلاً بأي تعديل في أسعار الكتالوج.
               </p>
             </CardContent>
 
-            <CardFooter className="bg-slate-50 p-4 border-t border-slate-100">
+            <CardFooter className="bg-slate-50/75 p-3.5 border-t border-slate-200/80">
               <Button
                 variant="primary"
-                size="lg"
+                size="md"
                 onClick={handleConfirmSale}
                 disabled={isSubmitting || !selectedDevice}
-                className="w-full bg-teal-700 hover:bg-teal-800 font-bold text-sm shadow-md"
-                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-5 h-5" />}
+                className="w-full"
+                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
               >
                 {isSubmitting ? 'جاري تأكيد البيع...' : `تأكيد بيع الجهاز (${formatCurrency(actualPrice)})`}
               </Button>
@@ -459,14 +457,13 @@ export const MSSSalesView: React.FC = () => {
         subtitle="فاتورة بيع جهاز MSS رسمية مع السيريال والضمان ولقطات الأسعار"
         size="lg"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button variant="outline" size="sm" onClick={handleStartNewSale}>
               تسجيل عملية بيع أخرى
             </Button>
             <Button
               variant="primary"
               size="sm"
-              className="bg-teal-700 hover:bg-teal-800"
               onClick={() => window.print()}
               leftIcon={<Printer className="w-4 h-4" />}
             >
@@ -476,22 +473,22 @@ export const MSSSalesView: React.FC = () => {
         }
       >
         {completedInvoice && (
-          <div className="p-6 bg-white border border-slate-200 rounded-2xl space-y-4 text-xs font-sans print:p-0 print:border-none">
+          <div className="p-5 bg-white border border-slate-200/80 rounded-xl space-y-3.5 text-xs font-sans print:p-0 print:border-none">
             {/* Header */}
-            <div className="text-center pb-4 border-b border-slate-200">
-              <h3 className="text-lg font-black text-teal-900 tracking-wide">MSS للحلول التقنية واللابتوب</h3>
-              <p className="text-slate-500 mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
+            <div className="text-center pb-3 border-b border-slate-200/80">
+              <h3 className="text-base font-semibold text-slate-900">MSS للحلول التقنية واللابتوب</h3>
+              <p className="text-slate-400 text-[11px] mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
             </div>
 
             {/* Metadata Grid */}
-            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-2 gap-2.5 p-3 bg-slate-50 rounded-lg border border-slate-200/80">
               <div>
                 <span className="text-slate-500">رقم الفاتورة: </span>
-                <strong className="font-mono text-teal-800 font-bold">{completedInvoice.invoice_number}</strong>
+                <strong className="font-mono text-slate-900 tabular-nums">{completedInvoice.invoice_number}</strong>
               </div>
               <div>
                 <span className="text-slate-500">تاريخ البيع: </span>
-                <span className="font-mono">{formatDate(completedInvoice.sale_date)}</span>
+                <span className="font-mono tabular-nums">{formatDate(completedInvoice.sale_date)}</span>
               </div>
               <div>
                 <span className="text-slate-500">فرع البيع: </span>
@@ -510,22 +507,22 @@ export const MSSSalesView: React.FC = () => {
               {completedInvoice.customer_phone && (
                 <div>
                   <span className="text-slate-500">رقم الهاتف: </span>
-                  <span className="font-mono">{completedInvoice.customer_phone}</span>
+                  <span className="font-mono tabular-nums">{completedInvoice.customer_phone}</span>
                 </div>
               )}
             </div>
 
             {/* Device Info */}
-            <div className="p-3 border border-slate-200 rounded-xl space-y-1">
+            <div className="p-3 border border-slate-200/80 rounded-lg space-y-1">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 text-sm">
+                <span className="font-semibold text-slate-900 text-xs">
                   {completedInvoice.brand} {completedInvoice.model_name}
                 </span>
-                <span className="font-mono font-bold text-xs bg-slate-900 text-teal-300 px-2.5 py-1 rounded">
+                <span className="font-mono font-semibold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
                   {completedInvoice.serial_number}
                 </span>
               </div>
-              <p className="text-slate-500 font-mono text-[11px]">
+              <p className="text-slate-400 font-mono text-[10px]">
                 {[completedInvoice.processor, completedInvoice.ram, completedInvoice.storage, completedInvoice.screen_size]
                   .filter(Boolean)
                   .join(' • ')}
@@ -533,35 +530,35 @@ export const MSSSalesView: React.FC = () => {
             </div>
 
             {/* Financials Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <div className="flex justify-between p-2.5 bg-slate-100 font-bold text-slate-700">
+            <div className="border border-slate-200/80 rounded-lg overflow-hidden">
+              <div className="flex justify-between p-2.5 bg-slate-50/75 font-semibold text-slate-700 border-b border-slate-200/80 text-[11px]">
                 <span>البيان</span>
                 <span>المبلغ</span>
               </div>
               <div className="p-3 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">سعر العرض الأصلي:</span>
-                  <span>{formatCurrency(completedInvoice.list_price_snapshot)}</span>
+                  <span className="text-slate-500">سعر العرض الأصلي:</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(completedInvoice.list_price_snapshot)}</span>
                 </div>
                 {completedInvoice.discount_amount > 0 && (
                   <div className="flex justify-between text-rose-600">
                     <span>الخصم الممنوح:</span>
-                    <span>-{formatCurrency(completedInvoice.discount_amount)}</span>
+                    <span className="font-mono tabular-nums">-{formatCurrency(completedInvoice.discount_amount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-sm pt-2 border-t border-slate-200 text-teal-900">
+                <div className="flex justify-between font-semibold text-xs pt-2 border-t border-slate-200/80 text-slate-900">
                   <span>إجمالي المدفوع:</span>
-                  <span>{formatCurrency(completedInvoice.actual_sale_price)}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(completedInvoice.actual_sale_price)}</span>
                 </div>
               </div>
             </div>
 
             {/* Warranty & Terms */}
-            <div className="p-3 bg-teal-50/60 border border-teal-100 rounded-xl space-y-1">
-              <span className="font-bold text-teal-900 block">شروط الضمان:</span>
-              <p className="text-slate-700 text-[11px]">{completedInvoice.warranty_period}</p>
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1">
+              <span className="font-semibold text-slate-900 block">شروط الضمان:</span>
+              <p className="text-slate-600 text-[11px]">{completedInvoice.warranty_period}</p>
               {completedInvoice.notes && (
-                <p className="text-slate-500 text-[11px] pt-1">ملاحظات: {completedInvoice.notes}</p>
+                <p className="text-slate-400 text-[10px] pt-1 border-t border-slate-200/60">ملاحظات: {completedInvoice.notes}</p>
               )}
             </div>
           </div>

@@ -13,12 +13,10 @@ import {
   Clock,
   Cloud,
   CheckCircle2,
-  XCircle,
   Copy,
   Check,
   ShieldAlert,
   ArrowRightLeft,
-  Server,
   Layers,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -142,10 +140,10 @@ export const SyncStatusView: React.FC = () => {
   const outboxColumns: Column<OutboxOperation>[] = [
     {
       key: 'uuid',
-      header: 'معرف العملية المستقر (UUID)',
+      header: 'معرف العملية (UUID)',
       render: (item: OutboxOperation) => (
         <div className="flex items-center gap-1 font-mono text-xs">
-          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 select-all font-bold">
+          <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 select-all font-semibold tabular-nums">
             {item.uuid.substring(0, 13)}...
           </span>
           <button
@@ -178,7 +176,7 @@ export const SyncStatusView: React.FC = () => {
           case 'DEVICE_ADD':
             return <Badge variant="primary">تسجيل جهاز</Badge>;
           case 'DEVICE_TRANSFER':
-            return <Badge variant="purple">نقل جهاز</Badge>;
+            return <Badge variant="default">نقل جهاز</Badge>;
           default:
             return <Badge variant="default">{item.type}</Badge>;
         }
@@ -186,18 +184,18 @@ export const SyncStatusView: React.FC = () => {
     },
     {
       key: 'branch',
-      header: 'الفرع المنفذ',
+      header: 'الفرع',
       render: (item: OutboxOperation) => (
-        <Badge variant={item.branch === 'محل 1' ? 'primary' : 'purple'}>
+        <Badge variant={item.branch === 'محل 1' ? 'primary' : 'default'}>
           {item.branch}
         </Badge>
       ),
     },
     {
       key: 'client_timestamp',
-      header: 'التوقيت المحلي للإنشاء',
+      header: 'التوقيت المحلي',
       render: (item: OutboxOperation) => (
-        <span className="font-mono text-xs text-slate-500">
+        <span className="font-mono text-xs text-slate-500 tabular-nums">
           {formatDate(item.client_timestamp)}
         </span>
       ),
@@ -217,15 +215,15 @@ export const SyncStatusView: React.FC = () => {
       render: (item: OutboxOperation) => {
         switch (item.status) {
           case 'SYNCED':
-            return <Badge variant="success">مكتمل المزامنة (Synced)</Badge>;
+            return <Badge variant="success">متزامن</Badge>;
           case 'PENDING':
-            return <Badge variant="info">معلق بالطابور (Pending)</Badge>;
+            return <Badge variant="info">معلق</Badge>;
           case 'SYNCING':
-            return <Badge variant="warning">جاري المزامنة (Syncing)</Badge>;
+            return <Badge variant="warning">جاري المزامنة</Badge>;
           case 'CONFLICT':
-            return <Badge variant="danger">تعارض يحتاج مراجعة (Conflict)</Badge>;
+            return <Badge variant="danger">تعارض</Badge>;
           case 'FAILED':
-            return <Badge variant="default">فشل المزامنة (Failed)</Badge>;
+            return <Badge variant="default">فشل</Badge>;
           default:
             return <Badge variant="default">{item.status}</Badge>;
         }
@@ -235,7 +233,7 @@ export const SyncStatusView: React.FC = () => {
       key: 'retries',
       header: 'المحاولات',
       render: (item: OutboxOperation) => (
-        <span className="font-mono text-xs text-slate-500 font-bold">
+        <span className="font-mono text-xs text-slate-500 font-semibold tabular-nums">
           {item.retries}
         </span>
       ),
@@ -243,15 +241,14 @@ export const SyncStatusView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="المزامنة السحابية وطابور العمليات (Cloud Sync & Outbox)"
+        title="المزامنة السحابية وطابور العمليات"
         subtitle="متابعة طابور العمليات المعلقة وضمان استمرارية العمل بدون إنترنت مع الكشف التلقائي للتعارضات"
         actions={
           <Button
             variant="primary"
             size="sm"
-            className="bg-teal-700 hover:bg-teal-800"
             onClick={handleManualSync}
             disabled={isSyncing}
             leftIcon={isSyncing ? <Spinner size="sm" /> : <RefreshCw className="w-4 h-4" />}
@@ -264,85 +261,69 @@ export const SyncStatusView: React.FC = () => {
       {/* Limitation Notice Banner (Rule 10 & 25) */}
       <Alert
         type="info"
-        title="توضيح هندسي هام لقاعدة العمل في وضع عدم الاتصال (Rule 10 & 25)"
+        title="توضيح هندسي هام لقاعدة العمل في وضع عدم الاتصال (Rule 10 & Rule 25)"
         message="لا يمكن لأي نظامين منفصلين تماماً عن الإنترنت منع بيع نفس الجهاز مرتين إذا تم البيع في نفس اللحظة بكلا المحلين بدون اتصال. يوفر النظام كشفاً تلقائياً لهذه التعارضات فور عودة الاتصال مع الحفاظ التام على سجل كلا العمليتين وتوفير نافذة مراجعة وتصفية يدوية آمنة دون أي فقدان للبيانات."
       />
 
       {/* 4 Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border border-slate-200">
-          <p className="text-xs text-slate-500 font-semibold mb-1">حالة الاتصال بالسحابة</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">حالة الاتصال بالسحابة</p>
           <div className="flex items-baseline justify-between">
             <span
-              className={`text-xl font-black ${
+              className={`text-lg font-semibold ${
                 summary?.is_online ? 'text-emerald-700' : 'text-amber-700'
               }`}
             >
               {summary?.is_online ? 'متصل ونشط' : 'وضع عدم الاتصال'}
             </span>
             <Cloud
-              className={`w-5 h-5 ${
+              className={`w-4 h-4 ${
                 summary?.is_online ? 'text-emerald-600' : 'text-amber-600'
               }`}
             />
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-[11px] text-slate-400">
             {summary?.is_online ? 'سيرفر Supabase متاح' : 'يتم الحفظ في الطابور المحلي'}
           </span>
         </Card>
 
-        <Card className="p-4 bg-blue-50/60 border border-blue-200">
-          <p className="text-xs text-blue-800 font-semibold mb-1">العمليات المعلقة بالطابور</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">العمليات المعلقة بالطابور</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-blue-900">{summary?.pending_count || 0}</span>
-            <Clock className="w-5 h-5 text-blue-600" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.pending_count || 0}</span>
+            <Clock className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-xs text-blue-600">في انتظار الرفع الآلي</span>
+          <span className="text-[11px] text-slate-400">في انتظار الرفع الآلي</span>
         </Card>
 
-        <Card className="p-4 bg-emerald-50/60 border border-emerald-200">
-          <p className="text-xs text-emerald-800 font-semibold mb-1">العمليات المكتملة المتزامنة</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">العمليات المكتملة المتزامنة</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-emerald-900">{summary?.synced_count || 0}</span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.synced_count || 0}</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <span className="text-xs text-emerald-600">تم تأكيدها في سحابة Supabase</span>
+          <span className="text-[11px] text-slate-400">تم تأكيدها في سحابة Supabase</span>
         </Card>
 
-        <Card
-          className={`p-4 border ${
-            (summary?.conflict_count || 0) > 0
-              ? 'bg-rose-50/70 border-rose-300'
-              : 'bg-slate-50 border-slate-200'
-          }`}
-        >
-          <p
-            className={`text-xs font-semibold mb-1 ${
-              (summary?.conflict_count || 0) > 0 ? 'text-rose-800' : 'text-slate-500'
-            }`}
-          >
-            التعارضات المسجلة
-          </p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">التعارضات المسجلة</p>
           <div className="flex items-baseline justify-between">
             <span
-              className={`text-2xl font-black ${
-                (summary?.conflict_count || 0) > 0 ? 'text-rose-900' : 'text-slate-800'
+              className={`text-lg font-semibold font-mono tabular-nums ${
+                (summary?.conflict_count || 0) > 0 ? 'text-rose-600' : 'text-slate-900'
               }`}
             >
               {summary?.conflict_count || 0}
             </span>
             <AlertTriangle
-              className={`w-5 h-5 ${
+              className={`w-4 h-4 ${
                 (summary?.conflict_count || 0) > 0 ? 'text-rose-600' : 'text-slate-400'
               }`}
             />
           </div>
-          <span
-            className={`text-xs ${
-              (summary?.conflict_count || 0) > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'
-            }`}
-          >
-            {(summary?.conflict_count || 0) > 0 ? 'تتطلب مراجعة وتسوية فورية' : 'لا توجد تعارضات معلقة'}
+          <span className="text-[11px] text-slate-400">
+            {(summary?.conflict_count || 0) > 0 ? 'تتطلب مراجعة وتسوية' : 'لا توجد تعارضات معلقة'}
           </span>
         </Card>
       </div>
@@ -351,15 +332,15 @@ export const SyncStatusView: React.FC = () => {
       {/* SECTION: Pending Conflicts (If Any) */}
       {/* ========================================================================= */}
       {conflicts.filter(c => c.resolution_status === 'PENDING').length > 0 && (
-        <Card className="p-5 border-rose-300 bg-rose-50/30 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-rose-200">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-rose-600" />
-              <h3 className="text-sm font-bold text-rose-950">
-                تعارضات غير متصلة تم رصدها بحاجة لمراجعة وتسوية (Rule 10 & 25)
+        <Card className="p-4 bg-white border-amber-200/80 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 text-amber-600" />
+              <h3 className="text-xs font-semibold text-slate-900">
+                تعارضات غير متصلة تم رصدها بحاجة لمراجعة وتسوية (Rule 10 & Rule 25)
               </h3>
             </div>
-            <span className="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-xs font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/80">
               {conflicts.filter(c => c.resolution_status === 'PENDING').length} تعارض
             </span>
           </div>
@@ -370,17 +351,17 @@ export const SyncStatusView: React.FC = () => {
               .map(cnf => (
                 <div
                   key={cnf.id}
-                  className="p-4 bg-white border border-rose-200 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs"
+                  className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <Badge variant="danger">{cnf.conflict_type}</Badge>
-                      <span className="font-mono font-bold bg-slate-900 text-teal-300 px-2 py-0.5 rounded">
+                      <span className="font-mono text-xs font-semibold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
                         {cnf.serial_number}
                       </span>
                       <span className="text-slate-500">تم في: {cnf.branch}</span>
                     </div>
-                    <p className="font-semibold text-slate-800">{cnf.conflict_description}</p>
+                    <p className="font-medium text-slate-800">{cnf.conflict_description}</p>
                   </div>
 
                   <Button
@@ -390,7 +371,7 @@ export const SyncStatusView: React.FC = () => {
                       setSelectedConflict(cnf);
                       setResolutionNotes('تمت التسوية والمراجعة المباشرة مع العميل');
                     }}
-                    className="bg-rose-700 hover:bg-rose-800 font-bold shrink-0"
+                    className="shrink-0"
                     leftIcon={<ArrowRightLeft className="w-3.5 h-3.5" />}
                   >
                     مراجعة وتسوية التعارض
@@ -404,22 +385,22 @@ export const SyncStatusView: React.FC = () => {
       {/* ========================================================================= */}
       {/* SECTION: Outbox Queue Table */}
       {/* ========================================================================= */}
-      <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-teal-700" />
-            <h3 className="text-sm font-bold text-slate-800">
+      <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
+        <div className="p-3.5 bg-slate-50/75 border-b border-slate-200/80 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-4 h-4 text-slate-500" />
+            <h3 className="text-xs font-semibold text-slate-900">
               طابور العمليات الصادرة والمزامنة (Outbox Audit Log)
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-slate-400 font-mono tabular-nums">
             {outbox.length} عملية مسجلة محلياً
           </span>
         </div>
 
         {isLoading ? (
           <div className="p-8 text-center text-xs text-slate-500">
-            <Spinner size="sm" className="mx-auto mb-2 text-teal-600" />
+            <Spinner size="sm" className="mx-auto mb-2" />
             جاري تحميل سجلات الطابور...
           </div>
         ) : (
@@ -441,7 +422,7 @@ export const SyncStatusView: React.FC = () => {
         subtitle={`تسوية تعارض السيريال (${selectedConflict?.serial_number}) المسجل بفرع (${selectedConflict?.branch})`}
         size="lg"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -455,7 +436,6 @@ export const SyncStatusView: React.FC = () => {
               size="sm"
               onClick={() => handleResolveConflict('RESOLVED_MANUALLY')}
               disabled={isResolving}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={isResolving ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
             >
               {isResolving ? 'جاري التسوية...' : 'اعتماد التسوية اليدوية'}
@@ -474,21 +454,21 @@ export const SyncStatusView: React.FC = () => {
             {/* Side-by-side comparison */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Local state */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <span className="font-bold text-slate-800 text-xs block border-b border-slate-200 pb-1">
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-lg space-y-2">
+                <span className="font-semibold text-slate-800 text-xs block border-b border-slate-200/80 pb-1">
                   1. العملية المحلية بفرع ({selectedConflict.branch}):
                 </span>
-                <pre className="font-mono text-[11px] bg-white p-2.5 rounded border border-slate-200 overflow-x-auto text-slate-800">
+                <pre className="font-mono text-[11px] bg-white p-2.5 rounded border border-slate-200/80 overflow-x-auto text-slate-800">
                   {JSON.stringify(selectedConflict.local_payload, null, 2)}
                 </pre>
               </div>
 
               {/* Remote conflicting state */}
-              <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2">
-                <span className="font-bold text-amber-900 text-xs block border-b border-amber-200 pb-1">
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-lg space-y-2">
+                <span className="font-semibold text-slate-800 text-xs block border-b border-slate-200/80 pb-1">
                   2. السجل السحابي المتعارض:
                 </span>
-                <pre className="font-mono text-[11px] bg-white p-2.5 rounded border border-amber-200 overflow-x-auto text-amber-950">
+                <pre className="font-mono text-[11px] bg-white p-2.5 rounded border border-slate-200/80 overflow-x-auto text-slate-800">
                   {JSON.stringify(selectedConflict.remote_state || 'لا توجد بيانات سحابية إضافية', null, 2)}
                 </pre>
               </div>
@@ -496,11 +476,11 @@ export const SyncStatusView: React.FC = () => {
 
             {/* Resolution Notes Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                بيان التسوية والإجراء المتخذ (Audit Notes) *
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                بيان التسوية والإجراء المتخذ (Audit Notes) <span className="text-rose-500">*</span>
               </label>
               <textarea
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
                 rows={3}
                 placeholder="اكتب تفاصيل الاتفاق (مثال: تم تسليم عميل محل 1 جهازاً بديلاً بنفس المواصفات أو استرداد المبلغ)..."
                 value={resolutionNotes}

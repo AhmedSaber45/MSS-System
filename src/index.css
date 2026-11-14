@@ -4,18 +4,22 @@
 
 @layer base {
   * {
-    border-color: theme('colors.slate.200');
+    border-color: #e2e8f0;
   }
 
   body {
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom scrollbar for desktop feel */
+/* Custom scrollbar for high-precision desktop feel */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,20 +28,33 @@
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Preserve LTR for barcode, serial numbers, numbers and code */
-.ltr-content,
+/* Monospace & Tabular figures for financial and inventory accuracy */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hardware Identifiers: Barcodes and Unique Serial Numbers */
 .serial-number,
-.barcode-value {
+.barcode-value,
+.ltr-content {
   direction: ltr;
   display: inline-block;
   font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Focus outline for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 1px;
 }
 
 /* Print styling foundation for invoices and receipts */

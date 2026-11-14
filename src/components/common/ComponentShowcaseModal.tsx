@@ -8,7 +8,7 @@ import { Badge } from './Badge';
 import { Alert } from './Alert';
 import { Spinner } from './Spinner';
 import { useNotification } from '../../context/NotificationContext';
-import { Sparkles, Search } from 'lucide-react';
+import { Layers, Search } from 'lucide-react';
 
 export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
   isOpen,
@@ -47,8 +47,8 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
       <div className="space-y-8 text-xs text-slate-700">
         {/* Section 1: Buttons */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-blue-600" />
+          <h4 className="text-sm font-semibold text-slate-900 border-b pb-1.5 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-slate-700" />
             1. الأزرار (Buttons)
           </h4>
           <div className="flex flex-wrap items-center gap-3">

@@ -386,10 +386,10 @@ export const MSSInventoryView: React.FC = () => {
   const columns: Column<MSSDevice>[] = [
     {
       key: 'serial_number',
-      header: 'السيريال نمبر الفريد',
+      header: 'السيريال نمبر',
       render: (item: MSSDevice) => (
         <div className="flex items-center gap-1.5">
-          <span className="font-mono font-bold text-xs bg-slate-900 text-teal-300 px-2.5 py-1 rounded-md tracking-wider border border-slate-700 select-all shadow-sm">
+          <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-wide select-all tabular-nums">
             {item.serial_number}
           </span>
           <button
@@ -411,20 +411,20 @@ export const MSSInventoryView: React.FC = () => {
       header: 'الموديل والمواصفات',
       render: (item: MSSDevice) => (
         <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
+          <div className="flex items-center gap-1.5 font-medium text-slate-900 text-xs">
             {item.category === 'لابتوب' ? (
-              <Laptop className="w-4 h-4 text-teal-600" />
+              <Laptop className="w-3.5 h-3.5 text-slate-400" />
             ) : item.category === 'شاشة' ? (
-              <Monitor className="w-4 h-4 text-blue-600" />
+              <Monitor className="w-3.5 h-3.5 text-slate-400" />
             ) : (
-              <Box className="w-4 h-4 text-purple-600" />
+              <Box className="w-3.5 h-3.5 text-slate-400" />
             )}
             <span>
               {item.brand} {item.model_name}
             </span>
           </div>
           {item.model && (
-            <p className="text-xs text-slate-500 font-mono">
+            <p className="text-[11px] text-slate-400 font-mono">
               {[item.model.processor, item.model.ram, item.model.storage, item.model.screen_size]
                 .filter(x => x && x !== '-')
                 .join(' • ')}
@@ -435,11 +435,11 @@ export const MSSInventoryView: React.FC = () => {
     },
     {
       key: 'stock_location',
-      header: 'موقع التخزين الفعلي',
+      header: 'موقع التخزين',
       render: (item: MSSDevice) => (
-        <div className="flex items-center gap-1.5 font-semibold">
+        <div className="flex items-center gap-1.5">
           <Store className="w-3.5 h-3.5 text-slate-400" />
-          <Badge variant={item.stock_location === 'محل 1' ? 'primary' : 'purple'}>
+          <Badge variant={item.stock_location === 'محل 1' ? 'primary' : 'default'}>
             {item.stock_location}
           </Badge>
         </div>
@@ -447,9 +447,9 @@ export const MSSInventoryView: React.FC = () => {
     },
     {
       key: 'physical_condition',
-      header: 'الحالة الظاهرية',
+      header: 'الحالة',
       render: (item: MSSDevice) => (
-        <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+        <span className="text-[11px] text-slate-600">
           {item.physical_condition}
         </span>
       ),
@@ -462,11 +462,11 @@ export const MSSInventoryView: React.FC = () => {
           case 'AVAILABLE':
             return <Badge variant="success">متاح للبيع</Badge>;
           case 'RESERVED':
-            return <Badge variant="warning">محجوز لعميل</Badge>;
+            return <Badge variant="warning">محجوز</Badge>;
           case 'SOLD':
             return <Badge variant="default">تم البيع</Badge>;
           case 'MAINTENANCE':
-            return <Badge variant="danger">تحت الصيانة</Badge>;
+            return <Badge variant="danger">صيانة</Badge>;
           case 'RETURNED':
             return <Badge variant="info">مرتجع</Badge>;
           default:
@@ -478,7 +478,7 @@ export const MSSInventoryView: React.FC = () => {
       key: 'purchase_cost',
       header: 'التكلفة',
       render: (item: MSSDevice) => (
-        <span className="font-mono text-xs text-slate-600">
+        <span className="font-mono text-xs text-slate-500 tabular-nums">
           {formatCurrency(item.purchase_cost)}
         </span>
       ),
@@ -487,7 +487,7 @@ export const MSSInventoryView: React.FC = () => {
       key: 'listPrice',
       header: 'سعر العرض',
       render: (item: MSSDevice) => (
-        <span className="font-bold text-teal-800 text-sm font-mono">
+        <span className="font-semibold text-slate-900 text-xs font-mono tabular-nums">
           {formatCurrency(item.list_price)}
         </span>
       ),
@@ -502,9 +502,9 @@ export const MSSInventoryView: React.FC = () => {
             size="sm"
             onClick={() => handleOpenDetails(item)}
             title="تفاصيل الجهاز وسجل التنقلات"
-            className="p-1.5 text-slate-600 hover:text-slate-900"
+            className="p-1.5 text-slate-500 hover:text-slate-900"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           </Button>
 
           <Button
@@ -512,10 +512,10 @@ export const MSSInventoryView: React.FC = () => {
             size="sm"
             onClick={() => handleOpenTransfer(item)}
             title="نقل الجهاز للفرع الآخر"
-            className="p-1.5 text-teal-700 hover:text-teal-900 hover:bg-teal-50"
+            className="p-1.5 text-slate-500 hover:text-slate-900"
             disabled={item.status === 'SOLD'}
           >
-            <ArrowLeftRight className="w-4 h-4" />
+            <ArrowLeftRight className="w-3.5 h-3.5" />
           </Button>
 
           <Button
@@ -523,9 +523,9 @@ export const MSSInventoryView: React.FC = () => {
             size="sm"
             onClick={() => handleOpenEdit(item)}
             title="تعديل بيانات الجهاز"
-            className="p-1.5 text-blue-600 hover:text-blue-900"
+            className="p-1.5 text-slate-500 hover:text-slate-900"
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-3.5 h-3.5" />
           </Button>
 
           {item.status !== 'SOLD' && (
@@ -534,9 +534,9 @@ export const MSSInventoryView: React.FC = () => {
               size="sm"
               onClick={() => handleOpenDelete(item)}
               title="حذف الجهاز من المخزون"
-              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+              className="p-1.5 text-slate-400 hover:text-rose-600"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           )}
         </div>
@@ -545,18 +545,18 @@ export const MSSInventoryView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="المخزون الفعلي بالسيريال (MSS Physical Inventory)"
-        subtitle="تتبع دقيق لكل قطعة لابتوب وشاشة بسيريالها الخاص المنفصل وموقعها المادي الحقيقي (محل 1 ومحل 2)"
+        title="المخزون الفعلي بالسيريال"
+        subtitle="تتبع دقيق لكل قطعة لابتوب وشاشة بسيريالها الخاص المنفصل وموقعها المادي الحقيقي بين المحلين"
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleOpenTransfer()}
-              leftIcon={<ArrowLeftRight className="w-4 h-4 text-teal-700" />}
+              leftIcon={<ArrowLeftRight className="w-4 h-4 text-slate-500" />}
             >
               نقل جهاز بين المحلين
             </Button>
@@ -565,7 +565,6 @@ export const MSSInventoryView: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={handleOpenAdd}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               إضافة جهاز جديد بالسيريال
@@ -574,71 +573,71 @@ export const MSSInventoryView: React.FC = () => {
         }
       />
 
-      {/* KPI Cards (Accurate Breakdown per Rule 9) */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card className="p-3.5 bg-white border border-slate-200">
-          <p className="text-xs text-slate-500 font-semibold mb-1">إجمالي الأجهزة</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">إجمالي الأجهزة</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-800">{summary?.total_units || 0}</span>
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.total_units || 0}</span>
             <Layers className="w-4 h-4 text-slate-400" />
           </div>
           <span className="text-[11px] text-slate-400">سيريالات مسجلة</span>
         </Card>
 
-        <Card className="p-3.5 bg-blue-50/60 border border-blue-200">
-          <p className="text-xs text-blue-800 font-semibold mb-1">متوفر بمحل 1</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">متوفر بمحل 1</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-blue-900">{summary?.available_shop1 || 0}</span>
-            <Store className="w-4 h-4 text-blue-600" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.available_shop1 || 0}</span>
+            <Store className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-[11px] text-blue-600">جاهز للبيع الفوري</span>
+          <span className="text-[11px] text-slate-400">جاهز للبيع الفوري</span>
         </Card>
 
-        <Card className="p-3.5 bg-purple-50/60 border border-purple-200">
-          <p className="text-xs text-purple-800 font-semibold mb-1">متوفر بمحل 2</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">متوفر بمحل 2</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-purple-900">{summary?.available_shop2 || 0}</span>
-            <Store className="w-4 h-4 text-purple-600" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.available_shop2 || 0}</span>
+            <Store className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-[11px] text-purple-600">جاهز للبيع الفوري</span>
+          <span className="text-[11px] text-slate-400">جاهز للبيع الفوري</span>
         </Card>
 
-        <Card className="p-3.5 bg-emerald-50/60 border border-emerald-200">
-          <p className="text-xs text-emerald-800 font-semibold mb-1">إجمالي المتوفر</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">إجمالي المتوفر</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-emerald-900">{summary?.available_total || 0}</span>
+            <span className="text-lg font-semibold text-emerald-700 font-mono tabular-nums">{summary?.available_total || 0}</span>
             <Check className="w-4 h-4 text-emerald-600" />
           </div>
-          <span className="text-[11px] text-emerald-600">بالمحلين معاً</span>
+          <span className="text-[11px] text-slate-400">بالمحلين معاً</span>
         </Card>
 
-        <Card className="p-3.5 bg-amber-50/60 border border-amber-200">
-          <p className="text-xs text-amber-800 font-semibold mb-1">محجوز لعملاء</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">محجوز لعملاء</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-amber-900">{summary?.reserved_total || 0}</span>
-            <Calendar className="w-4 h-4 text-amber-600" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{summary?.reserved_total || 0}</span>
+            <Calendar className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-[11px] text-amber-600">حجز مؤقت</span>
+          <span className="text-[11px] text-slate-400">حجز مؤقت</span>
         </Card>
 
-        <Card className="p-3.5 bg-rose-50/60 border border-rose-200">
-          <p className="text-xs text-rose-800 font-semibold mb-1">صيانة أو مرتجع</p>
+        <Card className="p-3.5 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">صيانة أو مرتجع</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-black text-rose-900">
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">
               {(summary?.maintenance_total || 0) + (summary?.returned_total || 0)}
             </span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <AlertTriangle className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-[11px] text-rose-600">غير جاهز للبيع</span>
+          <span className="text-[11px] text-slate-400">غير جاهز للبيع</span>
         </Card>
       </div>
 
       {/* Search and Filters */}
-      <Card className="p-4 space-y-3">
+      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="flex-1 w-full">
             <Input
-              placeholder="امسح بالباركود أو اكتب السيريال نمبر، الموديل، الماركة، الحالة..."
+              placeholder="امسح بالباركود أو اكتب السيريال، الموديل، الماركة، الحالة..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
@@ -649,11 +648,11 @@ export const MSSInventoryView: React.FC = () => {
 
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={loadData}
               title="إعادة تحميل البيانات"
-              leftIcon={<RotateCcw className="w-4 h-4 text-slate-500" />}
+              leftIcon={<RotateCcw className="w-4 h-4" />}
             >
               تحديث
             </Button>
@@ -661,82 +660,86 @@ export const MSSInventoryView: React.FC = () => {
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs">
           {/* Location Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-slate-500">المحل:</span>
-            <button
-              onClick={() => setLocationFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                locationFilter === 'ALL'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              الكل ({devices.length})
-            </button>
-            <button
-              onClick={() => setLocationFilter('محل 1')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                locationFilter === 'محل 1'
-                  ? 'bg-blue-700 text-white shadow-sm'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-              }`}
-            >
-              محل 1 ({devices.filter(d => d.stock_location === 'محل 1').length})
-            </button>
-            <button
-              onClick={() => setLocationFilter('محل 2')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                locationFilter === 'محل 2'
-                  ? 'bg-purple-700 text-white shadow-sm'
-                  : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-              }`}
-            >
-              محل 2 ({devices.filter(d => d.stock_location === 'محل 2').length})
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-500">المحل:</span>
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+              <button
+                onClick={() => setLocationFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  locationFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                الكل ({devices.length})
+              </button>
+              <button
+                onClick={() => setLocationFilter('محل 1')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  locationFilter === 'محل 1'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 1 ({devices.filter(d => d.stock_location === 'محل 1').length})
+              </button>
+              <button
+                onClick={() => setLocationFilter('محل 2')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  locationFilter === 'محل 2'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 2 ({devices.filter(d => d.stock_location === 'محل 2').length})
+              </button>
+            </div>
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-slate-500">الحالة:</span>
-            {(
-              [
-                { id: 'ALL', label: 'الكل' },
-                { id: 'AVAILABLE', label: 'متاح للبيع' },
-                { id: 'RESERVED', label: 'محجوز' },
-                { id: 'SOLD', label: 'تم البيع' },
-                { id: 'MAINTENANCE', label: 'تحت الصيانة' },
-                { id: 'RETURNED', label: 'مرتجع' },
-              ] as const
-            ).map(st => (
-              <button
-                key={st.id}
-                onClick={() => setStatusFilter(st.id)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === st.id
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-500">الحالة:</span>
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+              {(
+                [
+                  { id: 'ALL', label: 'الكل' },
+                  { id: 'AVAILABLE', label: 'متاح للبيع' },
+                  { id: 'RESERVED', label: 'محجوز' },
+                  { id: 'SOLD', label: 'تم البيع' },
+                  { id: 'MAINTENANCE', label: 'صيانة' },
+                  { id: 'RETURNED', label: 'مرتجع' },
+                ] as const
+              ).map(st => (
+                <button
+                  key={st.id}
+                  onClick={() => setStatusFilter(st.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    statusFilter === st.id
+                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </Card>
 
       {/* Main Table */}
       {isLoading ? (
-        <Card className="p-12 text-center">
-          <Spinner size="lg" className="mx-auto mb-3 text-teal-600" />
-          <p className="text-sm font-semibold text-slate-600">جاري تحميل بيانات الأجهزة والمخزون السحابي...</p>
+        <Card className="p-12 text-center bg-white border-slate-200/80">
+          <Spinner size="lg" className="mx-auto mb-3" />
+          <p className="text-xs text-slate-500">جاري تحميل بيانات الأجهزة والمخزون السحابي...</p>
         </Card>
       ) : filteredDevices.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <Box className="w-12 h-12 mx-auto text-slate-300" />
-          <h3 className="text-base font-bold text-slate-700">لا توجد أجهزة مطابقة للبحث أو التصفية</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
+        <Card className="p-12 text-center space-y-3 bg-white border-slate-200/80">
+          <Box className="w-10 h-10 mx-auto text-slate-300" />
+          <h3 className="text-sm font-semibold text-slate-700">لا توجد أجهزة مطابقة للبحث أو التصفية</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
             يمكنك مسح كود السيريال بالماسح الضوئي مباشرة أو إضافة جهاز جديد وربطه بموديل من الكتالوج.
           </p>
           <Button
@@ -749,11 +752,13 @@ export const MSSInventoryView: React.FC = () => {
           </Button>
         </Card>
       ) : (
-        <Table
-          columns={columns}
-          data={filteredDevices}
-          keyExtractor={(item: MSSDevice) => item.id}
-        />
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+          <Table
+            columns={columns}
+            data={filteredDevices}
+            keyExtractor={(item: MSSDevice) => item.id}
+          />
+        </div>
       )}
 
       {/* ========================================================================= */}
@@ -766,7 +771,7 @@ export const MSSInventoryView: React.FC = () => {
         subtitle="إدخال قطعة فعلية جديدة وتخصيص سيريال فريد وموقع تخزين مادي محدد"
         size="lg"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -780,7 +785,6 @@ export const MSSInventoryView: React.FC = () => {
               size="sm"
               onClick={handleSaveAdd}
               disabled={isSubmitting}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
             >
               {isSubmitting ? 'جاري الحفظ...' : 'تسجيل الجهاز'}
@@ -788,15 +792,17 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         }
       >
-        <form onSubmit={handleSaveAdd} className="space-y-4">
+        <form onSubmit={handleSaveAdd} className="space-y-4 text-xs">
           {formError && (
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
           {/* Serial Number (Scanner Ready) */}
           <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              السيريال نمبر الفريد <span className="text-rose-500">*</span>
+            </label>
             <Input
-              label="السيريال نمبر الفريد (Unique Serial Number) *"
               placeholder="امسح بالباركود أو اكتب السيريال (مثال: PF1K892-LEN)..."
               value={formSerial}
               onChange={e => setFormSerial(e.target.value.toUpperCase())}
@@ -809,42 +815,43 @@ export const MSSInventoryView: React.FC = () => {
           {/* Linked Model Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                الموديل المرتبط من الكتالوج *
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                الموديل المرتبط من الكتالوج <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={formModelId}
                 onChange={e => handleModelChange(e.target.value)}
+                options={catalogModels.map(m => ({
+                  value: m.id,
+                  label: `${m.brand} ${m.model_name} (${m.category}) - سعر العرض: ${m.default_list_price} ج.م`,
+                }))}
                 required
-              >
-                {catalogModels.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.brand} {m.model_name} ({m.category}) - سعر العرض: {m.default_list_price} ج.م
-                  </option>
-                ))}
-              </Select>
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                المحل الفعلي للتخزين (Stock Location) *
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                المحل الفعلي للتخزين <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={formLocation}
                 onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
+                options={[
+                  { value: 'محل 1', label: 'محل 1 (الفرع الأول)' },
+                  { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
+                ]}
                 required
-              >
-                <option value="محل 1">محل 1 (الفرع الأول)</option>
-                <option value="محل 2">محل 2 (الفرع الثاني)</option>
-              </Select>
+              />
             </div>
           </div>
 
           {/* Financials & Purchase Date */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                سعر التكلفة (ج.م) <span className="text-rose-500">*</span>
+              </label>
               <Input
-                label="سعر التكلفة (ج.م) *"
                 type="number"
                 min="0"
                 step="50"
@@ -855,8 +862,10 @@ export const MSSInventoryView: React.FC = () => {
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                سعر العرض الاسترشادي (ج.م) <span className="text-rose-500">*</span>
+              </label>
               <Input
-                label="سعر العرض الاسترشادي (ج.م) *"
                 type="number"
                 min="0"
                 step="50"
@@ -867,8 +876,10 @@ export const MSSInventoryView: React.FC = () => {
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                تاريخ الشراء / الاستلام
+              </label>
               <Input
-                label="تاريخ الشراء / الاستلام"
                 type="date"
                 value={formPurchaseDate}
                 onChange={e => setFormPurchaseDate(e.target.value)}
@@ -879,43 +890,45 @@ export const MSSInventoryView: React.FC = () => {
           {/* Condition and Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 الحالة الظاهرية والفنية
               </label>
               <Select
                 value={formCondition}
                 onChange={e => setFormCondition(e.target.value)}
-              >
-                <option value="فرز أول ممتاز">فرز أول ممتاز (نظيف جداً بدون خدوش)</option>
-                <option value="كالجديد كرتونة كاملة">كالجديد بكرتونته وشواحنه الأصلية</option>
-                <option value="فرز أول">فرز أول (حالة ممتازة)</option>
-                <option value="فرز ثانٍ">فرز ثانٍ (خدوش سطحية طفيفة)</option>
-                <option value="يحتاج صيانة طفيفة">يحتاج صيانة طفيفة / مراجعة</option>
-              </Select>
+                options={[
+                  { value: 'فرز أول ممتاز', label: 'فرز أول ممتاز (نظيف جداً بدون خدوش)' },
+                  { value: 'كالجديد كرتونة كاملة', label: 'كالجديد بكرتونته وشواحنه الأصلية' },
+                  { value: 'فرز أول', label: 'فرز أول (حالة ممتازة)' },
+                  { value: 'فرز ثانٍ', label: 'فرز ثانٍ (خدوش سطحية طفيفة)' },
+                  { value: 'يحتاج صيانة طفيفة', label: 'يحتاج صيانة طفيفة / مراجعة' },
+                ]}
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 حالة الجهاز في المخزون
               </label>
               <Select
                 value={formStatus}
                 onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
-              >
-                <option value="AVAILABLE">متاح للبيع الفوري (Available)</option>
-                <option value="RESERVED">محجوز لعميل (Reserved)</option>
-                <option value="MAINTENANCE">تحت الصيانة والفحص (Under Maintenance)</option>
-              </Select>
+                options={[
+                  { value: 'AVAILABLE', label: 'متاح للبيع الفوري (Available)' },
+                  { value: 'RESERVED', label: 'محجوز لعميل (Reserved)' },
+                  { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص (Under Maintenance)' },
+                ]}
+              />
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              ملاحظات إضافية على هذا الجهاز تحديداً
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              ملاحظات إضافية على هذا الجهاز
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+              className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
               placeholder="مثال: صحة البطارية 96%، كيبورد مضيئة، شاحن أصلي 65W..."
               value={formNotes}
@@ -935,7 +948,7 @@ export const MSSInventoryView: React.FC = () => {
         subtitle="تعديل السعر، الحالة الظاهرية، أو الملاحظات الخاصة بهذا الجهاز"
         size="lg"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -949,7 +962,6 @@ export const MSSInventoryView: React.FC = () => {
               size="sm"
               onClick={handleSaveEdit}
               disabled={isSubmitting}
-              className="bg-blue-700 hover:bg-blue-800"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Pencil className="w-4 h-4" />}
             >
               {isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'}
@@ -957,61 +969,78 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         }
       >
-        <form onSubmit={handleSaveEdit} className="space-y-4">
+        <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
           {formError && (
             <Alert type="danger" title="خطأ في التعديل" message={formError} />
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input
-              label="السيريال نمبر *"
-              value={formSerial}
-              onChange={e => setFormSerial(e.target.value.toUpperCase())}
-              required
-            />
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                السيريال نمبر <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                value={formSerial}
+                onChange={e => setFormSerial(e.target.value.toUpperCase())}
+                required
+              />
+            </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 موقع التخزين الفعلي
               </label>
               <Select
                 value={formLocation}
                 onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
-              >
-                <option value="محل 1">محل 1</option>
-                <option value="محل 2">محل 2</option>
-              </Select>
+                options={[
+                  { value: 'محل 1', label: 'محل 1' },
+                  { value: 'محل 2', label: 'محل 2' },
+                ]}
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Input
-              label="سعر التكلفة (ج.م) *"
-              type="number"
-              min="0"
-              value={formCost}
-              onChange={e => setFormCost(Number(e.target.value))}
-              required
-            />
-            <Input
-              label="سعر العرض (ج.م) *"
-              type="number"
-              min="0"
-              value={formListPrice}
-              onChange={e => setFormListPrice(Number(e.target.value))}
-              required
-            />
-            <Input
-              label="تاريخ الشراء"
-              type="date"
-              value={formPurchaseDate}
-              onChange={e => setFormPurchaseDate(e.target.value)}
-            />
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                سعر التكلفة (ج.م) <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formCost}
+                onChange={e => setFormCost(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                سعر العرض (ج.م) <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formListPrice}
+                onChange={e => setFormListPrice(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                تاريخ الشراء
+              </label>
+              <Input
+                type="date"
+                value={formPurchaseDate}
+                onChange={e => setFormPurchaseDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 الحالة الظاهرية
               </label>
               <Input
@@ -1021,28 +1050,29 @@ export const MSSInventoryView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 حالة الجهاز
               </label>
               <Select
                 value={formStatus}
                 onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
-              >
-                <option value="AVAILABLE">متاح للبيع (Available)</option>
-                <option value="RESERVED">محجوز لعميل (Reserved)</option>
-                <option value="SOLD">تم البيع (Sold)</option>
-                <option value="MAINTENANCE">تحت الصيانة (Under Maintenance)</option>
-                <option value="RETURNED">مرتجع (Returned)</option>
-              </Select>
+                options={[
+                  { value: 'AVAILABLE', label: 'متاح للبيع (Available)' },
+                  { value: 'RESERVED', label: 'محجوز لعميل (Reserved)' },
+                  { value: 'SOLD', label: 'تم البيع (Sold)' },
+                  { value: 'MAINTENANCE', label: 'تحت الصيانة (Under Maintenance)' },
+                  { value: 'RETURNED', label: 'مرتجع (Returned)' },
+                ]}
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               ملاحظات الجهاز
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+              className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
               value={formNotes}
               onChange={e => setFormNotes(e.target.value)}
@@ -1057,11 +1087,11 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isTransferModalOpen}
         onClose={() => !isSubmitting && setIsTransferModalOpen(false)}
-        title="تحويل جهاز فعلياً بين المحلين (Physical Transfer)"
+        title="تحويل جهاز فعلياً بين المحلين"
         subtitle="توثيق النقل الحقيقي لجهاز من موقع تخزينه الحالي إلى المحل الآخر"
         size="md"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -1075,7 +1105,6 @@ export const MSSInventoryView: React.FC = () => {
               size="sm"
               onClick={handleSaveTransfer}
               disabled={isSubmitting}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <ArrowLeftRight className="w-4 h-4" />}
             >
               {isSubmitting ? 'جاري توثيق النقل...' : 'تأكيد النقل الفعلي'}
@@ -1083,43 +1112,43 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         }
       >
-        <form onSubmit={handleSaveTransfer} className="space-y-4">
+        <form onSubmit={handleSaveTransfer} className="space-y-4 text-xs">
           {transferError && (
             <Alert type="danger" title="خطأ في النقل" message={transferError} />
           )}
 
           {selectedDevice && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">الجهاز المراد نقله:</span>
-                <span className="font-mono text-xs font-bold bg-slate-900 text-teal-300 px-2 py-0.5 rounded">
+                <span className="text-xs text-slate-500">الجهاز المراد نقله:</span>
+                <span className="font-mono text-xs font-semibold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
                   {selectedDevice.serial_number}
                 </span>
               </div>
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-xs font-medium text-slate-900">
                 {selectedDevice.brand} {selectedDevice.model_name}
               </p>
             </div>
           )}
 
           {/* Transfer Route Visualizer */}
-          <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-xl">
+          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="text-center">
-                <span className="text-xs text-slate-500 font-semibold block mb-1">الموقع الحالي</span>
-                <Badge variant={selectedDevice?.stock_location === 'محل 1' ? 'primary' : 'purple'}>
+                <span className="text-[11px] text-slate-500 block mb-1">الموقع الحالي</span>
+                <Badge variant={selectedDevice?.stock_location === 'محل 1' ? 'primary' : 'default'}>
                   {selectedDevice?.stock_location || 'محل 1'}
                 </Badge>
               </div>
 
               <div className="flex flex-col items-center px-4">
-                <ArrowLeftRight className="w-5 h-5 text-teal-700 animate-pulse" />
-                <span className="text-[10px] text-teal-700 font-bold mt-1">تحويل فيزيائي</span>
+                <ArrowLeftRight className="w-4 h-4 text-slate-500" />
+                <span className="text-[10px] text-slate-500 mt-1">تحويل فعلي</span>
               </div>
 
               <div className="text-center">
-                <span className="text-xs text-slate-500 font-semibold block mb-1">المحل المستلم</span>
-                <Badge variant={transferTargetLocation === 'محل 1' ? 'primary' : 'purple'}>
+                <span className="text-[11px] text-slate-500 block mb-1">المحل المستلم</span>
+                <Badge variant={transferTargetLocation === 'محل 1' ? 'primary' : 'default'}>
                   {transferTargetLocation}
                 </Badge>
               </div>
@@ -1127,11 +1156,11 @@ export const MSSInventoryView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              سبب إذن النقل والبيان *
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              سبب إذن النقل والبيان <span className="text-rose-500">*</span>
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+              className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
               placeholder="مثال: نقل للعرض في واجهة محل 1، أو تلبية طلب محجوز لعميل..."
               value={transferNotes}
@@ -1140,8 +1169,8 @@ export const MSSInventoryView: React.FC = () => {
             />
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            * ملاحظة: يتم حفظ سجل حركة مفصل (Movement Log) بتاريخ النقل وتحديث الموقع الفعلي للجهاز تلقائياً.
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            ملاحظة: يتم حفظ سجل حركة مفصل (Movement Log) بتاريخ النقل وتحديث الموقع الفعلي للجهاز تلقائياً.
           </p>
         </form>
       </Modal>
@@ -1162,67 +1191,67 @@ export const MSSInventoryView: React.FC = () => {
         }
       >
         {selectedDevice && (
-          <div className="space-y-5">
+          <div className="space-y-4 text-xs">
             {/* Main Specs Card */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-lg space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-base font-bold text-slate-800">
+                  <h4 className="text-sm font-semibold text-slate-900">
                     {selectedDevice.brand} {selectedDevice.model_name}
                   </h4>
-                  <p className="text-xs text-slate-500">{selectedDevice.category}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{selectedDevice.category}</p>
                 </div>
                 <div className="text-left font-mono">
-                  <span className="text-xs text-slate-400 block">السيريال الفريد:</span>
-                  <span className="font-bold text-sm bg-slate-900 text-teal-300 px-2.5 py-1 rounded">
+                  <span className="text-[10px] text-slate-400 block">السيريال الفريد:</span>
+                  <span className="font-semibold text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded border border-slate-200">
                     {selectedDevice.serial_number}
                   </span>
                 </div>
               </div>
 
               {selectedDevice.model && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-200 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                   <div>
-                    <span className="text-slate-400 block">المعالج:</span>
-                    <span className="font-semibold text-slate-700">{selectedDevice.model.processor || '-'}</span>
+                    <span className="text-slate-400 block text-[10px]">المعالج:</span>
+                    <span className="font-medium text-slate-700">{selectedDevice.model.processor || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">الرام:</span>
-                    <span className="font-semibold text-slate-700">{selectedDevice.model.ram || '-'}</span>
+                    <span className="text-slate-400 block text-[10px]">الرام:</span>
+                    <span className="font-medium text-slate-700">{selectedDevice.model.ram || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">التخزين:</span>
-                    <span className="font-semibold text-slate-700">{selectedDevice.model.storage || '-'}</span>
+                    <span className="text-slate-400 block text-[10px]">التخزين:</span>
+                    <span className="font-medium text-slate-700">{selectedDevice.model.storage || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">الشاشة:</span>
-                    <span className="font-semibold text-slate-700">{selectedDevice.model.screen_size || '-'}</span>
+                    <span className="text-slate-400 block text-[10px]">الشاشة:</span>
+                    <span className="font-medium text-slate-700">{selectedDevice.model.screen_size || '-'}</span>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-xs">
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                 <div>
-                  <span className="text-slate-400 block">الموقع الحالي:</span>
-                  <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'purple'}>
+                  <span className="text-slate-400 block text-[10px] mb-0.5">الموقع الحالي:</span>
+                  <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}>
                     {selectedDevice.stock_location}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">حالة الجهاز:</span>
+                  <span className="text-slate-400 block text-[10px] mb-0.5">حالة الجهاز:</span>
                   <Badge variant={selectedDevice.status === 'AVAILABLE' ? 'success' : 'default'}>
                     {selectedDevice.status}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">الحالة الظاهرية:</span>
-                  <span className="font-semibold text-slate-700">{selectedDevice.physical_condition}</span>
+                  <span className="text-slate-400 block text-[10px] mb-0.5">الحالة الظاهرية:</span>
+                  <span className="text-slate-700 font-medium">{selectedDevice.physical_condition}</span>
                 </div>
               </div>
 
               {selectedDevice.notes && (
-                <div className="pt-2 border-t border-slate-200 text-xs">
-                  <span className="text-slate-400 block">ملاحظات الجهاز:</span>
+                <div className="pt-2 border-t border-slate-200/80 text-xs">
+                  <span className="text-slate-400 block text-[10px]">ملاحظات الجهاز:</span>
                   <p className="text-slate-700 mt-0.5">{selectedDevice.notes}</p>
                 </div>
               )}
@@ -1230,38 +1259,38 @@ export const MSSInventoryView: React.FC = () => {
 
             {/* Movement History Section */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <History className="w-4 h-4 text-teal-700" />
-                <h5 className="font-bold text-slate-800 text-sm">سجل التحويلات المادية بين الفروع</h5>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <History className="w-4 h-4 text-slate-500" />
+                <h5 className="font-semibold text-slate-900 text-xs">سجل التحويلات المادية بين الفروع</h5>
               </div>
 
               {isHistoryLoading ? (
                 <div className="p-6 text-center text-xs text-slate-500">
-                  <Spinner size="sm" className="mx-auto mb-2 text-teal-600" />
+                  <Spinner size="sm" className="mx-auto mb-2" />
                   جاري جلب سجل الحركات...
                 </div>
               ) : deviceHistory.length === 0 ? (
-                <div className="p-4 bg-slate-50 rounded-lg text-center text-xs text-slate-500 border border-slate-100">
-                  لا توجد حركات نقل مسجلة لهذا الجهاز حتى الآن. (موجود في موقعه الأساسي: {selectedDevice.stock_location}).
+                <div className="p-4 bg-slate-50 rounded-lg text-center text-xs text-slate-500 border border-slate-200/80">
+                  لا توجد حركات نقل مسجلة لهذا الجهاز حتى الآن (موجود في موقعه الأساسي: {selectedDevice.stock_location}).
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {deviceHistory.map(mov => (
                     <div
                       key={mov.id}
-                      className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-xs"
+                      className="p-2.5 bg-white border border-slate-200/80 rounded-lg flex items-center justify-between text-xs"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-700">تحويل من:</span>
-                          <Badge variant="outline">{mov.from_location}</Badge>
-                          <span className="text-slate-400">⬅</span>
-                          <span className="font-semibold text-slate-700">إلى:</span>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-500">تحويل من:</span>
+                          <Badge variant="default">{mov.from_location}</Badge>
+                          <span className="text-slate-400">←</span>
+                          <span className="text-slate-500">إلى:</span>
                           <Badge variant="primary">{mov.to_location}</Badge>
                         </div>
-                        {mov.notes && <p className="text-slate-500">{mov.notes}</p>}
+                        {mov.notes && <p className="text-[11px] text-slate-500">{mov.notes}</p>}
                       </div>
-                      <div className="text-left font-mono text-slate-400">
+                      <div className="text-left font-mono text-[11px] text-slate-400 tabular-nums">
                         {formatDate(mov.movement_date)}
                       </div>
                     </div>
@@ -1283,7 +1312,7 @@ export const MSSInventoryView: React.FC = () => {
         subtitle="تحذير: هذا الإجراء يحذف سجل الجهاز وسيرياله نهائياً من النظام"
         size="sm"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -1304,16 +1333,16 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         }
       >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-700">
+        <div className="space-y-3 text-xs">
+          <p className="text-slate-700">
             هل أنت متأكد من رغبتك في حذف هذا الجهاز بسيرياله الخاص:
           </p>
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs space-y-1">
-            <p className="font-bold text-rose-900">
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-xs space-y-1">
+            <p className="font-medium text-slate-900">
               {selectedDevice?.brand} {selectedDevice?.model_name}
             </p>
-            <p className="font-mono text-rose-700">السيريال: {selectedDevice?.serial_number}</p>
-            <p className="text-rose-600">الموقع: {selectedDevice?.stock_location}</p>
+            <p className="font-mono text-slate-600">السيريال: {selectedDevice?.serial_number}</p>
+            <p className="text-slate-500">الموقع: {selectedDevice?.stock_location}</p>
           </div>
         </div>
       </Modal>

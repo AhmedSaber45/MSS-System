@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatsCard, Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
+import { StatsCard, Card, CardHeader, CardTitle } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Badge } from '@/components/common/Badge';
 import { Spinner } from '@/components/common/Spinner';
 import {
   DollarSign,
   TrendingUp,
   ShoppingBag,
   Receipt,
-  Download,
-  Calendar,
-  Package,
   Printer,
-  RotateCcw,
+  Package,
   Percent,
+  Calendar,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { reportsService } from '@/services/reportsService.ts';
@@ -95,18 +92,18 @@ export const ReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="التقارير المالية والأرباح لمحل الإكسسوارات"
-        subtitle="كشف دقيق للإيرادات، تكلفة البضاعة المباعة، وصافي الربح بناءً على لقطات الأسعار الحقيقية"
+        title="التقارير المالية والأرباح"
+        subtitle="كشف دقيق للإيرادات وتكلفة البضاعة المباعة وصافي الأرباح وفق لقطات الأسعار الحقيقية"
         actions={
           <div className="no-print flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePrintReport}
-              leftIcon={<Printer className="w-4 h-4" />}
+              leftIcon={<Printer className="w-4 h-4 text-slate-500" />}
             >
               طباعة كشف الأرباح
             </Button>
@@ -115,30 +112,32 @@ export const ReportsView: React.FC = () => {
       />
 
       {/* Period Filter Selector */}
-      <Card className="no-print p-3 bg-white border-slate-200 shadow-2xs">
+      <Card className="no-print p-2.5 bg-white border-slate-200/80 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            <span className="font-bold text-slate-700 ml-1">الفترة الزمنية:</span>
-            {[
-              { id: 'today', label: 'اليوم' },
-              { id: 'week', label: 'آخر 7 أيام' },
-              { id: 'month', label: 'الشهر الحالي (30 يوم)' },
-              { id: 'all', label: 'كل الفترات' },
-              { id: 'custom', label: 'فترة مخصصة...' },
-            ].map(p => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriod(p.id as any)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
-                  period === p.id
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">الفترة الزمنية:</span>
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+              {[
+                { id: 'today', label: 'اليوم' },
+                { id: 'week', label: 'آخر 7 أيام' },
+                { id: 'month', label: 'الشهر الحالي (30 يوم)' },
+                { id: 'all', label: 'كل الفترات' },
+                { id: 'custom', label: 'فترة مخصصة' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPeriod(p.id as any)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    period === p.id
+                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {period === 'custom' && (
@@ -150,7 +149,7 @@ export const ReportsView: React.FC = () => {
                 className="py-1 text-xs font-mono"
                 title="من تاريخ"
               />
-              <span className="text-slate-400">إلى</span>
+              <span className="text-slate-400 text-xs">إلى</span>
               <Input
                 type="date"
                 value={endDate}
@@ -168,7 +167,7 @@ export const ReportsView: React.FC = () => {
 
       {/* Main KPI Stats Cards */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
           <Spinner size="lg" />
           <p className="text-xs text-slate-500 mt-3">جارٍ حساب الإيرادات والتكاليف والأرباح...</p>
         </div>
@@ -180,21 +179,18 @@ export const ReportsView: React.FC = () => {
               value={formatCurrency(summary.totalRevenue)}
               subtitle={`${summary.invoicesCount} فاتورة مبيعات مسددة`}
               icon={DollarSign}
-              accentColor="blue"
             />
             <StatsCard
               title="تكلفة البضاعة المباعة (COGS)"
               value={formatCurrency(summary.costOfGoodsSold)}
               subtitle="محسوبة من لقطة التكلفة عند كل بيع"
               icon={ShoppingBag}
-              accentColor="indigo"
             />
             <StatsCard
               title="مجمل الربح التجاري"
               value={formatCurrency(summary.grossProfit)}
               subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}%`}
               icon={TrendingUp}
-              accentColor="emerald"
             />
             <StatsCard
               title="المرتجعات والخصومات"
@@ -203,51 +199,50 @@ export const ReportsView: React.FC = () => {
                 summary.totalRefunds
               )}`}
               icon={Receipt}
-              accentColor="rose"
             />
           </div>
 
           {/* Secondary Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs text-xs">
             <div>
-              <span className="text-slate-500 block">صافي المبيعات المحققة:</span>
-              <span className="font-mono font-bold text-slate-900 text-sm">
+              <span className="text-slate-500 block mb-0.5">صافي المبيعات المحققة</span>
+              <span className="font-mono font-semibold text-slate-900 text-sm tabular-nums">
                 {formatCurrency(summary.netSales)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block">متوسط قيمة الفاتورة:</span>
-              <span className="font-mono font-bold text-blue-700 text-sm">
+              <span className="text-slate-500 block mb-0.5">متوسط قيمة الفاتورة</span>
+              <span className="font-mono font-semibold text-slate-900 text-sm tabular-nums">
                 {formatCurrency(summary.avgInvoiceValue)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block">إجمالي الخصومات الممنوحة:</span>
-              <span className="font-mono font-bold text-rose-600 text-sm">
+              <span className="text-slate-500 block mb-0.5">إجمالي الخصومات الممنوحة</span>
+              <span className="font-mono font-semibold text-slate-800 text-sm tabular-nums">
                 {formatCurrency(summary.totalDiscounts)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block">عدد المرتجعات المسجلة:</span>
-              <span className="font-mono font-bold text-slate-800 text-sm">
-                {summary.returnsCount} حركات
+              <span className="text-slate-500 block mb-0.5">عدد المرتجعات المسجلة</span>
+              <span className="font-mono font-semibold text-slate-800 text-sm tabular-nums">
+                {summary.returnsCount} عمليات
               </span>
             </div>
           </div>
 
           {/* Daily Sales Breakdown & Inventory Valuation */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Daily History Table (8 Cols) */}
-            <div className="lg:col-span-8 space-y-4">
-              <Card className="bg-white border-slate-200 shadow-2xs overflow-hidden">
-                <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
-                  <CardTitle className="text-sm font-bold text-slate-900">
+            <div className="lg:col-span-8 space-y-5">
+              <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-slate-50/75 border-b border-slate-200/80">
+                  <CardTitle className="text-xs font-semibold text-slate-900">
                     حركة المبيعات والأرباح اليومية (آخر أسبوعين)
                   </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-right">
-                    <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-200">
+                    <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                       <tr>
                         <th className="py-2.5 px-3">التاريخ</th>
                         <th className="py-2.5 px-3 text-center">الفواتير</th>
@@ -258,77 +253,87 @@ export const ReportsView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {dailySummaries.map(d => (
-                        <tr key={d.date} className="hover:bg-slate-50 font-mono">
-                          <td className="py-2 px-3 text-slate-700 font-sans font-bold">{d.date}</td>
-                          <td className="py-2 px-3 text-center text-slate-600 font-sans">
-                            {d.invoicesCount}
-                          </td>
-                          <td className="py-2 px-3 text-left text-slate-900 font-bold">
-                            {formatCurrency(d.revenue)}
-                          </td>
-                          <td className="py-2 px-3 text-left text-slate-500">
-                            {formatCurrency(d.cogs)}
-                          </td>
-                          <td className="py-2 px-3 text-left text-rose-600">
-                            {d.refunds > 0 ? formatCurrency(d.refunds) : '-'}
-                          </td>
-                          <td
-                            className={`py-2 px-3 text-left font-black ${
-                              d.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'
-                            }`}
-                          >
-                            {formatCurrency(d.grossProfit)}
+                      {dailySummaries.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-400">
+                            لا توجد بيانات مسجلة في هذه الفترة
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        dailySummaries.map(d => (
+                          <tr key={d.date} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 text-slate-700 font-mono text-[11px] tabular-nums">
+                              {d.date}
+                            </td>
+                            <td className="py-2.5 px-3 text-center text-slate-600 font-mono tabular-nums">
+                              {d.invoicesCount}
+                            </td>
+                            <td className="py-2.5 px-3 text-left text-slate-900 font-medium font-mono tabular-nums">
+                              {formatCurrency(d.revenue)}
+                            </td>
+                            <td className="py-2.5 px-3 text-left text-slate-500 font-mono tabular-nums">
+                              {formatCurrency(d.cogs)}
+                            </td>
+                            <td className="py-2.5 px-3 text-left text-rose-600 font-mono tabular-nums">
+                              {d.refunds > 0 ? formatCurrency(d.refunds) : '—'}
+                            </td>
+                            <td
+                              className={`py-2.5 px-3 text-left font-semibold font-mono tabular-nums ${
+                                d.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                              }`}
+                            >
+                              {formatCurrency(d.grossProfit)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               </Card>
 
               {/* Top Selling Products */}
-              <Card className="bg-white border-slate-200 shadow-2xs overflow-hidden">
-                <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    أعلى الأصناف تحقيقاً للمبيعات ومساهمة في الأرباح
+              <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-slate-50/75 border-b border-slate-200/80">
+                  <CardTitle className="text-xs font-semibold text-slate-900">
+                    أعلى الأصناف مبيعاً ومساهمة في الأرباح
                   </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-right">
-                    <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-200">
+                    <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                       <tr>
-                        <th className="py-2 px-3">اسم الصنف</th>
-                        <th className="py-2 px-3 text-center">الكمية المباعة</th>
-                        <th className="py-2 px-3 text-left">إجمالي الإيراد</th>
-                        <th className="py-2 px-3 text-left">إجمالي التكلفة</th>
-                        <th className="py-2 px-3 text-left">الربح المحقق</th>
+                        <th className="py-2.5 px-3">الصنف</th>
+                        <th className="py-2.5 px-3 text-center">الكمية المباعة</th>
+                        <th className="py-2.5 px-3 text-left">إجمالي الإيراد</th>
+                        <th className="py-2.5 px-3 text-left">إجمالي التكلفة</th>
+                        <th className="py-2.5 px-3 text-left">الربح المحقق</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {topProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-400">
+                          <td colSpan={5} className="py-8 text-center text-slate-400">
                             لا توجد مبيعات في الفترة المحددة
                           </td>
                         </tr>
                       ) : (
                         topProducts.map(p => (
-                          <tr key={p.productId} className="hover:bg-slate-50">
-                            <td className="py-2 px-3">
-                              <p className="font-bold text-slate-900">{p.productName}</p>
+                          <tr key={p.productId} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <p className="font-medium text-slate-900">{p.productName}</p>
                               <p className="text-[10px] text-slate-400 font-mono">{p.productCode}</p>
                             </td>
-                            <td className="py-2 px-3 text-center font-bold text-slate-800">
-                              {p.quantitySold} قطعة
+                            <td className="py-2.5 px-3 text-center font-mono tabular-nums text-slate-700">
+                              {p.quantitySold}
                             </td>
-                            <td className="py-2 px-3 text-left font-mono font-bold text-slate-900">
+                            <td className="py-2.5 px-3 text-left font-mono font-medium text-slate-900 tabular-nums">
                               {formatCurrency(p.totalRevenue)}
                             </td>
-                            <td className="py-2 px-3 text-left font-mono text-slate-500">
+                            <td className="py-2.5 px-3 text-left font-mono text-slate-500 tabular-nums">
                               {formatCurrency(p.totalCost)}
                             </td>
-                            <td className="py-2 px-3 text-left font-mono font-black text-emerald-700">
+                            <td className="py-2.5 px-3 text-left font-mono font-semibold text-emerald-700 tabular-nums">
                               {formatCurrency(p.grossProfit)}
                             </td>
                           </tr>
@@ -343,47 +348,49 @@ export const ReportsView: React.FC = () => {
             {/* Inventory Valuation Panel (4 Cols) */}
             <div className="lg:col-span-4 space-y-4">
               {valuation && (
-                <Card className="bg-white border-slate-200 shadow-2xs p-4 space-y-4">
+                <Card className="bg-white border-slate-200/80 shadow-2xs p-4 space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                    <Package className="w-5 h-5 text-indigo-600" />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
+                      <Package className="w-4 h-4" />
+                    </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900">تقييم المخزون الحالي</h4>
-                      <p className="text-[10px] text-slate-400">القيمة الإجمالية للبضاعة بالمحل</p>
+                      <h4 className="text-xs font-semibold text-slate-900">تقييم المخزون الحالي</h4>
+                      <p className="text-[10px] text-slate-400">القيمة التقديرية للبضاعة المتوفرة</p>
                     </div>
                   </div>
 
-                  <div className="space-y-3 text-xs">
+                  <div className="space-y-2.5 text-xs">
                     <div className="flex justify-between items-center text-slate-600">
-                      <span>إجمالي أصناف المحل:</span>
-                      <span className="font-bold text-slate-900 font-mono">
-                        {valuation.totalItemsCount} صنف
+                      <span>إجمالي أصناف المحل</span>
+                      <span className="font-semibold text-slate-900 font-mono tabular-nums">
+                        {valuation.totalItemsCount}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center text-slate-600">
-                      <span>إجمالي عدد القطع المتوفرة:</span>
-                      <span className="font-bold text-slate-900 font-mono">
-                        {valuation.totalUnitsCount} قطعة
+                      <span>إجمالي عدد القطع</span>
+                      <span className="font-semibold text-slate-900 font-mono tabular-nums">
+                        {valuation.totalUnitsCount}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center text-slate-600">
-                      <span>قيمة المخزون بسعر التكلفة:</span>
-                      <span className="font-mono font-bold text-indigo-700">
+                      <span>قيمة المخزون بسعر التكلفة</span>
+                      <span className="font-mono font-medium text-slate-900 tabular-nums">
                         {formatCurrency(valuation.totalCostValue)}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center text-slate-600">
-                      <span>قيمة المخزون بسعر البيع (المستهدف):</span>
-                      <span className="font-mono font-bold text-blue-700">
+                      <span>قيمة المخزون بسعر البيع</span>
+                      <span className="font-mono font-medium text-slate-900 tabular-nums">
                         {formatCurrency(valuation.totalRetailValue)}
                       </span>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                      <span className="font-bold text-slate-800">الربح المتوقع للمخزون:</span>
-                      <span className="font-mono font-black text-emerald-700 text-sm">
+                    <div className="pt-2.5 border-t border-slate-200/80 flex justify-between items-center">
+                      <span className="font-medium text-slate-800">الربح التقديري للمخزون</span>
+                      <span className="font-mono font-semibold text-emerald-700 text-sm tabular-nums">
                         {formatCurrency(valuation.potentialProfit)}
                       </span>
                     </div>
@@ -392,14 +399,13 @@ export const ReportsView: React.FC = () => {
               )}
 
               {/* Financial Protection Box */}
-              <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 text-xs text-blue-900">
-                <p className="font-bold flex items-center gap-1.5">
-                  <Percent className="w-4 h-4 text-blue-700" />
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 text-xs text-slate-700">
+                <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                  <Percent className="w-3.5 h-3.5 text-slate-600" />
                   <span>دقة الحسابات المالية (Rule 8)</span>
                 </p>
-                <p className="text-[11px] text-blue-800 leading-relaxed">
-                  تعتمد التقارير على لقطة سعر التكلفة والبيع المسجلة وقت إصدار الفاتورة، ولا تتأثر
-                  بتعديل أسعار المنتجات في القوائم لاحقاً.
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  تعتمد التقارير على لقطة سعر التكلفة والبيع المسجلة لحظة إصدار الفاتورة، ولا تتأثر بتعديل أسعار المنتجات في القوائم لاحقاً.
                 </p>
               </div>
             </div>

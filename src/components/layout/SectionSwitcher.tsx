@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigation } from '../../context/NavigationContext';
 import { AppSection } from '../../types/navigation';
-import { Store, Laptop, Wifi, WifiOff } from 'lucide-react';
+import { Store, Laptop } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
@@ -14,50 +14,38 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
   };
 
   return (
-    <div className={cn('p-2 bg-slate-100/90 rounded-xl border border-slate-200', compact && 'p-1')}>
-      <div className="grid grid-cols-2 gap-1.5">
+    <div className={cn('p-1 bg-slate-100/90 rounded-lg border border-slate-200/90 select-none')}>
+      <div className={cn('grid gap-1', compact ? 'grid-cols-1' : 'grid-cols-2')}>
         {/* Accessories Shop Button */}
         <button
+          type="button"
           onClick={() => handleSelect('accessories')}
           className={cn(
-            'flex flex-col items-center justify-center p-2 rounded-lg text-xs font-semibold transition-all relative',
+            'flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
             currentSection === 'accessories'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+              ? 'bg-white text-slate-900 shadow-subtle border border-slate-200/90 font-semibold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           )}
+          title="قسم محل الإكسسوارات (محلي مستقل)"
         >
-          <div className="flex items-center gap-1.5 mb-1">
-            <Store className={cn('w-4 h-4', currentSection === 'accessories' ? 'text-white' : 'text-blue-600')} />
-            <span className="font-bold">الإكسسوارات</span>
-          </div>
-          {!compact && (
-            <div className="flex items-center gap-1 text-[10px] opacity-85">
-              <WifiOff className="w-2.5 h-2.5" />
-              <span>محلي 100%</span>
-            </div>
-          )}
+          <Store className={cn('w-3.5 h-3.5', currentSection === 'accessories' ? 'text-blue-700' : 'text-slate-400')} />
+          {!compact && <span>الإكسسوارات</span>}
         </button>
 
         {/* MSS Business Button */}
         <button
+          type="button"
           onClick={() => handleSelect('mss')}
           className={cn(
-            'flex flex-col items-center justify-center p-2 rounded-lg text-xs font-semibold transition-all relative',
+            'flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
             currentSection === 'mss'
-              ? 'bg-teal-700 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+              ? 'bg-white text-slate-900 shadow-subtle border border-slate-200/90 font-semibold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           )}
+          title="بيزنس أجهزة MSS (مشترك وسحابي)"
         >
-          <div className="flex items-center gap-1.5 mb-1">
-            <Laptop className={cn('w-4 h-4', currentSection === 'mss' ? 'text-white' : 'text-teal-600')} />
-            <span className="font-bold">أجهزة MSS</span>
-          </div>
-          {!compact && (
-            <div className="flex items-center gap-1 text-[10px] opacity-85">
-              <Wifi className="w-2.5 h-2.5" />
-              <span>سحابي ومشترك</span>
-            </div>
-          )}
+          <Laptop className={cn('w-3.5 h-3.5', currentSection === 'mss' ? 'text-teal-700' : 'text-slate-400')} />
+          {!compact && <span>أجهزة MSS</span>}
         </button>
       </div>
     </div>

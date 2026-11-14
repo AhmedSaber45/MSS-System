@@ -35,18 +35,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <div className="w-full">
         {label && (
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-semibold text-slate-700">{label}</label>
+            <label className="block text-xs font-medium text-slate-700">{label}</label>
             {scannerReady && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
-                <ScanBarcode className="w-3 h-3" />
-                جاهز للماسح الضوئي
+              <span className="inline-flex items-center gap-1 text-[11px] text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium">
+                <ScanBarcode className="w-3 h-3 text-blue-700" />
+                جاهز للمسح
               </span>
             )}
           </div>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
               {leftIcon}
             </div>
           )}
@@ -55,14 +55,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             value={value}
             disabled={disabled}
             className={cn(
-              'w-full px-3.5 py-2 bg-white border rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
-              'transition-all duration-150',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
-              'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
-              error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : 'border-slate-300',
-              leftIcon ? 'pr-10' : 'pr-3.5',
-              rightIcon || onClear ? 'pl-10' : 'pl-3.5',
-              isMonospace && 'font-mono text-left tracking-wide',
+              'w-full h-9 px-3 bg-white border rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
+              'transition-colors duration-150',
+              'focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800',
+              'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
+              error ? 'border-rose-300 focus:border-rose-600 focus:ring-rose-600' : 'border-slate-200',
+              leftIcon ? 'pr-9' : 'pr-3',
+              rightIcon || onClear ? 'pl-9' : 'pl-3',
+              isMonospace && 'font-mono text-left tracking-wide tabular-nums',
               className
             )}
             {...props}
@@ -71,21 +71,21 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={onClear}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition-colors"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
           {rightIcon && !onClear && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
               {rightIcon}
             </div>
           )}
         </div>
         {error ? (
-          <p className="mt-1 text-xs text-rose-600 font-medium">{error}</p>
+          <p className="mt-1 text-xs text-rose-600 font-normal">{error}</p>
         ) : helperText ? (
-          <p className="mt-1 text-xs text-slate-500">{helperText}</p>
+          <p className="mt-1 text-xs text-slate-500 font-normal">{helperText}</p>
         ) : null}
       </div>
     );

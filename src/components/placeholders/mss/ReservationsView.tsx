@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   XCircle,
   Calendar,
-  Store,
   RotateCcw,
   Phone,
   User,
@@ -254,7 +253,7 @@ export const ReservationsView: React.FC = () => {
       key: 'reservation_number',
       header: 'رقم الحجز',
       render: (item: MSSReservation) => (
-        <span className="font-mono font-bold text-teal-800 text-xs bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+        <span className="font-mono font-medium text-slate-800 text-xs tabular-nums">
           {item.reservation_number}
         </span>
       ),
@@ -263,7 +262,7 @@ export const ReservationsView: React.FC = () => {
       key: 'serial_number',
       header: 'السيريال المحجوز',
       render: (item: MSSReservation) => (
-        <span className="font-mono font-bold text-xs bg-slate-900 text-teal-300 px-2.5 py-1 rounded-md tracking-wider border border-slate-700 select-all">
+        <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
           {item.serial_number}
         </span>
       ),
@@ -272,7 +271,7 @@ export const ReservationsView: React.FC = () => {
       key: 'model_name',
       header: 'الموديل',
       render: (item: MSSReservation) => (
-        <span className="font-bold text-slate-800 text-sm">
+        <span className="font-medium text-slate-800 text-xs">
           {item.brand ? `${item.brand} ` : ''}
           {item.model_name || 'جهاز لابتوب / شاشة'}
         </span>
@@ -283,11 +282,11 @@ export const ReservationsView: React.FC = () => {
       header: 'العميل وبيانات التواصل',
       render: (item: MSSReservation) => (
         <div className="space-y-0.5">
-          <div className="flex items-center gap-1 font-semibold text-slate-900 text-xs">
+          <div className="flex items-center gap-1 font-medium text-slate-900 text-xs">
             <User className="w-3.5 h-3.5 text-slate-400" />
             <span>{item.customer_name}</span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] font-mono text-slate-500">
+          <div className="flex items-center gap-1 text-[11px] font-mono text-slate-500 tabular-nums">
             <Phone className="w-3 h-3 text-slate-400" />
             <span>{item.customer_phone}</span>
           </div>
@@ -298,7 +297,7 @@ export const ReservationsView: React.FC = () => {
       key: 'deposit_amount',
       header: 'العربون',
       render: (item: MSSReservation) => (
-        <span className="font-bold text-slate-900 font-mono text-xs">
+        <span className="font-mono text-xs font-semibold text-slate-900 tabular-nums">
           {formatCurrency(item.deposit_amount)}
         </span>
       ),
@@ -307,7 +306,7 @@ export const ReservationsView: React.FC = () => {
       key: 'agreed_price',
       header: 'السعر المتفق عليه',
       render: (item: MSSReservation) => (
-        <span className="font-bold text-teal-800 font-mono text-xs">
+        <span className="font-mono text-xs font-semibold text-slate-900 tabular-nums">
           {formatCurrency(item.agreed_price)}
         </span>
       ),
@@ -316,7 +315,7 @@ export const ReservationsView: React.FC = () => {
       key: 'branch',
       header: 'فرع الحجز',
       render: (item: MSSReservation) => (
-        <Badge variant={item.branch === 'محل 1' ? 'primary' : 'purple'}>
+        <Badge variant={item.branch === 'محل 1' ? 'primary' : 'default'}>
           {item.branch}
         </Badge>
       ),
@@ -325,7 +324,7 @@ export const ReservationsView: React.FC = () => {
       key: 'expiry_date',
       header: 'تاريخ الانتهاء',
       render: (item: MSSReservation) => (
-        <span className="font-mono text-xs text-rose-600 font-semibold">
+        <span className="font-mono text-xs text-rose-600 tabular-nums">
           {item.expiry_date}
         </span>
       ),
@@ -338,11 +337,11 @@ export const ReservationsView: React.FC = () => {
           case 'ACTIVE':
             return <Badge variant="success">ساري ومؤكد</Badge>;
           case 'FULFILLED':
-            return <Badge variant="default">تم البيع للعميل</Badge>;
+            return <Badge variant="default">تم البيع</Badge>;
           case 'CANCELLED':
-            return <Badge variant="danger">ملغي ومفرج عنه</Badge>;
+            return <Badge variant="danger">ملغي</Badge>;
           case 'EXPIRED':
-            return <Badge variant="warning">منتهي الصلاحية</Badge>;
+            return <Badge variant="warning">منتهي</Badge>;
           default:
             return <Badge variant="default">{item.status}</Badge>;
         }
@@ -363,7 +362,7 @@ export const ReservationsView: React.FC = () => {
                   setActiveReservation(item);
                   setIsFulfillModalOpen(true);
                 }}
-                className="bg-teal-700 hover:bg-teal-800 text-xs py-1"
+                className="text-xs"
                 leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
               >
                 إتمام البيع
@@ -376,7 +375,7 @@ export const ReservationsView: React.FC = () => {
                   setActiveReservation(item);
                   setIsCancelModalOpen(true);
                 }}
-                className="text-rose-600 hover:text-rose-800 hover:bg-rose-50 text-xs py-1"
+                className="text-slate-500 hover:text-rose-600 text-xs"
                 leftIcon={<XCircle className="w-3.5 h-3.5" />}
               >
                 إلغاء
@@ -389,16 +388,15 @@ export const ReservationsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="حجوزات أجهزة MSS (Device Reservations)"
+        title="حجوزات أجهزة MSS"
         subtitle="حجز أجهزة محددة بالسيريال للعملاء مع تحديد العربون وتاريخ الانتهاء وتحديث حالة الجهاز في كلا المحلين فورياً"
         actions={
           <Button
             variant="primary"
             size="sm"
             onClick={handleOpenAdd}
-            className="bg-teal-700 hover:bg-teal-800"
             leftIcon={<Plus className="w-4 h-4" />}
           >
             إنشاء حجز جديد بالسيريال
@@ -408,44 +406,44 @@ export const ReservationsView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4 bg-white border border-slate-200">
-          <p className="text-xs text-slate-500 font-semibold mb-1">إجمالي الحجوزات</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">إجمالي الحجوزات</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-slate-800">{reservations.length}</span>
-            <BookmarkCheck className="w-5 h-5 text-slate-400" />
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{reservations.length}</span>
+            <BookmarkCheck className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-xs text-slate-400">سجل الحجوزات الكلي</span>
+          <span className="text-[11px] text-slate-400">سجل الحجوزات الكلي</span>
         </Card>
 
-        <Card className="p-4 bg-emerald-50/60 border border-emerald-200">
-          <p className="text-xs text-emerald-800 font-semibold mb-1">الحجوزات السارية حالياً</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">الحجوزات السارية حالياً</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-emerald-900">
+            <span className="text-lg font-semibold text-emerald-700 font-mono tabular-nums">
               {reservations.filter(r => r.status === 'ACTIVE').length}
             </span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <span className="text-xs text-emerald-600">محجوزة وتمنع البيع للغير</span>
+          <span className="text-[11px] text-slate-400">محجوزة وتمنع البيع للغير</span>
         </Card>
 
-        <Card className="p-4 bg-teal-50/60 border border-teal-200">
-          <p className="text-xs text-teal-800 font-semibold mb-1">إجمالي العربون المسدد</p>
+        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
+          <p className="text-xs text-slate-500 font-medium mb-1">إجمالي العربون المسدد</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-teal-900 font-mono">
+            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">
               {formatCurrency(
                 reservations
                   .filter(r => r.status === 'ACTIVE')
                   .reduce((sum, r) => sum + r.deposit_amount, 0)
               )}
             </span>
-            <Calendar className="w-5 h-5 text-teal-600" />
+            <Calendar className="w-4 h-4 text-slate-400" />
           </div>
-          <span className="text-xs text-teal-600">عربيد الحجوزات السارية</span>
+          <span className="text-[11px] text-slate-400">عربون الحجوزات السارية</span>
         </Card>
       </div>
 
       {/* Filter and Search Bar */}
-      <Card className="p-4 space-y-3">
+      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="flex-1 w-full">
             <Input
@@ -458,89 +456,93 @@ export const ReservationsView: React.FC = () => {
           </div>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={loadData}
             title="تحديث البيانات"
-            leftIcon={<RotateCcw className="w-4 h-4 text-slate-500" />}
+            leftIcon={<RotateCcw className="w-4 h-4" />}
           >
             تحديث
           </Button>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-slate-500">حالة الحجز:</span>
-            {(
-              [
-                { id: 'ALL', label: 'الكل' },
-                { id: 'ACTIVE', label: 'ساري' },
-                { id: 'FULFILLED', label: 'تم البيع' },
-                { id: 'CANCELLED', label: 'ملغي' },
-              ] as const
-            ).map(st => (
-              <button
-                key={st.id}
-                onClick={() => setStatusFilter(st.id)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === st.id
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-500">حالة الحجز:</span>
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+              {(
+                [
+                  { id: 'ALL', label: 'الكل' },
+                  { id: 'ACTIVE', label: 'ساري' },
+                  { id: 'FULFILLED', label: 'تم البيع' },
+                  { id: 'CANCELLED', label: 'ملغي' },
+                ] as const
+              ).map(st => (
+                <button
+                  key={st.id}
+                  onClick={() => setStatusFilter(st.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    statusFilter === st.id
+                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-slate-500">فرع الحجز:</span>
-            <button
-              onClick={() => setBranchFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                branchFilter === 'ALL'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              كلا الفرعين
-            </button>
-            <button
-              onClick={() => setBranchFilter('محل 1')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                branchFilter === 'محل 1'
-                  ? 'bg-blue-700 text-white shadow-sm'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-              }`}
-            >
-              محل 1
-            </button>
-            <button
-              onClick={() => setBranchFilter('محل 2')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                branchFilter === 'محل 2'
-                  ? 'bg-purple-700 text-white shadow-sm'
-                  : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-              }`}
-            >
-              محل 2
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-500">فرع الحجز:</span>
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+              <button
+                onClick={() => setBranchFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  branchFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                كلا الفرعين
+              </button>
+              <button
+                onClick={() => setBranchFilter('محل 1')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  branchFilter === 'محل 1'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 1
+              </button>
+              <button
+                onClick={() => setBranchFilter('محل 2')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  branchFilter === 'محل 2'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 2
+              </button>
+            </div>
           </div>
         </div>
       </Card>
 
       {/* Table */}
       {isLoading ? (
-        <Card className="p-12 text-center">
-          <Spinner size="lg" className="mx-auto mb-3 text-teal-600" />
-          <p className="text-sm font-semibold text-slate-600">جاري تحميل سجلات الحجوزات...</p>
+        <Card className="p-12 text-center bg-white border-slate-200/80">
+          <Spinner size="lg" className="mx-auto mb-3" />
+          <p className="text-xs text-slate-500">جاري تحميل سجلات الحجوزات...</p>
         </Card>
       ) : filteredReservations.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <BookmarkCheck className="w-12 h-12 mx-auto text-slate-300" />
-          <h3 className="text-base font-bold text-slate-700">لا توجد حجوزات مطابقة</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
+        <Card className="p-12 text-center space-y-3 bg-white border-slate-200/80">
+          <BookmarkCheck className="w-10 h-10 mx-auto text-slate-300" />
+          <h3 className="text-sm font-semibold text-slate-700">لا توجد حجوزات مطابقة</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
             يمكنك إنشاء حجز جديد بالسيريال لأي جهاز متاح في المخزون لمنع بيعه للغير وتثبيت العربون.
           </p>
           <Button
@@ -553,11 +555,13 @@ export const ReservationsView: React.FC = () => {
           </Button>
         </Card>
       ) : (
-        <Table
-          columns={columns}
-          data={filteredReservations}
-          keyExtractor={(item: MSSReservation) => item.id}
-        />
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+          <Table
+            columns={columns}
+            data={filteredReservations}
+            keyExtractor={(item: MSSReservation) => item.id}
+          />
+        </div>
       )}
 
       {/* ========================================================================= */}
@@ -570,7 +574,7 @@ export const ReservationsView: React.FC = () => {
         subtitle="حجز جهاز متاح لعميل مع تحديد العربون وتاريخ الانتهاء"
         size="md"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -584,7 +588,6 @@ export const ReservationsView: React.FC = () => {
               size="sm"
               onClick={handleSaveAdd}
               disabled={isSubmitting}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
             >
               {isSubmitting ? 'جاري إنشاء الحجز...' : 'تأكيد الحجز'}
@@ -592,27 +595,24 @@ export const ReservationsView: React.FC = () => {
           </div>
         }
       >
-        <form onSubmit={handleSaveAdd} className="space-y-4">
+        <form onSubmit={handleSaveAdd} className="space-y-4 text-xs">
           {formError && (
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              اختر الجهاز المراد حجزه (الأجهزة المتاحة فقط) *
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              الجهاز المراد حجزه (الأجهزة المتاحة فقط) <span className="text-rose-500">*</span>
             </label>
             <Select
               value={selectedDeviceId}
               onChange={e => handleDeviceChange(e.target.value)}
+              options={availableDevices.map(d => ({
+                value: d.id,
+                label: `[${d.serial_number}] - ${d.brand} ${d.model_name} (الموقع: ${d.stock_location}) - ${formatCurrency(d.list_price)}`,
+              }))}
               required
-            >
-              {availableDevices.map(d => (
-                <option key={d.id} value={d.id}>
-                  [{d.serial_number}] - {d.brand} {d.model_name} (الموقع: {d.stock_location}) -{' '}
-                  {formatCurrency(d.list_price)}
-                </option>
-              ))}
-            </Select>
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -662,24 +662,25 @@ export const ReservationsView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              فرع توثيق الحجز *
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              فرع توثيق الحجز <span className="text-rose-500">*</span>
             </label>
             <Select
               value={branch}
               onChange={e => setBranch(e.target.value as MSSStockLocation)}
-            >
-              <option value="محل 1">محل 1</option>
-              <option value="محل 2">محل 2</option>
-            </Select>
+              options={[
+                { value: 'محل 1', label: 'محل 1' },
+                { value: 'محل 2', label: 'محل 2' },
+              ]}
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
               ملاحظات الحجز
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+              className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -698,7 +699,7 @@ export const ReservationsView: React.FC = () => {
         subtitle={`تحويل الحجز (${activeReservation?.reservation_number}) إلى فاتورة بيع نهائية`}
         size="md"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -712,7 +713,6 @@ export const ReservationsView: React.FC = () => {
               size="sm"
               onClick={handleConfirmFulfill}
               disabled={isSubmitting}
-              className="bg-teal-700 hover:bg-teal-800"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
             >
               {isSubmitting ? 'جاري إتمام البيع...' : 'تأكيد البيع النهائي'}
@@ -721,35 +721,35 @@ export const ReservationsView: React.FC = () => {
         }
       >
         {activeReservation && (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-700">
+          <div className="space-y-4 text-xs">
+            <p className="text-slate-700">
               سيتم تسجيل الفاتورة للعميل وتحديث حالة الجهاز إلى (تم البيع) بالسعر المتفق عليه:
             </p>
 
-            <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-xl space-y-2 text-xs">
+            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-lg space-y-2">
               <div className="flex justify-between">
                 <span className="text-slate-500">العميل:</span>
                 <strong className="text-slate-900">{activeReservation.customer_name}</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">السيريال:</span>
-                <strong className="font-mono text-slate-900">{activeReservation.serial_number}</strong>
+                <strong className="font-mono text-slate-900 tabular-nums">{activeReservation.serial_number}</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">السعر المتفق عليه:</span>
-                <strong className="text-teal-900 text-sm font-bold">
+                <strong className="text-slate-900 font-mono tabular-nums">
                   {formatCurrency(activeReservation.agreed_price)}
                 </strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">العربون السابق دفعه:</span>
-                <span className="font-bold text-emerald-700">
+                <span className="font-semibold text-emerald-700 font-mono tabular-nums">
                   {formatCurrency(activeReservation.deposit_amount)}
                 </span>
               </div>
-              <div className="border-t border-teal-200 pt-2 flex justify-between font-bold text-sm">
+              <div className="border-t border-slate-200/80 pt-2 flex justify-between font-semibold">
                 <span className="text-slate-800">المتبقي المطلوب تحصيله:</span>
-                <span className="text-teal-900">
+                <span className="text-slate-900 font-mono tabular-nums">
                   {formatCurrency(activeReservation.agreed_price - activeReservation.deposit_amount)}
                 </span>
               </div>
@@ -768,7 +768,7 @@ export const ReservationsView: React.FC = () => {
         subtitle={`إلغاء حجز رقم (${activeReservation?.reservation_number}) وإعادة الجهاز للمخزون المتاح`}
         size="sm"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="outline"
               size="sm"
@@ -789,20 +789,20 @@ export const ReservationsView: React.FC = () => {
           </div>
         }
       >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-700">
+        <div className="space-y-3 text-xs">
+          <p className="text-slate-700">
             هل أنت متأكد من إلغاء هذا الحجز؟ سيصبح الجهاز متاحاً للبيع فوراً في كلا الفرعين:
           </p>
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-            <p className="font-bold text-slate-800">
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1">
+            <p className="font-medium text-slate-900">
               {activeReservation?.brand} {activeReservation?.model_name}
             </p>
             <p className="font-mono text-slate-600">السيريال: {activeReservation?.serial_number}</p>
-            <p className="text-slate-600">العميل: {activeReservation?.customer_name}</p>
+            <p className="text-slate-500">العميل: {activeReservation?.customer_name}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-slate-700 mb-1">
               سبب الإلغاء (اختياري)
             </label>
             <Input

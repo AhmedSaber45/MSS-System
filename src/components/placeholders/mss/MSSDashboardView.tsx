@@ -13,10 +13,8 @@ import {
   RefreshCw,
   BookmarkCheck,
   Cloud,
-  Laptop,
   TrendingUp,
   Layers,
-  ArrowUpRight,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
@@ -135,21 +133,21 @@ export const MSSDashboardView: React.FC = () => {
     return (
       <div className="space-y-4">
         {/* Navigation Tab Bar */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+          <div className="inline-flex rounded-lg border border-slate-200/80 p-0.5 bg-slate-100 text-xs">
             <button
               type="button"
-              className="px-4 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all"
+              className="px-3 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all"
               onClick={() => setActiveTab('mss')}
             >
               لوحة بيزنس MSS للأجهزة
             </button>
             <button
               type="button"
-              className="px-4 py-1.5 rounded-md font-bold bg-white text-teal-800 shadow transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-md font-semibold bg-white text-slate-900 shadow-2xs transition-all flex items-center gap-1.5"
               onClick={() => setActiveTab('unified')}
             >
-              <Layers className="w-3.5 h-3.5 text-teal-600" />
+              <Layers className="w-3.5 h-3.5 text-slate-600" />
               <span>لوحة القيادة الموحدة للمنشأة</span>
             </button>
           </div>
@@ -165,14 +163,14 @@ export const MSSDashboardView: React.FC = () => {
       key: 'invoice_number',
       header: 'رقم الفاتورة',
       render: (item: MSSInvoice) => (
-        <span className="font-mono font-bold text-teal-700">{item.invoice_number}</span>
+        <span className="font-mono font-semibold text-slate-900 text-xs tabular-nums">{item.invoice_number}</span>
       ),
     },
     {
       key: 'model_name',
       header: 'الموديل',
       render: (item: MSSInvoice) => (
-        <span className="font-bold text-slate-800 text-xs">
+        <span className="font-medium text-slate-800 text-xs">
           {item.brand} {item.model_name}
         </span>
       ),
@@ -181,7 +179,7 @@ export const MSSDashboardView: React.FC = () => {
       key: 'serial_number',
       header: 'السيريال نمبر',
       render: (item: MSSInvoice) => (
-        <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded border text-slate-700">
+        <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700 tabular-nums">
           {item.serial_number}
         </span>
       ),
@@ -194,13 +192,13 @@ export const MSSDashboardView: React.FC = () => {
     {
       key: 'source_branch',
       header: 'مصدر الجهاز',
-      render: (item: MSSInvoice) => <Badge variant="purple">{item.source_branch}</Badge>,
+      render: (item: MSSInvoice) => <Badge variant="default">{item.source_branch}</Badge>,
     },
     {
       key: 'actual_sale_price',
       header: 'سعر البيع الفعلي',
       render: (item: MSSInvoice) => (
-        <span className="font-bold text-slate-900 font-mono">
+        <span className="font-semibold text-slate-900 font-mono text-xs tabular-nums">
           {formatCurrency(item.actual_sale_price)}
         </span>
       ),
@@ -208,20 +206,20 @@ export const MSSDashboardView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Top Section Tab Toggle */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs">
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+        <div className="inline-flex rounded-lg border border-slate-200/80 p-0.5 bg-slate-100 text-xs">
           <button
             type="button"
-            className="px-4 py-1.5 rounded-md font-bold bg-white text-teal-800 shadow transition-all"
+            className="px-3 py-1.5 rounded-md font-semibold bg-white text-slate-900 shadow-2xs transition-all"
             onClick={() => setActiveTab('mss')}
           >
             لوحة بيزنس MSS للأجهزة
           </button>
           <button
             type="button"
-            className="px-4 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5"
             onClick={() => setActiveTab('unified')}
           >
             <Layers className="w-3.5 h-3.5 text-slate-500" />
@@ -242,14 +240,13 @@ export const MSSDashboardView: React.FC = () => {
               size="sm"
               onClick={handleSyncNow}
               disabled={isSyncing}
-              leftIcon={<RefreshCw className={`w-4 h-4 text-teal-600 ${isSyncing ? 'animate-spin' : ''}`} />}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-500 ${isSyncing ? 'animate-spin' : ''}`} />}
             >
               مزامنة سحابية الآن
             </Button>
             <Button
               variant="primary"
               size="sm"
-              className="bg-teal-700 hover:bg-teal-800 focus:ring-teal-600"
               onClick={() => setRoute('sales')}
               leftIcon={<Plus className="w-4 h-4" />}
             >
@@ -261,110 +258,123 @@ export const MSSDashboardView: React.FC = () => {
 
       <Alert
         type="info"
-        title="قواعد بيزنس MSS المشترك (القاعدة 9 و 16)"
+        title="قواعد بيزنس MSS المشترك (Rule 9 & Rule 16)"
         message="الكتالوج مشترك بين المحلين، وتتبع الأجهزة يكون بالسيريال الفريد لكل وحدة فيزيائية، مع تسجيل فرع البيع ومصدر الجهاز بشكل منفصل تماماً، والأرباح مشتركة على مستوى البيزنس ككل."
       />
 
       {isLoading ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
-          <p className="mt-3 text-sm text-slate-500">جاري تحميل بيانات بيزنس MSS...</p>
+          <p className="mt-3 text-xs text-slate-500">جاري تحميل بيانات بيزنس MSS...</p>
         </div>
       ) : (
         <>
-          {/* Top 4 KPI Cards */}
+          {/* Top 5 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatsCard
               title="مخزون محل 1 الفعلي"
               value={`${shop1Available} جهاز`}
               subtitle="متوفر وجاهز للبيع الفوري"
               icon={Store}
-              accentColor="teal"
             />
             <StatsCard
               title="مخزون محل 2 الفعلي"
               value={`${shop2Available} جهاز`}
               subtitle="متوفر وجاهز للبيع الفوري"
               icon={Store}
-              accentColor="blue"
             />
             <StatsCard
               title="أجهزة محجوزة لعملاء"
               value={`${activeReservationsCount} أجهزة`}
               subtitle="موقوفة من البيع المباشر"
               icon={BookmarkCheck}
-              accentColor="amber"
             />
             <StatsCard
               title="مجمل الربح المشترك"
               value={formatCurrency(sharedProfit)}
               subtitle="أرباح موحدة على مستوى النشاط"
               icon={TrendingUp}
-              accentColor="emerald"
             />
             <StatsCard
               title="حالة المزامنة السحابية"
               value={syncStatusText}
               subtitle="دعم كامل لوضع الأوفلاين"
               icon={Cloud}
-              accentColor="indigo"
             />
           </div>
 
           {/* Availability by Model Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center justify-between w-full">
-                <span>موقف الأجهزة المتوفرة بالموديل بين المحلين</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRoute('inventory')}
-                  className="text-xs text-teal-700"
-                >
-                  عرض تفاصيل السيريالات &larr;
-                </Button>
+          <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
+            <CardHeader className="py-3 px-4 bg-slate-50/75 border-b border-slate-200/80 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-semibold text-slate-900">
+                موقف الأجهزة المتوفرة بالموديل بين المحلين
               </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRoute('inventory')}
+                className="text-xs text-slate-600 hover:text-slate-900"
+              >
+                عرض تفاصيل السيريالات &larr;
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-4 font-bold text-xs bg-slate-50 p-2.5 rounded-lg border text-slate-700">
-                <span>موديل الجهاز</span>
-                <span className="text-center text-blue-700">محل 1 (الكمية)</span>
-                <span className="text-center text-teal-700">محل 2 (الكمية)</span>
-                <span className="text-center text-slate-800">الإجمالي المشترك</span>
-              </div>
-
-              {modelsWithStock.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="grid grid-cols-4 items-center text-xs p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50"
-                >
-                  <span className="font-semibold text-slate-800 truncate">
-                    {item.brand} {item.model_name}
-                  </span>
-                  <span className="text-center font-bold text-blue-700">{item.shop_1_count}</span>
-                  <span className="text-center font-bold text-teal-700">{item.shop_2_count}</span>
-                  <span className="text-center font-extrabold text-slate-900 bg-slate-100 py-0.5 px-2 rounded-full mx-auto">
-                    {item.total_available}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-right">
+                <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                  <tr>
+                    <th className="py-2.5 px-3">موديل الجهاز</th>
+                    <th className="py-2.5 px-3 text-center">محل 1 (الكمية)</th>
+                    <th className="py-2.5 px-3 text-center">محل 2 (الكمية)</th>
+                    <th className="py-2.5 px-3 text-center">الإجمالي المشترك</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {modelsWithStock.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                        لا توجد موديلات مسجلة
+                      </td>
+                    </tr>
+                  ) : (
+                    modelsWithStock.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-3 font-medium text-slate-900">
+                          {item.brand} {item.model_name}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono tabular-nums text-slate-700">
+                          {item.shop_1_count}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono tabular-nums text-slate-700">
+                          {item.shop_2_count}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="font-mono tabular-nums font-semibold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200/80">
+                            {item.total_available}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
 
           {/* Recent Sales Table */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-800">آخر مبيعات الأجهزة المسجلة في MSS</h3>
+              <h3 className="text-xs font-semibold text-slate-900">آخر مبيعات الأجهزة المسجلة في MSS</h3>
               <Button size="sm" variant="outline" onClick={() => setRoute('invoices')}>
                 عرض سجل الفواتير كاملاً
               </Button>
             </div>
-            <Table
-              columns={columns}
-              data={recentSales}
-              keyExtractor={(item: MSSInvoice) => item.id}
-            />
+            <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+              <Table
+                columns={columns}
+                data={recentSales}
+                keyExtractor={(item: MSSInvoice) => item.id}
+              />
+            </div>
           </div>
         </>
       )}

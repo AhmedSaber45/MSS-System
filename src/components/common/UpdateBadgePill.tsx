@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUpCircle, Sparkles } from 'lucide-react';
+import { ArrowUpCircle } from 'lucide-react';
 import { updaterService } from '@/services/updaterService.ts';
 import type { UpdateInfo } from '@/types/updater.ts';
 import { UpdateModal } from './UpdateModal.tsx';
@@ -10,7 +10,6 @@ export const UpdateBadgePill: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = updaterService.subscribe(setUpdateInfo);
-    // Start background schedule (e.g. check on app launch)
     const cleanup = updaterService.startBackgroundSchedule(12);
 
     return () => {
@@ -26,23 +25,18 @@ export const UpdateBadgePill: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsModalOpen(true)}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shadow-2xs ${
+        className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors select-none ${
           isUpdateAvailable
-            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 animate-pulse'
-            : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+            ? 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+            : 'bg-white text-slate-700 border border-slate-200/90 hover:bg-slate-50'
         }`}
         title={isUpdateAvailable ? `تحديث جديد متوفر: v${updateInfo.availableVersion}` : 'إدارة التحديثات وإصدار النظام'}
       >
+        <ArrowUpCircle className={`w-3.5 h-3.5 ${isUpdateAvailable ? 'text-amber-700' : 'text-slate-400'}`} />
         {isUpdateAvailable ? (
-          <>
-            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-            <span>تحديث v{updateInfo.availableVersion}</span>
-          </>
+          <span className="tabular-nums font-semibold">تحديث متاح: v{updateInfo.availableVersion}</span>
         ) : (
-          <>
-            <ArrowUpCircle className="w-3.5 h-3.5 text-slate-500" />
-            <span className="font-mono">v{updateInfo.currentVersion}</span>
-          </>
+          <span className="font-mono tabular-nums text-slate-600">v{updateInfo.currentVersion}</span>
         )}
       </button>
 

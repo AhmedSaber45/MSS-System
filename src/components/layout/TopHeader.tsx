@@ -9,7 +9,7 @@ import {
   Bell,
   Clock,
   Calendar,
-  Sparkles,
+  Layers,
   Menu,
 } from 'lucide-react';
 import { formatDate, formatTime, cn } from '../../lib/utils';
@@ -35,54 +35,50 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
   const handleQuickNotificationTest = () => {
     showNotification({
       type: 'info',
-      title: 'إشعار تجريبي',
-      message: 'نظام الإشعارات التفاعلي يعمل بنجاح.',
+      title: 'إشعار النظام',
+      message: 'نظام الإشعارات والتحذيرات يعمل بصورة طبيعية.',
     });
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/90 px-6 flex items-center justify-between z-20 shrink-0 shadow-xs">
+    <header className="h-14 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 select-none">
       {/* Left: Mobile/Sidebar toggle & Active Section Indicator */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
-          className="text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          className="text-slate-500 hover:text-slate-800 p-1.5 rounded-md hover:bg-slate-100 transition-colors"
           title="تبديل القائمة الجانبية"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </button>
 
-        {/* Prominent Active Section Badge */}
+        {/* Active Section Tag */}
         <div
           className={cn(
-            'flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition-all',
+            'flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-medium',
             isAccessories
-              ? 'bg-blue-50/80 border-blue-200 text-blue-900'
-              : 'bg-teal-50/80 border-teal-200 text-teal-950'
+              ? 'bg-blue-50/70 border-blue-200 text-blue-900'
+              : 'bg-teal-50/70 border-teal-200 text-teal-950'
           )}
         >
           <div
             className={cn(
-              'w-2.5 h-2.5 rounded-full animate-pulse',
-              isAccessories ? 'bg-blue-600' : 'bg-teal-600'
+              'w-2 h-2 rounded-full',
+              isAccessories ? 'bg-blue-600' : 'bg-teal-700'
             )}
           />
           <div className="flex items-center gap-1.5">
             {isAccessories ? (
               <>
-                <Store className="w-4 h-4 text-blue-600" />
-                <span>قسم محل الإكسسوارات</span>
-                <span className="text-[11px] bg-blue-100/80 text-blue-800 px-2 py-0.5 rounded-md font-normal">
-                  محلي مستقل
-                </span>
+                <Store className="w-3.5 h-3.5 text-blue-700" />
+                <span>محل الإكسسوارات</span>
+                <span className="text-[10px] text-blue-700 font-normal">| محلي مستقل</span>
               </>
             ) : (
               <>
-                <Laptop className="w-4 h-4 text-teal-700" />
-                <span>قسم أجهزة MSS</span>
-                <span className="text-[11px] bg-teal-100/80 text-teal-900 px-2 py-0.5 rounded-md font-normal">
-                  مشترك بين المحلين
-                </span>
+                <Laptop className="w-3.5 h-3.5 text-teal-800" />
+                <span>بيزنس أجهزة MSS</span>
+                <span className="text-[10px] text-teal-800 font-normal">| مشترك وسحابي</span>
               </>
             )}
           </div>
@@ -91,14 +87,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         {/* Quick Switch Button */}
         <button
           onClick={() => setSection(isAccessories ? 'mss' : 'accessories')}
-          className="text-xs text-slate-500 hover:text-blue-600 underline font-medium cursor-pointer"
+          className="text-xs text-slate-500 hover:text-slate-900 transition-colors font-normal cursor-pointer mr-1"
         >
           الانتقال إلى {isAccessories ? 'أجهزة MSS' : 'الإكسسوارات'}
         </button>
       </div>
 
       {/* Right: Date, Time, Status, Auto-Updater & Showcase Trigger */}
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-2.5">
         {/* Automatic Updates Pill Button */}
         <UpdateBadgePill />
 
@@ -108,38 +104,38 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
             size="sm"
             variant="outline"
             onClick={onOpenShowcase}
-            leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-500" />}
-            className="text-xs font-semibold border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-900"
+            leftIcon={<Layers className="w-3.5 h-3.5 text-slate-500" />}
+            className="text-xs font-medium text-slate-700"
           >
-            معاينة عناصر الواجهة (UI Showcase)
+            عناصر الواجهة
           </Button>
         )}
 
         {/* Connection status indicator */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-medium text-slate-600">
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 h-8 bg-slate-50 border border-slate-200/90 rounded-lg text-xs font-normal text-slate-600">
           {isAccessories ? (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-slate-500" />
-              <span>وضع عدم الاتصال (آمن محلياً)</span>
+              <WifiOff className="w-3.5 h-3.5 text-slate-400" />
+              <span>محلي (أوفلاين)</span>
             </>
           ) : (
             <>
               <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-              <span>جاهز للمزامنة السحابية</span>
+              <span>جاهز للمزامنة</span>
             </>
           )}
         </div>
 
         {/* Live Clock & Date */}
-        <div className="hidden lg:flex items-center gap-3 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60 font-medium">
+        <div className="hidden lg:flex items-center gap-2.5 text-xs text-slate-500 bg-slate-50 px-2.5 h-8 rounded-lg border border-slate-200/90 font-normal">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span>{formatDate(currentTime)}</span>
           </div>
           <span className="text-slate-300">|</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 font-mono tabular-nums">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-mono">{formatTime(currentTime)}</span>
+            <span>{formatTime(currentTime)}</span>
           </div>
         </div>
 
@@ -147,10 +143,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         <button
           onClick={handleQuickNotificationTest}
           className="relative text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-          title="الإشعارات (انقر لإرسال إشعار تجريبي)"
+          title="الإشعارات (اختبار)"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full" />
         </button>
       </div>
     </header>

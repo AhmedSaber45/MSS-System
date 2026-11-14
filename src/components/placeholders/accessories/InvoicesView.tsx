@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
+import { Select } from '@/components/common/Select';
 import { Table, Column } from '@/components/common/Table';
-import { Card } from '@/components/common/Card';
+import { Card, StatsCard } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
@@ -11,13 +12,11 @@ import {
   Eye,
   Printer,
   Search,
-  Calendar,
-  Filter,
-  DollarSign,
   Receipt,
   Tag,
   CreditCard,
   RotateCcw,
+  DollarSign,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { salesService } from '@/services/salesService.ts';
@@ -100,9 +99,9 @@ export const InvoicesView: React.FC = () => {
         <button
           type="button"
           onClick={() => handleOpenPreview(inv)}
-          className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5"
+          className="font-mono text-xs font-semibold text-slate-900 hover:text-blue-700 hover:underline flex items-center gap-1.5 tabular-nums"
         >
-          <Receipt className="w-3.5 h-3.5 text-blue-500" />
+          <Receipt className="w-3.5 h-3.5 text-slate-400" />
           <span>{inv.invoice_number}</span>
         </button>
       ),
@@ -111,7 +110,7 @@ export const InvoicesView: React.FC = () => {
       key: 'invoice_date',
       header: 'التاريخ',
       render: (inv: Invoice) => (
-        <span className="font-mono text-slate-600 text-xs">{inv.invoice_date}</span>
+        <span className="font-mono text-slate-600 text-xs tabular-nums">{inv.invoice_date}</span>
       ),
     },
     {
@@ -119,9 +118,9 @@ export const InvoicesView: React.FC = () => {
       header: 'العميل',
       render: (inv: Invoice) => (
         <div>
-          <p className="font-bold text-slate-800 text-xs">{inv.customer_name || 'عميل نقدي'}</p>
+          <p className="font-medium text-slate-900 text-xs">{inv.customer_name || 'عميل نقدي'}</p>
           {inv.customer_phone && (
-            <p className="font-mono text-[11px] text-slate-400">{inv.customer_phone}</p>
+            <p className="font-mono text-[11px] text-slate-400 tabular-nums">{inv.customer_phone}</p>
           )}
         </div>
       ),
@@ -149,21 +148,21 @@ export const InvoicesView: React.FC = () => {
       header: 'الأصناف',
       align: 'center',
       render: (inv: Invoice) => (
-        <span className="text-xs font-semibold text-slate-700">{inv.items_count} أصناف</span>
+        <span className="text-xs font-medium text-slate-700 tabular-nums">{inv.items_count} أصناف</span>
       ),
     },
     {
       key: 'subtotal',
       header: 'المجموع الفرعي',
       render: (inv: Invoice) => (
-        <span className="font-mono text-xs text-slate-600">{formatCurrency(inv.subtotal)}</span>
+        <span className="font-mono text-xs text-slate-600 tabular-nums">{formatCurrency(inv.subtotal)}</span>
       ),
     },
     {
       key: 'discount',
       header: 'الخصم',
       render: (inv: Invoice) => (
-        <span className="font-mono text-xs text-rose-600">
+        <span className="font-mono text-xs text-rose-700 tabular-nums">
           {inv.discount > 0 ? `- ${formatCurrency(inv.discount)}` : '-'}
         </span>
       ),
@@ -172,7 +171,7 @@ export const InvoicesView: React.FC = () => {
       key: 'total_amount',
       header: 'الصافي المسدد',
       render: (inv: Invoice) => (
-        <span className="font-mono font-bold text-slate-900 text-xs">
+        <span className="font-mono font-semibold text-slate-900 text-xs tabular-nums">
           {formatCurrency(inv.total_amount)}
         </span>
       ),
@@ -188,6 +187,7 @@ export const InvoicesView: React.FC = () => {
             variant="outline"
             onClick={() => handleOpenPreview(inv, 'a4')}
             leftIcon={<Eye className="w-3.5 h-3.5" />}
+            className="h-7 text-xs px-2"
           >
             A4
           </Button>
@@ -196,6 +196,7 @@ export const InvoicesView: React.FC = () => {
             variant="secondary"
             onClick={() => handleOpenPreview(inv, 'thermal')}
             leftIcon={<Printer className="w-3.5 h-3.5" />}
+            className="h-7 text-xs px-2"
           >
             إيصال
           </Button>
@@ -205,7 +206,7 @@ export const InvoicesView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
         title="سجل فواتير المبيعات"
@@ -213,61 +214,44 @@ export const InvoicesView: React.FC = () => {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">إجمالي الفواتير</span>
-            <Receipt className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-xl font-black text-slate-900 font-mono mt-2">{stats.totalCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1">فاتورة مبيعات مسجلة</p>
-        </Card>
-
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">إجمالي المبيعات المحصلة</span>
-            <DollarSign className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-xl font-black text-emerald-700 font-mono mt-2">
-            {formatCurrency(stats.totalRevenue)}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1">صافي الإيرادات المسددة</p>
-        </Card>
-
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">إجمالي الخصومات</span>
-            <Tag className="w-4 h-4 text-rose-600" />
-          </div>
-          <p className="text-xl font-black text-rose-600 font-mono mt-2">
-            {formatCurrency(stats.totalDiscounts)}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1">خصومات فواتير ممنوحة</p>
-        </Card>
-
-        <Card className="p-4 bg-white border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">متوسط قيمة الفاتورة</span>
-            <CreditCard className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-xl font-black text-slate-800 font-mono mt-2">
-            {formatCurrency(stats.avgInvoice)}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1">لكل عملية بيع</p>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <StatsCard
+          title="إجمالي الفواتير"
+          value={stats.totalCount}
+          subtitle="فاتورة مبيعات مسجلة"
+          icon={Receipt}
+        />
+        <StatsCard
+          title="إجمالي المبيعات المحصلة"
+          value={formatCurrency(stats.totalRevenue)}
+          subtitle="صافي الإيرادات المسددة"
+          icon={DollarSign}
+        />
+        <StatsCard
+          title="إجمالي الخصومات"
+          value={formatCurrency(stats.totalDiscounts)}
+          subtitle="خصومات فواتير ممنوحة"
+          icon={Tag}
+        />
+        <StatsCard
+          title="متوسط قيمة الفاتورة"
+          value={formatCurrency(stats.avgInvoice)}
+          subtitle="لكل عملية بيع"
+          icon={CreditCard}
+        />
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-4 bg-white border-slate-200 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+      <Card className="p-3">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
           {/* Query input */}
           <div className="md:col-span-4">
             <Input
-              placeholder="ابحث برقم الفاتورة، اسم العميل، الهاتف، أو الملاحظات..."
+              placeholder="ابحث برقم الفاتورة، اسم العميل، أو الهاتف..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-              className="py-1.5 text-xs"
+              onClear={() => setSearchQuery('')}
+              leftIcon={<Search className="w-3.5 h-3.5" />}
             />
           </div>
 
@@ -277,7 +261,7 @@ export const InvoicesView: React.FC = () => {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="py-1.5 text-xs font-mono"
+              isMonospace
               title="من تاريخ"
             />
             <span className="text-xs text-slate-400">إلى</span>
@@ -285,35 +269,35 @@ export const InvoicesView: React.FC = () => {
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="py-1.5 text-xs font-mono"
+              isMonospace
               title="إلى تاريخ"
             />
           </div>
 
           {/* Payment Method Filter */}
           <div className="md:col-span-3">
-            <select
+            <Select
               value={paymentFilter}
               onChange={e => setPaymentFilter(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
             >
               <option value="ALL">جميع طرق الدفع</option>
               <option value="نقدي">نقدي (كاش)</option>
               <option value="بطاقة / فيزا">بطاقة / فيزا</option>
               <option value="تحويل بنكي / محفظة">تحويل بنكي / محفظة</option>
               <option value="آجل">آجل (حساب عميل)</option>
-            </select>
+            </Select>
           </div>
 
           {/* Reset button */}
           <div className="md:col-span-1 flex justify-end">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={handleResetFilters}
               title="إعادة تعيين الفلاتر"
+              className="w-full"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
@@ -323,22 +307,20 @@ export const InvoicesView: React.FC = () => {
       {isLoading ? (
         <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
           <Spinner size="lg" />
-          <p className="text-xs text-slate-500 mt-3">جارٍ تحميل سجل الفواتير...</p>
+          <p className="text-xs text-slate-500 mt-2.5">جارٍ تحميل سجل الفواتير...</p>
         </div>
       ) : invoices.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-200 space-y-3">
-          <Receipt className="w-12 h-12 text-slate-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-800">لا توجد فواتير مطابقة للبحث</p>
-          <p className="text-xs text-slate-400">قم بتغيير خيارات البحث أو قم بإصدار فاتورة جديدة من نقطة البيع</p>
+        <div className="p-16 text-center bg-white rounded-xl border border-slate-200 space-y-2">
+          <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
+          <p className="text-xs font-medium text-slate-700">لا توجد فواتير مطابقة للبحث</p>
+          <p className="text-[11px] text-slate-400">قم بتغيير خيارات البحث أو قم بإصدار فاتورة جديدة من نقطة البيع</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-          <Table
-            columns={columns}
-            data={invoices}
-            keyExtractor={(item: Invoice) => item.id}
-          />
-        </div>
+        <Table
+          columns={columns}
+          data={invoices}
+          keyExtractor={(item: Invoice) => item.id}
+        />
       )}
 
       {/* Invoice Detail / Print Modal */}
@@ -358,8 +340,7 @@ export const InvoicesView: React.FC = () => {
                 variant="primary"
                 size="sm"
                 onClick={() => window.print()}
-                leftIcon={<Printer className="w-4 h-4" />}
-                className="font-bold"
+                leftIcon={<Printer className="w-3.5 h-3.5" />}
               >
                 طباعة الفاتورة الآن
               </Button>

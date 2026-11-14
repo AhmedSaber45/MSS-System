@@ -22,10 +22,10 @@ const ToastItem: React.FC<{ item: NotificationItem; onDismiss: () => void }> = (
   onDismiss,
 }) => {
   const icons = {
-    success: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />,
-    warning: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
-    info: <Info className="w-5 h-5 text-sky-600 shrink-0" />,
+    success: <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />,
+    error: <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />,
+    warning: <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />,
+    info: <Info className="w-4 h-4 text-sky-700 shrink-0" />,
   };
 
   const borders = {
@@ -38,20 +38,20 @@ const ToastItem: React.FC<{ item: NotificationItem; onDismiss: () => void }> = (
   return (
     <div
       className={cn(
-        'pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-lg border text-right transition-all transform animate-in slide-in-from-bottom-2',
+        'pointer-events-auto flex items-start gap-2.5 p-3.5 rounded-lg shadow-dropdown border text-right transition-all duration-150',
         borders[item.type]
       )}
     >
       <div className="mt-0.5">{icons[item.type]}</div>
       <div className="flex-1">
-        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
-        {item.message && <p className="text-xs text-slate-500 mt-0.5">{item.message}</p>}
+        <h4 className="text-xs font-semibold text-slate-900">{item.title}</h4>
+        {item.message && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.message}</p>}
       </div>
       <button
         onClick={onDismiss}
-        className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+        className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );
