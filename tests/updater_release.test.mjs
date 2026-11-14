@@ -39,23 +39,47 @@ describe('Phase 11 — Automatic Updates & Release Preparation Verification', ()
     );
   });
 
-  test('2. Key Isolation & Security (Rule 21): Private signing key is kept strictly out of git', () => {
+  test('2. Key Isolation & Security (Rule 21): Private signing key is kept strictly out of git and configured via CI secrets', () => {
     const gitignoreContent = fs.readFileSync(path.resolve('.gitignore'), 'utf8');
 
+    // 1. Verify sensitive files and directories are strictly Git-ignored
     assert.ok(gitignoreContent.includes('.tauri/'), '.gitignore must ignore .tauri/ directory');
     assert.ok(gitignoreContent.includes('*.key'), '.gitignore must ignore *.key files');
+    assert.ok(gitignoreContent.includes('.env'), '.gitignore must ignore .env files');
+    assert.ok(gitignoreContent.includes('secrets/'), '.gitignore must ignore secrets/ directory');
 
-    // Verify private key file exists locally in .tauri but is protected
+    // 2. Verify updater public key is configured in tauri.conf.json and is a valid minisign key
+    const tauriConfig = JSON.parse(
+      fs.readFileSync(path.resolve('src-tauri/tauri.conf.json'), 'utf8')
+    );
+    const pubKey = tauriConfig.plugins?.updater?.pubkey;
+    assert.ok(pubKey, 'Updater public key must be configured in tauri.conf.json');
+    assert.ok(pubKey.length > 20, 'Public key must have valid length');
+    const decodedPubKey = Buffer.from(pubKey, 'base64').toString('utf8');
+    assert.ok(decodedPubKey.includes('minisign public key'), 'Public key must be valid minisign key');
+
+    // 3. Verify workflow references signing keys exclusively from GitHub Actions Secrets (never committed to git)
+    const workflowPath = path.resolve('.github/workflows/release.yml');
+    assert.ok(fs.existsSync(workflowPath), '.github/workflows/release.yml must exist');
+    const workflowContent = fs.readFileSync(workflowPath, 'utf8');
+    assert.ok(
+      workflowContent.includes('TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}'),
+      'Workflow must inject TAURI_SIGNING_PRIVATE_KEY from secrets'
+    );
+    assert.ok(
+      workflowContent.includes('TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}'),
+      'Workflow must inject TAURI_SIGNING_PRIVATE_KEY_PASSWORD from secrets'
+    );
+
+    // 4. Verify no private key file is required in CI or tracked in Git
     const keyPath = path.resolve('.tauri/shop-updater.key');
-    assert.ok(fs.existsSync(keyPath), 'Private key must exist locally for release signing');
-
-    // Verify public key is readable
-    const pubKeyPath = path.resolve('.tauri/shop-updater.key.pub');
-    assert.ok(fs.existsSync(pubKeyPath), 'Public key must exist');
-    const pubKey = fs.readFileSync(pubKeyPath, 'utf8').trim();
-    assert.ok(pubKey.length > 20, 'Public key must have valid content');
-    const decoded = Buffer.from(pubKey, 'base64').toString('utf8');
-    assert.ok(decoded.includes('minisign public key'), 'Must be valid minisign key');
+    if (fs.existsSync(keyPath)) {
+      // If present locally in dev environment, verify it is strictly inside an ignored path
+      assert.ok(
+        gitignoreContent.includes('.tauri/'),
+        'Local key file must be in a git-ignored directory'
+      );
+    }
   });
 
   test('3. Graceful offline handling: Missing internet does not crash and returns OFFLINE status', async () => {
