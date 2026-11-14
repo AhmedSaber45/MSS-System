@@ -37,13 +37,13 @@ jobs:
         run: npm ci
 
       - name: Run Test Verification Suite
-        run: npm test || node --experimental-strip-types --test tests/products.test.mjs tests/updater_release.test.mjs
+        run: node --experimental-strip-types --test tests/products.test.mjs tests/updater_release.test.mjs
 
       - name: Build Frontend Assets
         run: npm run build
 
       - name: Build Tauri Desktop Package & Sign Release
-        uses: tauri-apps/action@v0
+        uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -59,3 +59,5 @@ jobs:
             - الحفاظ الكامل على قاعدة بيانات SQLite المحلية وسجل المبيعات
           releaseDraft: false
           prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true

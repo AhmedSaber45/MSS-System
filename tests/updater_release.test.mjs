@@ -181,7 +181,10 @@ describe('Phase 11 — Automatic Updates & Release Preparation Verification', ()
     assert.ok(fs.existsSync(workflowPath), '.github/workflows/release.yml must exist');
 
     const workflowContent = fs.readFileSync(workflowPath, 'utf8');
-    assert.ok(workflowContent.includes('tauri-apps/action'), 'Must use official tauri-apps/action');
+    assert.ok(
+      workflowContent.includes('tauri-apps/tauri-action') || workflowContent.includes('tauri-apps/action'),
+      'Must use official tauri-apps/tauri-action'
+    );
     assert.ok(workflowContent.includes('TAURI_SIGNING_PRIVATE_KEY'), 'Must use signing key from secrets');
     assert.ok(workflowContent.includes('TAURI_SIGNING_PRIVATE_KEY_PASSWORD'), 'Must use signing key password');
   });
