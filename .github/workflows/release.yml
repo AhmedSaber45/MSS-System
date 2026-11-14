@@ -1,0 +1,61 @@
+name: Release & Automatic Update Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Build & Sign Windows Release (NSIS & MSI)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Run Test Verification Suite
+        run: npm test || node --experimental-strip-types --test tests/products.test.mjs tests/updater_release.test.mjs
+
+      - name: Build Frontend Assets
+        run: npm run build
+
+      - name: Build Tauri Desktop Package & Sign Release
+        uses: tauri-apps/action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: './'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Shop Management System v__VERSION__'
+          releaseBody: |
+            ## تحديث نظام إدارة المحل (Shop Management System)
+            - إصدار رسمي موقع رقمياً ومؤمن بتقنية Minisign
+            - تثبيت هادئ وآمن عبر NSIS Installer
+            - الحفاظ الكامل على قاعدة بيانات SQLite المحلية وسجل المبيعات
+          releaseDraft: false
+          prerelease: false

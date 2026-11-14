@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node modules
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment & Secrets (Rule 11: Never commit secrets, Rule 21: Keep private signing keys out of public repos)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.cert
+*.keystore
+.tauri/
+updater-keys/
+secrets/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tauri
+src-tauri/target
+
+# Supabase
+supabase/.temp

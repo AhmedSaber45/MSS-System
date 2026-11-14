@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: theme('colors.slate.200');
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom scrollbar for desktop feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Preserve LTR for barcode, serial numbers, numbers and code */
+.ltr-content,
+.serial-number,
+.barcode-value {
+  direction: ltr;
+  display: inline-block;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+}
+
+/* Print styling foundation for invoices and receipts */
+@media print {
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,75 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AppSection, AccessoriesRoute, MSSRoute, ActiveRoute } from '../types/navigation';
+
+interface NavigationContextType {
+  currentSection: AppSection;
+  currentRoute: ActiveRoute;
+  setSection: (section: AppSection) => void;
+  setRoute: (route: ActiveRoute) => void;
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+}
+
+const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
+
+export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentSection, setCurrentSectionState] = useState<AppSection>('accessories');
+  const [accessoriesRoute, setAccessoriesRoute] = useState<AccessoriesRoute>('dashboard');
+  const [mssRoute, setMssRoute] = useState<MSSRoute>('dashboard');
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+
+  const currentRoute = currentSection === 'accessories' ? accessoriesRoute : mssRoute;
+
+  const setSection = (section: AppSection) => {
+    setCurrentSectionState(section);
+  };
+
+  const setRoute = (route: ActiveRoute) => {
+    if (currentSection === 'accessories') {
+      setAccessoriesRoute(route as AccessoriesRoute);
+    } else {
+      setMssRoute(route as MSSRoute);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => !prev);
+  };
+
+  // Keyboard shortcut support (e.g. Esc or Ctrl+B to toggle sidebar)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <NavigationContext.Provider
+      value={{
+        currentSection,
+        currentRoute,
+        setSection,
+        setRoute,
+        isSidebarCollapsed,
+        toggleSidebar,
+        setSidebarCollapsed,
+      }}
+    >
+      {children}
+    </NavigationContext.Provider>
+  );
+};
+
+export const useNavigation = (): NavigationContextType => {
+  const context = useContext(NavigationContext);
+  if (!context) {
+    throw new Error('useNavigation must be used within a NavigationProvider');
+  }
+  return context;
+};
