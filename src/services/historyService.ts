@@ -1,4 +1,5 @@
 import type { AuditLogEntry, AuditActionType } from '../types/history.ts';
+import { validateDateRange } from '../lib/dateValidation.ts';
 import { salesService } from './salesService.ts';
 import { returnsService } from './returnsService.ts';
 import { purchasesService } from './purchasesService.ts';
@@ -127,11 +128,16 @@ export const historyService = {
           e.actor.toLowerCase().includes(q)
       );
     }
-    if (filter.startDate) {
-      res = res.filter(e => e.date >= filter.startDate!);
-    }
-    if (filter.endDate) {
-      res = res.filter(e => e.date <= filter.endDate!);
+    if (filter.startDate || filter.endDate) {
+      const validation = validateDateRange(filter.startDate, filter.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
+      if (safeStart) {
+        res = res.filter(e => e.date >= safeStart);
+      }
+      if (safeEnd) {
+        res = res.filter(e => e.date <= safeEnd);
+      }
     }
 
     return res;

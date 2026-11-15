@@ -3,6 +3,7 @@ import { productsService } from './productsService.ts';
 import { mssReportsService } from './mssReportsService.ts';
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssSyncService } from './mssSyncService.ts';
+import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidation.ts';
 import type {
   ReportPeriod,
   DateRangeFilter,
@@ -57,11 +58,14 @@ export const unifiedDashboardService = {
     }
 
     if (period === 'custom') {
+      const validation = validateDateRange(customStart, customEnd);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
       return {
         period,
-        startDate: customStart || undefined,
-        endDate: customEnd || undefined,
-        label: customStart && customEnd ? `من ${customStart} إلى ${customEnd}` : 'فترة مخصصة',
+        startDate: safeStart,
+        endDate: safeEnd,
+        label: safeStart && safeEnd ? `من ${safeStart} إلى ${safeEnd}` : 'فترة مخصصة',
       };
     }
 

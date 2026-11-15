@@ -14,8 +14,10 @@ import {
   Calendar,
   RefreshCw,
   Monitor,
+  RotateCcw,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssReportsService } from '@/services/mssReportsService.ts';
 import type {
   MSSFinancialSummary,
@@ -140,21 +142,12 @@ export const MSSReportsView: React.FC = () => {
           </div>
 
           {period === 'custom' && (
-            <div className="flex items-center gap-2.5">
-              <input
-                type="date"
-                value={customStart}
-                onChange={e => setCustomStart(e.target.value)}
-                className="h-10 text-sm font-mono border border-slate-300 rounded-lg px-3 bg-white focus:outline-none focus:border-slate-900"
-                placeholder="من تاريخ"
-              />
-              <span className="text-slate-500 text-sm font-medium">إلى</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={e => setCustomEnd(e.target.value)}
-                className="h-10 text-sm font-mono border border-slate-300 rounded-lg px-3 bg-white focus:outline-none focus:border-slate-900"
-                placeholder="إلى تاريخ"
+            <div className="flex items-center">
+              <DateRangeInputs
+                startDate={customStart}
+                endDate={customEnd}
+                onStartDateChange={setCustomStart}
+                onEndDateChange={setCustomEnd}
               />
             </div>
           )}
@@ -179,35 +172,31 @@ export const MSSReportsView: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Top 4 KPI Cards */}
+          {/* Financial KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="إجمالي إيرادات أجهزة MSS"
+              title="إجمالي المبيعات (Gross Sales)"
               value={formatCurrency(summary.totalRevenue)}
-              subtitle={`صافي البيع: ${formatCurrency(summary.netSales)}`}
+              subtitle={`قبل المرتجعات (${summary.soldDevicesCount} جهاز)`}
               icon={DollarSign}
             />
             <StatsCard
-              title="تكلفة شراء الأجهزة المباعة"
-              value={formatCurrency(summary.costOfGoodsSold)}
-              subtitle="محسوبة من لقطات التكلفة التاريخية"
+              title="إجمالي المرتجعات (Returns)"
+              value={formatCurrency(summary.totalRefunds)}
+              subtitle={`${summary.returnedDevicesCount} جهاز مسترد`}
+              icon={RotateCcw}
+            />
+            <StatsCard
+              title="صافي المبيعات (Net Sales)"
+              value={formatCurrency(summary.netSales)}
+              subtitle="الإيراد الفعلي بعد خصم المرتجعات"
               icon={Laptop}
             />
             <StatsCard
-              title="مجمل الربح المشترك"
+              title="مجمل الربح المشترك (Gross Profit)"
               value={formatCurrency(summary.grossProfit)}
               subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}% على مستوى النشاط`}
               icon={TrendingUp}
-            />
-            <StatsCard
-              title="عدد الأجهزة المباعة"
-              value={`${summary.soldDevicesCount} جهاز`}
-              subtitle={
-                summary.returnedDevicesCount > 0
-                  ? `بما فيها ${summary.returnedDevicesCount} مرتجع مسترد`
-                  : 'متوسط ربح ' + formatCurrency(summary.avgDeviceProfit) + '/جهاز'
-              }
-              icon={Store}
             />
           </div>
 

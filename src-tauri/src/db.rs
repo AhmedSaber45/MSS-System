@@ -1371,11 +1371,16 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
 
     let return_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Local::now().to_rfc3339();
+    let local_today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let today_date = if input.return_date.trim().is_empty() {
-        now.chars().take(10).collect::<String>()
+        local_today.clone()
     } else {
         input.return_date.trim().to_string()
     };
+
+    if today_date > local_today {
+        return Err(format!("تاريخ الإرجاع ({}) لا يمكن أن يكون في المستقبل. أقصى تاريخ هو اليوم ({}).", today_date, local_today));
+    }
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
@@ -1424,6 +1429,33 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
             Ok(p) => p,
             Err(_) => return Err(format!("الصنف بالمعرف {} غير موجود", r_item.product_id)),
         };
+
+        // Verify product was sold in this invoice and calculate remaining returnable quantity
+        let sold_qty: i64 = match tx.query_row(
+            "SELECT quantity FROM accessories_invoice_items WHERE invoice_id = ?1 AND product_id = ?2",
+            params![input.invoice_id, r_item.product_id],
+            |row| row.get(0),
+        ) {
+            Ok(q) => q,
+            Err(_) => return Err(format!("الصنف '{}' لم يتم بيعه في الفاتورة المحددة", name)),
+        };
+
+        let prev_returned: i64 = tx.query_row(
+            "SELECT COALESCE(SUM(ri.quantity_returned), 0)
+             FROM accessories_return_items ri
+             JOIN accessories_returns r ON ri.return_id = r.id
+             WHERE r.invoice_id = ?1 AND ri.product_id = ?2",
+            params![input.invoice_id, r_item.product_id],
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let remaining_returnable = (sold_qty - prev_returned).max(0);
+        if r_item.quantity_returned > remaining_returnable {
+            return Err(format!(
+                "الكمية المطلوب إرجاعها ({}) للصنف '{}' تتجاوز الكمية المتبقية القابلة للإرجاع ({})",
+                r_item.quantity_returned, name, remaining_returnable
+            ));
+        }
 
         let line_refund = r_item.refund_unit_price * (r_item.quantity_returned as f64);
         calculated_refund_total += line_refund;
@@ -1643,13 +1675,17 @@ pub fn get_backups_dir() -> PathBuf {
     path
 }
 
-pub fn create_backup_file(backup_type: &str) -> Result<BackupInfo, String> {
+pub fn create_backup_file(
+    backup_type: &str,
+    destination_dir: Option<&str>,
+    custom_filename: Option<&str>,
+) -> Result<BackupInfo, String> {
     let db_path = get_db_path();
     if !db_path.exists() {
         return Err("ملف قاعدة البيانات الحالي غير موجود لنسخه احتياطياً".into());
     }
 
-    let backups_dir = get_backups_dir();
+    let default_backups_dir = get_backups_dir();
     let now = chrono::Local::now();
     let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
     let b_type = match backup_type.trim().to_lowercase().as_str() {
@@ -1658,11 +1694,40 @@ pub fn create_backup_file(backup_type: &str) -> Result<BackupInfo, String> {
         _ => "manual",
     };
 
-    let filename = format!("accessories_backup_{}_{}.db", timestamp, b_type);
-    let mut target_path = backups_dir.clone();
+    let filename = if let Some(cf) = custom_filename {
+        let trimmed = cf.trim();
+        if trimmed.is_empty() {
+            format!("accessories_backup_{}_{}.db", timestamp, b_type)
+        } else if trimmed.ends_with(".db") {
+            trimmed.to_string()
+        } else {
+            format!("{}.db", trimmed)
+        }
+    } else {
+        format!("accessories_backup_{}_{}.db", timestamp, b_type)
+    };
+
+    let target_dir = if let Some(custom_dir) = destination_dir {
+        let p = PathBuf::from(custom_dir);
+        if !p.exists() {
+            let _ = fs::create_dir_all(&p);
+        }
+        p
+    } else {
+        default_backups_dir.clone()
+    };
+
+    let mut target_path = target_dir;
     target_path.push(&filename);
 
     fs::copy(&db_path, &target_path).map_err(|e| format!("فشل نسخ ملف قاعدة البيانات: {}", e))?;
+
+    // Also copy to default internal backups_dir if a custom target was chosen so it remains tracked in local history
+    if target_path.parent() != Some(&default_backups_dir) {
+        let mut internal_copy = default_backups_dir.clone();
+        internal_copy.push(&filename);
+        let _ = fs::copy(&db_path, &internal_copy);
+    }
 
     let metadata = fs::metadata(&target_path).map_err(|e| e.to_string())?;
     let size_bytes = metadata.len();
@@ -1797,7 +1862,7 @@ pub fn restore_db_from_backup(filename: &str) -> Result<(), String> {
     drop(test_conn);
 
     // 2. Create safeguard backup of current database first
-    let _ = create_backup_file("safeguard");
+    let _ = create_backup_file("safeguard", None, None);
 
     // 3. Replace current database with backup
     let db_path = get_db_path();

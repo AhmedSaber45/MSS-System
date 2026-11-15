@@ -22,6 +22,8 @@ import {
   Boxes,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
 import { purchasesService } from '@/services/purchasesService';
 import { productsService } from '@/services/productsService';
 import { Purchase, PurchaseItem, NewPurchaseInput, NewPurchaseItemInput } from '@/types/purchase';
@@ -45,6 +47,7 @@ export const PurchasesView: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const dateFilter = useDateRangeFilter();
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -55,9 +58,7 @@ export const PurchasesView: React.FC = () => {
 
   // New Purchase Form State
   const [purchaseNumber, setPurchaseNumber] = useState<string>('');
-  const [purchaseDate, setPurchaseDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [purchaseDate, setPurchaseDate] = useState<string>(getTodayLocalDateString());
   const [supplierName, setSupplierName] = useState<string>('');
   const [supplierPhone, setSupplierPhone] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -75,7 +76,11 @@ export const PurchasesView: React.FC = () => {
     setIsLoading(true);
     try {
       const [fetchedPurchases, fetchedProducts] = await Promise.all([
-        purchasesService.getPurchases(),
+        purchasesService.getPurchases({
+          query: searchQuery,
+          startDate: dateFilter.startDate || undefined,
+          endDate: dateFilter.endDate || undefined,
+        }),
         productsService.getProducts(),
       ]);
       setPurchases(fetchedPurchases);
@@ -89,7 +94,7 @@ export const PurchasesView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [showNotification]);
+  }, [searchQuery, dateFilter.startDate, dateFilter.endDate, showNotification]);
 
   useEffect(() => {
     loadData();
@@ -104,7 +109,7 @@ export const PurchasesView: React.FC = () => {
       setPurchaseNumber(`PUR-${new Date().getFullYear()}-001`);
     }
 
-    setPurchaseDate(new Date().toISOString().split('T')[0]);
+    setPurchaseDate(getTodayLocalDateString());
     setSupplierName('');
     setSupplierPhone('');
     setNotes('');
@@ -279,15 +284,19 @@ export const PurchasesView: React.FC = () => {
 
   // Filtered purchases
   const filteredPurchases = useMemo(() => {
-    if (!searchQuery.trim()) return purchases;
-    const q = searchQuery.toLowerCase().trim();
     return purchases.filter(p => {
-      const matchNum = p.purchase_number.toLowerCase().includes(q);
-      const matchSupplier = p.supplier_name ? p.supplier_name.toLowerCase().includes(q) : false;
-      const matchPhone = p.supplier_phone ? p.supplier_phone.toLowerCase().includes(q) : false;
-      return matchNum || matchSupplier || matchPhone;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchNum = p.purchase_number.toLowerCase().includes(q);
+        const matchSupplier = p.supplier_name ? p.supplier_name.toLowerCase().includes(q) : false;
+        const matchPhone = p.supplier_phone ? p.supplier_phone.toLowerCase().includes(q) : false;
+        if (!matchNum && !matchSupplier && !matchPhone) return false;
+      }
+      if (dateFilter.startDate && p.purchase_date < dateFilter.startDate) return false;
+      if (dateFilter.endDate && p.purchase_date > dateFilter.endDate) return false;
+      return true;
     });
-  }, [purchases, searchQuery]);
+  }, [purchases, searchQuery, dateFilter.startDate, dateFilter.endDate]);
 
   // Overall financial metrics
   const totalExpenditure = useMemo(() => {
@@ -411,8 +420,8 @@ export const PurchasesView: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <Card className="p-3.5 border-slate-300">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="w-full md:w-96">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          <div className="md:col-span-5">
             <Input
               placeholder="ابحث برقم الفاتورة، أو اسم المورد، أو الهاتف..."
               value={searchQuery}
@@ -421,8 +430,34 @@ export const PurchasesView: React.FC = () => {
               leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
-          <div className="text-sm font-medium text-slate-600 tabular-nums">
-            عدد الفواتير: <strong className="text-slate-900 font-bold">{filteredPurchases.length}</strong>
+          <div className="md:col-span-5">
+            <DateRangeInputs
+              startDate={dateFilter.startDate}
+              endDate={dateFilter.endDate}
+              maxStartDate={dateFilter.maxStartDate}
+              minEndDate={dateFilter.minEndDate}
+              maxEndDate={dateFilter.maxEndDate}
+              error={dateFilter.error}
+              onStartDateChange={dateFilter.setStartDate}
+              onEndDateChange={dateFilter.setEndDate}
+              onClear={dateFilter.clearDateRange}
+            />
+          </div>
+          <div className="md:col-span-2 flex items-center justify-between md:justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                dateFilter.clearDateRange();
+              }}
+              className="text-xs font-semibold"
+            >
+              إعادة ضبط
+            </Button>
+            <div className="text-xs font-medium text-slate-600 tabular-nums">
+              فواتير: <strong className="text-slate-900 font-bold">{filteredPurchases.length}</strong>
+            </div>
           </div>
         </div>
       </Card>
@@ -488,8 +523,22 @@ export const PurchasesView: React.FC = () => {
             <Input
               label="تاريخ الشراء *"
               type="date"
+              max={getTodayLocalDateString()}
               value={purchaseDate}
-              onChange={e => setPurchaseDate(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                const today = getTodayLocalDateString();
+                if (val > today) {
+                  showNotification({
+                    type: 'warning',
+                    title: 'تاريخ غير مسموح',
+                    message: 'لا يمكن تسجيل فاتورة شراء بتاريخ مستقبلي',
+                  });
+                  setPurchaseDate(today);
+                } else {
+                  setPurchaseDate(val);
+                }
+              }}
             />
 
             <Input

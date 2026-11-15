@@ -22,6 +22,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
 import type {
   ReportPeriod,
@@ -145,21 +146,12 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
           </div>
 
           {period === 'custom' && (
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={customStart}
-                onChange={e => setCustomStart(e.target.value)}
-                className="h-10 text-sm border border-slate-300 rounded-lg px-3 text-slate-800 bg-white"
-                placeholder="من تاريخ"
-              />
-              <span className="text-slate-500 text-sm font-medium">إلى</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={e => setCustomEnd(e.target.value)}
-                className="h-10 text-sm border border-slate-300 rounded-lg px-3 text-slate-800 bg-white"
-                placeholder="إلى تاريخ"
+            <div className="flex items-center">
+              <DateRangeInputs
+                startDate={customStart}
+                endDate={customEnd}
+                onStartDateChange={setCustomStart}
+                onEndDateChange={setCustomEnd}
               />
             </div>
           )}

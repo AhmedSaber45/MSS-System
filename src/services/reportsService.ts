@@ -7,14 +7,16 @@ import type {
 import { salesService } from './salesService.ts';
 import { returnsService } from './returnsService.ts';
 import { productsService } from './productsService.ts';
+import { validateDateRange } from '../lib/dateValidation.ts';
 
 export const reportsService = {
   /**
    * Get overall financial summary for a given date range
    */
   async getFinancialSummary(startDate?: string, endDate?: string): Promise<FinancialSummary> {
-    const invoices = await salesService.getInvoices({ startDate, endDate });
-    const returns = await returnsService.getReturns({ startDate, endDate });
+    const dateVal = validateDateRange(startDate, endDate);
+    const invoices = await salesService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
+    const returns = await returnsService.getReturns({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
 
     let totalRevenue = 0;
     let totalCogs = 0;
@@ -32,16 +34,30 @@ export const reportsService = {
       }
     }
 
+    // Calculate restocked COGS reversal: salable items returned back to shelf reduce effective COGS
+    let restockedCogs = 0;
+    for (const r of returns) {
+      const rItems = await returnsService.getReturnItems(r.id);
+      for (const item of rItems) {
+        if (item.restock_condition === 'RESTOCKED') {
+          const prod = await productsService.getProductById(item.product_id);
+          const unitCost = prod?.cost || 0;
+          restockedCogs += unitCost * item.quantity_returned;
+        }
+      }
+    }
+
+    const effectiveCogs = Math.max(0, totalCogs - restockedCogs);
     const totalRefunds = returns.reduce((sum, r) => sum + r.refund_amount, 0);
     const totalDiscounts = totalLineDiscounts + totalInvoiceDiscounts;
     const netSales = Math.max(0, totalRevenue - totalRefunds);
-    const grossProfit = totalRevenue - totalCogs - totalRefunds;
+    const grossProfit = totalRevenue - effectiveCogs - totalRefunds;
     const profitMarginPercent = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
     const avgInvoiceValue = invoices.length > 0 ? totalRevenue / invoices.length : 0;
 
     return {
       totalRevenue,
-      costOfGoodsSold: totalCogs,
+      costOfGoodsSold: effectiveCogs,
       grossProfit,
       profitMarginPercent,
       totalDiscounts,
@@ -108,7 +124,8 @@ export const reportsService = {
     startDate?: string,
     endDate?: string
   ): Promise<TopSellingProduct[]> {
-    const invoices = await salesService.getInvoices({ startDate, endDate });
+    const dateVal = validateDateRange(startDate, endDate);
+    const invoices = await salesService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
     const productStats = new Map<
       string,
       {

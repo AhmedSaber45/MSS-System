@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
 import { salesService } from '@/services/salesService.ts';
 import { returnsService } from '@/services/returnsService.ts';
 import type { Invoice, InvoiceItem } from '@/types/sale.ts';
@@ -30,15 +32,19 @@ export const ReturnsView: React.FC = () => {
   const [isLoadingReturns, setIsLoadingReturns] = useState<boolean>(true);
   const [filterQuery, setFilterQuery] = useState<string>('');
 
+  // Date range filter for returns archive
+  const dateFilter = useDateRangeFilter();
+
   // Invoice Lookup state
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState<string>('');
   const [isSearchingInvoice, setIsSearchingInvoice] = useState<boolean>(false);
   const [foundInvoice, setFoundInvoice] = useState<Invoice | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [returnSummary, setReturnSummary] = useState<Awaited<ReturnType<typeof returnsService.getInvoiceReturnSummary>> | null>(null);
 
   // Active Return Form State
   const [selectedReturnItems, setSelectedReturnItems] = useState<
-    Map<string, { qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED' }>
+    Map<string, { qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED'; remaining?: number }>
   >(new Map());
   const [returnReason, setReturnReason] = useState<string>('');
   const [refundMethod, setRefundMethod] = useState<string>('نقدي');
@@ -53,14 +59,18 @@ export const ReturnsView: React.FC = () => {
   const loadReturns = useCallback(async () => {
     setIsLoadingReturns(true);
     try {
-      const data = await returnsService.getReturns({ invoiceQuery: filterQuery });
+      const data = await returnsService.getReturns({
+        invoiceQuery: filterQuery,
+        startDate: dateFilter.startDate || undefined,
+        endDate: dateFilter.endDate || undefined,
+      });
       setReturnsList(data);
     } catch (err: any) {
       console.warn('Failed to load returns:', err);
     } finally {
       setIsLoadingReturns(false);
     }
-  }, [filterQuery]);
+  }, [filterQuery, dateFilter.startDate, dateFilter.endDate]);
 
   useEffect(() => {
     loadReturns();
@@ -90,6 +100,7 @@ export const ReturnsView: React.FC = () => {
       if (!matched) {
         setFoundInvoice(null);
         setInvoiceItems([]);
+        setReturnSummary(null);
         showNotification({
           type: 'error',
           title: 'لم يتم العثور على الفاتورة',
@@ -102,13 +113,17 @@ export const ReturnsView: React.FC = () => {
       const items = await salesService.getInvoiceItems(matched.id);
       setInvoiceItems(items);
 
+      const summary = await returnsService.getInvoiceReturnSummary(matched.id);
+      setReturnSummary(summary);
+
       // Initialize selected return items map
       const initialMap = new Map();
-      items.forEach(item => {
-        initialMap.set(item.product_id, {
+      summary.itemSummaries.forEach(item => {
+        initialMap.set(item.productId, {
           qty: 0,
-          refundPrice: item.actual_price,
+          refundPrice: item.actualUnitPrice,
           condition: 'RESTOCKED',
+          remaining: item.remainingReturnableQuantity,
         });
       });
       setSelectedReturnItems(initialMap);
@@ -194,7 +209,7 @@ export const ReturnsView: React.FC = () => {
       await returnsService.createReturn({
         return_number: nextReturnNum,
         invoice_id: foundInvoice.id,
-        return_date: new Date().toISOString().substring(0, 10),
+        return_date: getTodayLocalDateString(),
         reason: returnReason.trim(),
         refund_amount: totalCalculatedRefund,
         refund_method: refundMethod,
@@ -210,6 +225,7 @@ export const ReturnsView: React.FC = () => {
       // Reset
       setFoundInvoice(null);
       setInvoiceItems([]);
+      setReturnSummary(null);
       setReturnReason('');
       setInvoiceSearchQuery('');
       await loadReturns();
@@ -414,6 +430,8 @@ export const ReturnsView: React.FC = () => {
                     <tr>
                       <th className="py-2.5 px-3.5">الصنف</th>
                       <th className="py-2.5 px-3.5 text-center">الكمية المباعة</th>
+                      <th className="py-2.5 px-3.5 text-center">مسترجع سابقاً</th>
+                      <th className="py-2.5 px-3.5 text-center">المتبقي للإرجاع</th>
                       <th className="py-2.5 px-3.5 text-center">سعر البيع الفعلي</th>
                       <th className="py-2.5 px-3.5 text-center w-36">الكمية المرتجعة</th>
                       <th className="py-2.5 px-3.5 text-center w-44">الحالة المخزنية</th>
@@ -422,16 +440,30 @@ export const ReturnsView: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {invoiceItems.map(item => {
+                      const summaryItem = returnSummary?.itemSummaries.find(
+                        s => s.productId === item.product_id
+                      );
+                      const remainingQty = summaryItem ? summaryItem.remainingReturnableQuantity : item.quantity;
+                      const prevReturnedQty = summaryItem ? summaryItem.previouslyReturnedQuantity : 0;
+
                       const state = selectedReturnItems.get(item.product_id) || {
                         qty: 0,
                         refundPrice: item.actual_price,
                         condition: 'RESTOCKED',
                       };
 
+                      const isItemFullyReturned = remainingQty === 0;
+
                       return (
                         <tr
                           key={item.id}
-                          className={state.qty > 0 ? 'bg-rose-50/60' : 'hover:bg-slate-50/80'}
+                          className={
+                            isItemFullyReturned
+                              ? 'bg-slate-50/70 opacity-60'
+                              : state.qty > 0
+                              ? 'bg-rose-50/60'
+                              : 'hover:bg-slate-50/80'
+                          }
                         >
                           <td className="py-2.5 px-3.5">
                             <p className="font-bold text-slate-900">{item.product_name}</p>
@@ -442,30 +474,52 @@ export const ReturnsView: React.FC = () => {
                           <td className="py-2.5 px-3.5 text-center font-bold font-mono text-slate-800 tabular-nums">
                             {item.quantity}
                           </td>
+                          <td className="py-2.5 px-3.5 text-center font-mono font-semibold text-slate-500 tabular-nums">
+                            {prevReturnedQty > 0 ? (
+                              <span className="text-amber-700 font-bold">{prevReturnedQty}</span>
+                            ) : (
+                              '0'
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-center font-mono font-bold tabular-nums">
+                            {isItemFullyReturned ? (
+                              <Badge variant="default" size="sm">
+                                0 (مسترجع بالكامل)
+                              </Badge>
+                            ) : (
+                              <span className="text-emerald-700">{remainingQty}</span>
+                            )}
+                          </td>
                           <td className="py-2.5 px-3.5 text-center font-mono font-semibold tabular-nums">
                             {formatCurrency(item.actual_price)}
                           </td>
                           <td className="py-2.5 px-3.5 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <input
-                                type="number"
-                                min="0"
-                                max={item.quantity}
-                                value={state.qty}
-                                onChange={e => {
-                                  const val = parseInt(e.target.value, 10) || 0;
-                                  const clamped = Math.max(0, Math.min(item.quantity, val));
-                                  handleItemReturnChange(item.product_id, { qty: clamped });
-                                }}
-                                className="w-16 text-center font-bold text-sm py-1 border border-slate-300 rounded-lg focus:border-slate-800 focus:outline-none font-mono tabular-nums"
-                              />
-                              <span className="text-xs font-semibold text-slate-500 tabular-nums">/ {item.quantity}</span>
-                            </div>
+                            {isItemFullyReturned ? (
+                              <span className="text-xs font-semibold text-slate-400 select-none">لا يوجد متبقٍ</span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={remainingQty}
+                                  value={state.qty}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value, 10) || 0;
+                                    const clamped = Math.max(0, Math.min(remainingQty, val));
+                                    handleItemReturnChange(item.product_id, { qty: clamped });
+                                  }}
+                                  className="w-16 text-center font-bold text-sm py-1 border border-slate-300 rounded-lg focus:border-slate-800 focus:outline-none font-mono tabular-nums"
+                                />
+                                <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                                  / {remainingQty}
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 px-3.5 text-center">
                             <select
                               value={state.condition}
-                              disabled={state.qty === 0}
+                              disabled={isItemFullyReturned || state.qty === 0}
                               onChange={e =>
                                 handleItemReturnChange(item.product_id, {
                                   condition: e.target.value as 'RESTOCKED' | 'DAMAGED',
@@ -478,7 +532,7 @@ export const ReturnsView: React.FC = () => {
                             </select>
                           </td>
                           <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
-                            {state.qty > 0 ? formatCurrency(state.qty * state.refundPrice) : '-'}
+                            {formatCurrency(state.qty * item.actual_price)}
                           </td>
                         </tr>
                       );
@@ -553,6 +607,47 @@ export const ReturnsView: React.FC = () => {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Archive Filter Bar */}
+      <Card className="p-3.5 border-slate-300">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          <div className="md:col-span-5">
+            <Input
+              type="text"
+              placeholder="ابحث برقم المرتجع، رقم الفاتورة، أو السبب..."
+              value={filterQuery}
+              onChange={e => setFilterQuery(e.target.value)}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+            />
+          </div>
+          <div className="md:col-span-5">
+            <DateRangeInputs
+              startDate={dateFilter.startDate}
+              endDate={dateFilter.endDate}
+              maxStartDate={dateFilter.maxStartDate}
+              minEndDate={dateFilter.minEndDate}
+              maxEndDate={dateFilter.maxEndDate}
+              error={dateFilter.error}
+              onStartDateChange={dateFilter.setStartDate}
+              onEndDateChange={dateFilter.setEndDate}
+              onClear={dateFilter.clearDateRange}
+            />
+          </div>
+          <div className="md:col-span-2 flex items-center justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFilterQuery('');
+                dateFilter.clearDateRange();
+              }}
+              className="w-full text-xs font-semibold"
+            >
+              إعادة ضبط الفلاتر
+            </Button>
+          </div>
+        </div>
       </Card>
 
       {/* Returns History Archive */}

@@ -16,6 +16,8 @@ import {
   Calendar,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
 import { reportsService } from '@/services/reportsService.ts';
 import type {
   FinancialSummary,
@@ -26,8 +28,7 @@ import type {
 
 export const ReportsView: React.FC = () => {
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'all' | 'custom'>('month');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const dateFilter = useDateRangeFilter();
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Data states
@@ -38,30 +39,32 @@ export const ReportsView: React.FC = () => {
 
   // Helper to calculate date ranges
   const getDateRange = useCallback(() => {
-    const today = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const todayStr = getTodayLocalDateString();
 
     if (period === 'today') {
       return { start: todayStr, end: todayStr };
     }
     if (period === 'week') {
+      const today = new Date();
       const d = new Date(today);
       d.setDate(d.getDate() - 7);
+      const pad = (n: number) => String(n).padStart(2, '0');
       const weekStartStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       return { start: weekStartStr, end: todayStr };
     }
     if (period === 'month') {
+      const today = new Date();
       const d = new Date(today);
       d.setDate(d.getDate() - 30);
+      const pad = (n: number) => String(n).padStart(2, '0');
       const monthStartStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       return { start: monthStartStr, end: todayStr };
     }
     if (period === 'custom') {
-      return { start: startDate || undefined, end: endDate || undefined };
+      return { start: dateFilter.startDate || undefined, end: dateFilter.endDate || undefined };
     }
     return { start: undefined, end: undefined }; // 'all'
-  }, [period, startDate, endDate]);
+  }, [period, dateFilter.startDate, dateFilter.endDate]);
 
   const loadReportData = useCallback(async () => {
     setIsLoading(true);
@@ -153,23 +156,25 @@ export const ReportsView: React.FC = () => {
           </div>
 
           {period === 'custom' && (
-            <div className="flex items-center gap-2.5">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                isMonospace
-                title="من تاريخ"
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <DateRangeInputs
+                startDate={dateFilter.startDate}
+                endDate={dateFilter.endDate}
+                maxStartDate={dateFilter.maxStartDate}
+                minEndDate={dateFilter.minEndDate}
+                maxEndDate={dateFilter.maxEndDate}
+                error={dateFilter.error}
+                onStartDateChange={dateFilter.setStartDate}
+                onEndDateChange={dateFilter.setEndDate}
+                onClear={dateFilter.clearDateRange}
               />
-              <span className="text-slate-500 font-semibold text-sm">إلى</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-                isMonospace
-                title="إلى تاريخ"
-              />
-              <Button size="md" variant="primary" onClick={loadReportData} className="font-bold">
+              <Button
+                size="md"
+                variant="primary"
+                disabled={!dateFilter.isValid}
+                onClick={loadReportData}
+                className="font-bold h-9 text-xs"
+              >
                 تطبيق
               </Button>
             </div>
@@ -187,39 +192,37 @@ export const ReportsView: React.FC = () => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="إجمالي إيرادات المبيعات"
+              title="إجمالي المبيعات (Gross Sales)"
               value={formatCurrency(summary.totalRevenue)}
               subtitle={`${summary.invoicesCount} فاتورة مبيعات مسددة`}
               icon={DollarSign}
             />
             <StatsCard
-              title="تكلفة البضاعة المباعة "
-              value={formatCurrency(summary.costOfGoodsSold)}
-              subtitle=""
+              title="إجمالي المرتجعات (Returns)"
+              value={formatCurrency(summary.totalRefunds)}
+              subtitle={`${summary.returnsCount} حركات استرجاع`}
+              icon={Receipt}
+            />
+            <StatsCard
+              title="صافي المبيعات (Net Sales)"
+              value={formatCurrency(summary.netSales)}
+              subtitle="المبيعات الإجمالية مطروحاً منها المرتجعات"
               icon={ShoppingBag}
             />
             <StatsCard
-              title="مجمل الربح التجاري"
+              title="إجمالي الأرباح (Gross Profit)"
               value={formatCurrency(summary.grossProfit)}
               subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}%`}
               icon={TrendingUp}
-            />
-            <StatsCard
-              title="المرتجعات والخصومات"
-              value={formatCurrency(summary.totalRefunds + summary.totalDiscounts)}
-              subtitle={`خصومات: ${formatCurrency(summary.totalDiscounts)} | مرتجعات: ${formatCurrency(
-                summary.totalRefunds
-              )}`}
-              icon={Receipt}
             />
           </div>
 
           {/* Secondary Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs text-sm">
             <div>
-              <span className="text-slate-500 block mb-1 text-xs font-semibold">صافي المبيعات المحققة</span>
-              <span className="font-mono font-bold text-slate-900 text-base tabular-nums">
-                {formatCurrency(summary.netSales)}
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">تكلفة البضاعة المباعة (COGS)</span>
+              <span className="font-mono font-bold text-slate-800 text-base tabular-nums">
+                {formatCurrency(summary.costOfGoodsSold)}
               </span>
             </div>
             <div>

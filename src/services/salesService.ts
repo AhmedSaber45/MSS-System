@@ -99,6 +99,8 @@ const INITIAL_SEED_INVOICE_ITEMS: InvoiceItem[] = [
   },
 ];
 
+import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
+
 function getLocalInvoices(): Invoice[] {
   try {
     const raw = localStorage.getItem(INVOICES_STORAGE_KEY);
@@ -173,12 +175,18 @@ export const salesService = {
       );
     }
 
-    if (filters.startDate) {
-      result = result.filter(inv => inv.invoice_date >= filters.startDate!);
-    }
+    // Validate and sanitize date filters against future dates and range ordering
+    if (filters.startDate || filters.endDate) {
+      const validation = validateDateRange(filters.startDate, filters.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
 
-    if (filters.endDate) {
-      result = result.filter(inv => inv.invoice_date <= filters.endDate!);
+      if (safeStart) {
+        result = result.filter(inv => inv.invoice_date >= safeStart);
+      }
+      if (safeEnd) {
+        result = result.filter(inv => inv.invoice_date <= safeEnd);
+      }
     }
 
     if (filters.paymentMethod && filters.paymentMethod !== 'ALL') {
@@ -252,6 +260,11 @@ export const salesService = {
     }
     if (!input.items || input.items.length === 0) {
       throw new Error('يجب إضافة صنف واحد على الأقل في سلة المبيعات');
+    }
+
+    const today = getTodayLocalDateString();
+    if (input.invoice_date && input.invoice_date.trim() > today) {
+      throw new Error(`تاريخ الفاتورة (${input.invoice_date}) لا يمكن أن يكون في المستقبل. أقصى تاريخ مسموح هو اليوم (${today}).`);
     }
 
     // Input item validation

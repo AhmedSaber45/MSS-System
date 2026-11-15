@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.ts';
+import { getTodayLocalDateString } from '../lib/dateValidation.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import type {
@@ -312,7 +313,12 @@ export const mssInventoryService = {
 
     const newId = 'dev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
     const now = new Date().toISOString();
-    const purchaseDate = input.purchase_date || now.split('T')[0];
+    const today = getTodayLocalDateString();
+    const purchaseDate = input.purchase_date || today;
+
+    if (purchaseDate > today) {
+      throw new Error(`تاريخ الشراء (${purchaseDate}) لا يمكن أن يكون في المستقبل. أقصى تاريخ مسموح هو اليوم (${today}).`);
+    }
 
     const newDevice: MSSDevice = {
       id: newId,
@@ -414,6 +420,13 @@ export const mssInventoryService = {
 
     if (input.stock_location && !['محل 1', 'محل 2'].includes(input.stock_location)) {
       throw new Error('موقع التخزين غير صالح');
+    }
+
+    if (input.purchase_date) {
+      const today = getTodayLocalDateString();
+      if (input.purchase_date.trim() > today) {
+        throw new Error(`تاريخ الشراء (${input.purchase_date}) لا يمكن أن يكون في المستقبل. أقصى تاريخ مسموح هو اليوم (${today}).`);
+      }
     }
 
     const updated: MSSDevice = {

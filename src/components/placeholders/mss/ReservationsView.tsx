@@ -13,6 +13,8 @@ import { useNotification } from '@/context/NotificationContext';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getTodayLocalDateString, useDateRangeFilter } from '@/lib/dateValidation';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import type { MSSReservation, MSSStockLocation, MSSReservationStatus } from '@/types/mssCommerce';
 import type { MSSDevice } from '@/types/mssInventory';
 import {
@@ -37,6 +39,7 @@ export const ReservationsView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | MSSReservationStatus>('ALL');
   const [branchFilter, setBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
+  const dateFilter = useDateRangeFilter();
 
   // New Reservation Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -234,6 +237,8 @@ export const ReservationsView: React.FC = () => {
   const filteredReservations = reservations.filter(r => {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
     if (branchFilter !== 'ALL' && r.branch !== branchFilter) return false;
+    if (dateFilter.startDate && r.created_at < dateFilter.startDate) return false;
+    if (dateFilter.endDate && r.created_at.split('T')[0] > dateFilter.endDate) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const matchNum = r.reservation_number.toLowerCase().includes(q);
@@ -470,67 +475,78 @@ export const ReservationsView: React.FC = () => {
           </Button>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-sm">
-          <div className="flex items-center gap-2.5">
-            <span className="font-semibold text-slate-700 text-sm">حالة الحجز:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
-              {(
-                [
-                  { id: 'ALL', label: 'الكل' },
-                  { id: 'ACTIVE', label: 'ساري' },
-                  { id: 'FULFILLED', label: 'تم البيع' },
-                  { id: 'CANCELLED', label: 'ملغي' },
-                ] as const
-              ).map(st => (
+        {/* Date Filter & Branch Pills */}
+        <div className="pt-3 border-t border-slate-200 space-y-3">
+          <DateRangeInputs
+            startDate={dateFilter.startDate}
+            endDate={dateFilter.endDate}
+            onStartDateChange={dateFilter.setStartDate}
+            onEndDateChange={dateFilter.setEndDate}
+            error={dateFilter.error}
+            onClear={dateFilter.reset}
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="font-semibold text-slate-700 text-sm">حالة الحجز:</span>
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
+                {(
+                  [
+                    { id: 'ALL', label: 'الكل' },
+                    { id: 'ACTIVE', label: 'ساري' },
+                    { id: 'FULFILLED', label: 'تم البيع' },
+                    { id: 'CANCELLED', label: 'ملغي' },
+                  ] as const
+                ).map(st => (
+                  <button
+                    key={st.id}
+                    onClick={() => setStatusFilter(st.id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                      statusFilter === st.id
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <span className="font-semibold text-slate-700 text-sm">فرع الحجز:</span>
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
                 <button
-                  key={st.id}
-                  onClick={() => setStatusFilter(st.id)}
+                  onClick={() => setBranchFilter('ALL')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    statusFilter === st.id
+                    branchFilter === 'ALL'
                       ? 'bg-white text-slate-900 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {st.label}
+                  كلا الفرعين
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <span className="font-semibold text-slate-700 text-sm">فرع الحجز:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
-              <button
-                onClick={() => setBranchFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  branchFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                كلا الفرعين
-              </button>
-              <button
-                onClick={() => setBranchFilter('محل 1')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  branchFilter === 'محل 1'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 1
-              </button>
-              <button
-                onClick={() => setBranchFilter('محل 2')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  branchFilter === 'محل 2'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 2
-              </button>
+                <button
+                  onClick={() => setBranchFilter('محل 1')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    branchFilter === 'محل 1'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  محل 1
+                </button>
+                <button
+                  onClick={() => setBranchFilter('محل 2')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    branchFilter === 'محل 2'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  محل 2
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -661,6 +677,7 @@ export const ReservationsView: React.FC = () => {
             <Input
               label="تاريخ انتهاء الحجز *"
               type="date"
+              min={getTodayLocalDateString()}
               value={expiryDate}
               onChange={e => setExpiryDate(e.target.value)}
               required

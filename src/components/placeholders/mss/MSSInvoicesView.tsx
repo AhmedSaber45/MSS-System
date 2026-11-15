@@ -9,6 +9,8 @@ import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
 import { Eye, Printer, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useDateRangeFilter } from '@/lib/dateValidation';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
 
@@ -18,19 +20,24 @@ export const MSSInvoicesView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sellingBranchFilter, setSellingBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
   const [selectedInvoice, setSelectedInvoice] = useState<MSSInvoice | null>(null);
+  const dateFilter = useDateRangeFilter();
 
   // Load Invoices
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const list = await mssCommerceService.getInvoices();
+      const list = await mssCommerceService.getInvoices({
+        startDate: dateFilter.startDate || undefined,
+        endDate: dateFilter.endDate || undefined,
+        sellingBranch: sellingBranchFilter !== 'ALL' ? sellingBranchFilter : undefined,
+      });
       setInvoices(list);
     } catch (err) {
       console.error('Failed to load invoices:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dateFilter.startDate, dateFilter.endDate, sellingBranchFilter]);
 
   useEffect(() => {
     loadData();
@@ -232,40 +239,51 @@ export const MSSInvoicesView: React.FC = () => {
           </Button>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-3 pt-3 border-t border-slate-200 text-sm">
-          <span className="font-semibold text-slate-700 text-sm">تصفية فرع البيع:</span>
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
-            <button
-              onClick={() => setSellingBranchFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                sellingBranchFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              كلا الفرعين ({invoices.length})
-            </button>
-            <button
-              onClick={() => setSellingBranchFilter('محل 1')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                sellingBranchFilter === 'محل 1'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              محل 1 ({invoices.filter(i => i.selling_branch === 'محل 1').length})
-            </button>
-            <button
-              onClick={() => setSellingBranchFilter('محل 2')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                sellingBranchFilter === 'محل 2'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              محل 2 ({invoices.filter(i => i.selling_branch === 'محل 2').length})
-            </button>
+        {/* Date Filter & Branch Pills */}
+        <div className="pt-3 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <DateRangeInputs
+            startDate={dateFilter.startDate}
+            endDate={dateFilter.endDate}
+            onStartDateChange={dateFilter.setStartDate}
+            onEndDateChange={dateFilter.setEndDate}
+            error={dateFilter.error}
+            onClear={dateFilter.reset}
+          />
+
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="font-semibold text-slate-700 text-sm shrink-0">فرع البيع:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
+              <button
+                onClick={() => setSellingBranchFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  sellingBranchFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                كلا الفرعين ({invoices.length})
+              </button>
+              <button
+                onClick={() => setSellingBranchFilter('محل 1')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  sellingBranchFilter === 'محل 1'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 1 ({invoices.filter(i => i.selling_branch === 'محل 1').length})
+              </button>
+              <button
+                onClick={() => setSellingBranchFilter('محل 2')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  sellingBranchFilter === 'محل 2'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 2 ({invoices.filter(i => i.selling_branch === 'محل 2').length})
+              </button>
+            </div>
           </div>
         </div>
       </Card>

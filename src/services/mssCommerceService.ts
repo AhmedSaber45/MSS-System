@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.ts';
+import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidation.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
@@ -211,14 +212,16 @@ export const mssCommerceService = {
       invoices = invoices.filter(inv => inv.is_returned === filters.isReturned);
     }
 
-    if (filters?.startDate) {
-      const start = filters.startDate.substring(0, 10);
-      invoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) >= start);
-    }
-
-    if (filters?.endDate) {
-      const end = filters.endDate.substring(0, 10);
-      invoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) <= end);
+    if (filters?.startDate || filters?.endDate) {
+      const validation = validateDateRange(filters.startDate, filters.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
+      if (safeStart) {
+        invoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) >= safeStart);
+      }
+      if (safeEnd) {
+        invoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) <= safeEnd);
+      }
     }
 
     if (filters?.query && filters.query.trim()) {
@@ -535,6 +538,11 @@ export const mssCommerceService = {
     if (input.deposit_amount < 0) throw new Error('مبلغ العربون لا يمكن أن يكون سالباً');
     if (input.agreed_price < 0) throw new Error('السعر المتفق عليه لا يمكن أن يكون سالباً');
 
+    const today = getTodayLocalDateString();
+    if (input.expiry_date && input.expiry_date.trim() < today) {
+      throw new Error(`تاريخ انتهاء الحجز (${input.expiry_date}) لا يمكن أن يكون في الماضي. يجب أن يكون اليوم أو تاريخاً مستقبلياً.`);
+    }
+
     const device = await mssInventoryService.getDeviceById(input.device_id);
     if (!device) throw new Error('الجهاز غير موجود في المخزون');
 
@@ -739,14 +747,16 @@ export const mssCommerceService = {
       };
     });
 
-    if (filters?.startDate) {
-      const start = filters.startDate.substring(0, 10);
-      returns = returns.filter(r => r.return_date && r.return_date.substring(0, 10) >= start);
-    }
-
-    if (filters?.endDate) {
-      const end = filters.endDate.substring(0, 10);
-      returns = returns.filter(r => r.return_date && r.return_date.substring(0, 10) <= end);
+    if (filters?.startDate || filters?.endDate) {
+      const validation = validateDateRange(filters.startDate, filters.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
+      if (safeStart) {
+        returns = returns.filter(r => r.return_date && r.return_date.substring(0, 10) >= safeStart);
+      }
+      if (safeEnd) {
+        returns = returns.filter(r => r.return_date && r.return_date.substring(0, 10) <= safeEnd);
+      }
     }
 
     if (filters?.query && filters.query.trim()) {

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
-import { Alert } from '@/components/common/Alert';
 import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
@@ -10,7 +9,6 @@ import { Spinner } from '@/components/common/Spinner';
 import {
   HardDriveDownload,
   HardDriveUpload,
-  Usb,
   Database,
   ShieldCheck,
   AlertTriangle,
@@ -19,6 +17,9 @@ import {
   Clock,
   Settings,
   FolderDown,
+  FolderOpen,
+  Save,
+  CheckCircle2,
 } from 'lucide-react';
 import { useNotification } from '@/context/NotificationContext';
 import { backupService } from '@/services/backupService.ts';
@@ -31,6 +32,7 @@ export const BackupView: React.FC = () => {
   const [config, setConfig] = useState<BackupConfig>(backupService.getBackupConfig());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCreatingBackup, setIsCreatingBackup] = useState<boolean>(false);
+  const [backupProgressMsg, setBackupProgressMsg] = useState<string>('');
 
   // Restore Modal State
   const [selectedBackupForRestore, setSelectedBackupForRestore] = useState<BackupItem | null>(null);
@@ -54,22 +56,38 @@ export const BackupView: React.FC = () => {
 
   useEffect(() => {
     loadBackups();
-    // Run scheduled backup if due
+
+    // Check on startup
     backupService.checkAndRunScheduledAutoBackup().then(ran => {
       if (ran) loadBackups();
     });
-  }, [loadBackups]);
 
-  // Create Manual Backup
-  const handleCreateManualBackup = async () => {
+    // Start background auto-backup timer while app is running
+    const unsubscribe = backupService.startScheduler(newBackup => {
+      showNotification({
+        type: 'info',
+        title: 'نسخ احتياطي تلقائي مجدول',
+        message: `تم إنشاء نسخة احتياطية مجدولة بنجاح (${newBackup.filename}) بحجم ${newBackup.size_formatted}.`,
+      });
+      loadBackups();
+    });
+
+    return () => unsubscribe();
+  }, [loadBackups, showNotification]);
+
+  // Create Quick Manual Backup
+  const handleCreateQuickBackup = async () => {
     if (isCreatingBackup) return;
     setIsCreatingBackup(true);
+    setBackupProgressMsg('جارٍ نسخ وحفظ قاعدة البيانات المحلية...');
     try {
-      const newBackup = await backupService.createBackup('manual');
+      const newBackup = await backupService.createBackup('manual', {
+        destinationDir: config.destinationFolder,
+      });
       showNotification({
         type: 'success',
         title: 'تم إنشاء النسخة الاحتياطية بنجاح',
-        message: `تم حفظ النسخة (${newBackup.filename}) بحجم ${newBackup.size_formatted} واكتمال فحص السلامة.`,
+        message: `تم حفظ النسخة (${newBackup.filename}) بحجم ${newBackup.size_formatted} واكتمال فحص السلامة.\nالمسار: ${newBackup.filepath}`,
       });
       await loadBackups();
     } catch (err: any) {
@@ -80,6 +98,69 @@ export const BackupView: React.FC = () => {
       });
     } finally {
       setIsCreatingBackup(false);
+      setBackupProgressMsg('');
+    }
+  };
+
+  // Create "Save As" Manual Backup with Native Save Dialog
+  const handleCreateSaveAsBackup = async () => {
+    if (isCreatingBackup) return;
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const defaultFilename = `MSS-Backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate()
+    )}-${pad(now.getHours())}-${pad(now.getMinutes())}.db`;
+
+    try {
+      // 1. Prompt native save file dialog
+      const chosenPath = await backupService.selectSaveBackupPath(defaultFilename);
+      if (!chosenPath) {
+        // User cancelled the dialog safely - no action required
+        return;
+      }
+
+      setIsCreatingBackup(true);
+      setBackupProgressMsg(`جارٍ حفظ النسخة الاحتياطية إلى المسار المختار...`);
+
+      // Extract directory and filename
+      const lastSlash = Math.max(chosenPath.lastIndexOf('\\'), chosenPath.lastIndexOf('/'));
+      const customDir = lastSlash > 0 ? chosenPath.substring(0, lastSlash) : undefined;
+      const customFilename =
+        lastSlash > 0 ? chosenPath.substring(lastSlash + 1) : chosenPath;
+
+      const newBackup = await backupService.createBackup('manual', {
+        destinationDir: customDir,
+        customFilename,
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'تم حفظ النسخة الاحتياطية بنجاح',
+        message: `تم حفظ النسخة (${newBackup.filename}) بحجم ${newBackup.size_formatted}.\nالمسار المختار: ${newBackup.filepath}`,
+      });
+      await loadBackups();
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل حفظ النسخة الاحتياطية',
+        message: err.message || 'تعذر حفظ ملف النسخة في المسار المحدد',
+      });
+    } finally {
+      setIsCreatingBackup(false);
+      setBackupProgressMsg('');
+    }
+  };
+
+  // Choose Destination Folder for Auto-Backups
+  const handleSelectDestinationFolder = async () => {
+    try {
+      const folder = await backupService.selectBackupFolder();
+      if (folder) {
+        setTempConfig(prev => ({ ...prev, destinationFolder: folder }));
+      }
+    } catch (err) {
+      console.warn('Failed to select destination folder:', err);
     }
   };
 
@@ -92,7 +173,7 @@ export const BackupView: React.FC = () => {
       showNotification({
         type: 'success',
         title: 'تم استرجاع قاعدة البيانات بنجاح',
-        message: `تمت استعادة البيانات من ${selectedBackupForRestore.filename} بعد أخذ نسخة حماية للبيانات السابقة.`,
+        message: `تمت استعادة البيانات من ${selectedBackupForRestore.filename} بعد إنشاء نسخة حماية للبيانات السابقة.`,
       });
       setSelectedBackupForRestore(null);
       await loadBackups();
@@ -110,11 +191,16 @@ export const BackupView: React.FC = () => {
   // Export Backup File to external drive or download
   const handleExportBackup = async (item: BackupItem) => {
     try {
-      await backupService.exportBackup(item.filename);
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const defaultExportName = `Export-${item.filename}`;
+      const chosenExportPath = await backupService.selectSaveBackupPath(defaultExportName);
+
+      await backupService.exportBackup(item.filename, chosenExportPath || undefined);
       showNotification({
         type: 'success',
         title: 'تم تصدير النسخة الاحتياطية',
-        message: `تم تنزيل / تصدير ملف النسخة الاحتياطية ${item.filename} بنجاح.`,
+        message: `تم تصدير ملف النسخة الاحتياطية ${item.filename} بنجاح.`,
       });
     } catch (err: any) {
       showNotification({
@@ -133,7 +219,9 @@ export const BackupView: React.FC = () => {
     showNotification({
       type: 'success',
       title: 'تم حفظ إعدادات النسخ الاحتياطي',
-      message: `النسخ التلقائي: ${tempConfig.autoBackupEnabled ? 'مفعل' : 'معطل'} | الحد الأقصى للاحتفاظ: ${tempConfig.retentionCount} نسخ`,
+      message: `النسخ التلقائي: ${
+        tempConfig.autoBackupEnabled ? 'مفعل' : 'معطل'
+      } | موعد النسخ القادم: ${backupService.calculateNextBackupDescription(tempConfig)}`,
     });
   };
 
@@ -187,7 +275,7 @@ export const BackupView: React.FC = () => {
             ? 'يدوي'
             : item.backup_type === 'auto'
             ? 'تلقائي مجدول'
-            : 'نسخة حماية سابقة'}
+            : 'حماية سابقة'}
         </Badge>
       ),
     },
@@ -233,10 +321,10 @@ export const BackupView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="النسخ الاحتياطي "
-        subtitle=""
+        title="إدارة النسخ الاحتياطي والأرشفة"
+        subtitle="حماية وأرشفة بيانات قاعدة بيانات الإكسسوارات المحلية تلقائياً ويدوياً"
         actions={
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Button
               variant="outline"
               size="md"
@@ -245,7 +333,7 @@ export const BackupView: React.FC = () => {
               leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
               className="border-slate-300 font-semibold"
             >
-              Refresh
+              تحديث
             </Button>
             <Button
               variant="outline"
@@ -257,25 +345,45 @@ export const BackupView: React.FC = () => {
               leftIcon={<Settings className="w-4.5 h-4.5 text-slate-600" />}
               className="border-slate-300 font-semibold"
             >
-              إعدادات الجدولة
+              إعدادات الجدولة والتلقائي
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={handleCreateSaveAsBackup}
+              disabled={isCreatingBackup}
+              leftIcon={<Save className="w-4.5 h-4.5 text-slate-700" />}
+              className="border-slate-300 font-bold"
+            >
+              حفظ باسم...
             </Button>
             <Button
               variant="primary"
               size="md"
-              onClick={handleCreateManualBackup}
+              onClick={handleCreateQuickBackup}
               disabled={isCreatingBackup}
               leftIcon={
-                isCreatingBackup ? <Spinner size="sm" /> : <HardDriveDownload className="w-4.5 h-4.5" />}
+                isCreatingBackup ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <HardDriveDownload className="w-4.5 h-4.5" />
+                )
+              }
               className="font-bold"
             >
-              {isCreatingBackup ? 'جارٍ النسخ الاحتياطي...' : 'إنشاء نسخة احتياطية فورية'}
+              {isCreatingBackup ? 'جارٍ النسخ...' : 'نسخ احتياطي سريع'}
             </Button>
           </div>
         }
       />
 
-      {/* Safety Notice */}
-
+      {/* Progress alert if in progress */}
+      {isCreatingBackup && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-900 text-sm animate-pulse">
+          <Spinner size="sm" />
+          <span className="font-semibold">{backupProgressMsg || 'جارٍ معالجة النسخة الاحتياطية بأمان...'}</span>
+        </div>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -286,11 +394,30 @@ export const BackupView: React.FC = () => {
           </div>
           <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-lg font-bold text-slate-900">
-              {config.autoBackupEnabled ? 'مفعل (يومياً)' : 'معطل'}
+              {config.autoBackupEnabled ? 'مفعل ونشط' : 'معطل'}
             </span>
-            <Badge variant={config.autoBackupEnabled ? 'success' : 'default'} size="sm" className="font-semibold">
+            <Badge
+              variant={config.autoBackupEnabled ? 'success' : 'default'}
+              size="sm"
+              className="font-semibold"
+            >
               {config.autoBackupEnabled ? 'نشط' : 'متوقف'}
             </Badge>
+          </div>
+          <p className="text-xs text-slate-600 mt-1.5 font-medium">
+            النسخة القادمة: <strong className="text-slate-900">{backupService.calculateNextBackupDescription(config)}</strong>
+          </p>
+        </Card>
+
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600">مجلد الحفظ الافتراضي</span>
+            <FolderOpen className="w-5 h-5 text-slate-500" />
+          </div>
+          <div className="mt-2.5">
+            <span className="text-sm font-mono font-bold text-slate-900 block truncate" title={config.destinationFolder || 'المسار الافتراضي للبرنامج'}>
+              {config.destinationFolder || 'المسار الافتراضي (AppData\\ShopManagementSystem\\backups)'}
+            </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             الاحتفاظ بآخر {config.retentionCount} نسخ تلقائية
@@ -303,22 +430,25 @@ export const BackupView: React.FC = () => {
             <Database className="w-5 h-5 text-slate-500" />
           </div>
           <div className="mt-2.5 flex items-baseline gap-1.5">
-            <span className="text-lg font-bold text-slate-900 font-mono tabular-nums">{backups.length}</span>
-            <span className="text-xs text-slate-500 font-medium">نسخة محفوظة</span>
+            <span className="text-lg font-bold text-slate-900 font-mono tabular-nums">
+              {backups.length}
+            </span>
+            <span className="text-xs text-slate-500 font-medium">نسخة محفوظة ومتحقق منها</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             آخر نسخة:{' '}
             {backups.length > 0 ? backups[0].date.substring(0, 16) : 'لا توجد نسخ سابقة'}
           </p>
         </Card>
-
       </div>
 
       {/* Backups Table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">أرشيف النسخ الاحتياطية المتوفرة</h3>
-          <span className="text-sm font-semibold text-slate-500 tabular-nums">{backups.length} ملفات جاهزة للاسترجاع</span>
+          <h3 className="text-sm font-bold text-slate-900">سجل أرشيف النسخ الاحتياطية</h3>
+          <span className="text-sm font-semibold text-slate-500 tabular-nums">
+            {backups.length} ملفات جاهزة للاسترجاع
+          </span>
         </div>
 
         {isLoading ? (
@@ -345,7 +475,7 @@ export const BackupView: React.FC = () => {
         )}
       </div>
 
-      {/* Safe Restore Confirmation Modal */}
+      {/* Restore Confirmation Modal */}
       {selectedBackupForRestore && (
         <Modal
           isOpen={!!selectedBackupForRestore}
@@ -402,7 +532,9 @@ export const BackupView: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-500 font-sans font-semibold">حجم النسخة:</span>{' '}
-                <span className="tabular-nums font-bold text-slate-800">{selectedBackupForRestore.size_formatted}</span>
+                <span className="tabular-nums font-bold text-slate-800">
+                  {selectedBackupForRestore.size_formatted}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500 font-sans font-semibold">فحص السلامة:</span>{' '}
@@ -419,20 +551,20 @@ export const BackupView: React.FC = () => {
               </p>
               <p className="text-slate-600 leading-relaxed">
                 يقوم النظام تلقائياً بإنشاء نسخة حماية كاملة من بياناتك الحالية (Safeguard Backup)
-                قبل الشروع في الاسترجاع لضمان عدم فقدان أي بيانات.
+                قبل الشروع في الاسترجاع لضمان عدم فقدان أي بيانات تحت أي ظرف.
               </p>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Backup Settings Modal */}
+      {/* Advanced Backup Settings Modal */}
       {isSettingsModalOpen && (
         <Modal
           isOpen={isSettingsModalOpen}
           onClose={() => setIsSettingsModalOpen(false)}
-          title="إعدادات النسخ الاحتياطي التلقائي والاحتفاظ"
-          subtitle="تكوين سياسة الأرشفة الدورية ومعدل الاحتفاظ بالملفات"
+          title="إعدادات النسخ الاحتياطي التلقائي والجدولة"
+          subtitle="تكوين المواعيد التلقائية، مجلد الوجهة، وسياسة الاحتفاظ"
           size="md"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -460,8 +592,8 @@ export const BackupView: React.FC = () => {
             <div className="flex items-center justify-between p-3.5 bg-slate-50/90 rounded-xl border border-slate-300">
               <div>
                 <p className="font-bold text-slate-900">تفعيل النسخ الاحتياطي التلقائي</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  إنشاء نسخة احتياطية بصورة دورية يومية تلقائياً
+                <p className="text-xs text-slate-500 mt-0.5">
+                  إنشاء نسخة احتياطية بشكل دوري في الخلفية طالما التطبيق يعمل
                 </p>
               </div>
               <input
@@ -470,12 +602,133 @@ export const BackupView: React.FC = () => {
                 onChange={e =>
                   setTempConfig({ ...tempConfig, autoBackupEnabled: e.target.checked })
                 }
-                className="w-4.5 h-4.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
             </div>
 
+            {/* Schedule Mode Selector */}
+            <div className="space-y-2 p-3.5 bg-slate-50/90 rounded-xl border border-slate-300">
+              <label className="font-bold text-slate-800 block text-xs">
+                نوع ونظام الجدولة التلقائية:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTempConfig({ ...tempConfig, scheduleMode: 'time' })}
+                  className={`py-2 px-3 rounded-lg border text-xs font-bold text-center transition-all ${
+                    tempConfig.scheduleMode === 'time'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  توقيت يومي محدد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTempConfig({ ...tempConfig, scheduleMode: 'interval' })}
+                  className={`py-2 px-3 rounded-lg border text-xs font-bold text-center transition-all ${
+                    tempConfig.scheduleMode === 'interval'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  فترات زمنية متكررة
+                </button>
+              </div>
+
+              {/* Conditional options based on scheduleMode */}
+              {tempConfig.scheduleMode === 'time' ? (
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <label className="font-semibold text-slate-700 block text-xs mb-1">
+                    الوقت المحدد يومياً:
+                  </label>
+                  <input
+                    type="time"
+                    value={tempConfig.specificTime || '22:00'}
+                    onChange={e =>
+                      setTempConfig({ ...tempConfig, specificTime: e.target.value })
+                    }
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    سيتم أخذ نسخة احتياطية يومياً في هذا التوقيت (أو عند فتح التطبيق إذا كان مغلقاً في ذلك الوقت).
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-2.5 pt-2 border-t border-slate-200">
+                  <label className="font-semibold text-slate-700 block text-xs mb-1">
+                    التكرار كل:
+                  </label>
+                  <select
+                    value={tempConfig.intervalHours || 6}
+                    onChange={e =>
+                      setTempConfig({
+                        ...tempConfig,
+                        intervalHours: parseInt(e.target.value, 10) || 6,
+                      })
+                    }
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-800"
+                  >
+                    <option value={1}>كل ساعة واحدة</option>
+                    <option value={2}>كل ساعتين (2 ساعات)</option>
+                    <option value={3}>كل 3 ساعات</option>
+                    <option value={6}>كل 6 ساعات (موصى به أثناء العمل)</option>
+                    <option value={12}>كل 12 ساعة</option>
+                    <option value={24}>كل 24 ساعة</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Next Backup Live Preview */}
+              <div className="mt-2 p-2 bg-white rounded-lg border border-slate-200 text-xs flex items-center justify-between">
+                <span className="text-slate-500 font-medium">النسخة التلقائية القادمة:</span>
+                <span className="font-bold text-blue-900">
+                  {backupService.calculateNextBackupDescription(tempConfig)}
+                </span>
+              </div>
+            </div>
+
+            {/* Destination Folder */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block text-xs">
+                مجلد وجهة النسخ الاحتياطي:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={tempConfig.destinationFolder || 'المسار الافتراضي للبرنامج'}
+                  className="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 truncate"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectDestinationFolder}
+                  leftIcon={<FolderOpen className="w-4 h-4" />}
+                  className="shrink-0 text-xs font-semibold"
+                >
+                  استعراض...
+                </Button>
+                {tempConfig.destinationFolder && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTempConfig({ ...tempConfig, destinationFolder: undefined })}
+                    className="shrink-0 text-xs text-rose-600 hover:bg-rose-50"
+                  >
+                    إعادة للافتراضي
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                يمكنك تحديد قرص صلب خارجي أو مجلد سحابي لمزيد من الأمان.
+              </p>
+            </div>
+
             {/* Retention count */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="font-bold text-slate-700 block text-xs">
                 الحد الأقصى لعدد النسخ المحفوظة:
               </label>
@@ -487,14 +740,14 @@ export const BackupView: React.FC = () => {
                     retentionCount: parseInt(e.target.value, 10) || 10,
                   })
                 }
-                className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-800"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-800"
               >
                 <option value={5}>الاحتفاظ بآخر 5 نسخ</option>
                 <option value={10}>الاحتفاظ بآخر 10 نسخ (موصى به)</option>
                 <option value={20}>الاحتفاظ بآخر 20 نسخة</option>
                 <option value={30}>الاحتفاظ بآخر 30 نسخة</option>
               </select>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 يقوم النظام بحذف أقدم النسخ التلقائية الزائدة عن هذا الحد تلقائياً لتوفير المساحة.
               </p>
             </div>

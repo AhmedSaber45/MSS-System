@@ -39,6 +39,7 @@ export interface NewSaleItemInput {
 
 export interface NewSaleInput {
   invoice_number: string;
+  invoice_date?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   invoice_discount: number;

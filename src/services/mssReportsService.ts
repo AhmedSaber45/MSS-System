@@ -1,5 +1,6 @@
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
+import { validateDateRange } from '../lib/dateValidation.ts';
 import type { MSSStockLocation } from '../types/mssInventory.ts';
 import type {
   MSSFinancialSummary,
@@ -15,8 +16,9 @@ export const mssReportsService = {
    * Gross profit is computed at the shared business level (Rule 16)
    */
   async getMSSFinancialSummary(startDate?: string, endDate?: string): Promise<MSSFinancialSummary> {
-    const invoices = await mssCommerceService.getInvoices({ startDate, endDate });
-    const returns = await mssCommerceService.getReturns({ startDate, endDate });
+    const dateVal = validateDateRange(startDate, endDate);
+    const invoices = await mssCommerceService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
+    const returns = await mssCommerceService.getReturns({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
 
     // Active sales (excluding returned invoices)
     const activeInvoices = invoices.filter(inv => !inv.is_returned);

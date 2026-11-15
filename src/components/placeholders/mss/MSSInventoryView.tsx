@@ -13,6 +13,7 @@ import { useNotification } from '@/context/NotificationContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCatalogService } from '@/services/mssCatalogService';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getTodayLocalDateString } from '@/lib/dateValidation';
 import type {
   MSSDevice,
   MSSDeviceStatus,
@@ -885,6 +886,7 @@ export const MSSInventoryView: React.FC = () => {
               </label>
               <Input
                 type="date"
+                max={getTodayLocalDateString()}
                 value={formPurchaseDate}
                 onChange={e => setFormPurchaseDate(e.target.value)}
               />
@@ -1036,6 +1038,7 @@ export const MSSInventoryView: React.FC = () => {
               </label>
               <Input
                 type="date"
+                max={getTodayLocalDateString()}
                 value={formPurchaseDate}
                 onChange={e => setFormPurchaseDate(e.target.value)}
               />

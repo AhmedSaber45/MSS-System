@@ -4,6 +4,8 @@ import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
 import { salesService } from './salesService.ts';
 
+import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
+
 const RETURNS_STORAGE_KEY = 'shop_accessories_returns_v1';
 const RETURN_ITEMS_STORAGE_KEY = 'shop_accessories_return_items_v1';
 
@@ -104,11 +106,16 @@ export const returnsService = {
           r.reason.toLowerCase().includes(q)
       );
     }
-    if (filter.startDate) {
-      res = res.filter(r => r.return_date >= filter.startDate!);
-    }
-    if (filter.endDate) {
-      res = res.filter(r => r.return_date <= filter.endDate!);
+    if (filter.startDate || filter.endDate) {
+      const validation = validateDateRange(filter.startDate, filter.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
+      if (safeStart) {
+        res = res.filter(r => r.return_date >= safeStart);
+      }
+      if (safeEnd) {
+        res = res.filter(r => r.return_date <= safeEnd);
+      }
     }
 
     return res;
@@ -128,6 +135,59 @@ export const returnsService = {
 
     const all = getLocalReturnItems();
     return all.filter(item => item.return_id === returnId);
+  },
+
+  /**
+   * Get return summary for an invoice:
+   * calculates previously returned quantities and remaining eligible returnable quantities
+   */
+  async getInvoiceReturnSummary(invoiceId: string) {
+    const invoice = await salesService.getInvoiceById(invoiceId);
+    if (!invoice) throw new Error('الفاتورة غير موجودة');
+
+    const invoiceItems = await salesService.getInvoiceItems(invoiceId);
+    const allReturns = await this.getReturns();
+    const invoiceReturns = allReturns.filter(r => r.invoice_id === invoiceId);
+
+    // Collect all return items across all past returns for this invoice
+    const previouslyReturnedQtyByProduct: Record<string, number> = {};
+    for (const ret of invoiceReturns) {
+      const items = await this.getReturnItems(ret.id);
+      for (const item of items) {
+        previouslyReturnedQtyByProduct[item.product_id] =
+          (previouslyReturnedQtyByProduct[item.product_id] || 0) + item.quantity_returned;
+      }
+    }
+
+    const totalRefundedAmount = invoiceReturns.reduce((sum, r) => sum + r.refund_amount, 0);
+
+    const itemSummaries = invoiceItems.map(item => {
+      const returnedQty = previouslyReturnedQtyByProduct[item.product_id] || 0;
+      const remainingQty = Math.max(0, item.quantity - returnedQty);
+      return {
+        productId: item.product_id,
+        productName: item.product_name,
+        productCode: item.product_code,
+        soldQuantity: item.quantity,
+        previouslyReturnedQuantity: returnedQty,
+        remainingReturnableQuantity: remainingQty,
+        actualUnitPrice: item.actual_price,
+      };
+    });
+
+    const isFullyReturned =
+      itemSummaries.length > 0 && itemSummaries.every(i => i.remainingReturnableQuantity === 0);
+    const isPartiallyReturned =
+      !isFullyReturned && itemSummaries.some(i => i.previouslyReturnedQuantity > 0);
+
+    return {
+      invoice,
+      totalSoldAmount: invoice.total_amount,
+      totalRefundedAmount,
+      isFullyReturned,
+      isPartiallyReturned,
+      itemSummaries,
+    };
   },
 
   /**
@@ -165,9 +225,33 @@ export const returnsService = {
     if (!input.reason.trim()) throw new Error('سبب الإرجاع إلزامي لضمان تتبع الحركات المالية والمخزنية');
     if (!input.items || input.items.length === 0) throw new Error('يجب اختيار صنف واحد على الأقل للإرجاع');
 
+    const today = getTodayLocalDateString();
+    const returnDate = (input.return_date || today).trim();
+    if (returnDate > today) {
+      throw new Error(`تاريخ الإرجاع (${returnDate}) لا يمكن أن يكون في المستقبل. أقصى تاريخ مسموح هو اليوم (${today}).`);
+    }
+
     for (const item of input.items) {
       if (item.quantity_returned <= 0) throw new Error('كمية الصنف المرتجع يجب أن تكون أكبر من صفر');
       if (item.refund_unit_price < 0) throw new Error('سعر الوحدة المسترد لا يمكن أن يكون سالباً');
+    }
+
+    // Verify remaining returnable quantities before proceeding
+    const returnSummary = await this.getInvoiceReturnSummary(input.invoice_id);
+    if (returnSummary.isFullyReturned) {
+      throw new Error('تم استرجاع جميع أصناف هذه الفاتورة بالكامل مسبقاً.');
+    }
+
+    for (const item of input.items) {
+      const summaryItem = returnSummary.itemSummaries.find(i => i.productId === item.product_id);
+      if (!summaryItem) {
+        throw new Error(`الصنف المحدد لم يتم بيعه في الفاتورة رقم ${returnSummary.invoice.invoice_number}`);
+      }
+      if (item.quantity_returned > summaryItem.remainingReturnableQuantity) {
+        throw new Error(
+          `الكمية المطلوب إرجاعها (${item.quantity_returned}) للصنف "${summaryItem.productName}" تتجاوز الكمية المتبقية القابلة للإرجاع (${summaryItem.remainingReturnableQuantity}).`
+        );
+      }
     }
 
     if (isTauri()) {
@@ -193,7 +277,6 @@ export const returnsService = {
 
     const returnId = 'ret-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
     const now = new Date().toISOString();
-    const returnDate = input.return_date.trim() || now.substring(0, 10);
 
     const newItems: ReturnItemRecord[] = [];
     let calculatedRefund = 0;
@@ -280,7 +363,13 @@ export const returnsService = {
           .filter(r => r.invoice_id === invoice.id)
           .reduce((sum, r) => sum + r.refund_amount, 0);
 
-        const newStatus = totalRefunded >= inv.total_amount ? 'RETURNED_FULL' : 'RETURNED_PARTIAL';
+        const allItemsFullyReturned = returnSummary.itemSummaries.every(sItem => {
+          const thisReturnItem = input.items.find(i => i.product_id === sItem.productId);
+          const returnedInThisTx = thisReturnItem ? thisReturnItem.quantity_returned : 0;
+          return (sItem.previouslyReturnedQuantity + returnedInThisTx) >= sItem.soldQuantity;
+        });
+
+        const newStatus = allItemsFullyReturned || totalRefunded >= inv.total_amount ? 'RETURNED_FULL' : 'RETURNED_PARTIAL';
         return { ...inv, status: newStatus };
       }
       return inv;

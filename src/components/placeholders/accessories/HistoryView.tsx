@@ -14,6 +14,8 @@ import {
   History,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { useDateRangeFilter } from '@/lib/dateValidation';
 import { historyService } from '@/services/historyService.ts';
 import type { AuditLogEntry, AuditActionType } from '@/types/history.ts';
 
@@ -24,8 +26,7 @@ export const HistoryView: React.FC = () => {
   // Filters
   const [actionType, setActionType] = useState<AuditActionType | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const dateFilter = useDateRangeFilter();
 
   const loadLogs = useCallback(async () => {
     setIsLoading(true);
@@ -33,8 +34,8 @@ export const HistoryView: React.FC = () => {
       const data = await historyService.getAuditLog({
         actionType,
         searchQuery,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        startDate: dateFilter.startDate || undefined,
+        endDate: dateFilter.endDate || undefined,
       });
       setLogs(data);
     } catch (err) {
@@ -42,7 +43,7 @@ export const HistoryView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [actionType, searchQuery, startDate, endDate]);
+  }, [actionType, searchQuery, dateFilter.startDate, dateFilter.endDate]);
 
   useEffect(() => {
     loadLogs();
@@ -51,8 +52,7 @@ export const HistoryView: React.FC = () => {
   const handleResetFilters = () => {
     setActionType('ALL');
     setSearchQuery('');
-    setStartDate('');
-    setEndDate('');
+    dateFilter.clearDateRange();
   };
 
   const getActionBadge = (type: AuditActionType, title: string) => {
@@ -178,21 +178,17 @@ export const HistoryView: React.FC = () => {
           </div>
 
           {/* Date range */}
-          <div className="md:col-span-4 flex items-center gap-2">
-            <Input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              isMonospace
-              title="من تاريخ"
-            />
-            <span className="text-sm font-semibold text-slate-500">إلى</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              isMonospace
-              title="إلى تاريخ"
+          <div className="md:col-span-4">
+            <DateRangeInputs
+              startDate={dateFilter.startDate}
+              endDate={dateFilter.endDate}
+              maxStartDate={dateFilter.maxStartDate}
+              minEndDate={dateFilter.minEndDate}
+              maxEndDate={dateFilter.maxEndDate}
+              error={dateFilter.error}
+              onStartDateChange={dateFilter.setStartDate}
+              onEndDateChange={dateFilter.setEndDate}
+              onClear={dateFilter.clearDateRange}
             />
           </div>
 

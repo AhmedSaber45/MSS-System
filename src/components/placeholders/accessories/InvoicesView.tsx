@@ -20,6 +20,8 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { useDateRangeFilter } from '@/lib/dateValidation';
 import { salesService } from '@/services/salesService.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
 import type { Invoice, InvoiceItem } from '@/types/sale.ts';
@@ -30,9 +32,8 @@ export const InvoicesView: React.FC = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
+  const dateFilter = useDateRangeFilter();
 
   // Preview / Print Modal
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -45,8 +46,8 @@ export const InvoicesView: React.FC = () => {
     try {
       const data = await salesService.getInvoices({
         query: searchQuery,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        startDate: dateFilter.startDate || undefined,
+        endDate: dateFilter.endDate || undefined,
         paymentMethod: paymentFilter,
       });
       setInvoices(data);
@@ -55,7 +56,7 @@ export const InvoicesView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, startDate, endDate, paymentFilter]);
+  }, [searchQuery, dateFilter.startDate, dateFilter.endDate, paymentFilter]);
 
   useEffect(() => {
     loadInvoices();
@@ -78,8 +79,7 @@ export const InvoicesView: React.FC = () => {
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setStartDate('');
-    setEndDate('');
+    dateFilter.clearDateRange();
     setPaymentFilter('ALL');
   };
 
@@ -270,21 +270,17 @@ export const InvoicesView: React.FC = () => {
           </div>
 
           {/* Date range */}
-          <div className="md:col-span-4 flex items-center gap-2">
-            <Input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              isMonospace
-              title="من تاريخ"
-            />
-            <span className="text-sm font-semibold text-slate-500">إلى</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              isMonospace
-              title="إلى تاريخ"
+          <div className="md:col-span-4">
+            <DateRangeInputs
+              startDate={dateFilter.startDate}
+              endDate={dateFilter.endDate}
+              maxStartDate={dateFilter.maxStartDate}
+              minEndDate={dateFilter.minEndDate}
+              maxEndDate={dateFilter.maxEndDate}
+              error={dateFilter.error}
+              onStartDateChange={dateFilter.setStartDate}
+              onEndDateChange={dateFilter.setEndDate}
+              onClear={dateFilter.clearDateRange}
             />
           </div>
 

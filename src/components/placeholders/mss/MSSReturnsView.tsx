@@ -10,6 +10,8 @@ import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { RotateCcw, Search, Store, AlertTriangle, History } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useDateRangeFilter } from '@/lib/dateValidation';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useNotification } from '@/context/NotificationContext';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSReturn, MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
@@ -20,6 +22,7 @@ export const MSSReturnsView: React.FC = () => {
   const [returns, setReturns] = useState<MSSReturn[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const dateFilter = useDateRangeFilter();
 
   // Lookup Invoice for Return
   const [queryInput, setQueryInput] = useState<string>('');
@@ -40,14 +43,17 @@ export const MSSReturnsView: React.FC = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const list = await mssCommerceService.getReturns();
+      const list = await mssCommerceService.getReturns({
+        startDate: dateFilter.startDate || undefined,
+        endDate: dateFilter.endDate || undefined,
+      });
       setReturns(list);
     } catch (err) {
       console.error('Failed to load returns:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dateFilter.startDate, dateFilter.endDate]);
 
   useEffect(() => {
     loadData();
@@ -401,13 +407,13 @@ export const MSSReturnsView: React.FC = () => {
 
       {/* Completed Returns Table */}
       <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <History className="w-5 h-5 text-slate-600" />
             <h4 className="text-sm font-bold text-slate-900">سجل عمليات الإرجاع السابقة</h4>
           </div>
 
-          <div className="w-full sm:w-80">
+          <div className="w-full md:w-80">
             <Input
               placeholder="ابحث برقم الإرجاع، السيريال، أو الفاتورة..."
               value={searchQuery}
@@ -416,6 +422,18 @@ export const MSSReturnsView: React.FC = () => {
               leftIcon={<Search className="w-4 h-4" />}
             />
           </div>
+        </div>
+
+        {/* Date Filter Bar */}
+        <div className="pt-3 border-t border-slate-200">
+          <DateRangeInputs
+            startDate={dateFilter.startDate}
+            endDate={dateFilter.endDate}
+            onStartDateChange={dateFilter.setStartDate}
+            onEndDateChange={dateFilter.setEndDate}
+            error={dateFilter.error}
+            onClear={dateFilter.reset}
+          />
         </div>
 
         {isLoading ? (

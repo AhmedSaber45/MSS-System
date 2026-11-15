@@ -12,6 +12,8 @@ import { Spinner } from '@/components/common/Spinner';
 import { useNotification } from '@/context/NotificationContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { formatDate } from '@/lib/utils';
+import { useDateRangeFilter } from '@/lib/dateValidation';
+import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import type { MSSDeviceMovement, MSSDevice, MSSStockLocation } from '@/types/mssInventory';
 import {
   Plus,
@@ -32,6 +34,7 @@ export const MovementsView: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [locationFilter, setLocationFilter] = useState<'ALL' | MSSStockLocation>('ALL');
+  const dateFilter = useDateRangeFilter();
 
   // Transfer Modal State
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
@@ -139,6 +142,12 @@ export const MovementsView: React.FC = () => {
   // Filtered movements
   const filteredMovements = movements.filter(m => {
     if (locationFilter !== 'ALL' && m.from_location !== locationFilter && m.to_location !== locationFilter) {
+      return false;
+    }
+    if (dateFilter.startDate && m.movement_date < dateFilter.startDate) {
+      return false;
+    }
+    if (dateFilter.endDate && m.movement_date.split('T')[0] > dateFilter.endDate) {
       return false;
     }
     if (searchQuery.trim()) {
@@ -315,40 +324,51 @@ export const MovementsView: React.FC = () => {
           </Button>
         </div>
 
-        {/* Location Filter Pills */}
-        <div className="flex items-center gap-2.5 pt-3 border-t border-slate-200 text-sm">
-          <span className="font-bold text-slate-700 text-xs">تصفية الفرع:</span>
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
-            <button
-              onClick={() => setLocationFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                locationFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              الكل ({movements.length})
-            </button>
-            <button
-              onClick={() => setLocationFilter('محل 1')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                locationFilter === 'محل 1'
-                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              محل 1 ({movements.filter(m => m.from_location === 'محل 1' || m.to_location === 'محل 1').length})
-            </button>
-            <button
-              onClick={() => setLocationFilter('محل 2')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                locationFilter === 'محل 2'
-                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              محل 2 ({movements.filter(m => m.from_location === 'محل 2' || m.to_location === 'محل 2').length})
-            </button>
+        {/* Date Filter & Location Pills */}
+        <div className="pt-3 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <DateRangeInputs
+            startDate={dateFilter.startDate}
+            endDate={dateFilter.endDate}
+            onStartDateChange={dateFilter.setStartDate}
+            onEndDateChange={dateFilter.setEndDate}
+            error={dateFilter.error}
+            onClear={dateFilter.reset}
+          />
+
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="font-bold text-slate-700 text-xs shrink-0">تصفية الفرع:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+              <button
+                onClick={() => setLocationFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  locationFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                الكل ({movements.length})
+              </button>
+              <button
+                onClick={() => setLocationFilter('محل 1')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  locationFilter === 'محل 1'
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 1 ({movements.filter(m => m.from_location === 'محل 1' || m.to_location === 'محل 1').length})
+              </button>
+              <button
+                onClick={() => setLocationFilter('محل 2')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  locationFilter === 'محل 2'
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                محل 2 ({movements.filter(m => m.from_location === 'محل 2' || m.to_location === 'محل 2').length})
+              </button>
+            </div>
           </div>
         </div>
       </Card>

@@ -163,8 +163,85 @@ fn get_accessories_return_items(
 
 // Backup & Restore Commands
 #[tauri::command]
-fn create_accessories_backup(backup_type: Option<String>) -> Result<BackupInfo, String> {
-    create_backup_file(backup_type.as_deref().unwrap_or("manual"))
+fn create_accessories_backup(
+    backup_type: Option<String>,
+    destination_dir: Option<String>,
+    custom_filename: Option<String>,
+) -> Result<BackupInfo, String> {
+    create_backup_file(
+        backup_type.as_deref().unwrap_or("manual"),
+        destination_dir.as_deref(),
+        custom_filename.as_deref(),
+    )
+}
+
+#[tauri::command]
+fn select_backup_folder() -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let script = r#"
+            Add-Type -AssemblyName System.Windows.Forms
+            $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+            $dialog.Description = "اختر مجلد حفظ النسخ الاحتياطية"
+            $dialog.ShowNewFolderButton = $true
+            if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                Write-Output $dialog.SelectedPath
+            }
+        "#;
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if path.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(path))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn select_save_backup_path(default_filename: Option<String>) -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let default_name = default_filename.unwrap_or_else(|| "MSS-Backup.db".to_string());
+        let script = format!(
+            r#"
+            Add-Type -AssemblyName System.Windows.Forms
+            $dialog = New-Object System.Windows.Forms.SaveFileDialog
+            $dialog.Title = "حفظ نسخة احتياطية من قاعدة البيانات"
+            $dialog.Filter = "ملفات قاعدة البيانات (*.db)|*.db|جميع الملفات (*.*)|*.*"
+            $dialog.FileName = "{}"
+            if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
+                Write-Output $dialog.FileName
+            }}
+            "#,
+            default_name
+        );
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if path.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(path))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(None)
+    }
 }
 
 #[tauri::command]
@@ -232,6 +309,8 @@ pub fn run() {
             get_accessories_backups,
             restore_accessories_backup,
             export_accessories_backup,
+            select_backup_folder,
+            select_save_backup_path,
             adjust_accessories_stock,
             get_accessories_inventory_movements,
             get_accessories_db_status,

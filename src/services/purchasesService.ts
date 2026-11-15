@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Purchase, PurchaseItem, NewPurchaseInput } from '../types/purchase';
+import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
 import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
 
@@ -105,15 +106,46 @@ export const purchasesService = {
   /**
    * Fetch all purchases sorted by purchase_date desc
    */
-  async getPurchases(): Promise<Purchase[]> {
+  async getPurchases(filters?: { query?: string; startDate?: string; endDate?: string }): Promise<Purchase[]> {
+    let list: Purchase[];
     if (isTauri()) {
       try {
-        return await invoke<Purchase[]>('get_accessories_purchases');
+        list = await invoke<Purchase[]>('get_accessories_purchases');
       } catch (err) {
         console.warn('Tauri get_accessories_purchases failed, fallback to local storage:', err);
+        list = getLocalPurchases();
+      }
+    } else {
+      list = getLocalPurchases();
+    }
+
+    if (!filters) return list;
+
+    let res = list;
+    if (filters.query && filters.query.trim()) {
+      const q = filters.query.trim().toLowerCase();
+      res = res.filter(
+        p =>
+          p.purchase_number.toLowerCase().includes(q) ||
+          (p.supplier_name && p.supplier_name.toLowerCase().includes(q)) ||
+          (p.supplier_phone && p.supplier_phone.toLowerCase().includes(q)) ||
+          (p.notes && p.notes.toLowerCase().includes(q))
+      );
+    }
+
+    if (filters.startDate || filters.endDate) {
+      const validation = validateDateRange(filters.startDate, filters.endDate);
+      const safeStart = validation.sanitizedStart;
+      const safeEnd = validation.sanitizedEnd;
+      if (safeStart) {
+        res = res.filter(p => p.purchase_date >= safeStart);
+      }
+      if (safeEnd) {
+        res = res.filter(p => p.purchase_date <= safeEnd);
       }
     }
-    return getLocalPurchases();
+
+    return res;
   },
 
   /**
@@ -165,6 +197,12 @@ export const purchasesService = {
     const purchaseNumber = input.purchase_number.trim();
     if (!purchaseNumber) throw new Error('رقم فاتورة الشراء مطلوب');
     if (!input.purchase_date.trim()) throw new Error('تاريخ فاتورة الشراء مطلوب');
+
+    const today = getTodayLocalDateString();
+    const cleanPurchaseDate = input.purchase_date.trim();
+    if (cleanPurchaseDate > today) {
+      throw new Error(`تاريخ فاتورة الشراء (${cleanPurchaseDate}) لا يمكن أن يكون في المستقبل. أقصى تاريخ مسموح هو اليوم (${today}).`);
+    }
     if (!input.items || input.items.length === 0) {
       throw new Error('يجب اختيار صنف واحد على الأقل في فاتورة الشراء');
     }
