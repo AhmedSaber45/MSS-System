@@ -70,9 +70,9 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
     window.print();
   };
 
-  const navigateToAccessories = (route: any = 'dashboard') => {
+  const navigateToAccessories = (route: any = 'dashboard', params?: Record<string, any>) => {
     setSection('accessories');
-    setRoute(route);
+    setRoute(route, params);
     if (onSwitchToAccessories) onSwitchToAccessories();
   };
 
@@ -187,8 +187,8 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-amber-300 hover:bg-amber-100 text-amber-900 text-xs"
-                    onClick={() => navigateToAccessories('inventory')}
+                    className="border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-bold"
+                    onClick={() => navigateToAccessories('inventory', { filter: 'low_and_out' })}
                   >
                     معاينة النواقص
                   </Button>

@@ -18,6 +18,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useNavigation } from '@/context/NavigationContext';
 import { productsService } from '@/services/productsService';
 import { inventoryService } from '@/services/inventoryService';
 import { Product } from '@/types/product';
@@ -26,6 +27,7 @@ import { useNotification } from '@/context/NotificationContext';
 
 export const InventoryView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { routeParams, clearRouteParams } = useNavigation();
 
   // Active Tab: 'levels' (أرصدة المخزون) | 'movements' (سجل الحركات)
   const [activeTab, setActiveTab] = useState<'levels' | 'movements'>('levels');
@@ -39,7 +41,16 @@ export const InventoryView: React.FC = () => {
   // Filters for Stock Levels Tab
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'low_and_out'>('all');
+
+  // Activate combined low-stock filter if navigated with routeParams
+  useEffect(() => {
+    if (routeParams?.filter === 'low_and_out') {
+      setActiveTab('levels');
+      setSelectedStatus('low_and_out');
+      clearRouteParams();
+    }
+  }, [routeParams, clearRouteParams]);
 
   // Filters for Movements Tab
   const [movementSearchQuery, setMovementSearchQuery] = useState<string>('');
@@ -109,7 +120,7 @@ export const InventoryView: React.FC = () => {
 
   // Filtered products for stock levels tab
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    const list = products.filter(p => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const mName = p.name.toLowerCase().includes(q);
@@ -124,9 +135,27 @@ export const InventoryView: React.FC = () => {
       if (selectedStatus === 'in_stock' && p.stock <= p.low_stock_threshold) return false;
       if (selectedStatus === 'low_stock' && (p.stock === 0 || p.stock > p.low_stock_threshold)) return false;
       if (selectedStatus === 'out_of_stock' && p.stock > 0) return false;
+      // Combined low-stock filter: includes both out-of-stock (stock = 0) and low-stock (stock <= threshold)
+      if (selectedStatus === 'low_and_out' && p.stock > p.low_stock_threshold) return false;
 
       return true;
     });
+
+    // Sort priority when combined low-stock filter is active:
+    // 1. Out-of-stock products first (0 quantity)
+    // 2. Products with 1 available unit
+    // 3. Products with 2 available units
+    // 4. Continue in ascending order until low-stock threshold is reached
+    if (selectedStatus === 'low_and_out') {
+      list.sort((a, b) => {
+        if (a.stock !== b.stock) {
+          return a.stock - b.stock;
+        }
+        return a.name.localeCompare(b.name, 'ar');
+      });
+    }
+
+    return list;
   }, [products, searchQuery, selectedCategory, selectedStatus]);
 
   // Filtered movements for movements log tab
@@ -429,18 +458,36 @@ export const InventoryView: React.FC = () => {
           subtitle=" "
           icon={DollarSign}
         />
-        <StatsCard
-          title="أصناف منخفضة الرصيد"
-          value={`${metrics.lowCount} صنف`}
-          subtitle="وصلت للحد الأدنى للطلب"
-          icon={AlertTriangle}
-        />
-        <StatsCard
-          title="أصناف نفدت بالكامل (رصيد 0)"
-          value={`${metrics.outCount} صنف`}
-          subtitle="غير متوفرة حالياً بالمحل"
-          icon={AlertTriangle}
-        />
+        <div
+          onClick={() => {
+            setActiveTab('levels');
+            setSelectedStatus('low_and_out');
+          }}
+          className="cursor-pointer transition-transform active:scale-[0.99]"
+          title="انقر لتصفية كافة النواقص والمنعدم"
+        >
+          <StatsCard
+            title="أصناف منخفضة الرصيد"
+            value={`${metrics.lowCount} صنف`}
+            subtitle="وصلت للحد الأدنى للطلب (انقر للعرض)"
+            icon={AlertTriangle}
+          />
+        </div>
+        <div
+          onClick={() => {
+            setActiveTab('levels');
+            setSelectedStatus('low_and_out');
+          }}
+          className="cursor-pointer transition-transform active:scale-[0.99]"
+          title="انقر لتصفية كافة النواقص والمنعدم"
+        >
+          <StatsCard
+            title="أصناف نفدت بالكامل (رصيد 0)"
+            value={`${metrics.outCount} صنف`}
+            subtitle="غير متوفرة حالياً (انقر للعرض)"
+            icon={AlertTriangle}
+          />
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -513,13 +560,37 @@ export const InventoryView: React.FC = () => {
                   onChange={e => setSelectedStatus(e.target.value as any)}
                 >
                   <option value="all">جميع حالات المخزون</option>
-                  <option value="in_stock">المتوفر بكميات كافية</option>
+                  <option value="low_and_out">كافة النواقص والمنعدم (تنبيه + رصيد 0)</option>
                   <option value="low_stock">المخزون المنخفض (تنبيه الطلب)</option>
                   <option value="out_of_stock">المنعدم تماماً (رصيد 0)</option>
+                  <option value="in_stock">المتوفر بكميات كافية</option>
                 </Select>
               </div>
             </div>
           </Card>
+
+          {/* Active Combined Low-Stock Filter Banner */}
+          {selectedStatus === 'low_and_out' && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-sm shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
+                <div>
+                  <span className="font-bold">تصفية النواقص والنفاد نشطة: </span>
+                  <span className="text-amber-900">
+                    يتم الآن عرض الأصناف المنعدمة والمنخفضة فقط ({filteredProducts.length} صنف) مرتبة تصاعدياً من الأقل رصيداً إلى حد التنبيه.
+                  </span>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectedStatus('all')}
+                className="shrink-0 bg-white border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-bold"
+              >
+                إلغاء التصفية وعرض الكل
+              </Button>
+            </div>
+          )}
 
           <Table
             columns={stockColumns}

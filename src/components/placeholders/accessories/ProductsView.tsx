@@ -18,10 +18,13 @@ import {
   Boxes,
   TrendingUp,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useNavigation } from '@/context/NavigationContext';
 import { productsService } from '@/services/productsService';
 import { Product, NewProductInput, UpdateProductInput, StockStatusFilter } from '@/types/product';
+import { generateNextProductCode } from '@/lib/productCodeGenerator';
 import { useNotification } from '@/context/NotificationContext';
 
 interface FormState {
@@ -51,6 +54,7 @@ const emptyFormState: FormState = {
 
 export const ProductsView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { routeParams, clearRouteParams } = useNavigation();
 
   // Data states
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,6 +85,15 @@ export const ProductsView: React.FC = () => {
   const [formData, setFormData] = useState<FormState>(emptyFormState);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState<boolean>(false);
+
+  // Consume routeParams when navigating with low_and_out filter
+  useEffect(() => {
+    if (routeParams?.filter === 'low_and_out') {
+      setSelectedStockFilter('low_and_out');
+      clearRouteParams();
+    }
+  }, [routeParams, clearRouteParams]);
 
   // Load products & categories from local database
   const loadData = useCallback(async () => {
@@ -112,7 +125,7 @@ export const ProductsView: React.FC = () => {
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    const list = products.filter(product => {
       // 1. Text Search (Name, Code)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -133,11 +146,71 @@ export const ProductsView: React.FC = () => {
         if (product.stock === 0 || product.stock > product.low_stock_threshold) return false;
       } else if (selectedStockFilter === 'out_of_stock') {
         if (product.stock > 0) return false;
+      } else if (selectedStockFilter === 'low_and_out') {
+        if (product.stock > product.low_stock_threshold) return false;
       }
 
       return true;
     });
+
+    // Ascending sort priority when combined low-stock filter is active:
+    // 0 first, then 1, 2, 3... up to threshold
+    if (selectedStockFilter === 'low_and_out') {
+      list.sort((a, b) => {
+        if (a.stock !== b.stock) {
+          return a.stock - b.stock;
+        }
+        return a.name.localeCompare(b.name, 'ar');
+      });
+    }
+
+    return list;
   }, [products, searchQuery, selectedCategory, selectedStockFilter]);
+
+  // Product Name & Code Handlers
+  const handleProductNameChange = (newName: string) => {
+    setFormData(prev => {
+      if (!isCodeManuallyEdited) {
+        const nextCode = generateNextProductCode(newName, products);
+        return { ...prev, name: newName, code: nextCode };
+      }
+      return { ...prev, name: newName };
+    });
+    if (formErrors.name) {
+      setFormErrors(prev => ({ ...prev, name: '' }));
+    }
+  };
+
+  const handleProductCodeChange = (newCode: string) => {
+    setIsCodeManuallyEdited(true);
+    setFormData(prev => ({ ...prev, code: newCode }));
+    const trimmed = newCode.trim();
+    const isDup = products.some(
+      p => p.id !== selectedProduct?.id && p.code.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDup) {
+      setFormErrors(prev => ({
+        ...prev,
+        code: `كود الصنف "${trimmed}" مسجل مسبقاً لصنف آخر. يرجى اختيار كود فريد.`,
+      }));
+    } else if (formErrors.code) {
+      setFormErrors(prev => ({ ...prev, code: '' }));
+    }
+  };
+
+  const handleRegenerateCode = () => {
+    const nextCode = generateNextProductCode(formData.name, products);
+    setFormData(prev => ({ ...prev, code: nextCode }));
+    setIsCodeManuallyEdited(false);
+    if (formErrors.code) {
+      setFormErrors(prev => ({ ...prev, code: '' }));
+    }
+    showNotification({
+      type: 'info',
+      title: 'تم توليد كود الصنف',
+      message: `تم توليد الكود التلقائي: ${nextCode}`,
+    });
+  };
 
   // Form Validation
   const validateForm = (): boolean => {
@@ -147,8 +220,16 @@ export const ProductsView: React.FC = () => {
       errors.name = 'اسم المنتج مطلوب ولا يمكن تركه فارغاً';
     }
 
-    if (!formData.code.trim()) {
-      errors.code = 'كود الصنف مطلوب';
+    const codeTrim = formData.code.trim();
+    if (!codeTrim) {
+      errors.code = 'كود الصنف مطلوب ولا يمكن أن يكون فارغاً';
+    } else {
+      const isDup = products.some(
+        p => p.id !== selectedProduct?.id && p.code.toLowerCase() === codeTrim.toLowerCase()
+      );
+      if (isDup) {
+        errors.code = `كود الصنف "${codeTrim}" مسجل مسبقاً لصنف آخر. يرجى اختيار كود فريد.`;
+      }
     }
 
     const costNum = Number(formData.cost);
@@ -177,8 +258,8 @@ export const ProductsView: React.FC = () => {
 
   // Open Add Modal
   const handleOpenAddModal = () => {
-    const nextCodeNumber = products.length + 1;
-    const suggestedCode = `PRD-${String(nextCodeNumber).padStart(3, '0')}`;
+    setIsCodeManuallyEdited(false);
+    const suggestedCode = generateNextProductCode('', products);
 
     setFormData({
       ...emptyFormState,
@@ -191,6 +272,7 @@ export const ProductsView: React.FC = () => {
   // Open Edit Modal
   const handleOpenEditModal = (product: Product) => {
     setSelectedProduct(product);
+    setIsCodeManuallyEdited(true); // Preserve existing product code unless regenerated
     setFormData({
       name: product.name,
       code: product.code,
@@ -475,18 +557,22 @@ export const ProductsView: React.FC = () => {
           subtitle={`ربح مقدر: ${formatCurrency(Math.max(0, metrics.totalSalesValue - metrics.totalCostValue))}`}
           icon={TrendingUp}
         />
-        <StatsCard
-          title="تنبيهات النواقص والنفاد"
-          value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
-          subtitle={`منها ${metrics.outOfStockCount} أصناف منعدمة تماماً`}
-          icon={AlertTriangle}
-        />
+        <div
+          onClick={() => setSelectedStockFilter('low_and_out')}
+          className="cursor-pointer transition-transform active:scale-[0.99]"
+          title="انقر لتصفية كافة النواقص والمنعدم"
+        >
+          <StatsCard
+            title="تنبيهات النواقص والنفاد"
+            value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
+            subtitle={`نافد: ${metrics.outOfStockCount} | حد أدنى: ${metrics.lowStockCount} (انقر للعرض)`}
+            icon={AlertTriangle}
+          />
+        </div>
       </div>
 
-
-
       {/* Filter and Search Panel */}
-      <Card className="p-4">
+      <Card className="p-4 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Search Box */}
           <div className="md:col-span-6">
@@ -521,12 +607,36 @@ export const ProductsView: React.FC = () => {
               onChange={e => setSelectedStockFilter(e.target.value as StockStatusFilter)}
             >
               <option value="all">جميع حالات المخزون</option>
-              <option value="in_stock">المتوفر بكميات كافية</option>
+              <option value="low_and_out">كافة النواقص والمنعدم (تنبيه + رصيد 0)</option>
               <option value="low_stock">المخزون المنخفض (تحت حد الطلب)</option>
               <option value="out_of_stock">المنعدم تماماً (رصيد 0)</option>
+              <option value="in_stock">المتوفر بكميات كافية</option>
             </Select>
           </div>
         </div>
+
+        {/* Active Combined Low-Stock Filter Banner */}
+        {selectedStockFilter === 'low_and_out' && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-sm shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
+              <div>
+                <span className="font-bold">تصفية النواقص والنفاد نشطة: </span>
+                <span className="text-amber-900">
+                  يتم الآن عرض الأصناف المنعدمة والمنخفضة فقط ({filteredProducts.length} صنف) مرتبة تصاعدياً من الأقل رصيداً إلى حد التنبيه.
+                </span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedStockFilter('all')}
+              className="shrink-0 bg-white border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-bold"
+            >
+              إلغاء التصفية وعرض الكل
+            </Button>
+          </div>
+        )}
 
         {/* Active Filters Summary */}
         {(searchQuery || selectedCategory !== 'all' || selectedStockFilter !== 'all') && (
@@ -594,19 +704,39 @@ export const ProductsView: React.FC = () => {
               label="اسم المنتج *"
               placeholder="مثال: شاحن سريع 20 واط Type-C"
               value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              onChange={e => handleProductNameChange(e.target.value)}
               error={formErrors.name}
               autoFocus
             />
 
-            <Input
-              label="كود الصنف الداخلي *"
-              placeholder="مثال: CHG-20W"
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              error={formErrors.code}
-              isMonospace
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-semibold text-slate-800">
+                  كود الصنف الداخلي <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRegenerateCode}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                  title="إعادة توليد الكود التلقائي بناءً على اسم الصنف"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span>توليد كود تلقائي</span>
+                </button>
+              </div>
+              <Input
+                placeholder="مثال: CHG-001 أو MO-001"
+                value={formData.code}
+                onChange={e => handleProductCodeChange(e.target.value.toUpperCase())}
+                error={formErrors.code}
+                isMonospace
+              />
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                {isCodeManuallyEdited
+                  ? 'تم تعديل الكود يدوياً (لن يتغير تلقائياً مع الاسم إلا عند النقر على "توليد كود تلقائي")'
+                  : 'كود مقترح تلقائياً بناءً على اسم الصنف (يمكنك تعديله يدوياً في أي وقت)'}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -750,13 +880,31 @@ export const ProductsView: React.FC = () => {
               error={formErrors.name}
             />
 
-            <Input
-              label="كود الصنف الداخلي *"
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              error={formErrors.code}
-              isMonospace
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-semibold text-slate-800">
+                  كود الصنف الداخلي <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRegenerateCode}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                  title="إعادة توليد الكود التلقائي بناءً على اسم الصنف"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span>توليد كود تلقائي</span>
+                </button>
+              </div>
+              <Input
+                value={formData.code}
+                onChange={e => handleProductCodeChange(e.target.value.toUpperCase())}
+                error={formErrors.code}
+                isMonospace
+              />
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                كود الصنف المحفوظ (يمكنك تعديله يدوياً أو الضغط على "توليد كود تلقائي" لاقتراح كود جديد).
+              </span>
+            </div>
           </div>
 
           <div>

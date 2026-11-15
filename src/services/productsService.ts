@@ -1,5 +1,8 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Product, NewProductInput, UpdateProductInput, ProductFilter } from '../types/product';
+import { generateProductCodePrefix, generateNextProductCode } from '../lib/productCodeGenerator.ts';
+
+export { generateProductCodePrefix, generateNextProductCode };
 
 const STORAGE_KEY = 'shop_accessories_products_v1';
 
@@ -145,6 +148,9 @@ export const productsService = {
           products = products.filter(p => p.stock > 0 && p.stock <= p.low_stock_threshold);
         } else if (filter.stockStatus === 'in_stock') {
           products = products.filter(p => p.stock > p.low_stock_threshold);
+        } else if (filter.stockStatus === 'low_and_out') {
+          products = products.filter(p => p.stock <= p.low_stock_threshold);
+          products.sort((a, b) => (a.stock !== b.stock ? a.stock - b.stock : a.name.localeCompare(b.name, 'ar')));
         }
       }
     }
@@ -403,5 +409,13 @@ export const productsService = {
       lowStockCount,
       outOfStockCount,
     };
+  },
+
+  /**
+   * Automatically generate next unique product code based on product name and existing catalog.
+   */
+  async generateProductCode(productName: string): Promise<string> {
+    const products = await this.getProducts();
+    return generateNextProductCode(productName, products);
   },
 };

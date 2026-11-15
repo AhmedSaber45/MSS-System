@@ -37,7 +37,7 @@ export interface UpdateProductInput {
   description?: string | null;
 }
 
-export type StockStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
+export type StockStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'low_and_out';
 
 export interface ProductFilter {
   searchQuery?: string;

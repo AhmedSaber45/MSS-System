@@ -13,6 +13,7 @@ global.localStorage = {
 
 // Import productsService dynamically
 const { productsService } = await import('../src/services/productsService.ts');
+const { generateProductCodePrefix, generateNextProductCode } = await import('../src/lib/productCodeGenerator.ts');
 
 describe('Phase 02 — Local Database & Accessories Products Verification', () => {
   beforeEach(() => {
@@ -237,5 +238,148 @@ describe('Phase 02 — Local Database & Accessories Products Verification', () =
     assert.ok(foundInRaw, 'Added product must exist in raw persistent storage');
     assert.strictEqual(foundInRaw.code, 'PERSIST-TEST-001');
     assert.strictEqual(foundInRaw.stock, 18);
+  });
+
+  test('11. Intelligent Product Code Prefix Generation (English, Arabic, Mixed, Punctuation)', () => {
+    // Case 1: One-word English (first TWO letters)
+    assert.strictEqual(generateProductCodePrefix('Mouse'), 'MO');
+    assert.strictEqual(generateProductCodePrefix('Keyboard'), 'KE');
+    assert.strictEqual(generateProductCodePrefix('Headphones'), 'HE');
+    assert.strictEqual(generateProductCodePrefix('Charger'), 'CH');
+
+    // Case 2: Two-word English (first letter of each word)
+    assert.strictEqual(generateProductCodePrefix('Gaming Mouse'), 'GM');
+    assert.strictEqual(generateProductCodePrefix('Wireless Keyboard'), 'WK');
+    assert.strictEqual(generateProductCodePrefix('Red Dragon'), 'RD');
+    assert.strictEqual(generateProductCodePrefix('Original Charger'), 'OC');
+
+    // Case 3: Three or more words (first letter of first THREE words only)
+    assert.strictEqual(generateProductCodePrefix('Redragon Gaming Mouse'), 'RGM');
+    assert.strictEqual(generateProductCodePrefix('HP Original Laptop Charger'), 'HOL');
+    assert.strictEqual(generateProductCodePrefix('Logitech Wireless Gaming Mouse'), 'LWG');
+    assert.strictEqual(generateProductCodePrefix('Samsung EVO Plus SSD Drive'), 'SEP');
+
+    // Arabic Product Names
+    assert.strictEqual(generateProductCodePrefix('ماوس'), 'MA');
+    assert.strictEqual(generateProductCodePrefix('كيبورد'), 'KY');
+    assert.strictEqual(generateProductCodePrefix('سماعة'), 'SM');
+    assert.strictEqual(generateProductCodePrefix('كابل شحن'), 'KS');
+    assert.strictEqual(generateProductCodePrefix('جراب حماية سيليكون'), 'GHS');
+
+    // Arabic Definite Article "ال"
+    assert.strictEqual(generateProductCodePrefix('الماوس'), 'MA');
+    assert.strictEqual(generateProductCodePrefix('الشاحن السريع'), 'SS');
+
+    // Mixed Arabic & English
+    assert.strictEqual(generateProductCodePrefix('Logitech ماوس لاسلكي'), 'LML');
+    assert.strictEqual(generateProductCodePrefix('كابل Type-C أصلي'), 'KTC');
+
+    // Punctuation and extra spaces
+    assert.strictEqual(generateProductCodePrefix('  [Pro]   Gaming - Mouse!  '), 'PGM');
+    assert.strictEqual(generateProductCodePrefix('   '), 'PRD');
+    assert.strictEqual(generateProductCodePrefix(''), 'PRD');
+  });
+
+  test('12. Numeric Suffix Allocation, Sequence Preservation and Uniqueness', () => {
+    // Initial code for new prefix
+    const code1 = generateNextProductCode('Mouse', []);
+    assert.strictEqual(code1, 'MO-001');
+
+    // Next sequential code
+    const code2 = generateNextProductCode('Mouse', [{ code: 'MO-001' }]);
+    assert.strictEqual(code2, 'MO-002');
+
+    // Separate prefix gets independent starting sequence
+    const code3 = generateNextProductCode('Gaming Mouse', [{ code: 'MO-001' }, { code: 'MO-002' }]);
+    assert.strictEqual(code3, 'GM-001');
+
+    // Uniqueness jump if existing code conflicts
+    const code4 = generateNextProductCode('Mouse', [{ code: 'MO-001' }, { code: 'MO-002' }, { code: 'MO-003' }]);
+    assert.strictEqual(code4, 'MO-004');
+
+    // Default prefix preserves PRD sequence
+    const defaultCode = generateNextProductCode('', [{ code: 'PRD-001' }, { code: 'PRD-002' }]);
+    assert.strictEqual(defaultCode, 'PRD-003');
+  });
+
+  test('13. Combined Low-Stock Filter and Ascending Stock Priority (0 first, 1, 2, 3...)', async () => {
+    // Clear and seed isolated test products
+    localStorage.setItem('shop_accessories_products_v1', JSON.stringify([]));
+
+    await productsService.addProduct({
+      name: 'صنف عادي متوفر بكثرة',
+      code: 'HIGH-STOCK-01',
+      cost: 10,
+      price: 20,
+      stock: 50,
+      low_stock_threshold: 5,
+    });
+
+    await productsService.addProduct({
+      name: 'صنف منخفض رصيد 3',
+      code: 'LOW-STOCK-03',
+      cost: 10,
+      price: 20,
+      stock: 3,
+      low_stock_threshold: 5,
+    });
+
+    await productsService.addProduct({
+      name: 'صنف نافد رصيد صفر أ',
+      code: 'OUT-STOCK-01',
+      cost: 10,
+      price: 20,
+      stock: 0,
+      low_stock_threshold: 5,
+    });
+
+    await productsService.addProduct({
+      name: 'صنف منخفض رصيد 1',
+      code: 'LOW-STOCK-01',
+      cost: 10,
+      price: 20,
+      stock: 1,
+      low_stock_threshold: 5,
+    });
+
+    await productsService.addProduct({
+      name: 'صنف نافد رصيد صفر ب',
+      code: 'OUT-STOCK-02',
+      cost: 10,
+      price: 20,
+      stock: 0,
+      low_stock_threshold: 5,
+    });
+
+    const combinedList = await productsService.getProducts({ stockStatus: 'low_and_out' });
+
+    // 1. Verifies normal stock is excluded
+    assert.ok(
+      combinedList.every(p => p.stock <= p.low_stock_threshold),
+      'All items must have stock <= low_stock_threshold'
+    );
+    assert.ok(
+      !combinedList.some(p => p.code === 'HIGH-STOCK-01'),
+      'High stock items must be excluded'
+    );
+
+    // 2. Verifies out of stock (0) and low stock (1, 3) are both present
+    assert.ok(combinedList.some(p => p.stock === 0), 'Must include out-of-stock items');
+    assert.ok(combinedList.some(p => p.stock > 0), 'Must include low-stock items');
+
+    // 3. Verifies ascending sort priority: 0 first, then 1, 2, 3...
+    const stocks = combinedList.map(p => p.stock);
+    for (let i = 0; i < stocks.length - 1; i++) {
+      assert.ok(
+        stocks[i] <= stocks[i + 1],
+        `Stock at index ${i} (${stocks[i]}) must be <= stock at index ${i + 1} (${stocks[i + 1]})`
+      );
+    }
+
+    // First items must have stock 0
+    assert.strictEqual(stocks[0], 0, 'First item must have stock 0');
+    assert.strictEqual(stocks[1], 0, 'Second item must have stock 0');
+    assert.strictEqual(stocks[2], 1, 'Third item must have stock 1');
+    assert.strictEqual(stocks[3], 3, 'Fourth item must have stock 3');
   });
 });

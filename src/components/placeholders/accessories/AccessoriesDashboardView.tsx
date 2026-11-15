@@ -215,7 +215,7 @@ export const AccessoriesDashboardView: React.FC = () => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setRoute('inventory')}
+            onClick={() => setRoute('inventory', { filter: 'low_and_out' })}
             className="shrink-0 bg-white text-xs border-amber-300 hover:bg-amber-100 text-amber-900 font-bold"
           >
             عرض النواقص
@@ -243,12 +243,18 @@ export const AccessoriesDashboardView: React.FC = () => {
           subtitle={`${metrics.totalUnits} قطعة متوفرة`}
           icon={Package}
         />
-        <StatsCard
-          title="نواقص "
-          value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
-          subtitle={`نافد: ${metrics.outOfStockCount} | حد أدنى: ${metrics.lowStockCount}`}
-          icon={AlertTriangle}
-        />
+        <div
+          onClick={() => setRoute('inventory', { filter: 'low_and_out' })}
+          className="cursor-pointer transition-transform active:scale-[0.99]"
+          title="انقر لعرض كافة النواقص والمنعدم"
+        >
+          <StatsCard
+            title="نواقص المخزون"
+            value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
+            subtitle={`نافد: ${metrics.outOfStockCount} | حد أدنى: ${metrics.lowStockCount} (انقر للعرض)`}
+            icon={AlertTriangle}
+          />
+        </div>
       </div>
 
       {/* Quick Action Tiles */}

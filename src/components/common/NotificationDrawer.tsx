@@ -94,7 +94,8 @@ export const NotificationDrawer: React.FC = () => {
     }
     if (item.target) {
       setSection(item.target.section);
-      setRoute(item.target.route);
+      const params = item.category === 'inventory' ? { filter: 'low_and_out' } : undefined;
+      setRoute(item.target.route, params);
       closeDrawer();
     }
   };

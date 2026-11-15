@@ -4,8 +4,10 @@ import { AppSection, AccessoriesRoute, MSSRoute, ActiveRoute } from '../types/na
 interface NavigationContextType {
   currentSection: AppSection;
   currentRoute: ActiveRoute;
+  routeParams: Record<string, any>;
   setSection: (section: AppSection) => void;
-  setRoute: (route: ActiveRoute) => void;
+  setRoute: (route: ActiveRoute, params?: Record<string, any>) => void;
+  clearRouteParams: () => void;
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -17,6 +19,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [currentSection, setCurrentSectionState] = useState<AppSection>('accessories');
   const [accessoriesRoute, setAccessoriesRoute] = useState<AccessoriesRoute>('dashboard');
   const [mssRoute, setMssRoute] = useState<MSSRoute>('dashboard');
+  const [routeParams, setRouteParams] = useState<Record<string, any>>({});
   const [isSidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   const currentRoute = currentSection === 'accessories' ? accessoriesRoute : mssRoute;
@@ -25,12 +28,21 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setCurrentSectionState(section);
   };
 
-  const setRoute = (route: ActiveRoute) => {
+  const setRoute = (route: ActiveRoute, params?: Record<string, any>) => {
+    if (params) {
+      setRouteParams(params);
+    } else {
+      setRouteParams({});
+    }
     if (currentSection === 'accessories') {
       setAccessoriesRoute(route as AccessoriesRoute);
     } else {
       setMssRoute(route as MSSRoute);
     }
+  };
+
+  const clearRouteParams = () => {
+    setRouteParams({});
   };
 
   const toggleSidebar = () => {
@@ -54,8 +66,10 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       value={{
         currentSection,
         currentRoute,
+        routeParams,
         setSection,
         setRoute,
+        clearRouteParams,
         isSidebarCollapsed,
         toggleSidebar,
         setSidebarCollapsed,
