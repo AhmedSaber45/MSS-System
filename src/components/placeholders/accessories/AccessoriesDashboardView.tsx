@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsCard, Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { useNavigation } from '@/context/NavigationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import {
   DollarSign,
   TrendingUp,
@@ -16,6 +17,7 @@ import {
   HardDriveDownload,
   ArrowUpRight,
   Layers,
+  RefreshCw,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { productsService } from '@/services/productsService.ts';
@@ -28,6 +30,7 @@ import { UnifiedDashboardView } from '@/components/dashboard/UnifiedDashboardVie
 
 export const AccessoriesDashboardView: React.FC = () => {
   const { setRoute } = useNavigation();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [activeTab, setActiveTab] = useState<'accessories' | 'unified'>('accessories');
 
   const [metrics, setMetrics] = useState({
@@ -41,34 +44,34 @@ export const AccessoriesDashboardView: React.FC = () => {
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      setIsLoading(true);
-      try {
-        const [prodMetrics, finSummary, allInvoices] = await Promise.all([
-          productsService.getMetrics(),
-          reportsService.getFinancialSummary(),
-          salesService.getInvoices(),
-        ]);
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [prodMetrics, finSummary, allInvoices] = await Promise.all([
+        productsService.getMetrics(),
+        reportsService.getFinancialSummary(),
+        salesService.getInvoices(),
+      ]);
 
-        setMetrics({
-          totalProducts: prodMetrics.totalProducts,
-          totalUnits: prodMetrics.totalUnits,
-          lowStockCount: prodMetrics.lowStockCount,
-          outOfStockCount: prodMetrics.outOfStockCount,
-        });
+      setMetrics({
+        totalProducts: prodMetrics.totalProducts,
+        totalUnits: prodMetrics.totalUnits,
+        lowStockCount: prodMetrics.lowStockCount,
+        outOfStockCount: prodMetrics.outOfStockCount,
+      });
 
-        setSummary(finSummary);
-        setRecentInvoices(allInvoices.slice(0, 5));
-      } catch (err) {
-        console.warn('Failed to load dashboard data:', err);
-      } finally {
-        setIsLoading(false);
-      }
+      setSummary(finSummary);
+      setRecentInvoices(allInvoices.slice(0, 5));
+    } catch (err) {
+      console.warn('Failed to load dashboard data:', err);
+    } finally {
+      setIsLoading(false);
     }
-
-    loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const columns: Column<Invoice>[] = [
     {
@@ -179,7 +182,16 @@ export const AccessoriesDashboardView: React.FC = () => {
         title="لوحة تحكم محل الإكسسوارات"
         subtitle=""
         actions={
-          <div className="flex gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <Button
+              size="md"
+              variant="outline"
+              onClick={() => triggerRefresh(loadDashboardData, 'جارٍ تحديث لوحة تحكم الإكسسوارات...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            >
+              Refresh
+            </Button>
             <Button
               size="md"
               variant="primary"

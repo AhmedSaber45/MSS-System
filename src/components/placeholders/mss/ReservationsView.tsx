@@ -10,6 +10,7 @@ import { Modal } from '@/components/common/Modal';
 import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -32,6 +33,7 @@ import {
 
 export const ReservationsView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [reservations, setReservations] = useState<MSSReservation[]>([]);
   const [availableDevices, setAvailableDevices] = useState<MSSDevice[]>([]);
@@ -465,11 +467,11 @@ export const ReservationsView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={loadData}
-            isLoading={isLoading}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث قائمة حجوزات الأجهزة...')}
+            disabled={isRefreshing || isLoading}
             title="إعادة تحميل البيانات"
             className="font-semibold"
-            leftIcon={<RefreshCw className="w-4.5 h-4.5" />}
+            leftIcon={<RefreshCw className={`w-4.5 h-4.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
           >
             Refresh
           </Button>

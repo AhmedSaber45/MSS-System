@@ -29,6 +29,7 @@ import { productsService } from '@/services/productsService';
 import { Purchase, PurchaseItem, NewPurchaseInput, NewPurchaseItemInput } from '@/types/purchase';
 import { Product } from '@/types/product';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 
 interface CartItemRow {
   product_id: string;
@@ -41,6 +42,7 @@ interface CartItemRow {
 
 export const PurchasesView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Data states
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -376,9 +378,9 @@ export const PurchasesView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث بيانات فواتير المشتريات والوارد...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 text-slate-800 font-semibold"
             >
               Refresh

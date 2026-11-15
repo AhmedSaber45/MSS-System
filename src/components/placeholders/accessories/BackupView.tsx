@@ -22,11 +22,13 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { backupService } from '@/services/backupService.ts';
 import type { BackupItem, BackupConfig } from '@/types/backup.ts';
 
 export const BackupView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [config, setConfig] = useState<BackupConfig>(backupService.getBackupConfig());
@@ -328,12 +330,12 @@ export const BackupView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadBackups}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              onClick={() => triggerRefresh(loadBackups, 'جارٍ فحص وتحديث سجل النسخ الاحتياطية...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="outline"

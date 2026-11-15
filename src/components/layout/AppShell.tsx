@@ -5,6 +5,7 @@ import { TopHeader } from './TopHeader';
 import { ToastContainer } from '../common/Toast';
 import { NotificationDrawer } from '../common/NotificationDrawer';
 import { ComponentShowcaseModal } from '../common/ComponentShowcaseModal';
+import { PageRefreshOverlay } from '../common/PageRefreshOverlay';
 
 // Accessories Views
 import { AccessoriesDashboardView } from '../placeholders/accessories/AccessoriesDashboardView';
@@ -95,7 +96,7 @@ export const AppShell: React.FC = () => {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 h-screen overflow-hidden">
+      <div className="flex flex-col flex-1 h-screen overflow-hidden relative">
         {/* Top Header */}
         <TopHeader onOpenShowcase={() => setShowcaseOpen(true)} />
 
@@ -105,6 +106,9 @@ export const AppShell: React.FC = () => {
             {renderContent()}
           </div>
         </main>
+
+        {/* Centralized Full-Page Refresh Loading Animation */}
+        <PageRefreshOverlay className="top-16" />
       </div>
 
       {/* Toast Notifications Overlay */}

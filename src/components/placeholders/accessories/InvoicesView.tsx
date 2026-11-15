@@ -24,9 +24,11 @@ import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useDateRangeFilter } from '@/lib/dateValidation';
 import { salesService } from '@/services/salesService.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import type { Invoice, InvoiceItem } from '@/types/sale.ts';
 
 export const InvoicesView: React.FC = () => {
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -217,9 +219,9 @@ export const InvoicesView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={loadInvoices}
-            isLoading={isLoading}
-            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+            onClick={() => triggerRefresh(loadInvoices, 'جارٍ تحديث سجل الفواتير والمبيعات...')}
+            disabled={isRefreshing || isLoading}
+            leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             className="border-slate-300 text-slate-800 font-semibold"
           >
             Refresh

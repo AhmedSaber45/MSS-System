@@ -18,8 +18,10 @@ import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useDateRangeFilter } from '@/lib/dateValidation';
 import { historyService } from '@/services/historyService.ts';
 import type { AuditLogEntry, AuditActionType } from '@/types/history.ts';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 
 export const HistoryView: React.FC = () => {
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -138,9 +140,9 @@ export const HistoryView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={loadLogs}
-            isLoading={isLoading}
-            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+            onClick={() => triggerRefresh(loadLogs, 'جارٍ تحديث سجل العمليات والتدقيق...')}
+            disabled={isRefreshing || isLoading}
+            leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             className="border-slate-300 text-slate-800 font-semibold"
           >
             Refresh

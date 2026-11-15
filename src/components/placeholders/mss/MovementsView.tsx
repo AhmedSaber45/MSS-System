@@ -10,6 +10,7 @@ import { Modal } from '@/components/common/Modal';
 import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { formatDate } from '@/lib/utils';
 import { useDateRangeFilter } from '@/lib/dateValidation';
@@ -28,6 +29,7 @@ import {
 
 export const MovementsView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [movements, setMovements] = useState<MSSDeviceMovement[]>([]);
   const [availableDevices, setAvailableDevices] = useState<MSSDevice[]>([]);
@@ -314,10 +316,10 @@ export const MovementsView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={loadData}
-            isLoading={isLoading}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث سجل حركة ونقل الأجهزة...')}
+            disabled={isRefreshing || isLoading}
             title="إعادة تحميل البيانات"
-            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+            leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             className="border-slate-300 font-semibold"
           >
             Refresh

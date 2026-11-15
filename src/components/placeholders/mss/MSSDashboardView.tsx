@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCommerceService } from '@/services/mssCommerceService.ts';
 import { mssInventoryService } from '@/services/mssInventoryService.ts';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
@@ -36,6 +37,7 @@ interface ModelStockItem extends MSSCatalogModel {
 export const MSSDashboardView: React.FC = () => {
   const { setRoute } = useNavigation();
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [activeTab, setActiveTab] = useState<'mss' | 'unified'>('mss');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -240,9 +242,9 @@ export const MSSDashboardView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة تحكم أجهزة MSS...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
               Refresh

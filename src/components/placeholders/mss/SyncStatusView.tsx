@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssSyncService } from '@/services/mssSyncService';
 import type {
   OutboxOperation,
@@ -31,6 +32,7 @@ import type {
 
 export const SyncStatusView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [outbox, setOutbox] = useState<OutboxOperation[]>([]);
   const [conflicts, setConflicts] = useState<MSSConflict[]>([]);
@@ -250,9 +252,9 @@ export const SyncStatusView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث حالة المزامنة وطابور العمليات...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
               Refresh

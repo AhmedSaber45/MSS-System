@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNavigation } from '@/context/NavigationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService';
 import { inventoryService } from '@/services/inventoryService';
 import { Product } from '@/types/product';
@@ -28,6 +29,7 @@ import { useNotification } from '@/context/NotificationContext';
 export const InventoryView: React.FC = () => {
   const { showNotification } = useNotification();
   const { routeParams, clearRouteParams } = useNavigation();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Active Tab: 'levels' (أرصدة المخزون) | 'movements' (سجل الحركات)
   const [activeTab, setActiveTab] = useState<'levels' | 'movements'>('levels');
@@ -424,9 +426,9 @@ export const InventoryView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث بيانات المخزون والجرد...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 text-slate-800 font-semibold"
             >
               Refresh

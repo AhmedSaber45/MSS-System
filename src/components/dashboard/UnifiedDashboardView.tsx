@@ -6,6 +6,7 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { useNavigation } from '@/context/NavigationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import {
   DollarSign,
   TrendingUp,
@@ -39,6 +40,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
   onSwitchToMSS,
 }) => {
   const { setSection, setRoute } = useNavigation();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [period, setPeriod] = useState<ReportPeriod>('month');
   const [customStart, setCustomStart] = useState<string>('');
@@ -93,9 +95,9 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-3.5 h-3.5 text-slate-500" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة التحكم الموحدة...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
               Refresh
             </Button>

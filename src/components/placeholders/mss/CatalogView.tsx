@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
 import type {
   MSSCatalogModel,
@@ -42,6 +43,7 @@ const CATEGORIES: { id: string; label: string }[] = [
 
 export const CatalogView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [models, setModels] = useState<MSSCatalogModel[]>([]);
   const [availability, setAvailability] = useState<Record<string, MSSModelAvailability>>({});
@@ -244,9 +246,9 @@ export const CatalogView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث كتالوج الموديلات والمواصفات...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
               Refresh

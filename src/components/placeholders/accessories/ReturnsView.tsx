@@ -14,9 +14,11 @@ import {
   Search,
   Receipt,
   Eye,
+  RefreshCw,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
 import { salesService } from '@/services/salesService.ts';
@@ -26,6 +28,7 @@ import type { ReturnRecord, ReturnItemRecord, NewReturnItemInput } from '@/types
 
 export const ReturnsView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Returns archive list
   const [returnsList, setReturnsList] = useState<ReturnRecord[]>([]);
@@ -329,6 +332,18 @@ export const ReturnsView: React.FC = () => {
       <PageHeader
         title="المرتجعات وإلغاء العمليات"
         subtitle=""
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => triggerRefresh(loadReturns, 'جارٍ تحديث سجل المرتجعات...')}
+            disabled={isRefreshing || isLoadingReturns}
+            leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            className="border-slate-300 text-slate-800 font-semibold"
+          >
+            Refresh
+          </Button>
+        }
       />
 
 

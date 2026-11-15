@@ -8,16 +8,18 @@ import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
-import { RotateCcw, Search, Store, AlertTriangle, History } from 'lucide-react';
+import { RotateCcw, Search, Store, AlertTriangle, History, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSReturn, MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
 
 export const MSSReturnsView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [returns, setReturns] = useState<MSSReturn[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -240,6 +242,18 @@ export const MSSReturnsView: React.FC = () => {
       <PageHeader
         title="مرتجعات أجهزة MSS وعكس العمليات"
         subtitle="توثيق استرجاع الأجهزة المباعة وعكس الأرباح وإعادة السيريال إلى المخزون المادي المعتمد"
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث سجل مرتجعات أجهزة MSS...')}
+            disabled={isRefreshing || isLoading}
+            leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            className="border-slate-300 font-semibold"
+          >
+            Refresh
+          </Button>
+        }
       />
 
       {/* Rules Banner (Rule 8 & 19) */}

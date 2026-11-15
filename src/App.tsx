@@ -1,13 +1,16 @@
 import React from 'react';
 import { NavigationProvider } from './context/NavigationContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { PageRefreshProvider } from './context/PageRefreshContext';
 import { AppShell } from './components/layout/AppShell';
 
 export const App: React.FC = () => {
   return (
     <NotificationProvider>
       <NavigationProvider>
-        <AppShell />
+        <PageRefreshProvider>
+          <AppShell />
+        </PageRefreshProvider>
       </NavigationProvider>
     </NotificationProvider>
   );

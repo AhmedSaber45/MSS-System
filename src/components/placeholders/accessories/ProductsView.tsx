@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNavigation } from '@/context/NavigationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService';
 import { Product, NewProductInput, UpdateProductInput, StockStatusFilter } from '@/types/product';
 import { generateNextProductCode } from '@/lib/productCodeGenerator';
@@ -55,6 +56,7 @@ const emptyFormState: FormState = {
 export const ProductsView: React.FC = () => {
   const { showNotification } = useNotification();
   const { routeParams, clearRouteParams } = useNavigation();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Data states
   const [products, setProducts] = useState<Product[]>([]);
@@ -519,11 +521,11 @@ export const ProductsView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث بيانات الأصناف والأسعار...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
-              Refresh 
+              Refresh
             </Button>
             <Button
               variant="primary"

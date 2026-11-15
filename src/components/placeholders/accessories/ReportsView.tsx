@@ -18,6 +18,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { reportsService } from '@/services/reportsService.ts';
 import type {
   FinancialSummary,
@@ -27,6 +28,7 @@ import type {
 } from '@/types/reports.ts';
 
 export const ReportsView: React.FC = () => {
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'all' | 'custom'>('month');
   const dateFilter = useDateRangeFilter();
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -106,9 +108,9 @@ export const ReportsView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadReportData}
-              isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              onClick={() => triggerRefresh(loadReportData, 'جارٍ تحديث التقارير المالية وحساب الأرباح...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
               Refresh

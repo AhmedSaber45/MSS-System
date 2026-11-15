@@ -28,8 +28,10 @@ import type {
 } from '@/types/mssReports.ts';
 import type { ReportPeriod } from '@/types/unifiedDashboard.ts';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 
 export const MSSReportsView: React.FC = () => {
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [period, setPeriod] = useState<ReportPeriod>('month');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
@@ -89,10 +91,10 @@ export const MSSReportsView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadReportData}
-              isLoading={isLoading}
+              onClick={() => triggerRefresh(loadReportData, 'جارٍ تحديث تقارير وأرباح أجهزة MSS...')}
+              disabled={isRefreshing || isLoading}
               className="font-semibold"
-              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-500" />}
+              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-500 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
               Refresh
             </Button>

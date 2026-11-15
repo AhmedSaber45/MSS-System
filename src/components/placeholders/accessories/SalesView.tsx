@@ -20,9 +20,11 @@ import {
   FileCheck2,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService.ts';
 import { salesService } from '@/services/salesService.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
@@ -38,6 +40,7 @@ const PAYMENT_METHODS = [
 
 export const SalesView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Products and loading state
   const [products, setProducts] = useState<Product[]>([]);
@@ -335,6 +338,16 @@ export const SalesView: React.FC = () => {
         subtitle=""
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث قائمة الأصناف والمخزون...')}
+              disabled={isRefreshing || isLoading}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+              className="border-slate-300 text-slate-800 font-semibold"
+            >
+              Refresh
+            </Button>
             <Badge variant="outline" size="md" className="font-mono tabular-nums text-sm font-bold">
               الفاتورة: {nextInvoiceNumber || '...'}
             </Badge>

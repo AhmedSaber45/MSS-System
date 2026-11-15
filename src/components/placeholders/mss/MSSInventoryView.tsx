@@ -10,6 +10,7 @@ import { Modal } from '@/components/common/Modal';
 import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCatalogService } from '@/services/mssCatalogService';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -45,6 +46,7 @@ import {
 
 export const MSSInventoryView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Data states
   const [devices, setDevices] = useState<MSSDevice[]>([]);
@@ -653,10 +655,10 @@ export const MSSInventoryView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={loadData}
-              isLoading={isLoading}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث المخزون الفعلي وأجهزة السيريال...')}
+              disabled={isRefreshing || isLoading}
               title="إعادة تحميل البيانات"
-              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
             >
               Refresh

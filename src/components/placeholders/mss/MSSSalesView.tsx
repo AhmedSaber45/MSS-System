@@ -8,9 +8,10 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, ShieldCheck, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
@@ -18,6 +19,7 @@ import type { MSSInvoice } from '@/types/mssCommerce';
 
 export const MSSSalesView: React.FC = () => {
   const { showNotification } = useNotification();
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   const [availableDevices, setAvailableDevices] = useState<MSSDevice[]>([]);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
@@ -156,6 +158,18 @@ export const MSSSalesView: React.FC = () => {
       <PageHeader
         title="نقطة بيع أجهزة MSS"
         subtitle="توثيق بيع الأجهزة بالسيريال الفردي مع تثبيت فرع البيع ومصدر المخزون وحساب الربح الفعلي الدقيق"
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => triggerRefresh(loadDevices, 'جارٍ تحديث الأجهزة المتاحة للبيع...')}
+            disabled={isRefreshing || isLoadingDevices}
+            leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            className="border-slate-300 font-semibold"
+          >
+            Refresh
+          </Button>
+        }
       />
 
       {/* Attribution & Stock Source Alert (Rule 9 & 16) */}

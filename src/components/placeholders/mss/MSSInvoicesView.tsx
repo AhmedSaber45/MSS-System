@@ -13,8 +13,10 @@ import { useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
+import { usePageRefresh } from '@/context/PageRefreshContext';
 
 export const MSSInvoicesView: React.FC = () => {
+  const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [invoices, setInvoices] = useState<MSSInvoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -229,11 +231,11 @@ export const MSSInvoicesView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={loadData}
-            isLoading={isLoading}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير مبيعات أجهزة MSS...')}
+            disabled={isRefreshing || isLoading}
             title="إعادة تحميل البيانات"
             className="font-semibold"
-            leftIcon={<RefreshCw className="w-4.5 h-4.5" />}
+            leftIcon={<RefreshCw className={`w-4.5 h-4.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
           >
             Refresh
           </Button>
