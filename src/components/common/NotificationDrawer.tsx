@@ -16,11 +16,13 @@ import {
   ChevronLeft,
   ArrowRight,
   Clock,
+  Trash2,
 } from 'lucide-react';
 import { cn, formatDate, formatTime } from '@/lib/utils';
 import { Button } from './Button';
 import { Badge } from './Badge';
 import { Spinner } from './Spinner';
+import { Modal } from './Modal';
 
 type FilterTab = 'all' | 'unread' | 'inventory' | 'sync';
 
@@ -30,14 +32,19 @@ export const NotificationDrawer: React.FC = () => {
     closeDrawer,
     drawerNotifications,
     unreadCount,
+    readCount,
     isLoadingDrawer,
     markAsRead,
     markAllAsRead,
+    clearReadNotifications,
     refreshSystemAlerts,
+    showNotification,
   } = useNotification();
 
   const { setSection, setRoute } = useNavigation();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
+  const [isDeletingRead, setIsDeletingRead] = useState<boolean>(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
@@ -97,6 +104,29 @@ export const NotificationDrawer: React.FC = () => {
       const params = item.category === 'inventory' ? { filter: 'low_and_out' } : undefined;
       setRoute(item.target.route, params);
       closeDrawer();
+    }
+  };
+
+  // Handle clear read notifications confirmation
+  const handleConfirmClearRead = async () => {
+    if (isDeletingRead) return;
+    setIsDeletingRead(true);
+    try {
+      const deletedCount = await clearReadNotifications();
+      setIsConfirmModalOpen(false);
+      showNotification({
+        type: 'success',
+        title: 'تم مسح الإشعارات المقروءة',
+        message: `تم مسح ${deletedCount} من الإشعارات المقروءة بنجاح.`,
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل مسح الإشعارات',
+        message: err?.message || 'حدث خطأ أثناء محاولة مسح الإشعارات المقروءة',
+      });
+    } finally {
+      setIsDeletingRead(false);
     }
   };
 
@@ -196,23 +226,44 @@ export const NotificationDrawer: React.FC = () => {
 
         {/* Header Actions & Filter Tabs */}
         <div className="p-3 bg-white border-b border-slate-200 shrink-0 space-y-2.5">
-          {/* Quick Mark All As Read Bar */}
-          <div className="flex items-center justify-between text-xs px-1">
+          {/* Quick Mark All As Read & Clear Read Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs px-1">
             <span className="font-semibold text-slate-600">
               إجمالي التنبيهات: <strong className="font-mono text-slate-900">{drawerNotifications.length}</strong>
             </span>
-            {unreadCount > 0 ? (
+
+            <div className="flex items-center gap-2.5">
+              {unreadCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900 font-bold hover:underline cursor-pointer transition-colors"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  <span>تحديد الكل كمقروء</span>
+                </button>
+              ) : (
+                <span className="text-slate-400 font-medium">كافة التنبيهات مقروءة</span>
+              )}
+
+              <span className="text-slate-300">|</span>
+
               <button
                 type="button"
-                onClick={markAllAsRead}
-                className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900 font-bold hover:underline cursor-pointer transition-colors"
+                disabled={readCount === 0 || isDeletingRead}
+                onClick={() => setIsConfirmModalOpen(true)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 font-bold transition-colors select-none',
+                  readCount > 0 && !isDeletingRead
+                    ? 'text-rose-600 hover:text-rose-800 hover:underline cursor-pointer'
+                    : 'text-slate-400 opacity-50 cursor-not-allowed'
+                )}
+                title={readCount > 0 ? `مسح ${readCount} إشعار مقروء` : 'لا توجد إشعارات مقروءة لمسحها'}
               >
-                <CheckCheck className="w-4 h-4" />
-                <span>تحديد الكل كمقروء</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>مسح الإشعارات المقروءة</span>
               </button>
-            ) : (
-              <span className="text-slate-400 font-medium">كافة التنبيهات مقروءة</span>
-            )}
+            </div>
           </div>
 
           {/* Filter Pills */}
@@ -388,6 +439,53 @@ export const NotificationDrawer: React.FC = () => {
           </Button>
         </div>
       </aside>
+
+      {/* Clear Read Notifications Confirmation Modal */}
+      <Modal
+        isOpen={isConfirmModalOpen}
+        onClose={() => !isDeletingRead && setIsConfirmModalOpen(false)}
+        title="مسح الإشعارات المقروءة؟"
+        size="sm"
+        zIndexClassName="z-[70]"
+        footer={
+          <div className="flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              size="md"
+              disabled={isDeletingRead}
+              onClick={() => setIsConfirmModalOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="danger"
+              size="md"
+              isLoading={isDeletingRead}
+              disabled={isDeletingRead}
+              onClick={handleConfirmClearRead}
+              leftIcon={<Trash2 className="w-4 h-4" />}
+            >
+              مسح الإشعارات
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 py-1 text-right" dir="rtl">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <p className="text-sm text-slate-800 font-medium leading-relaxed">
+                هيتم حذف كل الإشعارات اللي اتقرت بالفعل، ومش هتقدر ترجعها بعد كده.
+              </p>
+              <p className="text-xs text-slate-500">
+                (عدد الإشعارات المقروءة المراد مسحها: <strong className="font-mono text-slate-700">{readCount}</strong>، وستظل جميع الإشعارات غير المقروءة محفوظة بالكامل دون أي مساس)
+              </p>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

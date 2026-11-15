@@ -11,6 +11,7 @@ export interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
+  zIndexClassName?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -22,6 +23,7 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   closeOnBackdrop = true,
+  zIndexClassName,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,7 +46,7 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className={cn('fixed inset-0 overflow-y-auto', zIndexClassName || 'z-50')}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/30 transition-opacity duration-150"

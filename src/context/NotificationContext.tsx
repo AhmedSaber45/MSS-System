@@ -29,6 +29,7 @@ export interface DrawerNotificationItem {
 
 const READ_IDS_STORAGE_KEY = 'mss_read_notification_ids_v1';
 const RUNTIME_NOTIFICATIONS_STORAGE_KEY = 'mss_runtime_notifications_v1';
+const DISMISSED_NOTIFICATION_IDS_STORAGE_KEY = 'mss_dismissed_notification_ids_v1';
 
 interface NotificationContextType {
   // Ephemeral toast notifications (preserved)
@@ -40,6 +41,7 @@ interface NotificationContextType {
   // Notification Drawer system
   drawerNotifications: DrawerNotificationItem[];
   unreadCount: number;
+  readCount: number;
   isDrawerOpen: boolean;
   isLoadingDrawer: boolean;
   openDrawer: () => void;
@@ -47,6 +49,7 @@ interface NotificationContextType {
   toggleDrawer: () => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  clearReadNotifications: () => Promise<number>;
   refreshSystemAlerts: () => Promise<void>;
 }
 
@@ -85,12 +88,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return new Set<string>();
   });
 
+  // Dismissed / Deleted notification IDs from localStorage
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(DISMISSED_NOTIFICATION_IDS_STORAGE_KEY);
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch {
+      // Fallback
+    }
+    return new Set<string>();
+  });
+
   // Save read IDs to storage helper
   const persistReadIds = (newSet: Set<string>) => {
     try {
       localStorage.setItem(READ_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)));
     } catch (err) {
       console.warn('Failed to persist read notification IDs:', err);
+    }
+  };
+
+  // Save dismissed IDs to storage helper
+  const persistDismissedIds = (newSet: Set<string>) => {
+    try {
+      localStorage.setItem(DISMISSED_NOTIFICATION_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)));
+    } catch (err) {
+      console.warn('Failed to persist dismissed notification IDs:', err);
     }
   };
 
@@ -250,18 +275,57 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
   }, [systemAlerts, runtimeNotifications]);
 
-  // Combined Drawer notifications with read states applied
+  // Combined Drawer notifications with read states applied (excluding dismissed items)
   const drawerNotifications = useMemo(() => {
     const combined = [...systemAlerts, ...runtimeNotifications];
-    return combined.map(item => ({
+    const active = combined.filter(item => !dismissedIds.has(item.id));
+    return active.map(item => ({
       ...item,
       isRead: readIds.has(item.id),
     }));
-  }, [systemAlerts, runtimeNotifications, readIds]);
+  }, [systemAlerts, runtimeNotifications, dismissedIds, readIds]);
 
   // Unread counter
   const unreadCount = useMemo(() => {
     return drawerNotifications.filter(n => !n.isRead).length;
+  }, [drawerNotifications]);
+
+  // Read counter
+  const readCount = useMemo(() => {
+    return drawerNotifications.filter(n => n.isRead).length;
+  }, [drawerNotifications]);
+
+  // Clear all read notifications
+  const clearReadNotifications = useCallback(async (): Promise<number> => {
+    // 1. Identify all currently read IDs
+    const readItems = drawerNotifications.filter(n => n.isRead);
+    const readItemIds = readItems.map(n => n.id);
+    if (readItemIds.length === 0) return 0;
+
+    // 2. Add these IDs to dismissedIds and persist
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      readItemIds.forEach(id => next.add(id));
+      persistDismissedIds(next);
+      return next;
+    });
+
+    // 3. Remove them from runtimeNotifications
+    setRuntimeNotifications(prev => {
+      const remaining = prev.filter(item => !readItemIds.includes(item.id));
+      persistRuntimeNotifications(remaining);
+      return remaining;
+    });
+
+    // 4. Remove these IDs from readIds
+    setReadIds(prev => {
+      const next = new Set(prev);
+      readItemIds.forEach(id => next.delete(id));
+      persistReadIds(next);
+      return next;
+    });
+
+    return readItemIds.length;
   }, [drawerNotifications]);
 
   // Drawer toggles
@@ -291,6 +355,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         drawerNotifications,
         unreadCount,
+        readCount,
         isDrawerOpen,
         isLoadingDrawer,
         openDrawer,
@@ -298,6 +363,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         toggleDrawer,
         markAsRead,
         markAllAsRead,
+        clearReadNotifications,
         refreshSystemAlerts,
       }}
     >
