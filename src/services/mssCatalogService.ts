@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.ts';
+import { backupService } from './backupService.ts';
 import type {
   MSSCatalogModel,
   NewMSSModelInput,
@@ -240,6 +241,8 @@ export const mssCatalogService = {
     cached.unshift(newModel);
     saveCachedModels(cached);
 
+    backupService.notifyDataChanged(`إضافة موديل في كتالوج MSS: ${newModel.model_name}`);
+
     return newModel;
   },
 
@@ -293,6 +296,8 @@ export const mssCatalogService = {
     cached[index] = updated;
     saveCachedModels(cached);
 
+    backupService.notifyDataChanged(`تعديل موديل في كتالوج MSS: ${updated.model_name}`);
+
     return updated;
   },
 
@@ -309,6 +314,8 @@ export const mssCatalogService = {
     const cached = getCachedModels();
     const filtered = cached.filter(m => m.id !== id);
     saveCachedModels(filtered);
+
+    backupService.notifyDataChanged(`حذف موديل من كتالوج MSS: ${id}`);
   },
 
   /**

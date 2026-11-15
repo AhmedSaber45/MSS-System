@@ -1,6 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Product, NewProductInput, UpdateProductInput, ProductFilter } from '../types/product';
 import { generateProductCodePrefix, generateNextProductCode } from '../lib/productCodeGenerator.ts';
+import { backupService } from './backupService.ts';
 
 export { generateProductCodePrefix, generateNextProductCode };
 
@@ -205,7 +206,7 @@ export const productsService = {
 
     if (isTauri()) {
       try {
-        return await invoke<Product>('add_accessories_product', {
+        const prod = await invoke<Product>('add_accessories_product', {
           input: {
             ...input,
             name,
@@ -215,6 +216,8 @@ export const productsService = {
             description: description || null,
           },
         });
+        backupService.notifyDataChanged(`إضافة صنف: ${prod.name}`);
+        return prod;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل حفظ المنتج في قاعدة البيانات');
       }
@@ -251,6 +254,7 @@ export const productsService = {
 
     all.unshift(newProduct);
     saveLocalFallbackProducts(all);
+    backupService.notifyDataChanged(`إضافة صنف: ${newProduct.name}`);
     return newProduct;
   },
 
@@ -273,7 +277,7 @@ export const productsService = {
 
     if (isTauri()) {
       try {
-        return await invoke<Product>('update_accessories_product', {
+        const prod = await invoke<Product>('update_accessories_product', {
           id,
           input: {
             ...input,
@@ -284,6 +288,8 @@ export const productsService = {
             description: description || null,
           },
         });
+        backupService.notifyDataChanged(`تعديل صنف: ${prod.name}`);
+        return prod;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل تعديل المنتج في قاعدة البيانات');
       }
@@ -325,6 +331,7 @@ export const productsService = {
 
     all[index] = updatedProduct;
     saveLocalFallbackProducts(all);
+    backupService.notifyDataChanged(`تعديل صنف: ${updatedProduct.name}`);
     return updatedProduct;
   },
 
@@ -335,6 +342,7 @@ export const productsService = {
     if (isTauri()) {
       try {
         await invoke<void>('delete_accessories_product', { id });
+        backupService.notifyDataChanged(`حذف صنف: ${id}`);
         return;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل حذف الصنف');
@@ -347,6 +355,7 @@ export const productsService = {
       throw new Error('لم يتم العثور على الصنف لحذفه');
     }
     saveLocalFallbackProducts(filtered);
+    backupService.notifyDataChanged(`حذف صنف: ${id}`);
   },
 
   /**

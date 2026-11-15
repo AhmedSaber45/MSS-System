@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase.ts';
 import { getTodayLocalDateString } from '../lib/dateValidation.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
+import { backupService } from './backupService.ts';
 import type {
   MSSDevice,
   NewMSSDeviceInput,
@@ -384,6 +385,8 @@ export const mssInventoryService = {
       )
       .catch(console.warn);
 
+    backupService.notifyDataChanged(`تسجيل جهاز MSS: ${newDevice.serial_number}`);
+
     return newDevice;
   },
 
@@ -466,6 +469,8 @@ export const mssInventoryService = {
     cached[index] = updated;
     saveCachedDevices(cached);
 
+    backupService.notifyDataChanged(`تحديث بيانات جهاز MSS: ${updated.serial_number}`);
+
     return updated;
   },
 
@@ -491,6 +496,7 @@ export const mssInventoryService = {
 
     const filtered = cached.filter(d => d.id !== id);
     saveCachedDevices(filtered);
+    backupService.notifyDataChanged(`حذف جهاز MSS: ${device.serial_number}`);
   },
 
   /**
@@ -591,6 +597,8 @@ export const mssInventoryService = {
         newMovement.from_location
       )
       .catch(console.warn);
+
+    backupService.notifyDataChanged(`نقل جهاز MSS بين المحلين: ${newMovement.serial_number}`);
 
     return { device, movement: newMovement };
   },

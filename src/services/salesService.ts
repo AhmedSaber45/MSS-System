@@ -2,6 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Invoice, InvoiceItem, NewSaleInput } from '../types/sale.ts';
 import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
+import { backupService } from './backupService.ts';
 
 const INVOICES_STORAGE_KEY = 'shop_accessories_invoices_v1';
 const INVOICE_ITEMS_STORAGE_KEY = 'shop_accessories_invoice_items_v1';
@@ -282,7 +283,9 @@ export const salesService = {
 
     if (isTauri()) {
       try {
-        return await invoke<Invoice>('create_accessories_sale', { input });
+        const inv = await invoke<Invoice>('create_accessories_sale', { input });
+        backupService.notifyDataChanged(`إصدار فاتورة مبيعات: ${inv.invoice_number}`);
+        return inv;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل تسجيل فاتورة المبيعات');
       }
@@ -425,6 +428,8 @@ export const salesService = {
 
     const currentItems = getLocalInvoiceItems();
     saveLocalInvoiceItems([...currentItems, ...newItems]);
+
+    backupService.notifyDataChanged(`إصدار فاتورة مبيعات: ${newInvoice.invoice_number}`);
 
     return newInvoice;
   },

@@ -3,6 +3,7 @@ import type { ReturnRecord, ReturnItemRecord, NewReturnInput } from '../types/re
 import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
 import { salesService } from './salesService.ts';
+import { backupService } from './backupService.ts';
 
 import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
 
@@ -256,7 +257,9 @@ export const returnsService = {
 
     if (isTauri()) {
       try {
-        return await invoke<ReturnRecord>('create_accessories_return', { input });
+        const ret = await invoke<ReturnRecord>('create_accessories_return', { input });
+        backupService.notifyDataChanged(`تسجيل مرتجع: ${ret.return_number}`);
+        return ret;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل تسجيل حركة الإرجاع');
       }
@@ -375,6 +378,8 @@ export const returnsService = {
       return inv;
     });
     localStorage.setItem('shop_accessories_invoices_v1', JSON.stringify(updatedInvoices));
+
+    backupService.notifyDataChanged(`تسجيل مرتجع: ${newReturn.return_number}`);
 
     return newReturn;
   },

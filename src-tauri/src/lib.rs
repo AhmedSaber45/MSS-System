@@ -1,14 +1,15 @@
 pub mod db;
 
 use db::{
-    create_backup_file, execute_stock_adjustment, export_backup_file, fetch_all_invoices,
-    fetch_all_products, fetch_all_purchases, fetch_all_returns, fetch_categories,
-    fetch_inventory_movements, fetch_invoice_items, fetch_product_by_id, fetch_purchase_items,
-    fetch_return_items, init_db, insert_product, insert_purchase, insert_return, insert_sale,
-    list_all_backups, restore_db_from_backup, search_products, update_product, BackupInfo,
-    DbState, InventoryMovement, Invoice, InvoiceItem, NewProductInput, NewPurchaseInput,
-    NewReturnInput, NewSaleInput, Product, Purchase, PurchaseItem, ReturnItemRecord,
-    ReturnRecord, StockAdjustmentInput, UpdateProductInput,
+    create_backup_file, execute_multi_destination_backup, execute_stock_adjustment,
+    export_backup_file, fetch_all_invoices, fetch_all_products, fetch_all_purchases,
+    fetch_all_returns, fetch_categories, fetch_inventory_movements, fetch_invoice_items,
+    fetch_product_by_id, fetch_purchase_items, fetch_return_items, init_db, insert_product,
+    insert_purchase, insert_return, insert_sale, list_all_backups, restore_db_from_backup,
+    search_products, update_product, validate_destination_path, BackupInfo, DbState,
+    DestinationResult, InventoryMovement, Invoice, InvoiceItem, MultiBackupResult,
+    NewProductInput, NewPurchaseInput, NewReturnInput, NewSaleInput, Product, Purchase,
+    PurchaseItem, ReturnItemRecord, ReturnRecord, StockAdjustmentInput, UpdateProductInput,
 };
 use std::sync::Mutex;
 use tauri::State;
@@ -176,14 +177,36 @@ fn create_accessories_backup(
 }
 
 #[tauri::command]
+fn create_multi_destination_backup(
+    trigger_type: String,
+    destinations: Vec<String>,
+    custom_filename: Option<String>,
+    retention_count: Option<usize>,
+) -> Result<MultiBackupResult, String> {
+    execute_multi_destination_backup(
+        &trigger_type,
+        &destinations,
+        custom_filename.as_deref(),
+        retention_count.unwrap_or(10),
+    )
+}
+
+#[tauri::command]
+fn validate_backup_destination(path: String) -> Result<bool, String> {
+    validate_destination_path(&path)
+}
+
+#[tauri::command]
 fn select_backup_folder() -> Result<Option<String>, String> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
         let script = r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
             Add-Type -AssemblyName System.Windows.Forms
             $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-            $dialog.Description = "اختر مجلد حفظ النسخ الاحتياطية"
+            $dialog.AutoUpgradeEnabled = $true
+            $dialog.Description = "Select Backup Destination Folder"
             $dialog.ShowNewFolderButton = $true
             if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                 Write-Output $dialog.SelectedPath
@@ -306,6 +329,8 @@ pub fn run() {
             get_accessories_returns,
             get_accessories_return_items,
             create_accessories_backup,
+            create_multi_destination_backup,
+            validate_backup_destination,
             get_accessories_backups,
             restore_accessories_backup,
             export_accessories_backup,

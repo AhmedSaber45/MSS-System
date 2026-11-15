@@ -3,6 +3,7 @@ import type { Purchase, PurchaseItem, NewPurchaseInput } from '../types/purchase
 import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
 import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
+import { backupService } from './backupService.ts';
 
 const PURCHASES_STORAGE_KEY = 'shop_accessories_purchases_v1';
 const PURCHASE_ITEMS_STORAGE_KEY = 'shop_accessories_purchase_items_v1';
@@ -216,7 +217,9 @@ export const purchasesService = {
 
     if (isTauri()) {
       try {
-        return await invoke<Purchase>('create_accessories_purchase', { input });
+        const pur = await invoke<Purchase>('create_accessories_purchase', { input });
+        backupService.notifyDataChanged(`تسجيل فاتورة شراء: ${pur.purchase_number}`);
+        return pur;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل تسجيل فاتورة الشراء');
       }
@@ -310,6 +313,8 @@ export const purchasesService = {
     const allItems = getLocalPurchaseItems();
     allItems.push(...newItems);
     saveLocalPurchaseItems(allItems);
+
+    backupService.notifyDataChanged(`تسجيل فاتورة شراء: ${newPurchase.purchase_number}`);
 
     return newPurchase;
   },

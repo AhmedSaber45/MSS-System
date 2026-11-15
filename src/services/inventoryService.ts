@@ -2,6 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { InventoryMovement, StockAdjustmentInput } from '../types/inventory';
 import type { Product } from '../types/product';
 import { productsService } from './productsService.ts';
+import { backupService } from './backupService.ts';
 
 const MOVEMENTS_STORAGE_KEY = 'shop_accessories_movements_v1';
 
@@ -134,7 +135,9 @@ export const inventoryService = {
 
     if (isTauri()) {
       try {
-        return await invoke<InventoryMovement>('adjust_accessories_stock', { input });
+        const mov = await invoke<InventoryMovement>('adjust_accessories_stock', { input });
+        backupService.notifyDataChanged(`تسوية مخزون الصنف`);
+        return mov;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل إجراء التسوية الجردية');
       }

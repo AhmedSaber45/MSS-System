@@ -224,6 +224,32 @@ pub struct BackupInfo {
     pub status: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DestinationResult {
+    pub path: String,
+    pub status: String, // "success" or "failed"
+    pub file_path: Option<String>,
+    pub size_bytes: Option<u64>,
+    pub size_formatted: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MultiBackupResult {
+    pub id: String,
+    pub filename: String,
+    pub trigger_type: String, // "scheduled", "after_operation", "manual", "safeguard"
+    pub date: String,
+    pub overall_status: String, // "success", "partial", "failed"
+    pub total_destinations: usize,
+    pub successful_destinations: usize,
+    pub failed_destinations: usize,
+    pub destinations: Vec<DestinationResult>,
+    pub size_bytes: u64,
+    pub size_formatted: String,
+    pub error_details: Option<String>,
+}
+
 pub struct DbState {
     pub conn: Mutex<Connection>,
 }
@@ -1675,11 +1701,27 @@ pub fn get_backups_dir() -> PathBuf {
     path
 }
 
-pub fn create_backup_file(
-    backup_type: &str,
-    destination_dir: Option<&str>,
+pub fn validate_destination_path(path: &str) -> Result<bool, String> {
+    let p = PathBuf::from(path.trim());
+    if p.as_os_str().is_empty() {
+        return Err("مسار الوجهة فارغ".into());
+    }
+    if !p.exists() {
+        fs::create_dir_all(&p).map_err(|e| format!("تعذر إنشاء المجلد: {}", e))?;
+    }
+    // Test write permission by creating a temporary file
+    let test_file = p.join(".mss_backup_test_write.tmp");
+    fs::write(&test_file, b"test").map_err(|e| format!("المسار غير قابل للكتابة: {}", e))?;
+    let _ = fs::remove_file(&test_file);
+    Ok(true)
+}
+
+pub fn execute_multi_destination_backup(
+    trigger_type: &str,
+    destinations: &[String],
     custom_filename: Option<&str>,
-) -> Result<BackupInfo, String> {
+    retention_count: usize,
+) -> Result<MultiBackupResult, String> {
     let db_path = get_db_path();
     if !db_path.exists() {
         return Err("ملف قاعدة البيانات الحالي غير موجود لنسخه احتياطياً".into());
@@ -1687,9 +1729,11 @@ pub fn create_backup_file(
 
     let default_backups_dir = get_backups_dir();
     let now = chrono::Local::now();
-    let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
-    let b_type = match backup_type.trim().to_lowercase().as_str() {
-        "auto" => "auto",
+    let timestamp = now.format("%Y-%m-%d_%H-%M-%S").to_string();
+
+    let trig = match trigger_type.trim().to_lowercase().as_str() {
+        "scheduled" | "auto" => "scheduled",
+        "after_operation" => "after_operation",
         "safeguard" => "safeguard",
         _ => "manual",
     };
@@ -1697,40 +1741,40 @@ pub fn create_backup_file(
     let filename = if let Some(cf) = custom_filename {
         let trimmed = cf.trim();
         if trimmed.is_empty() {
-            format!("accessories_backup_{}_{}.db", timestamp, b_type)
+            format!("MSS_Backup_{}.db", timestamp)
         } else if trimmed.ends_with(".db") {
             trimmed.to_string()
         } else {
             format!("{}.db", trimmed)
         }
     } else {
-        format!("accessories_backup_{}_{}.db", timestamp, b_type)
+        format!("MSS_Backup_{}.db", timestamp)
     };
 
-    let target_dir = if let Some(custom_dir) = destination_dir {
-        let p = PathBuf::from(custom_dir);
-        if !p.exists() {
-            let _ = fs::create_dir_all(&p);
+    // Staging file in internal backups dir
+    let staging_path = default_backups_dir.join(format!(".staging_{}", filename));
+
+    // Create safe and consistent SQLite backup using VACUUM INTO, with copy fallback
+    {
+        let conn = init_db().map_err(|e| format!("فشل الاتصال بقاعدة البيانات: {}", e))?;
+        let staging_str = staging_path.to_string_lossy().to_string();
+        if let Err(vac_err) = conn.execute("VACUUM INTO ?1", [&staging_str]) {
+            // Fallback to fs::copy if VACUUM INTO is unsupported or fails
+            let _ = fs::copy(&db_path, &staging_path).map_err(|e| {
+                format!("فشل عمل نسخة احتياطية آمنة لقاعدة البيانات (VACUUM: {}, Copy: {})", vac_err, e)
+            })?;
         }
-        p
-    } else {
-        default_backups_dir.clone()
-    };
-
-    let mut target_path = target_dir;
-    target_path.push(&filename);
-
-    fs::copy(&db_path, &target_path).map_err(|e| format!("فشل نسخ ملف قاعدة البيانات: {}", e))?;
-
-    // Also copy to default internal backups_dir if a custom target was chosen so it remains tracked in local history
-    if target_path.parent() != Some(&default_backups_dir) {
-        let mut internal_copy = default_backups_dir.clone();
-        internal_copy.push(&filename);
-        let _ = fs::copy(&db_path, &internal_copy);
     }
 
-    let metadata = fs::metadata(&target_path).map_err(|e| e.to_string())?;
-    let size_bytes = metadata.len();
+    // Verify staging file
+    let staging_meta = fs::metadata(&staging_path)
+        .map_err(|e| format!("فشل التحقق من ملف النسخة الاحتياطية المؤقت: {}", e))?;
+    let size_bytes = staging_meta.len();
+    if size_bytes == 0 {
+        let _ = fs::remove_file(&staging_path);
+        return Err("ملف النسخة الاحتياطية فارغ (حجمه صفر بايت)".into());
+    }
+
     let size_formatted = if size_bytes < 1024 {
         format!("{} B", size_bytes)
     } else if size_bytes < 1024 * 1024 {
@@ -1739,20 +1783,160 @@ pub fn create_backup_file(
         format!("{:.2} MB", (size_bytes as f64) / (1024.0 * 1024.0))
     };
 
-    // Auto-prune old automated backups (keep last 10)
-    if b_type == "auto" {
-        let _ = prune_backups(10);
+    // Always keep a primary copy in internal backups directory
+    let internal_final = default_backups_dir.join(&filename);
+    let _ = fs::copy(&staging_path, &internal_final);
+
+    // List of destinations to write to
+    let mut target_destinations: Vec<String> = destinations
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // If no custom destination configured, use internal default backups dir
+    if target_destinations.is_empty() {
+        target_destinations.push(default_backups_dir.to_string_lossy().to_string());
     }
 
-    Ok(BackupInfo {
+    let mut dest_results = Vec::new();
+    let mut success_count = 0;
+    let mut fail_count = 0;
+
+    for dest in &target_destinations {
+        let dest_buf = PathBuf::from(dest);
+        if !dest_buf.exists() {
+            if let Err(e) = fs::create_dir_all(&dest_buf) {
+                dest_results.push(DestinationResult {
+                    path: dest.clone(),
+                    status: "failed".to_string(),
+                    file_path: None,
+                    size_bytes: None,
+                    size_formatted: None,
+                    error: Some(format!("تعذر إنشاء المجلد: {}", e)),
+                });
+                fail_count += 1;
+                continue;
+            }
+        }
+
+        let target_file = dest_buf.join(&filename);
+        match fs::copy(&staging_path, &target_file) {
+            Ok(_) => {
+                if let Ok(meta) = fs::metadata(&target_file) {
+                    if meta.len() > 0 {
+                        dest_results.push(DestinationResult {
+                            path: dest.clone(),
+                            status: "success".to_string(),
+                            file_path: Some(target_file.to_string_lossy().to_string()),
+                            size_bytes: Some(meta.len()),
+                            size_formatted: Some(size_formatted.clone()),
+                            error: None,
+                        });
+                        success_count += 1;
+                        continue;
+                    }
+                }
+                dest_results.push(DestinationResult {
+                    path: dest.clone(),
+                    status: "failed".to_string(),
+                    file_path: Some(target_file.to_string_lossy().to_string()),
+                    size_bytes: Some(0),
+                    size_formatted: None,
+                    error: Some("الملف المنسوخ فارغ أو تالف".to_string()),
+                });
+                fail_count += 1;
+            }
+            Err(e) => {
+                dest_results.push(DestinationResult {
+                    path: dest.clone(),
+                    status: "failed".to_string(),
+                    file_path: None,
+                    size_bytes: None,
+                    size_formatted: None,
+                    error: Some(format!("فشل نسخ الملف إلى الوجهة: {}", e)),
+                });
+                fail_count += 1;
+            }
+        }
+    }
+
+    // Clean up staging file
+    let _ = fs::remove_file(&staging_path);
+
+    // Apply auto retention pruning
+    if trig == "scheduled" || trig == "after_operation" {
+        let keep = if retention_count > 0 { retention_count } else { 10 };
+        let _ = prune_backups(keep);
+    }
+
+    let overall_status = if fail_count == 0 {
+        "success".to_string()
+    } else if success_count > 0 {
+        "partial".to_string()
+    } else {
+        "failed".to_string()
+    };
+
+    let error_details = if fail_count > 0 {
+        let errs: Vec<String> = dest_results
+            .iter()
+            .filter(|d| d.status == "failed")
+            .map(|d| format!("{}: {}", d.path, d.error.as_deref().unwrap_or("خطأ غير معروف")))
+            .collect();
+        Some(errs.join(" | "))
+    } else {
+        None
+    };
+
+    Ok(MultiBackupResult {
         id: filename.clone(),
-        filename: filename.clone(),
-        filepath: target_path.to_string_lossy().to_string(),
+        filename,
+        trigger_type: trig.to_string(),
+        date: now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        overall_status,
+        total_destinations: target_destinations.len(),
+        successful_destinations: success_count,
+        failed_destinations: fail_count,
+        destinations: dest_results,
         size_bytes,
         size_formatted,
-        backup_type: b_type.to_string(),
-        date: now.format("%Y-%m-%d %H:%M:%S").to_string(),
-        status: "سليم ومتحقق منه".to_string(),
+        error_details,
+    })
+}
+
+pub fn create_backup_file(
+    backup_type: &str,
+    destination_dir: Option<&str>,
+    custom_filename: Option<&str>,
+) -> Result<BackupInfo, String> {
+    let dests: Vec<String> = destination_dir
+        .map(|d| vec![d.to_string()])
+        .unwrap_or_default();
+    let res = execute_multi_destination_backup(backup_type, &dests, custom_filename, 10)?;
+
+    let primary_path = res
+        .destinations
+        .iter()
+        .find(|d| d.status == "success")
+        .and_then(|d| d.file_path.clone())
+        .unwrap_or_else(|| get_backups_dir().join(&res.filename).to_string_lossy().to_string());
+
+    Ok(BackupInfo {
+        id: res.id,
+        filename: res.filename,
+        filepath: primary_path,
+        size_bytes: res.size_bytes,
+        size_formatted: res.size_formatted,
+        backup_type: backup_type.to_string(),
+        date: res.date,
+        status: if res.overall_status == "success" {
+            "سليم ومتحقق منه".to_string()
+        } else if res.overall_status == "partial" {
+            "نجاح جزئي".to_string()
+        } else {
+            "فشل".to_string()
+        },
     })
 }
 
@@ -1765,7 +1949,9 @@ pub fn prune_backups(keep_count: usize) -> Result<(), String> {
         let path = entry.path();
         if path.is_file() {
             let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-            if fname.starts_with("accessories_backup_") && fname.contains("_auto.db") {
+            let is_auto = (fname.starts_with("accessories_backup_") && fname.contains("_auto.db"))
+                || (fname.starts_with("MSS_Backup_") && !fname.contains("_manual"));
+            if is_auto {
                 if let Ok(meta) = entry.metadata() {
                     if let Ok(modified) = meta.modified() {
                         auto_files.push((path, modified));

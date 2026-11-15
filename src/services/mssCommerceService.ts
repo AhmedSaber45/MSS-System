@@ -3,6 +3,7 @@ import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidatio
 import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
+import { backupService } from './backupService.ts';
 import type {
   MSSInvoice,
   NewMSSSaleInput,
@@ -423,6 +424,8 @@ export const mssCommerceService = {
       )
       .catch(console.warn);
 
+    backupService.notifyDataChanged(`بيع جهاز MSS: ${newInvoice.invoice_number}`);
+
     return newInvoice;
   },
 
@@ -623,6 +626,8 @@ export const mssCommerceService = {
       )
       .catch(console.warn);
 
+    backupService.notifyDataChanged(`حجز جهاز MSS: ${newReservation.reservation_number}`);
+
     return newReservation;
   },
 
@@ -670,6 +675,8 @@ export const mssCommerceService = {
         res.branch
       )
       .catch(console.warn);
+
+    backupService.notifyDataChanged(`إلغاء حجز جهاز MSS: ${res.reservation_number}`);
   },
 
   /**
@@ -906,6 +913,8 @@ export const mssCommerceService = {
         newReturn.restock_location
       )
       .catch(console.warn);
+
+    backupService.notifyDataChanged(`مرتجع جهاز MSS: ${newReturn.return_number}`);
 
     return newReturn;
   },
