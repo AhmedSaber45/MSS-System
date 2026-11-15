@@ -140,7 +140,7 @@ export const MSSDashboardView: React.FC = () => {
               className="px-3 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all"
               onClick={() => setActiveTab('mss')}
             >
-              لوحة بيزنس MSS للأجهزة
+              لوحة  MSS 
             </button>
             <button
               type="button"
@@ -217,7 +217,7 @@ export const MSSDashboardView: React.FC = () => {
             className="px-4 py-2 rounded-lg font-bold bg-white text-slate-900 shadow-subtle border border-slate-300 transition-all"
             onClick={() => setActiveTab('mss')}
           >
-            لوحة بيزنس MSS للأجهزة
+            لوحة  MSS للأجهزة
           </button>
           <button
             type="button"
@@ -233,7 +233,7 @@ export const MSSDashboardView: React.FC = () => {
       </div>
 
       <PageHeader
-        title="لوحة تحكم بيزنس MSS للأجهزة"
+        title="لوحة تحكم  MSS للأجهزة"
         subtitle="نظام مشترك سحابي بين محلين مع تتبع السيريال ومزامنة فورية ودعم وضع عدم الاتصال"
         actions={
           <div className="flex items-center gap-2.5">
@@ -262,14 +262,14 @@ export const MSSDashboardView: React.FC = () => {
 
       <Alert
         type="info"
-        title="قواعد بيزنس MSS المشترك (Rule 9 & Rule 16)"
-        message="الكتالوج مشترك بين المحلين، وتتبع الأجهزة يكون بالسيريال الفريد لكل وحدة فيزيائية، مع تسجيل فرع البيع ومصدر الجهاز بشكل منفصل تماماً، والأرباح مشتركة على مستوى البيزنس ككل."
+        title="قواعد  MSS المشترك (Rule 9 & Rule 16)"
+        message="الكتالوج مشترك بين المحلين، وتتبع الأجهزة يكون بالسيريال الفريد لكل وحدة فيزيائية، مع تسجيل فرع البيع ومصدر الجهاز بشكل منفصل تماماً، والأرباح مشتركة على مستوى ال ككل."
       />
 
       {isLoading ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
-          <p className="mt-3 text-sm font-medium text-slate-600">جاري تحميل بيانات بيزنس MSS...</p>
+          <p className="mt-3 text-sm font-medium text-slate-600">جاري تحميل بيانات  MSS...</p>
         </div>
       ) : (
         <>

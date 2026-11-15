@@ -202,7 +202,7 @@ export const MSSInvoicesView: React.FC = () => {
             </span>
             <TrendingUp className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">على مستوى بيزنس MSS المشترك</span>
+          <span className="text-xs text-slate-500 mt-1 block">   MSS </span>
         </Card>
       </div>
 

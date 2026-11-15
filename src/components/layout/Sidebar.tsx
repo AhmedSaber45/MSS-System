@@ -20,26 +20,26 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'h-screen flex flex-col bg-white border-l border-slate-300 select-none z-30 shrink-0 transition-all duration-150',
-        isSidebarCollapsed ? 'w-18' : 'w-68'
+        'h-screen flex flex-col bg-white border-l border-slate-200 shadow-xs select-none z-30 shrink-0 transition-all duration-200',
+        isSidebarCollapsed ? 'w-22' : 'w-72'
       )}
     >
       {/* Brand Header */}
       <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between shrink-0">
         {!isSidebarCollapsed ? (
-          <div className="flex items-center gap-3 overflow-hidden">
+          <div className="flex items-center gap-3.5 overflow-hidden">
             <div
               className={cn(
-                'w-9 h-9 rounded-lg flex items-center justify-center font-mono text-xs font-bold text-white shadow-sm shrink-0',
-                isAccessories ? 'bg-blue-700' : 'bg-teal-800'
+                'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-xs shrink-0 text-sm',
+                isAccessories ? 'bg-blue-600' : 'bg-teal-700'
               )}
             >
-              {isAccessories ? 'ACC' : 'MSS'}
+              {isAccessories ? 'إكس' : 'MSS'}
             </div>
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold text-slate-900 truncate">نظام إدارة المحل</h1>
-              <p className="text-xs font-medium text-slate-500 truncate mt-0.5">
-                {isAccessories ? 'محل الإكسسوارات (محلي)' : 'بيزنس أجهزة MSS المشترك'}
+              <h1 className="text-base font-bold text-slate-900 truncate">نظام إدارة المحل</h1>
+              <p className="text-xs font-semibold text-slate-500 truncate mt-0.5">
+                {isAccessories ? ' الإكسسوارات ' : '  MSS '}
               </p>
             </div>
           </div>
@@ -47,26 +47,33 @@ export const Sidebar: React.FC = () => {
           <div className="mx-auto">
             <div
               className={cn(
-                'w-9 h-9 rounded-lg flex items-center justify-center font-mono text-xs font-bold text-white shadow-sm',
-                isAccessories ? 'bg-blue-700' : 'bg-teal-800'
+                'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-xs text-sm',
+                isAccessories ? 'bg-blue-600' : 'bg-teal-700'
               )}
             >
-              {isAccessories ? 'ACC' : 'MSS'}
+              {isAccessories ? 'إكس' : 'MSS'}
             </div>
           </div>
         )}
       </div>
 
       {/* Mode Switcher */}
-      <div className="p-2.5 border-b border-slate-200 shrink-0">
+      <div className="p-3 border-b border-slate-200 shrink-0">
         <SectionSwitcher compact={isSidebarCollapsed} />
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3.5 py-4 space-y-3.5">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = currentRoute === item.id;
+
+          const activeStyle = isAccessories
+            ? 'bg-blue-50/95 text-blue-700 font-bold border-r-[4.5px] border-blue-600 shadow-xs'
+            : 'bg-teal-50/95 text-teal-800 font-bold border-r-[4.5px] border-teal-700 shadow-xs';
+
+          const inactiveStyle =
+            'text-slate-800 hover:bg-slate-100/70 hover:text-slate-950 font-semibold border-r-[4.5px] border-transparent';
 
           return (
             <button
@@ -74,35 +81,37 @@ export const Sidebar: React.FC = () => {
               onClick={() => setRoute(item.id as any)}
               title={isSidebarCollapsed ? `${item.label} — ${item.description}` : undefined}
               className={cn(
-                'w-full flex items-center gap-3 px-3 h-10.5 rounded-lg text-sm transition-colors group text-right',
-                isActive
-                  ? isAccessories
-                    ? 'bg-slate-100 text-slate-900 font-bold border-r-3 border-blue-700 shadow-sm'
-                    : 'bg-slate-100 text-slate-900 font-bold border-r-3 border-teal-800 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                'w-full flex items-center gap-4 px-4 h-12.5 rounded-xl transition-all group text-right',
+                isActive ? activeStyle : inactiveStyle
               )}
             >
-              <div className="w-5 h-5 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 flex items-center justify-center shrink-0">
                 <Icon
                   className={cn(
-                    'w-5 h-5 transition-colors',
+                    'w-6 h-6 transition-colors',
                     isActive
                       ? isAccessories
-                        ? 'text-blue-700'
-                        : 'text-teal-800'
-                      : 'text-slate-500 group-hover:text-slate-800'
+                        ? 'text-blue-600'
+                        : 'text-teal-700'
+                      : 'text-slate-400 group-hover:text-slate-700'
                   )}
+                  strokeWidth={isActive ? 2.3 : 2}
                 />
               </div>
 
               {!isSidebarCollapsed && (
-                <div className="flex-1 truncate">
-                  <div className="truncate text-sm leading-snug">{item.label}</div>
-                </div>
+                <span
+                  className={cn(
+                    'truncate text-base leading-snug',
+                    isActive ? 'font-bold' : 'font-semibold'
+                  )}
+                >
+                  {item.label}
+                </span>
               )}
 
               {!isSidebarCollapsed && item.badge && (
-                <span className="text-xs font-semibold bg-slate-200/90 text-slate-800 px-2 py-0.5 rounded-md border border-slate-300 tabular-nums">
+                <span className="mr-auto text-xs font-bold bg-slate-200/90 text-slate-800 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
                   {item.badge}
                 </span>
               )}
@@ -114,8 +123,8 @@ export const Sidebar: React.FC = () => {
       {/* Footer Info & Toggle */}
       <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex flex-col gap-2 shrink-0">
         {!isSidebarCollapsed && (
-          <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-medium">
-            <span className="text-xs font-mono font-semibold text-slate-600 tabular-nums">
+          <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
+            <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
               v1.0.1
             </span>
           </div>
@@ -123,15 +132,15 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={toggleSidebar}
-          className="w-full flex items-center justify-center gap-2 h-8 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition-colors text-xs font-semibold"
+          className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors text-xs font-bold"
           title="طي القائمة الجانبية (Ctrl + B)"
         >
           {isSidebarCollapsed ? (
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4.5 h-4.5" />
           ) : (
             <>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-xs">طي القائمة</span>
+              <ChevronRight className="w-4.5 h-4.5" />
+              <span className="text-xs font-semibold">طي القائمة</span>
             </>
           )}
         </button>

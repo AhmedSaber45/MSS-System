@@ -26,7 +26,7 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
               ? 'bg-white text-slate-900 shadow-sm border border-slate-300 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
           )}
-          title="قسم محل الإكسسوارات (محلي مستقل)"
+          title="قسم محل الإكسسوارات "
         >
           <Store className={cn('w-4.5 h-4.5', currentSection === 'accessories' ? 'text-blue-700' : 'text-slate-500')} />
           {!compact && <span>الإكسسوارات</span>}
@@ -42,10 +42,10 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
               ? 'bg-white text-slate-900 shadow-sm border border-slate-300 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
           )}
-          title="بيزنس أجهزة MSS (مشترك وسحابي)"
+          title="  MSS "
         >
           <Laptop className={cn('w-4.5 h-4.5', currentSection === 'mss' ? 'text-teal-700' : 'text-slate-500')} />
-          {!compact && <span>أجهزة MSS</span>}
+          {!compact && <span> MSS</span>}
         </button>
       </div>
     </div>

@@ -80,7 +80,7 @@ export const MSSReportsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="تقارير بيزنس MSS المشترك والأرباح"
+        title="تقارير  MSS  والأرباح"
         subtitle="تقرير الإيرادات المشتركة وتكاليف شراء الأجهزة ومجمل الأرباح وإحصائيات مبيعات الفروع المعتمدة"
         actions={
           <div className="flex items-center gap-2.5">
@@ -167,14 +167,14 @@ export const MSSReportsView: React.FC = () => {
       {/* Rule 16 Explicit Callout Alert */}
       <Alert
         type="info"
-        title="محددات أرباح بيزنس MSS المشترك (Rule 16)"
-        message="أرباح بيزنس أجهزة MSS تُحسب حصراً على مستوى النشاط ككل كشراكة موحدة (إجمالي سعر البيع الفعلي ناقص تكلفة شراء الأجهزة المحفوظة تاريخياً). تقارير مبيعات الفروع تمثل الأداء التشغيلي والتحصيل فقط، ولا يجوز اعتبارها أو توزيعها كأرباح فردية منفصلة للفرع البائع."
+        title="محددات أرباح  MSS  (Rule 16)"
+        message="أرباح   MSS تُحسب حصراً على مستوى النشاط ككل كشراكة موحدة (إجمالي سعر البيع الفعلي ناقص تكلفة شراء الأجهزة المحفوظة تاريخياً). تقارير مبيعات الفروع تمثل الأداء التشغيلي والتحصيل فقط، ولا يجوز اعتبارها أو توزيعها كأرباح فردية منفصلة للفرع البائع."
       />
 
       {isLoading || !summary ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
-          <p className="mt-3 text-sm font-medium text-slate-600">جاري إعداد تقارير بيزنس MSS...</p>
+          <p className="mt-3 text-sm font-medium text-slate-600">جاري إعداد تقارير  MSS...</p>
         </div>
       ) : (
         <>
