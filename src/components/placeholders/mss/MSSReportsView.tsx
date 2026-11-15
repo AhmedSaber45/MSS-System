@@ -88,10 +88,11 @@ export const MSSReportsView: React.FC = () => {
               variant="outline"
               size="md"
               onClick={loadReportData}
+              isLoading={isLoading}
               className="font-semibold"
-              leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />}
+              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-500" />}
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="outline"

@@ -13,24 +13,21 @@ import {
   Edit,
   Trash2,
   Eye,
-  ScanBarcode,
   Package,
   AlertTriangle,
   Boxes,
   TrendingUp,
-  Barcode,
   RefreshCw,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { productsService } from '@/services/productsService';
 import { Product, NewProductInput, UpdateProductInput, StockStatusFilter } from '@/types/product';
 import { useNotification } from '@/context/NotificationContext';
-import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 interface FormState {
   name: string;
   code: string;
-  barcode: string;
+  barcode?: string;
   category: string;
   newCategory: string;
   cost: string;
@@ -43,7 +40,6 @@ interface FormState {
 const emptyFormState: FormState = {
   name: '',
   code: '',
-  barcode: '',
   category: '',
   newCategory: '',
   cost: '',
@@ -86,9 +82,6 @@ export const ProductsView: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Barcode scanner indicator feedback
-  const [lastScannedBarcode, setLastScannedBarcode] = useState<string | null>(null);
-
   // Load products & categories from local database
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -117,54 +110,15 @@ export const ProductsView: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Barcode scanner integration for rapid lookups
-  useBarcodeScanner({
-    onScan: scannedCode => {
-      setLastScannedBarcode(scannedCode);
-
-      // If Add Modal is open, populate the barcode field directly
-      if (isAddModalOpen) {
-        setFormData(prev => ({ ...prev, barcode: scannedCode }));
-        showNotification({
-          type: 'info',
-          title: 'تم مسح الباركود',
-          message: `تم إدراج الباركود (${scannedCode}) في بطاقة الصنف الجديد`,
-        });
-        return;
-      }
-
-      // If Edit Modal is open, populate barcode
-      if (isEditModalOpen) {
-        setFormData(prev => ({ ...prev, barcode: scannedCode }));
-        showNotification({
-          type: 'info',
-          title: 'تم مسح الباركود',
-          message: `تم تحديث الباركود (${scannedCode}) للصنف الحالي`,
-        });
-        return;
-      }
-
-      // Otherwise, filter table by the scanned barcode
-      setSearchQuery(scannedCode);
-      showNotification({
-        type: 'info',
-        title: 'بحث فوري بالباركود',
-        message: `جاري البحث عن الصنف المطابق للرمز: ${scannedCode}`,
-      });
-    },
-    enabled: true,
-  });
-
   // Filtered products list
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      // 1. Text Search (Name, Code, Barcode)
+      // 1. Text Search (Name, Code)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = product.name.toLowerCase().includes(q);
         const matchesCode = product.code.toLowerCase().includes(q);
-        const matchesBarcode = product.barcode ? product.barcode.toLowerCase().includes(q) : false;
-        if (!matchesName && !matchesCode && !matchesBarcode) return false;
+        if (!matchesName && !matchesCode) return false;
       }
 
       // 2. Category Filter
@@ -280,7 +234,7 @@ export const ProductsView: React.FC = () => {
       const input: NewProductInput = {
         name: formData.name,
         code: formData.code,
-        barcode: formData.barcode || null,
+        barcode: null,
         category: finalCategory || null,
         cost: Number(formData.cost),
         price: Number(formData.price),
@@ -325,7 +279,7 @@ export const ProductsView: React.FC = () => {
       const input: UpdateProductInput = {
         name: formData.name,
         code: formData.code,
-        barcode: formData.barcode || null,
+        barcode: selectedProduct.barcode || null,
         category: finalCategory || null,
         cost: Number(formData.cost),
         price: Number(formData.price),
@@ -401,18 +355,6 @@ export const ProductsView: React.FC = () => {
           )}
         </div>
       ),
-    },
-    {
-      key: 'barcode',
-      header: 'الباركود',
-      render: item =>
-        item.barcode ? (
-          <span className="barcode-value text-sm text-slate-800 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-300 font-mono tabular-nums font-medium">
-            {item.barcode}
-          </span>
-        ) : (
-          <span className="text-slate-400 text-sm">-</span>
-        ),
     },
     {
       key: 'category',
@@ -554,7 +496,6 @@ export const ProductsView: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
               leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-              scannerReady
             />
           </div>
 
@@ -699,7 +640,7 @@ export const ProductsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 p-4 bg-slate-50 rounded-xl border border-slate-300">
             <Input
-              label="سعر التكلفة (ج.م) *"
+              label="سعر التكلفة (EGP) *"
               type="number"
               step="0.5"
               min="0"
@@ -710,7 +651,7 @@ export const ProductsView: React.FC = () => {
             />
 
             <Input
-              label="سعر البيع (ج.م) *"
+              label="سعر البيع (EGP) *"
               type="number"
               step="0.5"
               min="0"
@@ -818,47 +759,35 @@ export const ProductsView: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <Input
-              label="الباركود (اختياري)"
-              value={formData.barcode}
-              onChange={e => setFormData({ ...formData, barcode: e.target.value })}
-              scannerReady
-              isMonospace
-              leftIcon={<Barcode className="w-4 h-4 text-slate-500" />}
-              onClear={() => setFormData({ ...formData, barcode: '' })}
-            />
+          <div>
+            <Select
+              label="تصنيف الصنف"
+              value={formData.category}
+              onChange={e => setFormData({ ...formData, category: e.target.value })}
+            >
+              <option value="">-- بدون تصنيف (عام) --</option>
+              {categories.map(c => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value="__NEW__">+ إضافة تصنيف جديد...</option>
+            </Select>
 
-            <div>
-              <Select
-                label="تصنيف الصنف"
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="">-- بدون تصنيف (عام) --</option>
-                {categories.map(c => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                <option value="__NEW__">+ إضافة تصنيف جديد...</option>
-              </Select>
-
-              {formData.category === '__NEW__' && (
-                <div className="mt-2">
-                  <Input
-                    placeholder="اكتب اسم التصنيف الجديد..."
-                    value={formData.newCategory}
-                    onChange={e => setFormData({ ...formData, newCategory: e.target.value })}
-                  />
-                </div>
-              )}
-            </div>
+            {formData.category === '__NEW__' && (
+              <div className="mt-2">
+                <Input
+                  placeholder="اكتب اسم التصنيف الجديد..."
+                  value={formData.newCategory}
+                  onChange={e => setFormData({ ...formData, newCategory: e.target.value })}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 p-4 bg-slate-50 rounded-xl border border-slate-300">
             <Input
-              label="سعر التكلفة (ج.م) *"
+              label="سعر التكلفة (EGP) *"
               type="number"
               step="0.5"
               min="0"
@@ -868,7 +797,7 @@ export const ProductsView: React.FC = () => {
             />
 
             <Input
-              label="سعر البيع (ج.م) *"
+              label="سعر البيع (EGP) *"
               type="number"
               step="0.5"
               min="0"
@@ -947,12 +876,6 @@ export const ProductsView: React.FC = () => {
                 <span className="text-slate-600 font-medium">كود الصنف:</span>
                 <span className="font-mono font-bold text-slate-900 bg-white border border-slate-300 px-2.5 py-0.5 rounded-md tabular-nums text-sm">
                   {selectedProduct.code}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-slate-200">
-                <span className="text-slate-600 font-medium">الباركود:</span>
-                <span className="font-mono text-slate-800 font-bold tabular-nums text-sm">
-                  {selectedProduct.barcode || 'غير مسجل'}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1.5 border-b border-slate-200">

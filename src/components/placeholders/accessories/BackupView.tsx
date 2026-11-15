@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   RotateCcw,
+  RefreshCw,
   Clock,
   Settings,
   FolderDown,
@@ -236,6 +237,16 @@ export const BackupView: React.FC = () => {
         subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={loadBackups}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              Refresh
+            </Button>
             <Button
               variant="outline"
               size="md"

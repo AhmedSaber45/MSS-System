@@ -6,13 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format a number as currency in Arabic formatting
+ * Format a number as currency in standard EGP format:
+ * Examples: 1,500 EGP, 250 EGP, 75.50 EGP
  */
-export function formatCurrency(amount: number, currency: string = 'ج.م'): string {
-  const formatted = new Intl.NumberFormat('ar-EG', {
+export function formatCurrency(amount: number, currency: string = 'EGP'): string {
+  const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+  const formatted = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(safeAmount);
   return `${formatted} ${currency}`;
 }
 

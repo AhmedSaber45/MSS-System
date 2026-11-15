@@ -7,7 +7,7 @@ import { Badge } from '@/components/common/Badge';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { Eye, Printer, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw } from 'lucide-react';
+import { Eye, Printer, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
@@ -223,11 +223,12 @@ export const MSSInvoicesView: React.FC = () => {
             variant="outline"
             size="md"
             onClick={loadData}
-            title="تحديث البيانات"
+            isLoading={isLoading}
+            title="إعادة تحميل البيانات"
             className="font-semibold"
-            leftIcon={<RotateCcw className="w-4.5 h-4.5" />}
+            leftIcon={<RefreshCw className="w-4.5 h-4.5" />}
           >
-            تحديث
+            Refresh
           </Button>
         </div>
 

@@ -27,7 +27,7 @@ export const accessoriesNavItems: NavItemConfig[] = [
   {
     id: 'products',
     label: 'المنتجات والأسعار',
-    description: 'إدارة بطاقات الأصناف والباركود',
+    description: 'إدارة بطاقات الأصناف والأسعار',
     icon: Package,
   },
   {

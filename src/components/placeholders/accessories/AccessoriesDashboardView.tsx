@@ -14,7 +14,6 @@ import {
   ShoppingCart,
   RotateCcw,
   HardDriveDownload,
-  Barcode,
   ArrowUpRight,
   Layers,
 } from 'lucide-react';
@@ -261,11 +260,10 @@ export const AccessoriesDashboardView: React.FC = () => {
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-200 shrink-0">
-              <Barcode className="w-5 h-5 text-slate-700" />
+              <ShoppingCart className="w-5 h-5 text-slate-700" />
             </div>
             <div>
               <p className="font-bold text-sm text-slate-900">نقطة البيع </p>
-              {/* <p className="text-xs text-slate-500 font-medium mt-0.5">مسح الباركود والبيع</p> */}
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800" />

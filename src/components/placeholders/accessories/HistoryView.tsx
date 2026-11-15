@@ -10,6 +10,7 @@ import { Spinner } from '@/components/common/Spinner';
 import {
   Search,
   RotateCcw,
+  RefreshCw,
   History,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -133,6 +134,18 @@ export const HistoryView: React.FC = () => {
       <PageHeader
         title="سجل العمليات "
         subtitle=""
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={loadLogs}
+            isLoading={isLoading}
+            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+            className="border-slate-300 text-slate-800 font-semibold"
+          >
+            Refresh
+          </Button>
+        }
       />
 
       {/* Filter Toolbar */}

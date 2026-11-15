@@ -372,7 +372,7 @@ export const PurchasesView: React.FC = () => {
               leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
               className="border-slate-300 text-slate-800 font-semibold"
             >
-              Refesh
+              Refresh
             </Button>
             <Button
               variant="primary"

@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Receipt,
   Printer,
+  RefreshCw,
   Package,
   Percent,
   Calendar,
@@ -99,6 +100,16 @@ export const ReportsView: React.FC = () => {
         subtitle=""
         actions={
           <div className="no-print flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={loadReportData}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              Refresh
+            </Button>
             <Button
               variant="outline"
               size="md"

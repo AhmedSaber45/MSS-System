@@ -100,9 +100,8 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
               leftIcon={<Search className="w-4.5 h-4.5" />}
             />
             <Input
-              label="حقل مخصص للباركود والسيريال"
-              placeholder="امسح الباركود..."
-              scannerReady
+              label="حقل مخصص للسيريال وكود الصنف"
+              placeholder="اكتب السيريال أو الكود..."
               isMonospace
             />
             <Select

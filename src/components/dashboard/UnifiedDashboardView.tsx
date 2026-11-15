@@ -93,9 +93,10 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               variant="outline"
               size="sm"
               onClick={loadData}
-              leftIcon={<RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5 text-slate-500" />}
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="outline"

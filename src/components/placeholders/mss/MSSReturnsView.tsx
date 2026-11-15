@@ -253,11 +253,10 @@ export const MSSReturnsView: React.FC = () => {
         <div className="flex gap-3">
           <div className="flex-1">
             <Input
-              placeholder="امسح بالباركود أو اكتب السيريال نمبر أو رقم الفاتورة (مثال: 5CD9283-HP أو MSS-INV-101)..."
+              placeholder="اكتب السيريال نمبر أو رقم الفاتورة (مثال: 5CD9283-HP أو MSS-INV-101)..."
               value={queryInput}
               onChange={e => setQueryInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLookupInvoice()}
-              scannerReady
               leftIcon={<Search className="w-4.5 h-4.5" />}
             />
           </div>
@@ -321,7 +320,7 @@ export const MSSReturnsView: React.FC = () => {
                 {/* Return Details Inputs */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Input
-                    label="المبلغ المسترد للعميل (ج.م) *"
+                    label="المبلغ المسترد للعميل (EGP) *"
                     type="number"
                     min="0"
                     value={refundAmount}

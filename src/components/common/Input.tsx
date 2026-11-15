@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { X, ScanBarcode } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -36,12 +36,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-semibold text-slate-800">{label}</label>
-            {scannerReady && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-blue-900 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded-md font-semibold">
-                <ScanBarcode className="w-3.5 h-3.5 text-blue-700" />
-                جاهز للمسح
-              </span>
-            )}
           </div>
         )}
         <div className="relative flex items-center">

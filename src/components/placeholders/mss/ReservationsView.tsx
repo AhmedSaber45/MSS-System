@@ -23,6 +23,7 @@ import {
   XCircle,
   Calendar,
   RotateCcw,
+  RefreshCw,
   Phone,
   User,
 } from 'lucide-react';
@@ -460,11 +461,12 @@ export const ReservationsView: React.FC = () => {
             variant="outline"
             size="md"
             onClick={loadData}
-            title="تحديث البيانات"
+            isLoading={isLoading}
+            title="إعادة تحميل البيانات"
             className="font-semibold"
-            leftIcon={<RotateCcw className="w-4.5 h-4.5" />}
+            leftIcon={<RefreshCw className="w-4.5 h-4.5" />}
           >
-            تحديث
+            Refresh
           </Button>
         </div>
 
@@ -639,7 +641,7 @@ export const ReservationsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input
-              label="العربون المدفوع (ج.م) *"
+              label="العربون المدفوع (EGP) *"
               type="number"
               min="0"
               value={depositAmount}
@@ -648,7 +650,7 @@ export const ReservationsView: React.FC = () => {
             />
 
             <Input
-              label="السعر المتفق عليه (ج.م) *"
+              label="السعر المتفق عليه (EGP) *"
               type="number"
               min="0"
               value={agreedPrice}

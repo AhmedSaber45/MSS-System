@@ -59,7 +59,7 @@ const INITIAL_SEED_RESERVATIONS: MSSReservation[] = [
     agreed_price: 14500,
     expiry_date: '2026-11-20',
     status: 'ACTIVE',
-    notes: 'حجز مع عربون 1000 ج.م حتى استلام الراتب',
+    notes: 'حجز مع عربون 1000 EGP حتى استلام الراتب',
     created_at: '2024-11-10T09:30:00Z',
     updated_at: '2024-11-10T09:30:00Z',
     brand: 'Dell',

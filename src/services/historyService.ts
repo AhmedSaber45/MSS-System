@@ -37,7 +37,7 @@ export const historyService = {
         referenceId: inv.id,
         referenceNumber: inv.invoice_number,
         amount: inv.total_amount,
-        details: `فاتورة مبيعات رقم ${inv.invoice_number} لـ ${inv.customer_name || 'عميل نقدي'} بقيمة ${inv.total_amount} ج.م (${inv.payment_method})`,
+        details: `فاتورة مبيعات رقم ${inv.invoice_number} لـ ${inv.customer_name || 'عميل نقدي'} بقيمة ${inv.total_amount} EGP (${inv.payment_method})`,
       });
     }
 
@@ -53,7 +53,7 @@ export const historyService = {
         referenceId: ret.id,
         referenceNumber: ret.return_number,
         amount: -ret.refund_amount,
-        details: `مرتجع مبيعات رقم ${ret.return_number} لفاتورة ${ret.invoice_number} بقيمة مستردة ${ret.refund_amount} ج.م - السبب: ${ret.reason}`,
+        details: `مرتجع مبيعات رقم ${ret.return_number} لفاتورة ${ret.invoice_number} بقيمة مستردة ${ret.refund_amount} EGP - السبب: ${ret.reason}`,
       });
     }
 
@@ -69,7 +69,7 @@ export const historyService = {
         referenceId: pur.id,
         referenceNumber: pur.purchase_number,
         amount: pur.total_amount,
-        details: `وارد بضاعة رقم ${pur.purchase_number} من ${pur.supplier_name || 'مورد عام'} بقيمة ${pur.total_amount} ج.م (${pur.items_count} أصناف)`,
+        details: `وارد بضاعة رقم ${pur.purchase_number} من ${pur.supplier_name || 'مورد عام'} بقيمة ${pur.total_amount} EGP (${pur.items_count} أصناف)`,
       });
     }
 

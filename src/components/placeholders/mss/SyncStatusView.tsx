@@ -246,16 +246,28 @@ export const SyncStatusView: React.FC = () => {
         title="المزامنة السحابية وطابور العمليات"
         subtitle="متابعة طابور العمليات المعلقة وضمان استمرارية العمل بدون إنترنت مع الكشف التلقائي للتعارضات"
         actions={
-          <Button
-            variant="primary"
-            size="md"
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            className="font-bold"
-            leftIcon={isSyncing ? <Spinner size="sm" /> : <RefreshCw className="w-4.5 h-4.5" />}
-          >
-            {isSyncing ? 'جاري المزامنة...' : 'بدء مزامنة فورية الآن'}
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={loadData}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="font-bold"
+              leftIcon={isSyncing ? <Spinner size="sm" /> : <RefreshCw className="w-4.5 h-4.5" />}
+            >
+              {isSyncing ? 'جاري المزامنة...' : 'بدء مزامنة فورية الآن'}
+            </Button>
+          </div>
         }
       />
 

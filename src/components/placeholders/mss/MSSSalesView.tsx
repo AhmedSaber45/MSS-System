@@ -178,10 +178,9 @@ export const MSSSalesView: React.FC = () => {
             <div className="flex gap-2.5">
               <div className="flex-1">
                 <Input
-                  placeholder="امسح بالباركود أو اكتب السيريال نمبر..."
+                  placeholder="ابحث أو اكتب السيريال نمبر..."
                   value={searchSerialQuery}
                   onChange={e => handleSearchSerial(e.target.value)}
-                  scannerReady
                   leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
                 />
               </div>
@@ -358,7 +357,7 @@ export const MSSSalesView: React.FC = () => {
               {/* Actual Selling Price Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  سعر البيع الفعلي المتفق عليه (ج.م) <span className="text-rose-500">*</span>
+                  سعر البيع الفعلي المتفق عليه (EGP) <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   type="number"
@@ -381,7 +380,7 @@ export const MSSSalesView: React.FC = () => {
               {/* Discount Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  قيمة الخصم إن وجد (ج.م)
+                  قيمة الخصم إن وجد (EGP)
                 </label>
                 <Input
                   type="number"
@@ -406,7 +405,7 @@ export const MSSSalesView: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-slate-600 font-medium">الخصم المطبق:</span>
                   <span className="font-bold text-rose-700 font-mono tabular-nums">
-                    {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '0.00 ج.م'}
+                    {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '0.00 EGP'}
                   </span>
                 </div>
 

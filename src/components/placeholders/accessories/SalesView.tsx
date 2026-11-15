@@ -17,7 +17,6 @@ import {
   Banknote,
   RotateCcw,
   Tag,
-  ScanBarcode,
   FileCheck2,
   ChevronLeft,
   ChevronRight,
@@ -26,7 +25,6 @@ import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { productsService } from '@/services/productsService.ts';
 import { salesService } from '@/services/salesService.ts';
-import { useBarcodeScanner } from '@/hooks/useBarcodeScanner.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
 import type { Product } from '@/types/product.ts';
 import type { CartItem, Invoice, InvoiceItem } from '@/types/sale.ts';
@@ -110,8 +108,7 @@ export const SalesView: React.FC = () => {
       const q = searchQuery.toLowerCase().trim();
       return (
         p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        (p.barcode && p.barcode.toLowerCase().includes(q))
+        p.code.toLowerCase().includes(q)
       );
     });
   }, [products, selectedCategory, searchQuery]);
@@ -181,31 +178,6 @@ export const SalesView: React.FC = () => {
       }
     });
   }, [showNotification]);
-
-  // Hardware barcode scanner integration
-  useBarcodeScanner({
-    onScan: (scannedCode) => {
-      const cleaned = scannedCode.trim();
-      const matched = products.find(
-        p => (p.barcode && p.barcode === cleaned) || p.code.toLowerCase() === cleaned.toLowerCase()
-      );
-
-      if (matched) {
-        handleAddToCart(matched);
-        showNotification({
-          type: 'success',
-          title: 'تم مسح الباركود بنجاح',
-          message: `أضيف الصنف: ${matched.name}`,
-        });
-      } else {
-        showNotification({
-          type: 'warning',
-          title: 'باركود غير مسجل',
-          message: `الباركود "${cleaned}" غير مرتبط بأي صنف في النظام.`,
-        });
-      }
-    },
-  });
 
   // Modify item quantity
   const handleUpdateQuantity = (productId: string, newQty: number) => {
@@ -374,7 +346,7 @@ export const SalesView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Right 7 Cols: Product Catalog & Search */}
         <div className="lg:col-span-7 space-y-3.5">
-          {/* Search & Barcode Input Card */}
+          {/* Search & Catalog Filter Card */}
           <Card className="p-3.5 border-slate-300">
             <Input
               placeholder="   ابحث باسم الصنف أو الكود..."
@@ -382,7 +354,6 @@ export const SalesView: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
               leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-              scannerReady
               autoFocus
             />
 

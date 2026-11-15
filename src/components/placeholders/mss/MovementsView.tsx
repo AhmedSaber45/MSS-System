@@ -21,6 +21,7 @@ import {
   History,
   CheckCircle2,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 
 export const MovementsView: React.FC = () => {
@@ -305,11 +306,12 @@ export const MovementsView: React.FC = () => {
             variant="outline"
             size="md"
             onClick={loadData}
-            title="تحديث البيانات"
-            leftIcon={<RotateCcw className="w-4 h-4 text-slate-600" />}
+            isLoading={isLoading}
+            title="إعادة تحميل البيانات"
+            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
             className="border-slate-300 font-semibold"
           >
-            تحديث
+            Refresh
           </Button>
         </div>
 

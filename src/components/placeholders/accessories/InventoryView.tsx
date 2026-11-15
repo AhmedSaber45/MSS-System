@@ -114,8 +114,7 @@ export const InventoryView: React.FC = () => {
         const q = searchQuery.toLowerCase().trim();
         const mName = p.name.toLowerCase().includes(q);
         const mCode = p.code.toLowerCase().includes(q);
-        const mBar = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
-        if (!mName && !mCode && !mBar) return false;
+        if (!mName && !mCode) return false;
       }
 
       if (selectedCategory !== 'all' && p.category !== selectedCategory) {

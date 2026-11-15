@@ -21,6 +21,7 @@ import {
   CheckCircle,
   LayoutGrid,
   List,
+  RefreshCw,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
@@ -240,6 +241,16 @@ export const CatalogView: React.FC = () => {
         subtitle="المواصفات الفنية الموحدة والأسعار الاسترشادية المشتركة والأرصدة المتوفرة بين المحلين"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={loadData}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              Refresh
+            </Button>
             <Button
               variant="primary"
               size="md"

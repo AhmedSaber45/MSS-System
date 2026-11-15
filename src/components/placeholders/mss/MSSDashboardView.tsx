@@ -240,6 +240,16 @@ export const MSSDashboardView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
+              onClick={loadData}
+              isLoading={isLoading}
+              leftIcon={<RefreshCw className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
               onClick={handleSyncNow}
               disabled={isSyncing}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isSyncing ? 'animate-spin' : ''}`} />}

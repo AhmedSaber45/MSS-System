@@ -3,6 +3,7 @@ import { useNavigation } from '../../context/NavigationContext';
 import { Sidebar } from './Sidebar';
 import { TopHeader } from './TopHeader';
 import { ToastContainer } from '../common/Toast';
+import { NotificationDrawer } from '../common/NotificationDrawer';
 import { ComponentShowcaseModal } from '../common/ComponentShowcaseModal';
 
 // Accessories Views
@@ -108,6 +109,9 @@ export const AppShell: React.FC = () => {
 
       {/* Toast Notifications Overlay */}
       <ToastContainer />
+
+      {/* Slide-out Notification Drawer */}
+      <NotificationDrawer />
 
       {/* Reusable Component Showcase Dialog */}
       <ComponentShowcaseModal

@@ -22,7 +22,7 @@ export interface TopHeaderProps {
 
 export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
   const { currentSection, setSection, toggleSidebar } = useNavigation();
-  const { showNotification } = useNotification();
+  const { toggleDrawer, unreadCount, isDrawerOpen } = useNotification();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -31,14 +31,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
   }, []);
 
   const isAccessories = currentSection === 'accessories';
-
-  const handleQuickNotificationTest = () => {
-    showNotification({
-      type: 'info',
-      title: 'إشعار النظام',
-      message: 'نظام الإشعارات والتحذيرات يعمل بصورة طبيعية.',
-    });
-  };
 
   return (
     <header className="h-16 bg-white border-b border-slate-300 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 select-none shadow-sm">
@@ -113,13 +105,24 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
           </div>
         </div>
 
-        {/* Notifications Icon Button */}
+        {/* Notifications Icon Button with Side Drawer Toggle & Unread Badge */}
         <button
-          onClick={handleQuickNotificationTest}
-          className="relative text-slate-600 hover:text-slate-900 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-          title="الإشعارات "
+          onClick={toggleDrawer}
+          className={cn(
+            'relative p-2 rounded-lg transition-colors cursor-pointer',
+            isDrawerOpen
+              ? 'bg-slate-200 text-slate-900'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+          title="مركز الإشعارات والتنبيهات"
+          aria-label="مركز الإشعارات والتنبيهات"
         >
           <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 bg-rose-600 text-white text-[11px] font-bold rounded-full flex items-center justify-center font-mono shadow-sm animate-in zoom-in">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
       </div>
     </header>

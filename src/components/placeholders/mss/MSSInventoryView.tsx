@@ -39,6 +39,7 @@ import {
   History,
   AlertTriangle,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 
 export const MSSInventoryView: React.FC = () => {
@@ -639,12 +640,11 @@ export const MSSInventoryView: React.FC = () => {
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="flex-1 w-full">
             <Input
-              placeholder="امسح بالباركود أو اكتب السيريال، الموديل، الماركة، الحالة..."
+              placeholder="ابحث بالسيريال، الموديل، الماركة، الحالة..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
               leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-              scannerReady
             />
           </div>
 
@@ -653,11 +653,12 @@ export const MSSInventoryView: React.FC = () => {
               variant="outline"
               size="md"
               onClick={loadData}
+              isLoading={isLoading}
               title="إعادة تحميل البيانات"
-              leftIcon={<RotateCcw className="w-4 h-4 text-slate-600" />}
+              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
               className="border-slate-300 font-semibold"
             >
-              تحديث
+              Refresh
             </Button>
           </div>
         </div>
@@ -801,16 +802,15 @@ export const MSSInventoryView: React.FC = () => {
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
-          {/* Serial Number (Scanner Ready) */}
+          {/* Serial Number */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
               السيريال نمبر الفريد <span className="text-rose-500">*</span>
             </label>
             <Input
-              placeholder="امسح بالباركود أو اكتب السيريال (مثال: PF1K892-LEN)..."
+              placeholder="اكتب السيريال (مثال: PF1K892-LEN)..."
               value={formSerial}
               onChange={e => setFormSerial(e.target.value.toUpperCase())}
-              scannerReady
               required
               helperText="السيريال فريد لكل جهاز ولا يمكن تكراره نهائياً في النظام"
             />
@@ -827,7 +827,7 @@ export const MSSInventoryView: React.FC = () => {
                 onChange={e => handleModelChange(e.target.value)}
                 options={catalogModels.map(m => ({
                   value: m.id,
-                  label: `${m.brand} ${m.model_name} (${m.category}) - سعر العرض: ${m.default_list_price} ج.م`,
+                  label: `${m.brand} ${m.model_name} (${m.category}) - سعر العرض: ${m.default_list_price} EGP`,
                 }))}
                 required
               />
@@ -853,7 +853,7 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر التكلفة (ج.م) <span className="text-rose-500">*</span>
+                سعر التكلفة (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -867,7 +867,7 @@ export const MSSInventoryView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر العرض الاسترشادي (ج.م) <span className="text-rose-500">*</span>
+                سعر العرض الاسترشادي (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -1008,7 +1008,7 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر التكلفة (ج.م) <span className="text-rose-500">*</span>
+                سعر التكلفة (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -1020,7 +1020,7 @@ export const MSSInventoryView: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر العرض (ج.م) <span className="text-rose-500">*</span>
+                سعر العرض (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"

@@ -16,6 +16,7 @@ import {
   Tag,
   CreditCard,
   RotateCcw,
+  RefreshCw,
   DollarSign,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -212,6 +213,18 @@ export const InvoicesView: React.FC = () => {
       <PageHeader
         title="سجل الفواتير "
         subtitle=""
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={loadInvoices}
+            isLoading={isLoading}
+            leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+            className="border-slate-300 text-slate-800 font-semibold"
+          >
+            Refresh
+          </Button>
+        }
       />
 
       {/* KPI Cards */}
