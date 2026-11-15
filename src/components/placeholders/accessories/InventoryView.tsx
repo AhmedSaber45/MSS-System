@@ -389,8 +389,8 @@ export const InventoryView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="إدارة المخزون والتسويات الجردية"
-        subtitle="متابعة الأرصدة الحالية، تنبيهات النواقص، والتسويات الجردية مع سجل تتبع كامل للحركات"
+        title="إدارة المخزون والجرد "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -401,7 +401,7 @@ export const InventoryView: React.FC = () => {
               leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
               className="border-slate-300 text-slate-800 font-semibold"
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="primary"
@@ -410,7 +410,7 @@ export const InventoryView: React.FC = () => {
               leftIcon={<ArrowUpDown className="w-4.5 h-4.5" />}
               className="font-bold"
             >
-              تسوية جردية يدوية
+              تسوية جرد 
             </Button>
           </div>
         }
@@ -427,7 +427,7 @@ export const InventoryView: React.FC = () => {
         <StatsCard
           title="قيمة المخزون الإجمالية (بالتكلفة)"
           value={formatCurrency(metrics.totalCostVal)}
-          subtitle="رأس المال القائم في البضاعة"
+          subtitle=" "
           icon={DollarSign}
         />
         <StatsCard
@@ -472,7 +472,7 @@ export const InventoryView: React.FC = () => {
           }`}
         >
           <History className="w-4.5 h-4.5 text-slate-600" />
-          <span>سجل حركات المخزون (Traceable Ledger)</span>
+          <span>سجل حركات المخزون </span>
           <span className="text-xs font-mono font-bold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded tabular-nums">
             {movements.length}
           </span>
@@ -486,7 +486,7 @@ export const InventoryView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
               <div className="md:col-span-6">
                 <Input
-                  placeholder="ابحث باسم الصنف، أو كود الصنف، أو الباركود..."
+                  placeholder="ابحث باسم الصنف، أو كود الصنف،..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onClear={() => setSearchQuery('')}
@@ -539,7 +539,7 @@ export const InventoryView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
               <div className="md:col-span-8">
                 <Input
-                  placeholder="ابحث باسم الصنف، كود الصنف، أو سبب الحركة..."
+                  placeholder="ابحث باسم الصنف، كود الصنف،   ..."
                   value={movementSearchQuery}
                   onChange={e => setMovementSearchQuery(e.target.value)}
                   onClear={() => setMovementSearchQuery('')}
@@ -553,9 +553,9 @@ export const InventoryView: React.FC = () => {
                   onChange={e => setSelectedMovementType(e.target.value)}
                 >
                   <option value="all">جميع أنواع الحركات</option>
-                  <option value="PURCHASE">وارد المشتريات (PURCHASE)</option>
-                  <option value="ADJUSTMENT_ADD">تسوية بالزيادة (ADD)</option>
-                  <option value="ADJUSTMENT_SUBTRACT">تسوية بالخصم (SUBTRACT)</option>
+                  <option value="PURCHASE">وارد المشتريات</option>
+                  <option value="ADJUSTMENT_ADD">تسوية بالزيادة</option>
+                  <option value="ADJUSTMENT_SUBTRACT">تسوية بالخصم </option>
                 </Select>
               </div>
             </div>
@@ -577,7 +577,7 @@ export const InventoryView: React.FC = () => {
         isOpen={isAdjustmentModalOpen}
         onClose={() => !isSubmittingAdjustment && setIsAdjustmentModalOpen(false)}
         title="إجراء تسوية جردية لرصيد المخزون"
-        subtitle="تعديل رصيد الصنف وتوثيق السبب في سجل حركات المخزون التتبعي"
+        subtitle=""
         size="md"
         footer={
           <div className="flex items-center justify-end gap-2.5 w-full">

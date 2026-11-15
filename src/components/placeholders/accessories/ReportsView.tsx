@@ -96,7 +96,7 @@ export const ReportsView: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title="التقارير المالية والأرباح"
-        subtitle="كشف دقيق للإيرادات وتكلفة البضاعة المباعة وصافي الأرباح وفق لقطات الأسعار الحقيقية"
+        subtitle=""
         actions={
           <div className="no-print flex items-center gap-2">
             <Button
@@ -182,9 +182,9 @@ export const ReportsView: React.FC = () => {
               icon={DollarSign}
             />
             <StatsCard
-              title="تكلفة البضاعة المباعة (COGS)"
+              title="تكلفة البضاعة المباعة "
               value={formatCurrency(summary.costOfGoodsSold)}
-              subtitle="محسوبة من لقطة التكلفة عند كل بيع"
+              subtitle=""
               icon={ShoppingBag}
             />
             <StatsCard
@@ -218,7 +218,7 @@ export const ReportsView: React.FC = () => {
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block mb-1 text-xs font-semibold">إجمالي الخصومات الممنوحة</span>
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">إجمالي الخصومات </span>
               <span className="font-mono font-bold text-slate-800 text-base tabular-nums">
                 {formatCurrency(summary.totalDiscounts)}
               </span>
@@ -248,7 +248,7 @@ export const ReportsView: React.FC = () => {
                         <th className="py-3 px-3.5">التاريخ</th>
                         <th className="py-3 px-3.5 text-center">الفواتير</th>
                         <th className="py-3 px-3.5 text-left">المبيعات</th>
-                        <th className="py-3 px-3.5 text-left">التكلفة (COGS)</th>
+                        <th className="py-3 px-3.5 text-left">التكلفة</th>
                         <th className="py-3 px-3.5 text-left">المرتجعات</th>
                         <th className="py-3 px-3.5 text-left">مجمل الربح</th>
                       </tr>
@@ -297,7 +297,7 @@ export const ReportsView: React.FC = () => {
               <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
                 <CardHeader className="py-3.5 px-4 bg-slate-100 border-b border-slate-300">
                   <CardTitle className="text-sm font-bold text-slate-900">
-                    أعلى الأصناف مبيعاً ومساهمة في الأرباح
+                    أعلى الأصناف مبيعاً   
                   </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
@@ -399,16 +399,7 @@ export const ReportsView: React.FC = () => {
                 </Card>
               )}
 
-              {/* Financial Protection Box */}
-              <div className="p-4 bg-slate-50/90 border border-slate-300 rounded-xl space-y-2 text-sm text-slate-700">
-                <p className="font-bold text-slate-900 flex items-center gap-2">
-                  <Percent className="w-4.5 h-4.5 text-slate-600" />
-                  <span>دقة الحسابات المالية (Rule 8)</span>
-                </p>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  تعتمد التقارير على لقطة سعر التكلفة والبيع المسجلة لحظة إصدار الفاتورة، ولا تتأثر بتعديل أسعار المنتجات في القوائم لاحقاً.
-                </p>
-              </div>
+
             </div>
           </div>
         </>

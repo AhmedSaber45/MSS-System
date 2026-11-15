@@ -131,8 +131,8 @@ export const HistoryView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="سجل العمليات والتدقيق"
-        subtitle="سجل تتبعي شامل ومحمي لكافة عمليات البيع والمرتجعات والمشتريات والتسويات الجردية"
+        title="سجل العمليات "
+        subtitle=""
       />
 
       {/* Filter Toolbar */}

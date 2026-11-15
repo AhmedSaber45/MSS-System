@@ -113,9 +113,9 @@ export const AccessoriesDashboardView: React.FC = () => {
           variant={
             item.payment_method === 'نقدي'
               ? 'success'
-              : item.payment_method === 'بطاقة / فيزا'
-              ? 'primary'
-              : 'default'
+              : item.payment_method === 'فيزا'
+                ? 'primary'
+                : 'default'
           }
           size="md"
         >
@@ -143,7 +143,7 @@ export const AccessoriesDashboardView: React.FC = () => {
               onClick={() => setActiveTab('unified')}
             >
               <Layers className="w-4 h-4 text-slate-700" />
-              <span>لوحة القيادة الموحدة للمنشأة</span>
+              <span>نظرة شاملة على الإحصائيات</span>
             </button>
           </div>
         </div>
@@ -171,14 +171,14 @@ export const AccessoriesDashboardView: React.FC = () => {
             onClick={() => setActiveTab('unified')}
           >
             <Layers className="w-4 h-4 text-slate-600" />
-            <span>لوحة القيادة الموحدة للمنشأة</span>
+            <span>نظرة شاملة على الإحصائيات</span>
           </button>
         </div>
       </div>
 
       <PageHeader
         title="لوحة تحكم محل الإكسسوارات"
-        subtitle="نظرة تشغيلية عامة ومباشرة على المبيعات، المخزون، والأرباح الحالية"
+        subtitle=""
         actions={
           <div className="flex gap-2.5">
             <Button
@@ -187,7 +187,7 @@ export const AccessoriesDashboardView: React.FC = () => {
               onClick={() => setRoute('sales')}
               leftIcon={<ShoppingCart className="w-4.5 h-4.5" />}
             >
-              نقطة البيع (POS)
+              نقطة البيع
             </Button>
             <Button
               size="md"
@@ -233,7 +233,7 @@ export const AccessoriesDashboardView: React.FC = () => {
           icon={DollarSign}
         />
         <StatsCard
-          title="مجمل الربح التجاري"
+          title="مجمل الربح "
           value={summary ? formatCurrency(summary.grossProfit) : '...'}
           subtitle={summary ? `هامش ربح ${summary.profitMarginPercent.toFixed(1)}%` : 'محسوب بدقة'}
           icon={TrendingUp}
@@ -245,7 +245,7 @@ export const AccessoriesDashboardView: React.FC = () => {
           icon={Package}
         />
         <StatsCard
-          title="نواقص وأصناف حرجة"
+          title="نواقص "
           value={`${metrics.lowStockCount + metrics.outOfStockCount} صنف`}
           subtitle={`نافد: ${metrics.outOfStockCount} | حد أدنى: ${metrics.lowStockCount}`}
           icon={AlertTriangle}
@@ -264,8 +264,8 @@ export const AccessoriesDashboardView: React.FC = () => {
               <Barcode className="w-5 h-5 text-slate-700" />
             </div>
             <div>
-              <p className="font-bold text-sm text-slate-900">نقطة البيع (POS)</p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">مسح الباركود والبيع</p>
+              <p className="font-bold text-sm text-slate-900">نقطة البيع </p>
+              {/* <p className="text-xs text-slate-500 font-medium mt-0.5">مسح الباركود والبيع</p> */}
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800" />
@@ -282,7 +282,7 @@ export const AccessoriesDashboardView: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-sm text-slate-900">وارد المشتريات</p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">إضافة بضاعة للمخزن</p>
+              {/* <p className="text-xs text-slate-500 font-medium mt-0.5">إضافة بضاعة للمخزن</p> */}
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800" />
@@ -299,7 +299,7 @@ export const AccessoriesDashboardView: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-sm text-slate-900">المرتجعات</p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">استرجاع آمن وتسوية</p>
+              {/* <p className="text-xs text-slate-500 font-medium mt-0.5">استرجاع آمن وتسوية</p> */}
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800" />
@@ -316,7 +316,7 @@ export const AccessoriesDashboardView: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-sm text-slate-900">النسخ الاحتياطي</p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">حفظ واسترجاع البيانات</p>
+              {/* <p className="text-xs text-slate-500 font-medium mt-0.5">حفظ واسترجاع البيانات</p> */}
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800" />
@@ -326,7 +326,7 @@ export const AccessoriesDashboardView: React.FC = () => {
       {/* Recent Invoices Table */}
       <Card>
         <CardHeader className="py-3 px-6 bg-slate-50 border-b border-slate-200">
-          <CardTitle className="text-base font-bold text-slate-900">آخر فواتير المبيعات الصادرة</CardTitle>
+          <CardTitle className="text-base font-bold text-slate-900">آخر فواتير المبيعات </CardTitle>
           <Button
             size="sm"
             variant="outline"

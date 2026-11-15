@@ -360,8 +360,8 @@ export const PurchasesView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="المشتريات والوارد (Accessories Purchases)"
-        subtitle="تسجيل فواتير الشراء، بيانات الموردين، وإضافة الكميات وتحديث التكاليف إلى المخزون تلقائياً"
+        title="المشتريات والوارد "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -372,7 +372,7 @@ export const PurchasesView: React.FC = () => {
               leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
               className="border-slate-300 text-slate-800 font-semibold"
             >
-              تحديث
+              Refesh
             </Button>
             <Button
               variant="primary"
@@ -392,7 +392,7 @@ export const PurchasesView: React.FC = () => {
         <StatsCard
           title="إجمالي فواتير المشتريات"
           value={`${purchases.length} فاتورة`}
-          subtitle="مسجلة في قاعدة البيانات المحلية"
+          subtitle=""
           icon={ShoppingCart}
         />
         <StatsCard
@@ -404,7 +404,7 @@ export const PurchasesView: React.FC = () => {
         <StatsCard
           title="الأصناف المتاحة للطلب"
           value={`${products.length} صنف`}
-          subtitle="بطاقات أصناف مسجلة بالمحل"
+          subtitle=""
           icon={Package}
         />
       </div>
@@ -443,7 +443,7 @@ export const PurchasesView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
         title="تسجيل فاتورة شراء ووارد جديدة"
-        subtitle="إدخال بضاعة جديدة وإضافتها تلقائياً إلى رصيد المخزون في عملية واحدة آمنة"
+        subtitle=""
         size="xl"
         footer={
           <div className="flex items-center justify-between w-full">

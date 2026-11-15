@@ -39,3 +39,22 @@ export function formatTime(date: Date | string = new Date()): string {
     hour12: true,
   }).format(d);
 }
+
+/**
+ * Format piece / unit count grammatically in Arabic:
+ * - 0: نفد
+ * - 1-2: قطعة
+ * - 3-10: قطع (جمع تكسير)
+ * - 11+: قطعة (مفرد منصوب)
+ */
+export function formatPieceCount(count: number): string {
+  if (count <= 0) return 'نفد';
+  if (count === 1) return '1 قطعة';
+  if (count === 2) return '2 قطعة';
+
+  const remainder = count % 100;
+  if (remainder >= 3 && remainder <= 10) {
+    return `${count} قطع`;
+  }
+  return `${count} قطعة`;
+}

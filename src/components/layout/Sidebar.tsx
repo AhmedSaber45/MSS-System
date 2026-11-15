@@ -34,7 +34,7 @@ export const Sidebar: React.FC = () => {
                 isAccessories ? 'bg-blue-600' : 'bg-teal-700'
               )}
             >
-              {isAccessories ? 'إكس' : 'MSS'}
+              {isAccessories ? 'ACC' : 'MSS'}
             </div>
             <div className="overflow-hidden">
               <h1 className="text-base font-bold text-slate-900 truncate">نظام إدارة المحل</h1>
@@ -51,7 +51,7 @@ export const Sidebar: React.FC = () => {
                 isAccessories ? 'bg-blue-600' : 'bg-teal-700'
               )}
             >
-              {isAccessories ? 'إكس' : 'MSS'}
+              {isAccessories ? 'ACC' : 'MSS'}
             </div>
           </div>
         )}

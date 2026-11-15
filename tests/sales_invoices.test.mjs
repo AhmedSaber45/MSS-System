@@ -108,7 +108,7 @@ describe('Phase 04 — Accessories Sales & Invoices Verification', () => {
       customer_name: 'عميل الخصومات',
       customer_phone: '01222334455',
       invoice_discount: 30,
-      payment_method: 'بطاقة / فيزا',
+      payment_method: 'فيزا',
       items: [
         {
           product_id: prodA.id,
@@ -322,8 +322,8 @@ describe('Phase 04 — Accessories Sales & Invoices Verification', () => {
     const cashResults = await salesService.getInvoices({ paymentMethod: 'نقدي' });
     assert.ok(cashResults.every(inv => inv.payment_method === 'نقدي'));
 
-    const cardResults = await salesService.getInvoices({ paymentMethod: 'بطاقة / فيزا' });
-    assert.ok(cardResults.every(inv => inv.payment_method === 'بطاقة / فيزا'));
+    const cardResults = await salesService.getInvoices({ paymentMethod: 'فيزا' });
+    assert.ok(cardResults.every(inv => inv.payment_method === 'فيزا'));
   });
 
   test('10. Data persistence across simulated app restart', async () => {

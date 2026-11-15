@@ -19,8 +19,10 @@ import {
   Tag,
   ScanBarcode,
   FileCheck2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { productsService } from '@/services/productsService.ts';
 import { salesService } from '@/services/salesService.ts';
@@ -30,10 +32,10 @@ import type { Product } from '@/types/product.ts';
 import type { CartItem, Invoice, InvoiceItem } from '@/types/sale.ts';
 
 const PAYMENT_METHODS = [
-  { id: 'نقدي', label: 'نقدي (كاش)', icon: Banknote },
-  { id: 'بطاقة / فيزا', label: 'بطاقة / فيزا', icon: CreditCard },
-  { id: 'تحويل بنكي / محفظة', label: 'تحويل بنكي / فودافون كاش', icon: CreditCard },
-  { id: 'آجل', label: 'آجل (حساب عميل)', icon: Tag },
+  { id: 'نقدي', label: 'نقدي', icon: Banknote },
+  { id: 'فيزا', label: 'فيزا', icon: CreditCard },
+  { id: 'انستا باى / فودافون كاش', label: 'انستا باى  / فودافون كاش', icon: CreditCard },
+  { id: 'آجل', label: 'آجل ', icon: Tag },
 ];
 
 export const SalesView: React.FC = () => {
@@ -113,6 +115,23 @@ export const SalesView: React.FC = () => {
       );
     });
   }, [products, selectedCategory, searchQuery]);
+
+  // Sub-pages / Pagination state (Default: 9 items per page, 3x3 grid)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(9);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset to page 1 whenever category or search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, validCurrentPage, itemsPerPage]);
 
   // Add product to cart helper
   const handleAddToCart = useCallback((product: Product) => {
@@ -340,17 +359,13 @@ export const SalesView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="نقطة البيع وإصدار الفواتير (POS)"
-        subtitle="نظام كاشير سريع — مسح الباركود، حساب الخصومات الفورية، والطباعة الحرارية"
+        title=" البيع وإصدار الفواتير "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline" size="md" className="font-mono tabular-nums text-sm font-bold">
               الفاتورة: {nextInvoiceNumber || '...'}
             </Badge>
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 bg-slate-100 px-3 h-9 rounded-lg border border-slate-300">
-              <ScanBarcode className="w-4.5 h-4.5 text-slate-600" />
-              <span>القارئ جاهز</span>
-            </div>
           </div>
         }
       />
@@ -362,7 +377,7 @@ export const SalesView: React.FC = () => {
           {/* Search & Barcode Input Card */}
           <Card className="p-3.5 border-slate-300">
             <Input
-              placeholder="امسح الباركود، أو ابحث باسم الصنف أو الكود..."
+              placeholder="   ابحث باسم الصنف أو الكود..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
@@ -376,11 +391,10 @@ export const SalesView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
-                  selectedCategory === 'ALL'
-                    ? 'bg-slate-900 text-white font-bold'
-                    : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${selectedCategory === 'ALL'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
               >
                 الكل ({products.length})
               </button>
@@ -391,11 +405,10 @@ export const SalesView: React.FC = () => {
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
-                      selectedCategory === cat
-                        ? 'bg-slate-900 text-white font-bold'
-                        : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${selectedCategory === cat
+                      ? 'bg-slate-900 text-white font-bold'
+                      : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
                   >
                     {cat} ({count})
                   </button>
@@ -414,74 +427,167 @@ export const SalesView: React.FC = () => {
             <div className="p-12 text-center bg-white rounded-xl border border-slate-300 space-y-2">
               <ShoppingBag className="w-10 h-10 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-800">لا توجد أصناف مطابقة للبحث</p>
-              <p className="text-xs text-slate-500">تأكد من كتابة الاسم أو الكود أو الباركود بشكل صحيح</p>
+              <p className="text-xs text-slate-500">تأكد من كتابة الاسم أو الكود   بشكل صحيح</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[580px] overflow-y-auto pr-0.5">
-              {filteredProducts.map(p => {
-                const isOutOfStock = p.stock <= 0;
-                const inCart = cart.find(c => c.product.id === p.id);
+            <div className="space-y-3.5">
+              {/* Product Cards Container with padding so quantity badges are never cropped */}
+              <div className="p-3.5 bg-slate-50/50 rounded-xl border border-slate-300">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                  {paginatedProducts.map(p => {
+                    const isOutOfStock = p.stock <= 0;
+                    const inCart = cart.find(c => c.product.id === p.id);
 
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => !isOutOfStock && handleAddToCart(p)}
-                    className={`p-3.5 rounded-xl border transition-colors text-right flex flex-col justify-between relative select-none ${
-                      isOutOfStock
-                        ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
-                        : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-subtle cursor-pointer'
-                    }`}
-                  >
-                    {inCart && (
-                      <span className="absolute -top-2 -left-2 w-6 h-6 bg-slate-900 text-white text-xs font-mono font-bold rounded-full flex items-center justify-center shadow-subtle">
-                        {inCart.quantity}
-                      </span>
-                    )}
-
-                    <div>
-                      <div className="flex items-center justify-between gap-1 mb-2">
-                        <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[110px] tabular-nums">
-                          {p.code}
-                        </span>
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded tabular-nums ${
-                            isOutOfStock
-                              ? 'bg-rose-100 text-rose-800'
-                              : p.stock <= p.low_stock_threshold
-                              ? 'bg-amber-100 text-amber-900'
-                              : 'bg-emerald-100 text-emerald-800'
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => !isOutOfStock && handleAddToCart(p)}
+                        className={`p-3.5 rounded-xl border transition-all text-right flex flex-col justify-between relative select-none ${isOutOfStock
+                          ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                          : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-blue-500 hover:shadow-xs cursor-pointer'
                           }`}
-                        >
-                          {isOutOfStock ? 'نفد' : `${p.stock} قط.`}
-                        </span>
-                      </div>
-
-                      <h4 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
-                        {p.name}
-                      </h4>
-                    </div>
-
-                    <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">
-                        {formatCurrency(p.price)}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={isOutOfStock ? 'outline' : 'secondary'}
-                        disabled={isOutOfStock}
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (!isOutOfStock) handleAddToCart(p);
-                        }}
-                        className="h-8 text-xs font-bold px-2.5"
                       >
-                        <Plus className="w-3.5 h-3.5 ml-1" />
-                        إضافة
-                      </Button>
-                    </div>
+                        {/* High-visibility, uncropped cart quantity badge */}
+                        {inCart && (
+                          <span
+                            className="absolute -top-2.5 -left-2.5 min-w-[28px] h-7 px-1.5 bg-blue-600 text-white text-xs font-mono font-black rounded-full flex items-center justify-center shadow-md ring-2 ring-white z-10 transition-transform animate-in zoom-in-75"
+                            title={`الكمية المضافة في السلة: ${inCart.quantity}`}
+                          >
+                            {inCart.quantity}
+                          </span>
+                        )}
+
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-2">
+                            <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[110px] tabular-nums">
+                              {p.code}
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded tabular-nums ${isOutOfStock
+                                ? 'bg-rose-100 text-rose-800'
+                                : p.stock <= p.low_stock_threshold
+                                  ? 'bg-amber-100 text-amber-900'
+                                  : 'bg-emerald-100 text-emerald-800'
+                                }`}
+                            >
+                              {formatPieceCount(p.stock)}
+                            </span>
+                          </div>
+
+                          <h4 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
+                            {p.name}
+                          </h4>
+                        </div>
+
+                        <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                          <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">
+                            {formatCurrency(p.price)}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant={isOutOfStock ? 'outline' : 'secondary'}
+                            disabled={isOutOfStock}
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (!isOutOfStock) handleAddToCart(p);
+                            }}
+                            className="h-8 text-xs font-bold px-2.5"
+                          >
+                            <Plus className="w-3.5 h-3.5 ml-1" />
+                            إضافة
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sub-pages Pagination Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-300 text-sm">
+                <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+
+
+                  <span className="text-slate-300">|</span>
+
+                  <div className="flex items-center gap-1">
+                    <span>لكل صفحة:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={e => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="px-2 py-0.5 text-xs font-bold bg-slate-100 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
+                    >
+                      <option value={6}>6</option>
+                      <option value={9}>9 </option>
+                      <option value={12}>12</option>
+                      <option value={18}>18</option>
+                    </select>
                   </div>
-                );
-              })}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={validCurrentPage <= 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className="h-8 px-2.5 text-xs font-semibold"
+                      leftIcon={<ChevronRight className="w-4 h-4" />}
+                    >
+                      السابق
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                        if (
+                          totalPages > 6 &&
+                          Math.abs(page - validCurrentPage) > 1 &&
+                          page !== 1 &&
+                          page !== totalPages
+                        ) {
+                          if (Math.abs(page - validCurrentPage) === 2) {
+                            return (
+                              <span key={page} className="px-1 text-slate-400 font-mono text-xs">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-lg text-xs font-bold font-mono transition-all ${validCurrentPage === page
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+                              }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={validCurrentPage >= totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className="h-8 px-2.5 text-xs font-semibold"
+                      rightIcon={<ChevronLeft className="w-4 h-4" />}
+                    >
+                      التالي
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -519,7 +625,7 @@ export const SalesView: React.FC = () => {
                   <div>
                     <p className="text-sm font-bold text-slate-800">السلة فارغة</p>
                     <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                      امسح الباركود باستخدام الماسح أو اختر من القائمة لبدء الفاتورة
+                      اختر من القائمة لبدء الفاتورة
                     </p>
                   </div>
                 </div>
@@ -597,7 +703,7 @@ export const SalesView: React.FC = () => {
 
                       {item.discount > 0 && (
                         <div className="text-xs text-emerald-800 font-semibold tabular-nums">
-                          سعر القطعة بعد الخصم: {formatCurrency(item.actual_price)} (وفر {formatCurrency(item.discount)})
+                          سعر القطعة بعد الخصم: {formatCurrency(item.actual_price)}
                         </div>
                       )}
                     </div>
@@ -611,7 +717,7 @@ export const SalesView: React.FC = () => {
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">اسم العميل (اختياري):</label>
                     <Input
-                      placeholder="عميل نقدي"
+                      placeholder="الاسم "
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
                     />
@@ -637,11 +743,10 @@ export const SalesView: React.FC = () => {
                           key={m.id}
                           type="button"
                           onClick={() => setPaymentMethod(m.id)}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-semibold border transition-colors text-right ${
-                            paymentMethod === m.id
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                          }`}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-semibold border transition-colors text-right ${paymentMethod === m.id
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                            : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                            }`}
                         >
                           <Icon className="w-4.5 h-4.5 shrink-0" />
                           <span className="truncate">{m.label}</span>
@@ -714,7 +819,7 @@ export const SalesView: React.FC = () => {
           isOpen={!!completedInvoice}
           onClose={handleStartNewSale}
           title={`تم إصدار الفاتورة رقم ${completedInvoice.invoice_number}`}
-          subtitle="تم حفظ عملية البيع وخصم المخزون بنجاح"
+          subtitle=""
           size="xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -727,7 +832,7 @@ export const SalesView: React.FC = () => {
                 onClick={() => window.print()}
                 leftIcon={<FileCheck2 className="w-4.5 h-4.5" />}
               >
-                طباعة الإيصال فوراً
+                طباعة الفاتورة 
               </Button>
             </div>
           }

@@ -71,7 +71,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
             {isAccessories ? (
               <>
                 <Store className="w-4.5 h-4.5 text-blue-700" />
-                <span>محل الإكسسوارات</span>
+                <span> الإكسسوارات</span>
               
               </>
             ) : (
@@ -98,33 +98,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         {/* Automatic Updates Pill Button */}
         <UpdateBadgePill />
 
-        {/* Component Showcase Modal Button for Review */}
-        {onOpenShowcase && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onOpenShowcase}
-            leftIcon={<Layers className="w-4 h-4 text-slate-600" />}
-            className="text-xs font-semibold text-slate-800"
-          >
-            عناصر الواجهة
-          </Button>
-        )}
 
-        {/* Connection status indicator */}
-        <div className="hidden md:flex items-center gap-2 px-3 h-9 bg-slate-100/80 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 shadow-sm">
-          {isAccessories ? (
-            <>
-              <WifiOff className="w-4 h-4 text-slate-500" />
-              <span>محلي (أوفلاين)</span>
-            </>
-          ) : (
-            <>
-              <Wifi className="w-4 h-4 text-emerald-700" />
-              <span className="font-semibold text-emerald-900">جاهز للمزامنة</span>
-            </>
-          )}
-        </div>
 
         {/* Live Clock & Date */}
         <div className="hidden lg:flex items-center gap-3 text-sm text-slate-700 bg-slate-100/80 px-3 h-9 rounded-lg border border-slate-300 font-medium shadow-sm">
@@ -143,7 +117,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         <button
           onClick={handleQuickNotificationTest}
           className="relative text-slate-600 hover:text-slate-900 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-          title="الإشعارات (اختبار)"
+          title="الإشعارات "
         >
           <Bell className="w-5 h-5" />
         </button>

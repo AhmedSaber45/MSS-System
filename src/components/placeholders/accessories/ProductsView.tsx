@@ -489,7 +489,7 @@ export const ProductsView: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="إدارة منتجات وأسعار الإكسسوارات"
-        subtitle="قاعدة بيانات SQLite المحلية المستقلة — إدارة الأصناف، الأسعار، الباركود وتنبيهات النواقص"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -499,7 +499,7 @@ export const ProductsView: React.FC = () => {
               isLoading={isLoading}
               leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
             >
-              تحديث البيانات
+              Refresh 
             </Button>
             <Button
               variant="primary"
@@ -524,7 +524,7 @@ export const ProductsView: React.FC = () => {
         <StatsCard
           title="قيمة المخزون بالتكلفة"
           value={formatCurrency(metrics.totalCostValue)}
-          subtitle="رأس المال المستثمر في البضاعة"
+          subtitle=""
           icon={Boxes}
         />
         <StatsCard
@@ -541,20 +541,7 @@ export const ProductsView: React.FC = () => {
         />
       </div>
 
-      {/* Hardware Scanner & Search Alert */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 bg-slate-100 rounded-xl border border-slate-300 text-sm text-slate-800 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <ScanBarcode className="w-5 h-5 text-slate-700 shrink-0" />
-          <span>
-            <strong className="font-bold text-slate-900">الماسح الضوئي (Barcode Scanner) نشط:</strong> يمكنك مسح أي باركود للبحث الفوري أو لإدراجه في بطاقة الصنف.
-          </span>
-        </div>
-        {lastScannedBarcode && (
-          <span className="font-mono tabular-nums bg-white border border-slate-300 text-slate-900 px-2.5 py-1 rounded-md text-xs font-bold">
-            آخر مسح: {lastScannedBarcode}
-          </span>
-        )}
-      </div>
+
 
       {/* Filter and Search Panel */}
       <Card className="p-4">
@@ -562,7 +549,7 @@ export const ProductsView: React.FC = () => {
           {/* Search Box */}
           <div className="md:col-span-6">
             <Input
-              placeholder="ابحث بالاسم، أو كود الصنف، أو امسح الباركود..."
+              placeholder="ابحث بالاسم، أو كود الصنف،..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
@@ -636,7 +623,7 @@ export const ProductsView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
         title="إضافة منتج إكسسوار جديد"
-        subtitle="حفظ بطاقة صنف جديدة في قاعدة بيانات SQLite المحلية"
+        subtitle=""
         size="lg"
         footer={
           <>
@@ -682,17 +669,6 @@ export const ProductsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <Input
-              label="الباركود (اختياري)"
-              placeholder="امسح بالماسح الضوئي أو اكتب الباركود..."
-              value={formData.barcode}
-              onChange={e => setFormData({ ...formData, barcode: e.target.value })}
-              scannerReady
-              isMonospace
-              leftIcon={<Barcode className="w-4 h-4 text-slate-500" />}
-              onClear={() => setFormData({ ...formData, barcode: '' })}
-              helperText="يمكن مسحه مباشرة باستخدام قارئ الباركود"
-            />
 
             <div>
               <Select

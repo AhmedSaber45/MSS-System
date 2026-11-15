@@ -140,7 +140,7 @@ export const MSSDashboardView: React.FC = () => {
               className="px-3 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all"
               onClick={() => setActiveTab('mss')}
             >
-              لوحة  MSS 
+              لوحة  MSS
             </button>
             <button
               type="button"
@@ -148,7 +148,7 @@ export const MSSDashboardView: React.FC = () => {
               onClick={() => setActiveTab('unified')}
             >
               <Layers className="w-3.5 h-3.5 text-slate-600" />
-              <span>لوحة القيادة الموحدة للمنشأة</span>
+              <span>نظرة شاملة على الإحصائيات</span>
             </button>
           </div>
         </div>
@@ -225,7 +225,7 @@ export const MSSDashboardView: React.FC = () => {
             onClick={() => setActiveTab('unified')}
           >
             <Layers className="w-4.5 h-4.5 text-slate-600" />
-            <span>لوحة القيادة الموحدة للمنشأة</span>
+            <span>نظرة شاملة على الإحصائيات</span>
           </button>
         </div>
 

@@ -32,7 +32,7 @@ const INITIAL_SEED_INVOICES: Invoice[] = [
     subtotal: 550,
     discount: 0,
     total_amount: 550,
-    payment_method: 'بطاقة / فيزا',
+    payment_method: 'فيزا',
     notes: 'دفع بالفيزا مع ضمان أسبوعين',
     status: 'COMPLETED',
     items_count: 2,

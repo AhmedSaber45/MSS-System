@@ -312,15 +312,10 @@ export const ReturnsView: React.FC = () => {
     <div className="space-y-5">
       <PageHeader
         title="المرتجعات وإلغاء العمليات"
-        subtitle="معالجة استرجاع الأصناف وإلغاء الفواتير بحركات عكسية آمنة دون حذف السجلات المالية"
+        subtitle=""
       />
 
-      {/* Financial Protection Notice */}
-      <Alert
-        type="warning"
-        title="قاعدة الحفاظ على السجلات المالية والأثر التدقيقي (Rule 8 & 9)"
-        message="لا يتم حذف أي فاتورة مبيعات سابقة مطلقاً. يتم تسجيل حركة إرجاع منفصلة بحسابات عكسية، ويُعاد الصنف للمخزون إذا كان بحالة سليمة، مع توثيق الحركة في سجل المخزون والتدقيق المالي."
-      />
+
 
       {/* Invoice Lookup & Process Return Card */}
       <Card className="p-4 border-slate-300 space-y-3.5">
@@ -336,12 +331,14 @@ export const ReturnsView: React.FC = () => {
         <div className="flex gap-2.5">
           <div className="flex-1">
             <Input
-              placeholder="اكتب رقم الفاتورة أو جزء منه..."
+              
+              placeholder="اكتب رقم الفاتورة..."
               value={invoiceSearchQuery}
               onChange={e => setInvoiceSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearchInvoice()}
               leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
               isMonospace
+              className='text-right'
             />
           </div>
           <Button
@@ -390,8 +387,8 @@ export const ReturnsView: React.FC = () => {
                     foundInvoice.status === 'COMPLETED'
                       ? 'success'
                       : foundInvoice.status === 'RETURNED_PARTIAL'
-                      ? 'warning'
-                      : 'danger'
+                        ? 'warning'
+                        : 'danger'
                   }
                   size="sm"
                   className="font-semibold"
@@ -399,8 +396,8 @@ export const ReturnsView: React.FC = () => {
                   {foundInvoice.status === 'COMPLETED'
                     ? 'مكتملة بالكامل'
                     : foundInvoice.status === 'RETURNED_PARTIAL'
-                    ? 'مرتجع جزئي'
-                    : 'مرتجع كامل'}
+                      ? 'مرتجع جزئي'
+                      : 'مرتجع كامل'}
                 </Badge>
               </div>
             </div>
@@ -508,10 +505,10 @@ export const ReturnsView: React.FC = () => {
                   value={refundMethod}
                   onChange={e => setRefundMethod(e.target.value)}
                 >
-                  <option value="نقدي">نقدي (كاش من الدرج)</option>
-                  <option value="بطاقة / فيزا">بطاقة / فيزا</option>
-                  <option value="تحويل بنكي / محفظة">تحويل بنكي / فودافون كاش</option>
-                  <option value="رصيد عميل">رصيد عميل / آجل</option>
+                  <option value="نقدي">نقدي </option>
+                  <option value="فيزا">  فيزا</option>
+                  <option value="انستا باى / فودافون كاش">انستا باى  / فودافون كاش</option>
+                  <option value="رصيد عميل">   آجل</option>
                 </Select>
               </div>
             </div>

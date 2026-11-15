@@ -44,7 +44,7 @@ export const accessoriesNavItems: NavItemConfig[] = [
   },
   {
     id: 'sales',
-    label: 'نقطة البيع والمبيعات',
+    label: ' البيع وإصدار الفواتير',
     description: 'إتمام عمليات البيع وتطبيق الخصومات',
     icon: BadgeDollarSign,
   },
@@ -56,7 +56,7 @@ export const accessoriesNavItems: NavItemConfig[] = [
   },
   {
     id: 'returns',
-    label: 'المرتجعات والإلغاء',
+    label: 'المرتجعات ',
     description: 'استرجاع الأصناف وإلغاء العمليات بأمان',
     icon: RotateCcw,
   },
@@ -119,7 +119,7 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'returns',
-    label: 'المرتجعات والإلغاء',
+    label: 'المرتجعات ',
     description: 'إرجاع جهاز مباع وتحديث حالته بالمخزون',
     icon: RotateCcw,
   },

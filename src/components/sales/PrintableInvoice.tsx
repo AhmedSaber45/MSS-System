@@ -34,16 +34,14 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
       {/* Controls Bar (hidden during print) */}
       <div className="no-print flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-slate-700">تنسيق الطباعة:</span>
           <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => onFormatChange?.('a4')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                format === 'a4'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${format === 'a4'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <FileText className="w-4 h-4" />
               <span>فاتورة قياسية A4</span>
@@ -51,11 +49,10 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
             <button
               type="button"
               onClick={() => onFormatChange?.('thermal')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                format === 'thermal'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${format === 'thermal'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Receipt className="w-4 h-4" />
               <span>إيصال حراري (POS 80mm)</span>
@@ -95,7 +92,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
             {/* Header */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
               <div>
-                <h1 className="text-2xl font-bold text-slate-950 tracking-tight">محل إكسسوارات المحمول</h1>
+                <h1 className="text-2xl font-bold text-slate-950 tracking-tight">SOUQ</h1>
                 <p className="text-sm text-slate-600 mt-1">
                   بيع وشراء وصيانة إكسسوارات الهواتف الذكية والأجهزة اللوحية
                 </p>
@@ -231,7 +228,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
           >
             {/* Header */}
             <div className="text-center pb-2 border-b border-dashed border-slate-300 space-y-0.5">
-              <h2 className="text-xs font-semibold tracking-tight">محل إكسسوارات المحمول</h2>
+              <h2 className="text-xs font-semibold tracking-tight">SOUQ</h2>
               <p className="text-[10px] text-slate-500">إيصال استلام مبيعات</p>
               <p className="text-[10px] text-slate-400 tabular-nums">هاتف: 01000000000</p>
             </div>

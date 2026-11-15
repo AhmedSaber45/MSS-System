@@ -232,8 +232,8 @@ export const BackupView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="النسخ الاحتياطي والاسترجاع"
-        subtitle="حماية وأرشفة قاعدة بيانات قسم الإكسسوارات مع ميزات النسخ التلقائي والاسترجاع الآمن"
+        title="النسخ الاحتياطي "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -264,11 +264,7 @@ export const BackupView: React.FC = () => {
       />
 
       {/* Safety Notice */}
-      <Alert
-        type="info"
-        title="أمان قاعدة البيانات المحلية (Local Data Protection - Rule 13)"
-        message="يتم حفظ النسخ الاحتياطية خارج مجلد تثبيت البرنامج لضمان عدم تأثر البيانات بأي تحديثات. يُنصح بتصدير نسخة دورياً إلى وحدة تخزين خارجية (Flash Drive / USB) لحماية بياناتك."
-      />
+
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -305,18 +301,6 @@ export const BackupView: React.FC = () => {
           </p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">تصدير لوحدة خارجية</span>
-            <Usb className="w-5 h-5 text-slate-500" />
-          </div>
-          <div className="mt-2.5">
-            <span className="text-sm font-bold text-slate-800">تصدير إلى Flash Drive</span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            انقر على زر "تصدير" بجانب أي نسخة لتنزيلها أو نسخها
-          </p>
-        </Card>
       </div>
 
       {/* Backups Table */}

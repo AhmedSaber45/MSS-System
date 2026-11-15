@@ -133,9 +133,9 @@ export const InvoicesView: React.FC = () => {
           variant={
             inv.payment_method === 'نقدي'
               ? 'success'
-              : inv.payment_method === 'بطاقة / فيزا'
-              ? 'primary'
-              : 'default'
+              : inv.payment_method === 'فيزا'
+                ? 'primary'
+                : 'default'
           }
           size="sm"
           className="font-semibold"
@@ -210,8 +210,8 @@ export const InvoicesView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="سجل فواتير المبيعات"
-        subtitle="أرشيف كامل لجميع فواتير المبيعات الصادرة، والطباعة بنموذج A4 أو الإيصال الحراري"
+        title="سجل الفواتير "
+        subtitle=""
       />
 
       {/* KPI Cards */}
@@ -219,19 +219,19 @@ export const InvoicesView: React.FC = () => {
         <StatsCard
           title="إجمالي الفواتير"
           value={stats.totalCount}
-          subtitle="فاتورة مبيعات مسجلة"
+          subtitle="فاتورة مسجلة "
           icon={Receipt}
         />
         <StatsCard
-          title="إجمالي المبيعات المحصلة"
+          title="صافي الإيرادات "
           value={formatCurrency(stats.totalRevenue)}
-          subtitle="صافي الإيرادات المسددة"
+          subtitle=""
           icon={DollarSign}
         />
         <StatsCard
           title="إجمالي الخصومات"
           value={formatCurrency(stats.totalDiscounts)}
-          subtitle="خصومات فواتير ممنوحة"
+          subtitle=""
           icon={Tag}
         />
         <StatsCard
@@ -282,10 +282,10 @@ export const InvoicesView: React.FC = () => {
               onChange={e => setPaymentFilter(e.target.value)}
             >
               <option value="ALL">جميع طرق الدفع</option>
-              <option value="نقدي">نقدي (كاش)</option>
-              <option value="بطاقة / فيزا">بطاقة / فيزا</option>
-              <option value="تحويل بنكي / محفظة">تحويل بنكي / محفظة</option>
-              <option value="آجل">آجل (حساب عميل)</option>
+              <option value="نقدي">نقدي</option>
+              <option value="فيزا"> فيزا</option>
+              <option value="انستا باى / فودافون كاش">فودافون كاش  / انستا باى</option>
+              <option value="آجل">آجل </option>
             </Select>
           </div>
 
