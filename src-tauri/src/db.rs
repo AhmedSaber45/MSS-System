@@ -1980,7 +1980,10 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
         let path = entry.path();
         if path.is_file() {
             let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-            if fname.starts_with("accessories_backup_") && fname.ends_with(".db") {
+            let is_backup_file = (fname.starts_with("accessories_backup_") || fname.starts_with("MSS_Backup_"))
+                && fname.ends_with(".db")
+                && !fname.starts_with(".staging_");
+            if is_backup_file {
                 let meta = entry.metadata().map_err(|e| e.to_string())?;
                 let size_bytes = meta.len();
                 let size_formatted = if size_bytes < 1024 {
@@ -1991,7 +1994,7 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
                     format!("{:.2} MB", (size_bytes as f64) / (1024.0 * 1024.0))
                 };
 
-                let b_type = if fname.contains("_auto") {
+                let b_type = if fname.contains("_auto") || fname.contains("_scheduled") {
                     "auto"
                 } else if fname.contains("_safeguard") {
                     "safeguard"

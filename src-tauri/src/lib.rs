@@ -213,7 +213,7 @@ fn select_backup_folder() -> Result<Option<String>, String> {
             }
         "#;
         let output = Command::new("powershell")
-            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+            .args(["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script])
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -238,6 +238,7 @@ fn select_save_backup_path(default_filename: Option<String>) -> Result<Option<St
         let default_name = default_filename.unwrap_or_else(|| "MSS-Backup.db".to_string());
         let script = format!(
             r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
             Add-Type -AssemblyName System.Windows.Forms
             $dialog = New-Object System.Windows.Forms.SaveFileDialog
             $dialog.Title = "حفظ نسخة احتياطية من قاعدة البيانات"
@@ -250,7 +251,7 @@ fn select_save_backup_path(default_filename: Option<String>) -> Result<Option<St
             default_name
         );
         let output = Command::new("powershell")
-            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
+            .args(["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", &script])
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -264,6 +265,27 @@ fn select_save_backup_path(default_filename: Option<String>) -> Result<Option<St
     #[cfg(not(target_os = "windows"))]
     {
         Ok(None)
+    }
+}
+
+#[tauri::command]
+fn open_folder_in_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let p = std::path::Path::new(&path);
+        if !p.exists() {
+            return Err("المسار غير موجود على القرص".to_string());
+        }
+        Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
     }
 }
 
@@ -336,6 +358,7 @@ pub fn run() {
             export_accessories_backup,
             select_backup_folder,
             select_save_backup_path,
+            open_folder_in_explorer,
             adjust_accessories_stock,
             get_accessories_inventory_movements,
             get_accessories_db_status,

@@ -94,12 +94,20 @@ export const BackupView: React.FC = () => {
   useEffect(() => {
     loadBackups();
 
+    // Subscribe to real-time configuration changes
+    const unsubscribeConfig = backupService.onConfigChange(newConfig => {
+      setConfig(newConfig);
+    });
+
     // Listen to scheduler notifications and refresh list
-    const unsubscribe = backupService.startScheduler(() => {
+    const unsubscribeScheduler = backupService.startScheduler(() => {
       loadBackups();
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeConfig();
+      unsubscribeScheduler();
+    };
   }, [loadBackups]);
 
   // Create Quick Manual Backup to all configured destinations
@@ -208,7 +216,7 @@ export const BackupView: React.FC = () => {
         setNewDestinationInput(folder);
       }
     } catch (err: any) {
-      setDestinationError('تعذر فتح نافذة استعراض المجلدات');
+      console.warn('Folder picker cancelled or failed:', err);
     }
   };
 
@@ -302,15 +310,15 @@ export const BackupView: React.FC = () => {
 
   // Save Settings Modal Action
   const handleSaveSettings = () => {
-    backupService.saveBackupConfig(tempConfig);
-    setConfig(tempConfig);
+    const saved = backupService.saveBackupConfig(tempConfig, { recheckScheduler: true });
+    setConfig(saved);
     setIsSettingsModalOpen(false);
     showNotification({
       type: 'success',
-      title: 'تم حفظ إعدادات النسخ الاحتياطي',
+      title: 'تم حفظ وتفعيل إعدادات النسخ الاحتياطي',
       message: `النسخ التلقائي: ${
-        tempConfig.autoBackupEnabled ? 'مفعل' : 'معطل'
-      } | موعد النسخ القادم: ${backupService.calculateNextBackupDescription(tempConfig)}`,
+        saved.autoBackupEnabled ? 'مفعل' : 'معطل'
+      } | النظام المجدول: ${backupService.calculateNextBackupDescription(saved)}`,
     });
   };
 
@@ -432,7 +440,17 @@ export const BackupView: React.FC = () => {
       header: 'إجراءات',
       align: 'center',
       render: (item: BackupItem) => (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => backupService.openBackupFolder(item.filepath)}
+            leftIcon={<FolderOpen className="w-4 h-4 text-slate-600" />}
+            title="فتح مسار النسخة في Windows Explorer"
+            className="h-8 text-xs font-semibold px-2 border-slate-300 text-slate-700"
+          >
+            فتح المجلد
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -477,7 +495,9 @@ export const BackupView: React.FC = () => {
               variant="outline"
               size="md"
               onClick={() => {
-                setTempConfig(config);
+                const latest = backupService.getBackupConfig();
+                setConfig(latest);
+                setTempConfig(latest);
                 setNewDestinationInput('');
                 setDestinationError('');
                 setIsSettingsModalOpen(true);
@@ -681,9 +701,19 @@ export const BackupView: React.FC = () => {
                       </div>
 
                       {dest.file_path && (
-                        <p className="text-[11px] font-mono text-slate-600 truncate">
-                          الملف الكامل: {dest.file_path}
-                        </p>
+                        <div className="flex items-center justify-between pt-1 gap-2">
+                          <p className="text-[11px] font-mono text-slate-600 truncate flex-1">
+                            الملف الكامل: {dest.file_path}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => backupService.openBackupFolder(dest.file_path!)}
+                            className="text-[11px] text-blue-700 hover:text-blue-900 font-bold underline px-1 shrink-0 flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>فتح في Explorer</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
 
                       {dest.error && (
@@ -912,12 +942,15 @@ export const BackupView: React.FC = () => {
                         </label>
                         <select
                           value={tempConfig.intervalMinutes || 360}
-                          onChange={e =>
+                          onChange={e => {
+                            const mins = parseInt(e.target.value, 10) || 60;
+                            const hrs = Math.max(1, Math.round(mins / 60));
                             setTempConfig({
                               ...tempConfig,
-                              intervalMinutes: parseInt(e.target.value, 10) || 60,
-                            })
-                          }
+                              intervalMinutes: mins,
+                              intervalHours: hrs,
+                            });
+                          }}
                           className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-800"
                         >
                           {INTERVAL_OPTIONS.map(opt => (
@@ -983,20 +1016,30 @@ export const BackupView: React.FC = () => {
                       key={idx}
                       className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs"
                     >
-                      <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="flex items-center gap-2 overflow-hidden flex-1">
                         <FolderOpen className="w-4 h-4 text-slate-400 shrink-0" />
                         <span className="font-mono text-slate-800 font-semibold truncate" title={dest}>
                           {dest}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDestination(idx)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                        title="حذف هذا المسار"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => backupService.openBackupFolder(dest)}
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="فتح هذا المجلد في Windows Explorer"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDestination(idx)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                          title="حذف هذا المسار"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

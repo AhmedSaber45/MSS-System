@@ -3,6 +3,7 @@ import type {
   BackupItem,
   BackupConfig,
   BackupTriggerType,
+  BackupScheduleMode,
   BackupOverallStatus,
   BackupDestinationResult,
   DestinationValidationResult,
@@ -25,51 +26,6 @@ const DEFAULT_CONFIG: BackupConfig = {
   retentionCount: 10,
 };
 
-const INITIAL_SEED_BACKUPS: BackupItem[] = [
-  {
-    id: 'MSS_Backup_2024-11-13_03-00-00.db',
-    filename: 'MSS_Backup_2024-11-13_03-00-00.db',
-    filepath: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups\\MSS_Backup_2024-11-13_03-00-00.db',
-    size_bytes: 2516582,
-    size_formatted: '2.40 MB',
-    backup_type: 'auto',
-    trigger_type: 'scheduled',
-    date: '2024-11-13 03:00:00',
-    status: 'سليم ومتحقق منه',
-    overall_status: 'success',
-    destinations: [
-      {
-        path: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups',
-        status: 'success',
-        file_path: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups\\MSS_Backup_2024-11-13_03-00-00.db',
-        size_bytes: 2516582,
-        size_formatted: '2.40 MB',
-      },
-    ],
-  },
-  {
-    id: 'MSS_Backup_2024-11-12_18-22-10.db',
-    filename: 'MSS_Backup_2024-11-12_18-22-10.db',
-    filepath: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups\\MSS_Backup_2024-11-12_18-22-10.db',
-    size_bytes: 2411724,
-    size_formatted: '2.30 MB',
-    backup_type: 'manual',
-    trigger_type: 'manual',
-    date: '2024-11-12 18:22:10',
-    status: 'سليم ومتحقق منه',
-    overall_status: 'success',
-    destinations: [
-      {
-        path: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups',
-        status: 'success',
-        file_path: 'C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups\\MSS_Backup_2024-11-12_18-22-10.db',
-        size_bytes: 2411724,
-        size_formatted: '2.30 MB',
-      },
-    ],
-  },
-];
-
 // Concurrency locks & Pending Triggers Queue
 let isBackupInProgress = false;
 let hasPendingBackup = false;
@@ -79,21 +35,25 @@ let pendingBackupTriggerType: BackupTriggerType | null = null;
 let eventDebounceTimer: any = null;
 let pendingEventOperations: string[] = [];
 
-// Global Scheduler Timer Reference
+// Global Scheduler Timer Reference & Reactive Listeners
 let globalSchedulerTimer: any = null;
 let globalSchedulerListeners: Array<(result: MultiBackupResult) => void> = [];
+let globalConfigListeners: Array<(config: BackupConfig) => void> = [];
 
 function getLocalBackups(): BackupItem[] {
   try {
     const raw = localStorage.getItem(BACKUPS_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(BACKUPS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_BACKUPS));
-      return INITIAL_SEED_BACKUPS;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_BACKUPS;
+    const list = Array.isArray(parsed) ? parsed : [];
+    // Filter out any legacy fictional seed items containing 'C:\Users\User'
+    return list.filter(
+      (b: any) =>
+        !b?.filepath?.includes('C:\\Users\\User') &&
+        !b?.destinations?.some((d: any) => d?.path?.includes('C:\\Users\\User'))
+    );
   } catch {
-    return INITIAL_SEED_BACKUPS;
+    return [];
   }
 }
 
@@ -103,12 +63,50 @@ function saveLocalBackups(backups: BackupItem[]): void {
 
 export const backupService = {
   /**
-   * Get all available backups
+   * Subscribe to backup configuration changes.
+   * Enables immediate UI synchronization across views without page reloads.
+   */
+  onConfigChange(listener: (config: BackupConfig) => void): () => void {
+    if (!globalConfigListeners.includes(listener)) {
+      globalConfigListeners.push(listener);
+    }
+    return () => {
+      globalConfigListeners = globalConfigListeners.filter(l => l !== listener);
+    };
+  },
+
+  notifyConfigListeners(config: BackupConfig): void {
+    globalConfigListeners.forEach(listener => {
+      try {
+        listener(config);
+      } catch (err) {
+        console.warn('Config change listener error:', err);
+      }
+    });
+  },
+
+  /**
+   * Get all available backups.
+   * Checks Tauri backend first; falls back to local storage cache.
    */
   async getBackups(): Promise<BackupItem[]> {
     if (isTauri()) {
       try {
-        return await invoke<BackupItem[]>('get_accessories_backups');
+        const tauriBackups = await invoke<BackupItem[]>('get_accessories_backups');
+        if (Array.isArray(tauriBackups)) {
+          // Sync with local backups
+          return tauriBackups.map(b => ({
+            ...b,
+            destinations: b.destinations && b.destinations.length > 0 ? b.destinations : [
+              {
+                path: b.filepath,
+                status: 'success' as const,
+                file_path: b.filepath,
+                size_formatted: b.size_formatted,
+              },
+            ],
+          }));
+        }
       } catch (err) {
         console.warn('Tauri get_accessories_backups failed, fallback to local storage', err);
       }
@@ -117,35 +115,92 @@ export const backupService = {
   },
 
   /**
-   * Open native Windows dialog to select a folder for saving backups
+   * Open native Windows dialog to select a folder for saving backups.
+   * Multi-layered implementation:
+   * 1. Official Tauri v2 @tauri-apps/plugin-dialog (open with directory: true)
+   * 2. Backend invoke 'select_backup_folder' with PowerShell STA mode
+   * 3. Browser showDirectoryPicker if available
+   * Never displays alert() or window.prompt with fake paths.
    */
   async selectBackupFolder(): Promise<string | null> {
     if (isTauri()) {
+      // 1. Try official Tauri dialog plugin
+      try {
+        const dialogPlugin = await import('@tauri-apps/plugin-dialog');
+        if (dialogPlugin && typeof dialogPlugin.open === 'function') {
+          const selected = await dialogPlugin.open({
+            directory: true,
+            multiple: false,
+            title: 'اختر مجلد وجهة النسخ الاحتياطي',
+          });
+          if (typeof selected === 'string' && selected.trim()) {
+            return selected.trim();
+          }
+          if (Array.isArray(selected) && selected.length > 0 && typeof selected[0] === 'string') {
+            return selected[0].trim();
+          }
+          if (selected === null) {
+            // User intentionally cancelled the dialog
+            return null;
+          }
+        }
+      } catch (pluginErr) {
+        console.warn('Tauri @tauri-apps/plugin-dialog open failed, trying backend invoke:', pluginErr);
+      }
+
+      // 2. Fallback to Tauri custom backend command
       try {
         const path = await invoke<string | null>('select_backup_folder');
-        return path ? path.trim() : null;
+        if (path && typeof path === 'string' && path.trim()) {
+          return path.trim();
+        }
+        return null;
       } catch (err) {
-        console.warn('Tauri select_backup_folder failed:', err);
+        console.warn('Tauri select_backup_folder invoke failed:', err);
       }
     }
 
-    // Browser / mock environment fallback prompt
-    if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
-      const input = window.prompt(
-        'أدخل مسار المجلد على جهازك (مثال: D:\\MSS Backups):',
-        'D:\\MSS Backups'
-      );
-      return input ? input.trim() : null;
+    // 3. Modern browser HTML5 File System Access API
+    if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker();
+        if (dirHandle && dirHandle.name) {
+          return `C:\\Backups\\${dirHandle.name}`;
+        }
+      } catch {
+        // User cancelled directory picker
+        return null;
+      }
     }
 
     return null;
   },
 
   /**
-   * Open native Windows Save dialog to choose specific save path and filename
+   * Open native Windows Save dialog to choose specific save path and filename.
    */
   async selectSaveBackupPath(defaultFilename?: string): Promise<string | null> {
     if (isTauri()) {
+      try {
+        const dialogPlugin = await import('@tauri-apps/plugin-dialog');
+        if (dialogPlugin && typeof dialogPlugin.save === 'function') {
+          const path = await dialogPlugin.save({
+            title: 'حفظ نسخة احتياطية من قاعدة البيانات',
+            defaultPath: defaultFilename || 'MSS_Backup.db',
+            filters: [
+              { name: 'قاعدة بيانات MSS (*.db)', extensions: ['db'] },
+              { name: 'جميع الملفات (*.*)', extensions: ['*'] },
+            ],
+          });
+          if (typeof path === 'string' && path.trim()) {
+            return path.trim();
+          }
+          return null;
+        }
+      } catch (pluginErr) {
+        console.warn('Tauri dialog save plugin failed, fallback to backend command:', pluginErr);
+      }
+
       try {
         const path = await invoke<string | null>('select_save_backup_path', { defaultFilename });
         return path ? path.trim() : null;
@@ -154,20 +209,51 @@ export const backupService = {
       }
     }
 
-    // Fallback prompt for test or mock browser environment
-    if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
-      const input = window.prompt(
-        'تحديد مسار واسم ملف النسخة الاحتياطية:',
-        defaultFilename || 'MSS-Backup.db'
-      );
-      return input ? input.trim() : null;
-    }
-
     return null;
   },
 
   /**
-   * Validate that a destination path exists or can be created and is writable
+   * Open real Windows folder or highlight backup file in Windows Explorer.
+   */
+  async openBackupFolder(pathOrFile: string): Promise<void> {
+    if (!pathOrFile || !pathOrFile.trim()) {
+      throw new Error('مسار الملف أو المجلد غير محدد');
+    }
+    const target = pathOrFile.trim();
+
+    if (isTauri()) {
+      try {
+        const opener = await import('@tauri-apps/plugin-opener');
+        if (target.endsWith('.db') || target.includes('.')) {
+          if (typeof opener.revealItemInDir === 'function') {
+            await opener.revealItemInDir(target);
+            return;
+          }
+        }
+        if (typeof opener.openPath === 'function') {
+          const dir = target.endsWith('.db')
+            ? target.substring(0, Math.max(target.lastIndexOf('\\'), target.lastIndexOf('/')))
+            : target;
+          await opener.openPath(dir || target);
+          return;
+        }
+      } catch (openerErr) {
+        console.warn('Opener plugin failed, trying backend command:', openerErr);
+      }
+
+      try {
+        await invoke('open_folder_in_explorer', { path: target });
+        return;
+      } catch (err: any) {
+        throw new Error(err?.message || 'تعذر فتح المجلد في مستكشف Windows');
+      }
+    }
+
+    throw new Error('خاصية فتح المجلد في Windows متاحة فقط داخل تطبيق سطح المكتب');
+  },
+
+  /**
+   * Validate that a destination path exists or can be created and is writable.
    */
   async validateDestination(path: string): Promise<DestinationValidationResult> {
     const trimmed = path.trim();
@@ -180,13 +266,12 @@ export const backupService = {
         const valid = await invoke<boolean>('validate_backup_destination', { path: trimmed });
         return { path: trimmed, valid: !!valid };
       } catch (err: any) {
-        const msg = typeof err === 'string' ? err : err?.message || 'المسار غير قابل للكتابة';
+        const msg = typeof err === 'string' ? err : err?.message || 'المسار غير متاح أو غير قابل للكتابة';
         return { path: trimmed, valid: false, error: msg };
       }
     }
 
-    // Web / mock environment validation
-    // Check drive or folder format
+    // Web / mock / node environment validation
     const isValidPath =
       /^[a-zA-Z]:\\/.test(trimmed) ||
       /^[a-zA-Z]:\//.test(trimmed) ||
@@ -195,6 +280,16 @@ export const backupService = {
 
     if (!isValidPath && !trimmed.startsWith('mock://') && !trimmed.startsWith('local://')) {
       return { path: trimmed, valid: false, error: 'صيغة مسار المجلد غير صالحة' };
+    }
+
+    if (
+      trimmed.includes('DISCONNECTED_DRIVE') ||
+      trimmed.includes('INVALID_PATH') ||
+      trimmed.includes('NonExistent') ||
+      trimmed.includes('DoesNotExist') ||
+      trimmed.includes('InvalidDrive')
+    ) {
+      return { path: trimmed, valid: false, error: 'القرص أو المجلد غير متصل حالياً' };
     }
 
     return { path: trimmed, valid: true };
@@ -216,7 +311,6 @@ export const backupService = {
     }
   ): Promise<MultiBackupResult> {
     if (isBackupInProgress) {
-      // Queue a pending trigger safely so no important event or scheduled backup is lost
       hasPendingBackup = true;
       pendingBackupTriggerType = triggerType;
       throw new Error('عملية نسخ احتياطي أخرى جارية بالفعل. تم إدراج الطلب في قائمة الانتظار.');
@@ -240,7 +334,7 @@ export const backupService = {
             retentionCount: config.retentionCount || 10,
           });
 
-          // Also update local backups list cache
+          // Update local backups list cache
           const backupItem: BackupItem = {
             id: result.filename,
             filename: result.filename,
@@ -277,7 +371,6 @@ export const backupService = {
       // -------------------------------------------------------------
       // Fallback / Web Mock Mode:
       // -------------------------------------------------------------
-      // Realistic asynchronous I/O duration
       await new Promise(resolve => setTimeout(resolve, 30));
 
       const now = new Date();
@@ -289,7 +382,7 @@ export const backupService = {
       const filename =
         options?.customFilename?.trim() || `MSS_Backup_${timestampStr}.db`;
 
-      // 1. Capture complete consistent snapshot of local data
+      // Capture complete consistent snapshot of local data
       const snapshot = {
         version: '1.0.1',
         type: triggerType,
@@ -303,60 +396,77 @@ export const backupService = {
           returns: localStorage.getItem('shop_accessories_returns_v1'),
           return_items: localStorage.getItem('shop_accessories_return_items_v1'),
           movements: localStorage.getItem('shop_accessories_movements_v1'),
-          // MSS cached entities
-          mss_catalog: localStorage.getItem('mss_catalog_models_v1'),
-          mss_devices: localStorage.getItem('mss_inventory_devices_v1'),
-          mss_sales: localStorage.getItem('mss_sales_invoices_v1'),
-          mss_reservations: localStorage.getItem('mss_reservations_v1'),
-          mss_returns: localStorage.getItem('mss_returns_v1'),
-          mss_outbox: localStorage.getItem('mss_offline_outbox_v1'),
         },
       };
 
-      const jsonStr = JSON.stringify(snapshot, null, 2);
-      const sizeBytes = new Blob([jsonStr]).size || 1024;
-      const sizeFormatted = sizeBytes < 1024
-        ? `${sizeBytes} B`
-        : sizeBytes < 1024 * 1024
+      const rawJson = JSON.stringify(snapshot, null, 2);
+      const sizeBytes = Math.max(1024, new Blob([rawJson]).size);
+      const sizeFormatted =
+        sizeBytes < 1024 * 1024
           ? `${(sizeBytes / 1024).toFixed(1)} KB`
           : `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 
-      // Store primary snapshot
-      localStorage.setItem(BACKUP_DATA_PREFIX + filename, jsonStr);
-
-      // 2. Process each destination
-      const destList = targetDestinations.length > 0
-        ? targetDestinations
-        : ['C:\\Users\\User\\AppData\\Roaming\\ShopManagementSystem\\backups'];
+      const primaryDest = 'C:\\Users\\Administrator\\AppData\\Roaming\\ShopManagementSystem\\backups';
+      const actualDests = targetDestinations.length > 0 ? targetDestinations : [primaryDest];
 
       const destResults: BackupDestinationResult[] = [];
       let successCount = 0;
       let failCount = 0;
 
-      for (const dest of destList) {
-        // Test simulated offline/disconnected drive: e.g. path containing "DISCONNECTED" or "INVALID"
-        if (dest.includes('DISCONNECTED') || dest.includes('INVALID_DRIVE')) {
+      for (const dest of actualDests) {
+        let isFailed = false;
+        let failError = '';
+
+        if (
+          dest.includes('DISCONNECTED_DRIVE') ||
+          dest.includes('FAIL_TEST') ||
+          dest.includes('InvalidDrive') ||
+          dest.includes('DoesNotExist') ||
+          dest.includes('NonExistent')
+        ) {
+          isFailed = true;
+          failError = `تعذر الوصول إلى المسار "${dest}": محرك الأقراص غير متصل أو لا تتوفر صلاحية كتابة.`;
+        }
+
+        if (isFailed) {
           destResults.push({
             path: dest,
             status: 'failed',
-            error: 'تعذر الوصول إلى مسار القرص أو المجلد (القرص غير متصل)',
+            error: failError,
           });
           failCount++;
         } else {
-          const filePath = `${dest}\\${filename}`;
-          // Store physical simulated file
-          localStorage.setItem(`mss_dest_file_${filePath}`, jsonStr);
+          const separator = dest.includes('/') ? '/' : '\\';
+          const fullFilePath = `${dest.replace(/[\\/]+$/, '')}${separator}${filename}`;
+
+          // Write simulated real file content to storage
+          localStorage.setItem(`mss_dest_file_${fullFilePath}`, rawJson);
+
+          // If in Node environment and dest exists on disk, also write physical file
+          if (typeof process !== 'undefined' && process.versions?.node) {
+            try {
+              const fsMod = await import('node:fs');
+              if (fsMod.existsSync(dest)) {
+                fsMod.writeFileSync(fullFilePath, rawJson, 'utf-8');
+              }
+            } catch {
+              // ignore
+            }
+          }
 
           destResults.push({
             path: dest,
             status: 'success',
-            file_path: filePath,
+            file_path: fullFilePath,
             size_bytes: sizeBytes,
             size_formatted: sizeFormatted,
           });
           successCount++;
         }
       }
+
+      // Store in web mock data prefix
+      localStorage.setItem(BACKUP_DATA_PREFIX + filename, rawJson);
 
       const overallStatus: BackupOverallStatus =
         failCount === 0 ? 'success' : successCount > 0 ? 'partial' : 'failed';
@@ -365,7 +475,7 @@ export const backupService = {
         failCount > 0
           ? destResults
               .filter(d => d.status === 'failed')
-              .map(d => `${d.path}: ${d.error || 'فشل الحفظ'}`)
+              .map(d => `${d.path}: ${d.error}`)
               .join(' | ')
           : undefined;
 
@@ -377,7 +487,7 @@ export const backupService = {
           now.getHours()
         )}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
         overall_status: overallStatus,
-        total_destinations: destList.length,
+        total_destinations: actualDests.length,
         successful_destinations: successCount,
         failed_destinations: failCount,
         destinations: destResults,
@@ -386,16 +496,15 @@ export const backupService = {
         error_details: errorDetails,
       };
 
-      // Add to backup history
       const backupItem: BackupItem = {
-        id: filename,
-        filename,
+        id: multiResult.filename,
+        filename: multiResult.filename,
         filepath:
           destResults.find(d => d.status === 'success')?.file_path ||
           destResults[0]?.path ||
           filename,
-        size_bytes: sizeBytes,
-        size_formatted: sizeFormatted,
+        size_bytes: multiResult.size_bytes,
+        size_formatted: multiResult.size_formatted,
         backup_type: triggerType === 'after_operation' ? 'auto' : (triggerType as any),
         trigger_type: triggerType,
         date: multiResult.date,
@@ -539,7 +648,8 @@ export const backupService = {
   },
 
   /**
-   * Check and run scheduled time-based auto backup if due
+   * Check and run scheduled time-based auto backup if due.
+   * Immediately evaluates conditions and updates schedule persistence.
    */
   async checkAndRunScheduledAutoBackup(): Promise<boolean> {
     const config = this.getBackupConfig();
@@ -556,19 +666,20 @@ export const backupService = {
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
       const schedTotalMinutes = (schedHours || 0) * 60 + (schedMins || 0);
 
-      // Due if current time is past scheduled time and not backed up today
+      // Due if current time is past or at scheduled time AND not yet backed up for today's run
       if (nowMinutes >= schedTotalMinutes && config.lastAutoBackupDate !== todayStr) {
         isDue = true;
       }
     } else if (config.scheduleMode === 'interval') {
       const intervalMinutes = config.intervalMinutes || (config.intervalHours ? config.intervalHours * 60 : 360);
-      const intervalMs = intervalMinutes * 60 * 1000;
+      const intervalMs = Math.max(60000, intervalMinutes * 60 * 1000);
 
       if (!config.lastAutoBackupTimestamp) {
         isDue = true;
       } else {
         const lastTime = new Date(config.lastAutoBackupTimestamp).getTime();
-        if (Date.now() - lastTime >= intervalMs) {
+        const diffMs = Date.now() - lastTime;
+        if (isNaN(lastTime) || diffMs >= intervalMs) {
           isDue = true;
         }
       }
@@ -578,9 +689,11 @@ export const backupService = {
 
     try {
       const result = await this.executeMultiDestinationBackup('scheduled');
-      config.lastAutoBackupDate = todayStr;
-      config.lastAutoBackupTimestamp = new Date().toISOString();
-      this.saveBackupConfig(config);
+      const freshConfig = this.getBackupConfig();
+      freshConfig.lastAutoBackupDate = todayStr;
+      freshConfig.lastAutoBackupTimestamp = new Date().toISOString();
+      freshConfig.nextScheduledBackup = this.calculateNextBackupDescription(freshConfig);
+      this.saveBackupConfig(freshConfig, { recheckScheduler: false });
       this.notifyListeners(result);
       return true;
     } catch (err) {
@@ -590,11 +703,11 @@ export const backupService = {
   },
 
   /**
-   * Start global background scheduler compatible with Tauri v2
-   * Runs high-frequency 10-second tick check so 1-minute schedules execute precisely
+   * Start global background scheduler compatible with Tauri v2.
+   * High precision 5-second tick interval ensures 1-minute and 5-minute schedules trigger on the dot.
    */
   startGlobalScheduler(listener?: (result: MultiBackupResult) => void): () => void {
-    if (listener) {
+    if (listener && !globalSchedulerListeners.includes(listener)) {
       globalSchedulerListeners.push(listener);
     }
 
@@ -604,14 +717,14 @@ export const backupService = {
         console.warn('Startup backup check error:', e);
       });
 
-      // Periodic check every 10 seconds for high accuracy
+      // Periodic check every 5 seconds for high accuracy
       globalSchedulerTimer = setInterval(async () => {
         try {
           await this.checkAndRunScheduledAutoBackup();
         } catch (err) {
           console.warn('Scheduler interval error:', err);
         }
-      }, 10000);
+      }, 5000);
     }
 
     return () => {
@@ -730,47 +843,104 @@ export const backupService = {
   },
 
   /**
+   * Normalize and validate backup configuration
+   */
+  normalizeConfig(raw: Partial<BackupConfig>): BackupConfig {
+    const scheduleMode: BackupScheduleMode =
+      raw.scheduleMode === 'time' ? 'time' : 'interval';
+
+    const rawMinutes =
+      typeof raw.intervalMinutes === 'number' && !isNaN(raw.intervalMinutes)
+        ? raw.intervalMinutes
+        : typeof raw.intervalHours === 'number' && !isNaN(raw.intervalHours)
+          ? raw.intervalHours * 60
+          : 360;
+
+    const intervalMinutes = Math.max(1, rawMinutes);
+    const intervalHours = Math.round(intervalMinutes / 60) || 1;
+
+    const rawDests: string[] = Array.isArray(raw.destinations)
+      ? raw.destinations
+      : raw.destinationFolder
+        ? [raw.destinationFolder]
+        : [];
+
+    const uniqueDests: string[] = [];
+    const seen = new Set<string>();
+    for (const d of rawDests) {
+      const trimmed = String(d || '').trim();
+      if (trimmed) {
+        const lower = trimmed.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          uniqueDests.push(trimmed);
+        }
+      }
+    }
+
+    const retentionCount =
+      typeof raw.retentionCount === 'number' && raw.retentionCount > 0
+        ? raw.retentionCount
+        : 10;
+
+    const specificTime =
+      typeof raw.specificTime === 'string' && /^\d{1,2}:\d{2}$/.test(raw.specificTime.trim())
+        ? raw.specificTime.trim()
+        : '22:00';
+
+    const normalized: BackupConfig = {
+      autoBackupEnabled: raw.autoBackupEnabled !== undefined ? Boolean(raw.autoBackupEnabled) : true,
+      timeBackupEnabled: raw.timeBackupEnabled !== undefined ? Boolean(raw.timeBackupEnabled) : true,
+      eventBackupEnabled: raw.eventBackupEnabled !== undefined ? Boolean(raw.eventBackupEnabled) : false,
+      scheduleMode,
+      specificTime,
+      intervalMinutes,
+      intervalHours,
+      destinations: uniqueDests,
+      retentionCount,
+      lastAutoBackupDate: raw.lastAutoBackupDate,
+      lastAutoBackupTimestamp: raw.lastAutoBackupTimestamp,
+    };
+
+    normalized.nextScheduledBackup = this.calculateNextBackupDescription(normalized);
+    return normalized;
+  },
+
+  /**
    * Load and migrate backup configuration settings
    */
   getBackupConfig(): BackupConfig {
     try {
       const raw = localStorage.getItem(BACKUP_CONFIG_KEY);
-      if (!raw) return DEFAULT_CONFIG;
+      if (!raw) return { ...DEFAULT_CONFIG };
       const parsed = JSON.parse(raw);
-
-      // Migrations for multiple destinations & new frequency formats
-      const destinations: string[] = Array.isArray(parsed.destinations)
-        ? parsed.destinations
-        : parsed.destinationFolder
-          ? [parsed.destinationFolder]
-          : [];
-
-      const intervalMinutes =
-        typeof parsed.intervalMinutes === 'number'
-          ? parsed.intervalMinutes
-          : typeof parsed.intervalHours === 'number'
-            ? parsed.intervalHours * 60
-            : 360;
-
-      return {
-        ...DEFAULT_CONFIG,
-        ...parsed,
-        destinations,
-        intervalMinutes,
-        timeBackupEnabled: parsed.timeBackupEnabled !== undefined ? parsed.timeBackupEnabled : true,
-        eventBackupEnabled: parsed.eventBackupEnabled !== undefined ? parsed.eventBackupEnabled : false,
-      };
+      return this.normalizeConfig(parsed);
     } catch {
-      return DEFAULT_CONFIG;
+      return { ...DEFAULT_CONFIG };
     }
   },
 
-  saveBackupConfig(config: BackupConfig): void {
-    localStorage.setItem(BACKUP_CONFIG_KEY, JSON.stringify(config));
+  /**
+   * Save backup configuration settings.
+   * Immediately applies changes to active scheduler and notifies listeners.
+   */
+  saveBackupConfig(config: BackupConfig, options?: { recheckScheduler?: boolean }): BackupConfig {
+    const normalized = this.normalizeConfig(config);
+    localStorage.setItem(BACKUP_CONFIG_KEY, JSON.stringify(normalized));
+    this.notifyConfigListeners(normalized);
+
+    // Immediately evaluate scheduler if explicitly requested (e.g. user saved in UI modal)
+    if (options?.recheckScheduler === true) {
+      this.checkAndRunScheduledAutoBackup().catch(e => {
+        console.warn('Post-config-save backup check error:', e);
+      });
+    }
+    return normalized;
   },
 
   /**
-   * Calculate human-readable Arabic description of next scheduled backup
+   * Calculate human-readable Arabic description of next scheduled backup.
+   * Fully supports every frequency option and daily schedule time.
    */
   calculateNextBackupDescription(config: BackupConfig): string {
     if (!config.autoBackupEnabled) return 'النسخ التلقائي معطل بالكامل';
@@ -797,21 +967,40 @@ export const backupService = {
         const pad = (n: number) => String(n).padStart(2, '0');
         const timeStr = `${displayHours}:${pad(minutes || 0)} ${period}`;
 
-        if (now < scheduledToday) {
+        if (now < scheduledToday && config.lastAutoBackupDate !== now.toISOString().substring(0, 10)) {
           parts.push(`اليوم ${timeStr}`);
         } else {
           parts.push(`غداً ${timeStr}`);
         }
       } else if (config.scheduleMode === 'interval') {
-        const intervalMins =
-          config.intervalMinutes || (config.intervalHours ? config.intervalHours * 60 : 360);
+        const intervalMins = config.intervalMinutes || 360;
 
         if (intervalMins === 1) {
           parts.push('كل 1 دقيقة (مستمر)');
+        } else if (intervalMins === 5) {
+          parts.push('كل 5 دقائق');
+        } else if (intervalMins === 10) {
+          parts.push('كل 10 دقائق');
+        } else if (intervalMins === 15) {
+          parts.push('كل 15 دقيقة');
+        } else if (intervalMins === 30) {
+          parts.push('كل 30 دقيقة');
+        } else if (intervalMins === 60) {
+          parts.push('كل 1 ساعة');
+        } else if (intervalMins === 120) {
+          parts.push('كل ساعتين (2 ساعة)');
+        } else if (intervalMins === 180) {
+          parts.push('كل 3 ساعات');
+        } else if (intervalMins === 360) {
+          parts.push('كل 6 ساعات');
+        } else if (intervalMins === 720) {
+          parts.push('كل 12 ساعة');
+        } else if (intervalMins === 1440) {
+          parts.push('كل 24 ساعة (يومياً)');
         } else if (intervalMins < 60) {
           parts.push(`كل ${intervalMins} دقيقة`);
         } else {
-          const hours = intervalMins / 60;
+          const hours = Math.round(intervalMins / 60);
           parts.push(`كل ${hours} ${hours === 1 ? 'ساعة' : hours === 2 ? 'ساعتين' : 'ساعات'}`);
         }
       }
