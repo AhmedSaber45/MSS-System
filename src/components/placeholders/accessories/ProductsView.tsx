@@ -20,7 +20,7 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatPieceCount } from '@/lib/utils';
 import { useNavigation } from '@/context/NavigationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService';
@@ -476,7 +476,7 @@ export const ProductsView: React.FC = () => {
             </Badge>
           );
         }
-        return <Badge variant="success" size="md">{item.stock} قطعة</Badge>;
+        return <Badge variant="success" size="md">{formatPieceCount(item.stock)}</Badge>;
       },
     },
     {
@@ -544,7 +544,7 @@ export const ProductsView: React.FC = () => {
         <StatsCard
           title="إجمالي عدد الأصناف"
           value={`${metrics.totalProducts} صنف`}
-          subtitle={`إجمالي المخزون: ${metrics.totalUnits} قطعة`}
+          subtitle={`إجمالي المخزون: ${formatPieceCount(metrics.totalUnits, { zeroText: '0 قطعة' })}`}
           icon={Package}
         />
         <StatsCard
@@ -1068,7 +1068,7 @@ export const ProductsView: React.FC = () => {
                       {selectedProduct.low_stock_threshold}
                     </Badge>
                   ) : (
-                    <Badge variant="success" size="md">{selectedProduct.stock} قطعة متوفرة</Badge>
+                    <Badge variant="success" size="md">{formatPieceCount(selectedProduct.stock, 'متوفرة')}</Badge>
                   )}
                 </div>
               </div>
@@ -1128,12 +1128,12 @@ export const ProductsView: React.FC = () => {
             <div className="p-3.5 bg-slate-50 rounded-xl font-bold text-slate-900 space-y-1.5 border border-slate-300">
               <div className="text-base">{selectedProduct.name}</div>
               <div className="text-slate-600 font-mono text-xs font-semibold tabular-nums">
-                الكود: {selectedProduct.code} | الرصيد: {selectedProduct.stock} قطعة
+                الكود: {selectedProduct.code} | الرصيد: {formatPieceCount(selectedProduct.stock, { zeroText: '0 قطعة' })}
               </div>
             </div>
             {selectedProduct.stock > 0 && (
               <p className="text-rose-900 font-semibold bg-rose-50 p-3 rounded-xl border border-rose-300 text-sm leading-relaxed">
-                تنبيه: هذا الصنف يحتوي حالياً على رصيد ({selectedProduct.stock} قطعة) في المحل.
+                تنبيه: هذا الصنف يحتوي حالياً على رصيد ({formatPieceCount(selectedProduct.stock, { zeroText: '0 قطعة' })}) في المحل.
               </p>
             )}
           </div>

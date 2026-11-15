@@ -44,19 +44,37 @@ export function formatTime(date: Date | string = new Date()): string {
 
 /**
  * Format piece / unit count grammatically in Arabic:
- * - 0: نفد
- * - 1-2: قطعة
- * - 3-10: قطع (جمع تكسير)
- * - 11+: قطعة (مفرد منصوب)
+ * - 0: نفد (أو النص المخصص)
+ * - 1: 1 قطعة
+ * - 2: 2 قطعة
+ * - 3-10: X قطع (جمع تكسير)
+ * - 11+: X قطعة (مفرد منصوب)
  */
-export function formatPieceCount(count: number): string {
-  if (count <= 0) return 'نفد';
-  if (count === 1) return '1 قطعة';
-  if (count === 2) return '2 قطعة';
+export function formatPieceCount(
+  count: number,
+  optionsOrSuffix?: string | { zeroText?: string; suffix?: string }
+): string {
+  let zeroText = 'نفد';
+  let suffix = '';
 
-  const remainder = count % 100;
-  if (remainder >= 3 && remainder <= 10) {
-    return `${count} قطع`;
+  if (typeof optionsOrSuffix === 'string') {
+    suffix = optionsOrSuffix ? ` ${optionsOrSuffix}` : '';
+  } else if (optionsOrSuffix) {
+    if (optionsOrSuffix.zeroText !== undefined) zeroText = optionsOrSuffix.zeroText;
+    if (optionsOrSuffix.suffix) suffix = ` ${optionsOrSuffix.suffix}`;
   }
-  return `${count} قطعة`;
+
+  const safeCount = isNaN(count) ? 0 : Math.floor(count);
+
+  if (safeCount <= 0) {
+    return zeroText ? `${zeroText}${suffix}` : `0 قطعة${suffix}`;
+  }
+  if (safeCount === 1) return `1 قطعة${suffix}`;
+  if (safeCount === 2) return `2 قطعة${suffix}`;
+
+  const remainder = Math.abs(safeCount) % 100;
+  if (remainder >= 3 && remainder <= 10) {
+    return `${safeCount} قطع${suffix}`;
+  }
+  return `${safeCount} قطعة${suffix}`;
 }

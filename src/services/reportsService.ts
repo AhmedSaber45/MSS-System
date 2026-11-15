@@ -8,61 +8,98 @@ import { salesService } from './salesService.ts';
 import { returnsService } from './returnsService.ts';
 import { productsService } from './productsService.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
+import {
+  roundMoney,
+  calculateNetSales,
+  calculateNetCogs,
+  calculateGrossProfit,
+  computeAccountingMetrics,
+} from '../lib/accounting.ts';
 
 export const reportsService = {
   /**
-   * Get overall financial summary for a given date range
+   * Get overall financial summary for a given date range.
+   * Standardized accounting definitions:
+   * - Gross Sales: Total completed invoice amounts before returns
+   * - Total Returns: Total approved refunds recorded in period
+   * - Net Sales: Gross Sales - Total Returns
+   * - Net COGS: Original COGS - Reversed COGS for sellable (RESTOCKED) items
+   * - Gross Profit: Net Sales - Net COGS
    */
   async getFinancialSummary(startDate?: string, endDate?: string): Promise<FinancialSummary> {
     const dateVal = validateDateRange(startDate, endDate);
     const invoices = await salesService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
     const returns = await returnsService.getReturns({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
 
-    let totalRevenue = 0;
-    let totalCogs = 0;
+    let grossSales = 0;
+    let originalCogs = 0;
     let totalLineDiscounts = 0;
     let totalInvoiceDiscounts = 0;
 
+    // Cache invoice items for fast lookup and accurate historical cost snapshots
+    const invoiceItemsMap = new Map<string, Array<{ product_id: string; cost_snapshot: number; quantity: number }>>();
+
     for (const inv of invoices) {
-      totalRevenue += inv.total_amount;
+      grossSales += inv.total_amount;
       totalInvoiceDiscounts += inv.discount || 0;
 
       const items = await salesService.getInvoiceItems(inv.id);
+      invoiceItemsMap.set(inv.id, items);
       for (const item of items) {
-        totalCogs += (item.cost_snapshot || 0) * item.quantity;
+        originalCogs += (item.cost_snapshot || 0) * item.quantity;
         totalLineDiscounts += (item.discount || 0) * item.quantity;
       }
     }
 
-    // Calculate restocked COGS reversal: salable items returned back to shelf reduce effective COGS
-    let restockedCogs = 0;
+    // Calculate restocked COGS reversal: salable items returned back to shelf reduce effective COGS.
+    // Critical Rule: Always use the original sale's cost snapshot. Never use the current product cost.
+    let reversedCogs = 0;
     for (const r of returns) {
       const rItems = await returnsService.getReturnItems(r.id);
+
+      let origInvoiceItems = invoiceItemsMap.get(r.invoice_id);
+      if (!origInvoiceItems) {
+        try {
+          origInvoiceItems = await salesService.getInvoiceItems(r.invoice_id);
+        } catch {
+          origInvoiceItems = [];
+        }
+      }
+
       for (const item of rItems) {
         if (item.restock_condition === 'RESTOCKED') {
-          const prod = await productsService.getProductById(item.product_id);
-          const unitCost = prod?.cost || 0;
-          restockedCogs += unitCost * item.quantity_returned;
+          const origItem = origInvoiceItems?.find(ii => ii.product_id === item.product_id);
+          let unitCost = origItem ? (origItem.cost_snapshot || 0) : 0;
+          if (unitCost === 0) {
+            const prod = await productsService.getProductById(item.product_id);
+            unitCost = prod?.cost || 0;
+          }
+          reversedCogs += unitCost * item.quantity_returned;
         }
+        // If DAMAGED, reversedCogs remains 0 (cost is NOT reversed)
       }
     }
 
-    const effectiveCogs = Math.max(0, totalCogs - restockedCogs);
     const totalRefunds = returns.reduce((sum, r) => sum + r.refund_amount, 0);
-    const totalDiscounts = totalLineDiscounts + totalInvoiceDiscounts;
-    const netSales = Math.max(0, totalRevenue - totalRefunds);
-    const grossProfit = totalRevenue - effectiveCogs - totalRefunds;
-    const profitMarginPercent = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    const avgInvoiceValue = invoices.length > 0 ? totalRevenue / invoices.length : 0;
+    const totalDiscounts = roundMoney(totalLineDiscounts + totalInvoiceDiscounts);
+
+    const metrics = computeAccountingMetrics({
+      grossSales,
+      totalReturns: totalRefunds,
+      originalCogs,
+      reversedCogs,
+    });
+
+    const avgInvoiceValue = invoices.length > 0 ? roundMoney(grossSales / invoices.length) : 0;
 
     return {
-      totalRevenue,
-      costOfGoodsSold: effectiveCogs,
-      grossProfit,
-      profitMarginPercent,
+      totalRevenue: metrics.grossSales,
+      costOfGoodsSold: metrics.netCogs,
+      grossProfit: metrics.grossProfit,
+      profitMarginPercent: metrics.profitMarginPercent,
       totalDiscounts,
-      totalRefunds,
-      netSales,
+      totalRefunds: metrics.totalReturns,
+      netSales: metrics.netSales,
       invoicesCount: invoices.length,
       returnsCount: returns.length,
       avgInvoiceValue,
@@ -89,29 +126,56 @@ export const reportsService = {
     const returns = await returnsService.getReturns({ startDate: minDate, endDate: maxDate });
 
     // Preload items for all relevant invoices
-    const invoiceItemsMap = new Map<string, number>();
+    const invoiceItemsMap = new Map<string, Array<{ product_id: string; cost_snapshot: number; quantity: number }>>();
     for (const inv of invoices) {
       const items = await salesService.getInvoiceItems(inv.id);
-      const cogs = items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.quantity, 0);
-      invoiceItemsMap.set(inv.id, cogs);
+      invoiceItemsMap.set(inv.id, items);
+    }
+
+    // Preload return items
+    const returnItemsMap = new Map<string, any[]>();
+    for (const r of returns) {
+      const rItems = await returnsService.getReturnItems(r.id);
+      returnItemsMap.set(r.id, rItems);
     }
 
     return days.map(date => {
       const dayInvoices = invoices.filter(inv => inv.invoice_date === date);
       const dayReturns = returns.filter(r => r.return_date === date);
 
-      const revenue = dayInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
-      const cogs = dayInvoices.reduce((sum, inv) => sum + (invoiceItemsMap.get(inv.id) || 0), 0);
-      const refunds = dayReturns.reduce((sum, r) => sum + r.refund_amount, 0);
-      const grossProfit = revenue - cogs - refunds;
+      const dayGrossSales = roundMoney(dayInvoices.reduce((sum, inv) => sum + inv.total_amount, 0));
+      const dayRefunds = roundMoney(dayReturns.reduce((sum, r) => sum + r.refund_amount, 0));
+      const dayNetSales = calculateNetSales(dayGrossSales, dayRefunds);
+
+      let dayOrigCogs = 0;
+      for (const inv of dayInvoices) {
+        const items = invoiceItemsMap.get(inv.id) || [];
+        dayOrigCogs += items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.quantity, 0);
+      }
+
+      let dayReversedCogs = 0;
+      for (const ret of dayReturns) {
+        const rItems = returnItemsMap.get(ret.id) || [];
+        const origItems = invoiceItemsMap.get(ret.invoice_id) || [];
+        for (const item of rItems) {
+          if (item.restock_condition === 'RESTOCKED') {
+            const origItem = origItems.find(ii => ii.product_id === item.product_id);
+            const unitCost = origItem?.cost_snapshot || 0;
+            dayReversedCogs += unitCost * item.quantity_returned;
+          }
+        }
+      }
+
+      const dayNetCogs = calculateNetCogs(dayOrigCogs, dayReversedCogs);
+      const grossProfit = calculateGrossProfit(dayNetSales, dayNetCogs);
 
       return {
         date,
         invoicesCount: dayInvoices.length,
-        revenue,
-        cogs,
+        revenue: dayGrossSales,
+        cogs: dayNetCogs,
         grossProfit,
-        refunds,
+        refunds: dayRefunds,
       };
     });
   },
@@ -126,14 +190,19 @@ export const reportsService = {
   ): Promise<TopSellingProduct[]> {
     const dateVal = validateDateRange(startDate, endDate);
     const invoices = await salesService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
+    const returns = await returnsService.getReturns({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
+
     const productStats = new Map<
       string,
       {
         name: string;
         code: string;
-        qty: number;
-        revenue: number;
+        soldQty: number;
+        returnedQty: number;
+        grossRevenue: number;
+        refundedRevenue: number;
         cost: number;
+        reversedCost: number;
       }
     >();
 
@@ -143,29 +212,54 @@ export const reportsService = {
         const existing = productStats.get(item.product_id) || {
           name: item.product_name,
           code: item.product_code,
-          qty: 0,
-          revenue: 0,
+          soldQty: 0,
+          returnedQty: 0,
+          grossRevenue: 0,
+          refundedRevenue: 0,
           cost: 0,
+          reversedCost: 0,
         };
 
-        existing.qty += item.quantity;
-        existing.revenue += item.line_total;
+        existing.soldQty += item.quantity;
+        existing.grossRevenue += item.line_total;
         existing.cost += (item.cost_snapshot || 0) * item.quantity;
 
         productStats.set(item.product_id, existing);
       }
     }
 
+    // Deduct returns for accurate net product performance
+    for (const ret of returns) {
+      const rItems = await returnsService.getReturnItems(ret.id);
+      for (const rItem of rItems) {
+        const existing = productStats.get(rItem.product_id);
+        if (existing) {
+          existing.returnedQty += rItem.quantity_returned;
+          existing.refundedRevenue += rItem.line_refund_total;
+          if (rItem.restock_condition === 'RESTOCKED') {
+            // Find cost snapshot from original invoice items if available
+            const unitCost = rItem.refund_unit_price > 0 ? (existing.cost / Math.max(1, existing.soldQty)) : 0;
+            existing.reversedCost += unitCost * rItem.quantity_returned;
+          }
+        }
+      }
+    }
+
     const list: TopSellingProduct[] = [];
     productStats.forEach((val, productId) => {
+      const netQty = Math.max(0, val.soldQty - val.returnedQty);
+      const netRevenue = Math.max(0, roundMoney(val.grossRevenue - val.refundedRevenue));
+      const netCost = Math.max(0, roundMoney(val.cost - val.reversedCost));
+      const grossProfit = calculateGrossProfit(netRevenue, netCost);
+
       list.push({
         productId,
         productName: val.name,
         productCode: val.code,
-        quantitySold: val.qty,
-        totalRevenue: val.revenue,
-        totalCost: val.cost,
-        grossProfit: val.revenue - val.cost,
+        quantitySold: netQty,
+        totalRevenue: netRevenue,
+        totalCost: netCost,
+        grossProfit,
       });
     });
 

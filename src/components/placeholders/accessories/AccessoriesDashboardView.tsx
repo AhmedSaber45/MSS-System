@@ -20,7 +20,7 @@ import {
   Layers,
   RefreshCw,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { productsService } from '@/services/productsService.ts';
 import { salesService } from '@/services/salesService.ts';
 import { reportsService } from '@/services/reportsService.ts';
@@ -247,7 +247,9 @@ export const AccessoriesDashboardView: React.FC = () => {
         <StatsCard
           title="إجمالي المبيعات"
           value={summary ? formatCurrency(summary.totalRevenue) : '...'}
-          subtitle={`${summary?.invoicesCount || 0} فاتورة مبيعات`}
+          subtitle={summary && summary.totalRefunds > 0
+            ? `صافي: ${formatCurrency(summary.netSales)} (مرتجعات: ${formatCurrency(summary.totalRefunds)})`
+            : `${summary?.invoicesCount || 0} فاتورة مبيعات`}
           icon={DollarSign}
         />
         <StatsCard
@@ -259,7 +261,7 @@ export const AccessoriesDashboardView: React.FC = () => {
         <StatsCard
           title="الأصناف في المخزن"
           value={`${metrics.totalProducts} صنف`}
-          subtitle={`${metrics.totalUnits} قطعة متوفرة`}
+          subtitle={formatPieceCount(metrics.totalUnits, 'متوفرة')}
           icon={Package}
         />
         <div

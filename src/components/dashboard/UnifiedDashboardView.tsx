@@ -23,7 +23,7 @@ import {
   Printer,
   ChevronLeft,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
 import type {
@@ -319,7 +319,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   <div className="font-bold text-slate-900 flex justify-between">
                     <span>حالة وتقييم المخزون المحلي:</span>
                     <span className="font-mono tabular-nums text-slate-800">
-                      {data.accessories.totalProducts} صنف ({data.accessories.totalUnits} قطعة)
+                      {data.accessories.totalProducts} صنف ({formatPieceCount(data.accessories.totalUnits, { zeroText: '0 قطعة' })})
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-700 font-medium">

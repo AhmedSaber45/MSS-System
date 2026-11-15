@@ -1,6 +1,14 @@
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
+import {
+  roundMoney,
+  calculateNetSales,
+  calculateNetCogs,
+  calculateGrossProfit,
+  calculateProfitMarginPercent,
+  computeAccountingMetrics,
+} from '../lib/accounting.ts';
 import type { MSSStockLocation } from '../types/mssInventory.ts';
 import type {
   MSSFinancialSummary,
@@ -12,38 +20,76 @@ import type {
 
 export const mssReportsService = {
   /**
-   * Get overall financial summary for MSS business for a given date range
-   * Gross profit is computed at the shared business level (Rule 16)
+   * Get overall financial summary for MSS business for a given date range.
+   * Standardized accounting definitions:
+   * - Gross Sales (totalRevenue): Total sales before deducting returns
+   * - Total Returns (totalRefunds): Total approved returns in period
+   * - Net Sales: Gross Sales - Total Returns
+   * - Net COGS: Original COGS - Reversed COGS (for AVAILABLE/sellable returns only; MAINTENANCE returns do not reverse cost)
+   * - Gross Profit: Net Sales - Net COGS
    */
   async getMSSFinancialSummary(startDate?: string, endDate?: string): Promise<MSSFinancialSummary> {
     const dateVal = validateDateRange(startDate, endDate);
     const invoices = await mssCommerceService.getInvoices({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
     const returns = await mssCommerceService.getReturns({ startDate: dateVal.sanitizedStart, endDate: dateVal.sanitizedEnd });
 
-    // Active sales (excluding returned invoices)
-    const activeInvoices = invoices.filter(inv => !inv.is_returned);
-
-    const totalRevenue = activeInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
-    const totalCogs = activeInvoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
-    const totalDiscounts = activeInvoices.reduce((sum, inv) => sum + (inv.discount_amount || 0), 0);
+    // Gross Sales: Sum of all completed invoices in date range (preserving original sale amounts)
+    const grossSales = invoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
+    const originalCogs = invoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
+    const totalDiscounts = invoices.reduce((sum, inv) => sum + (inv.discount_amount || 0), 0);
     const totalRefunds = returns.reduce((sum, r) => sum + (r.refund_amount || 0), 0);
 
-    const netSales = Math.max(0, totalRevenue - totalRefunds);
-    const grossProfit = totalRevenue - totalCogs;
-    const profitMarginPercent = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    const soldDevicesCount = activeInvoices.length;
+    // Reversed COGS: only for restocked / sellable devices ('AVAILABLE')
+    // Look up original invoice cost_snapshot
+    const invoiceCostMap = new Map<string, number>();
+    invoices.forEach(inv => invoiceCostMap.set(inv.id, inv.cost_snapshot || 0));
+
+    let reversedCogs = 0;
+    for (const r of returns) {
+      if (r.new_status === 'AVAILABLE') {
+        let cost = invoiceCostMap.get(r.invoice_id);
+        if (cost === undefined) {
+          try {
+            const origInv = await mssCommerceService.getInvoiceById(r.invoice_id);
+            cost = origInv?.cost_snapshot || 0;
+          } catch {
+            cost = 0;
+          }
+        }
+        reversedCogs += cost || 0;
+      }
+      // If new_status === 'MAINTENANCE' (damaged/defective), cost remains unreversed
+    }
+
+    const metrics = computeAccountingMetrics({
+      grossSales,
+      totalReturns: totalRefunds,
+      originalCogs,
+      reversedCogs,
+    });
+
+    const soldDevicesCount = invoices.length;
     const returnedDevicesCount = returns.length;
-    const avgDevicePrice = soldDevicesCount > 0 ? totalRevenue / soldDevicesCount : 0;
-    const avgDeviceProfit = soldDevicesCount > 0 ? grossProfit / soldDevicesCount : 0;
+    const netDevicesCount = Math.max(0, soldDevicesCount - returnedDevicesCount);
+
+    const avgDevicePrice = netDevicesCount > 0
+      ? roundMoney(metrics.netSales / netDevicesCount)
+      : soldDevicesCount > 0
+        ? roundMoney(metrics.grossSales / soldDevicesCount)
+        : 0;
+
+    const avgDeviceProfit = netDevicesCount > 0
+      ? roundMoney(metrics.grossProfit / netDevicesCount)
+      : 0;
 
     return {
-      totalRevenue,
-      costOfGoodsSold: totalCogs,
-      grossProfit,
-      profitMarginPercent,
-      totalDiscounts,
-      totalRefunds,
-      netSales,
+      totalRevenue: metrics.grossSales,
+      costOfGoodsSold: metrics.netCogs,
+      grossProfit: metrics.grossProfit,
+      profitMarginPercent: metrics.profitMarginPercent,
+      totalDiscounts: roundMoney(totalDiscounts),
+      totalRefunds: metrics.totalReturns,
+      netSales: metrics.netSales,
       soldDevicesCount,
       returnedDevicesCount,
       avgDevicePrice,
@@ -155,31 +201,56 @@ export const mssReportsService = {
    */
   async getCategoryBreakdown(startDate?: string, endDate?: string): Promise<CategoryBreakdown[]> {
     const invoices = await mssCommerceService.getInvoices({ startDate, endDate });
-    const activeInvoices = invoices.filter(inv => !inv.is_returned);
+    const returns = await mssCommerceService.getReturns({ startDate, endDate });
 
-    const totalRevenue = activeInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
+    // Gross revenue across completed invoices
+    const totalGrossRevenue = invoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
 
     const categories = ['لابتوب', 'شاشة', 'أخرى'];
 
+    // Map returns to invoice category
+    const invoiceMap = new Map<string, (typeof invoices)[0]>();
+    invoices.forEach(inv => invoiceMap.set(inv.id, inv));
+
     return categories
       .map(category => {
-        const catInvoices = activeInvoices.filter(inv => {
+        const catInvoices = invoices.filter(inv => {
           if (category === 'لابتوب') return inv.category === 'لابتوب' || !inv.category;
           if (category === 'شاشة') return inv.category === 'شاشة';
           return inv.category !== 'لابتوب' && inv.category !== 'شاشة';
         });
 
-        const unitsSold = catInvoices.length;
-        const revenue = catInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
-        const cogs = catInvoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
-        const grossProfit = revenue - cogs;
-        const percentageOfRevenue = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
+        const catReturns = returns.filter(r => {
+          const inv = invoiceMap.get(r.invoice_id);
+          const cat = inv?.category;
+          if (category === 'لابتوب') return cat === 'لابتوب' || !cat;
+          if (category === 'شاشة') return cat === 'شاشة';
+          return cat !== 'لابتوب' && cat !== 'شاشة';
+        });
+
+        const grossRevenue = catInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
+        const refunds = catReturns.reduce((sum, r) => sum + (r.refund_amount || 0), 0);
+        const netRevenue = calculateNetSales(grossRevenue, refunds);
+
+        const origCogs = catInvoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
+        let reversedCogs = 0;
+        for (const r of catReturns) {
+          if (r.new_status === 'AVAILABLE') {
+            const inv = invoiceMap.get(r.invoice_id);
+            reversedCogs += inv?.cost_snapshot || 0;
+          }
+        }
+        const netCogs = calculateNetCogs(origCogs, reversedCogs);
+        const grossProfit = calculateGrossProfit(netRevenue, netCogs);
+
+        const netUnitsSold = Math.max(0, catInvoices.length - catReturns.length);
+        const percentageOfRevenue = totalGrossRevenue > 0 ? (grossRevenue / totalGrossRevenue) * 100 : 0;
 
         return {
           category,
-          unitsSold,
-          revenue,
-          cogs,
+          unitsSold: netUnitsSold,
+          revenue: netRevenue,
+          cogs: netCogs,
           grossProfit,
           percentageOfRevenue,
         };
@@ -207,22 +278,38 @@ export const mssReportsService = {
     const invoices = await mssCommerceService.getInvoices({ startDate: minDate, endDate: maxDate });
     const returns = await mssCommerceService.getReturns({ startDate: minDate, endDate: maxDate });
 
+    // Map invoices for return cost snapshot lookups
+    const invoiceMap = new Map<string, (typeof invoices)[0]>();
+    invoices.forEach(inv => invoiceMap.set(inv.id, inv));
+
     return days.map(date => {
-      const dayInvoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) === date && !inv.is_returned);
+      // Gross sales on the sale date
+      const dayInvoices = invoices.filter(inv => inv.sale_date && inv.sale_date.substring(0, 10) === date);
+      // Returns attributed strictly to the return date
       const dayReturns = returns.filter(r => r.return_date && r.return_date.substring(0, 10) === date);
 
-      const revenue = dayInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
-      const cogs = dayInvoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
-      const refunds = dayReturns.reduce((sum, r) => sum + (r.refund_amount || 0), 0);
-      const grossProfit = revenue - cogs - refunds;
+      const dayGrossSales = roundMoney(dayInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0));
+      const dayRefunds = roundMoney(dayReturns.reduce((sum, r) => sum + (r.refund_amount || 0), 0));
+      const dayNetSales = calculateNetSales(dayGrossSales, dayRefunds);
+
+      const dayOrigCogs = dayInvoices.reduce((sum, inv) => sum + (inv.cost_snapshot || 0), 0);
+      let dayReversedCogs = 0;
+      for (const r of dayReturns) {
+        if (r.new_status === 'AVAILABLE') {
+          const inv = invoiceMap.get(r.invoice_id);
+          dayReversedCogs += inv?.cost_snapshot || 0;
+        }
+      }
+      const dayNetCogs = calculateNetCogs(dayOrigCogs, dayReversedCogs);
+      const grossProfit = calculateGrossProfit(dayNetSales, dayNetCogs);
 
       return {
         date,
         salesCount: dayInvoices.length,
-        revenue,
-        cogs,
+        revenue: dayGrossSales,
+        cogs: dayNetCogs,
         grossProfit,
-        refunds,
+        refunds: dayRefunds,
       };
     });
   },

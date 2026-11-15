@@ -428,16 +428,19 @@ export const SalesView: React.FC = () => {
                         onClick={() => !isOutOfStock && handleAddToCart(p)}
                         className={`p-3.5 rounded-xl border transition-all text-right flex flex-col justify-between relative select-none ${isOutOfStock
                           ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
-                          : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-blue-500 hover:shadow-xs cursor-pointer'
+                          : inCart
+                            ? 'bg-blue-50/40 hover:bg-blue-50/60 border-blue-500 ring-1 ring-blue-500/40 shadow-xs cursor-pointer'
+                            : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-blue-500 hover:shadow-xs cursor-pointer'
                           }`}
                       >
                         {/* High-visibility, uncropped cart quantity badge */}
                         {inCart && (
                           <span
-                            className="absolute -top-2.5 -left-2.5 min-w-[28px] h-7 px-1.5 bg-blue-600 text-white text-xs font-mono font-black rounded-full flex items-center justify-center shadow-md ring-2 ring-white z-10 transition-transform animate-in zoom-in-75"
+                            className="absolute -top-2.5 start-3 min-w-[28px] h-6 px-1.5 bg-blue-600 text-white text-xs font-mono font-bold rounded-full flex items-center justify-center gap-1 shadow-md ring-2 ring-white z-10 transition-transform animate-in zoom-in-75"
                             title={`الكمية المضافة في السلة: ${inCart.quantity}`}
                           >
-                            {inCart.quantity}
+                            <ShoppingBag className="w-3 h-3" />
+                            <span className="tabular-nums">{inCart.quantity}</span>
                           </span>
                         )}
 
@@ -469,7 +472,7 @@ export const SalesView: React.FC = () => {
                           </span>
                           <Button
                             size="sm"
-                            variant={isOutOfStock ? 'outline' : 'secondary'}
+                            variant={isOutOfStock ? 'outline' : inCart ? 'primary' : 'secondary'}
                             disabled={isOutOfStock}
                             onClick={e => {
                               e.stopPropagation();
@@ -478,7 +481,7 @@ export const SalesView: React.FC = () => {
                             className="h-8 text-xs font-bold px-2.5"
                           >
                             <Plus className="w-3.5 h-3.5 ml-1" />
-                            إضافة
+                            {inCart ? `إضافة (${inCart.quantity})` : 'إضافة'}
                           </Button>
                         </div>
                       </div>
@@ -490,7 +493,10 @@ export const SalesView: React.FC = () => {
               {/* Sub-pages Pagination Bar */}
               <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-300 text-sm">
                 <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-
+                  <span className="font-semibold text-slate-700">
+                    صفحة {validCurrentPage} من {totalPages}
+                  </span>
+                  <span className="text-slate-400">({filteredProducts.length} صنف)</span>
 
                   <span className="text-slate-300">|</span>
 
@@ -504,10 +510,10 @@ export const SalesView: React.FC = () => {
                       }}
                       className="px-2 py-0.5 text-xs font-bold bg-slate-100 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
                     >
-                      <option value={6}>6</option>
-                      <option value={9}>9 </option>
-                      <option value={12}>12</option>
-                      <option value={18}>18</option>
+                      <option value={6}>6 أصناف</option>
+                      <option value={9}>9 أصناف (افتراضي)</option>
+                      <option value={12}>12 صنف</option>
+                      <option value={18}>18 صنف</option>
                     </select>
                   </div>
                 </div>

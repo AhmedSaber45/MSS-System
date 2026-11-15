@@ -245,9 +245,9 @@ export const InvoicesView: React.FC = () => {
           icon={Receipt}
         />
         <StatsCard
-          title="صافي الإيرادات "
+          title="إجمالي قيمة الفواتير"
           value={formatCurrency(stats.totalRevenue)}
-          subtitle=""
+          subtitle="المسدد في الفواتير"
           icon={DollarSign}
         />
         <StatsCard

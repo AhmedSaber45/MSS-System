@@ -17,7 +17,7 @@ import {
   RefreshCw,
   DollarSign,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatPieceCount } from '@/lib/utils';
 import { useNavigation } from '@/context/NavigationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService';
@@ -304,8 +304,9 @@ export const InventoryView: React.FC = () => {
       header: 'الرصيد الفعلي الحالي',
       render: item => (
         <div className="flex items-baseline gap-1.5">
-          <span className="font-mono font-bold text-base text-slate-900 tabular-nums">{item.stock}</span>
-          <span className="text-xs text-slate-500 font-medium">قطعة</span>
+          <span className="font-mono font-bold text-base text-slate-900 tabular-nums">
+            {formatPieceCount(item.stock, { zeroText: '0 قطعة' })}
+          </span>
         </div>
       ),
     },
@@ -450,7 +451,7 @@ export const InventoryView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <StatsCard
           title="إجمالي القطع في المخزن"
-          value={`${metrics.totalUnits} قطعة`}
+          value={formatPieceCount(metrics.totalUnits, { zeroText: '0 قطعة' })}
           subtitle={`موزعة على ${metrics.totalProducts} صنف مختلف`}
           icon={Boxes}
         />
@@ -689,7 +690,7 @@ export const InventoryView: React.FC = () => {
             >
               {products.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} [{p.code}] - الرصيد الحالي: {p.stock} قطعة
+                  {p.name} [{p.code}] - الرصيد الحالي: {formatPieceCount(p.stock, { zeroText: '0 قطعة' })}
                 </option>
               ))}
             </Select>
@@ -700,13 +701,13 @@ export const InventoryView: React.FC = () => {
               <div>
                 <span className="text-slate-500 block mb-1 text-xs font-semibold">الرصيد الفعلي الحالي:</span>
                 <span className="text-base font-bold font-mono text-slate-900 tabular-nums">
-                  {selectedProduct.stock} قطعة
+                  {formatPieceCount(selectedProduct.stock, { zeroText: '0 قطعة' })}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block mb-1 text-xs font-semibold">حد تنبيه النواقص:</span>
                 <span className="font-mono text-slate-700 font-bold tabular-nums text-sm">
-                  {selectedProduct.low_stock_threshold} قطعة
+                  {formatPieceCount(selectedProduct.low_stock_threshold, { zeroText: '0 قطعة' })}
                 </span>
               </div>
             </div>
@@ -778,7 +779,7 @@ export const InventoryView: React.FC = () => {
                     : 'text-slate-900'
                 }`}
               >
-                {calculatedNewStock} قطعة
+                {formatPieceCount(calculatedNewStock, { zeroText: '0 قطعة' })}
               </span>
             </div>
           </div>
