@@ -19,17 +19,17 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, children, disabled, ...props }, ref) => {
     return (
       <div className="w-full">
-        {label && <label className="block text-xs font-medium text-slate-700 mb-1.5">{label}</label>}
+        {label && <label className="block text-sm font-semibold text-slate-800 mb-1.5">{label}</label>}
         <div className="relative">
           <select
             ref={ref}
             disabled={disabled}
             className={cn(
-              'w-full h-9 appearance-none px-3 pl-8 pr-3 bg-white border rounded-lg text-sm text-slate-900',
+              'w-full h-10 appearance-none px-3.5 pl-9 pr-3.5 bg-white border rounded-lg text-sm text-slate-900',
               'transition-colors duration-150 cursor-pointer',
-              'focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800',
+              'focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900',
               'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
-              error ? 'border-rose-300 focus:border-rose-600 focus:ring-rose-600' : 'border-slate-200',
+              error ? 'border-rose-400 focus:border-rose-600 focus:ring-rose-600' : 'border-slate-300 hover:border-slate-400',
               className
             )}
             {...props}
@@ -42,14 +42,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 ))
               : children}
           </select>
-          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
-            <ChevronDown className="w-4 h-4" />
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none flex items-center">
+            <ChevronDown className="w-4.5 h-4.5" />
           </div>
         </div>
         {error ? (
-          <p className="mt-1 text-xs text-rose-600 font-normal">{error}</p>
+          <p className="mt-1.5 text-xs text-rose-600 font-semibold">{error}</p>
         ) : helperText ? (
-          <p className="mt-1 text-xs text-slate-500 font-normal">{helperText}</p>
+          <p className="mt-1.5 text-xs text-slate-600 font-normal">{helperText}</p>
         ) : null}
       </div>
     );

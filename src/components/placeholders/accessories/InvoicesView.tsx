@@ -99,9 +99,9 @@ export const InvoicesView: React.FC = () => {
         <button
           type="button"
           onClick={() => handleOpenPreview(inv)}
-          className="font-mono text-xs font-semibold text-slate-900 hover:text-blue-700 hover:underline flex items-center gap-1.5 tabular-nums"
+          className="font-mono text-sm font-bold text-slate-900 hover:text-blue-700 hover:underline flex items-center gap-2 tabular-nums"
         >
-          <Receipt className="w-3.5 h-3.5 text-slate-400" />
+          <Receipt className="w-4 h-4 text-slate-500" />
           <span>{inv.invoice_number}</span>
         </button>
       ),
@@ -110,7 +110,7 @@ export const InvoicesView: React.FC = () => {
       key: 'invoice_date',
       header: 'التاريخ',
       render: (inv: Invoice) => (
-        <span className="font-mono text-slate-600 text-xs tabular-nums">{inv.invoice_date}</span>
+        <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">{inv.invoice_date}</span>
       ),
     },
     {
@@ -118,9 +118,9 @@ export const InvoicesView: React.FC = () => {
       header: 'العميل',
       render: (inv: Invoice) => (
         <div>
-          <p className="font-medium text-slate-900 text-xs">{inv.customer_name || 'عميل نقدي'}</p>
+          <p className="font-bold text-slate-900 text-sm">{inv.customer_name || 'عميل نقدي'}</p>
           {inv.customer_phone && (
-            <p className="font-mono text-[11px] text-slate-400 tabular-nums">{inv.customer_phone}</p>
+            <p className="font-mono text-xs text-slate-500 font-medium tabular-nums mt-0.5">{inv.customer_phone}</p>
           )}
         </div>
       ),
@@ -138,6 +138,7 @@ export const InvoicesView: React.FC = () => {
               : 'default'
           }
           size="sm"
+          className="font-semibold"
         >
           {inv.payment_method}
         </Badge>
@@ -148,21 +149,21 @@ export const InvoicesView: React.FC = () => {
       header: 'الأصناف',
       align: 'center',
       render: (inv: Invoice) => (
-        <span className="text-xs font-medium text-slate-700 tabular-nums">{inv.items_count} أصناف</span>
+        <span className="text-sm font-semibold text-slate-800 tabular-nums">{inv.items_count} أصناف</span>
       ),
     },
     {
       key: 'subtotal',
       header: 'المجموع الفرعي',
       render: (inv: Invoice) => (
-        <span className="font-mono text-xs text-slate-600 tabular-nums">{formatCurrency(inv.subtotal)}</span>
+        <span className="font-mono text-sm font-medium text-slate-700 tabular-nums">{formatCurrency(inv.subtotal)}</span>
       ),
     },
     {
       key: 'discount',
       header: 'الخصم',
       render: (inv: Invoice) => (
-        <span className="font-mono text-xs text-rose-700 tabular-nums">
+        <span className="font-mono text-sm font-semibold text-rose-700 tabular-nums">
           {inv.discount > 0 ? `- ${formatCurrency(inv.discount)}` : '-'}
         </span>
       ),
@@ -171,7 +172,7 @@ export const InvoicesView: React.FC = () => {
       key: 'total_amount',
       header: 'الصافي المسدد',
       render: (inv: Invoice) => (
-        <span className="font-mono font-semibold text-slate-900 text-xs tabular-nums">
+        <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">
           {formatCurrency(inv.total_amount)}
         </span>
       ),
@@ -181,13 +182,13 @@ export const InvoicesView: React.FC = () => {
       header: 'معاينة وطباعة',
       align: 'center',
       render: (inv: Invoice) => (
-        <div className="flex items-center justify-center gap-1.5">
+        <div className="flex items-center justify-center gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={() => handleOpenPreview(inv, 'a4')}
-            leftIcon={<Eye className="w-3.5 h-3.5" />}
-            className="h-7 text-xs px-2"
+            leftIcon={<Eye className="w-4 h-4" />}
+            className="h-8 text-xs font-bold px-2.5 border-slate-300 text-slate-800"
           >
             A4
           </Button>
@@ -195,8 +196,8 @@ export const InvoicesView: React.FC = () => {
             size="sm"
             variant="secondary"
             onClick={() => handleOpenPreview(inv, 'thermal')}
-            leftIcon={<Printer className="w-3.5 h-3.5" />}
-            className="h-7 text-xs px-2"
+            leftIcon={<Printer className="w-4 h-4" />}
+            className="h-8 text-xs font-bold px-2.5"
           >
             إيصال
           </Button>
@@ -242,8 +243,8 @@ export const InvoicesView: React.FC = () => {
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
+      <Card className="p-3.5 border-slate-300">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Query input */}
           <div className="md:col-span-4">
             <Input
@@ -251,7 +252,7 @@ export const InvoicesView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
 
@@ -264,7 +265,7 @@ export const InvoicesView: React.FC = () => {
               isMonospace
               title="من تاريخ"
             />
-            <span className="text-xs text-slate-400">إلى</span>
+            <span className="text-sm font-semibold text-slate-500">إلى</span>
             <Input
               type="date"
               value={endDate}
@@ -295,9 +296,9 @@ export const InvoicesView: React.FC = () => {
               size="md"
               onClick={handleResetFilters}
               title="إعادة تعيين الفلاتر"
-              className="w-full"
+              className="w-full border-slate-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4 text-slate-600" />
             </Button>
           </div>
         </div>
@@ -305,15 +306,15 @@ export const InvoicesView: React.FC = () => {
 
       {/* Invoices Table */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
           <Spinner size="lg" />
-          <p className="text-xs text-slate-500 mt-2.5">جارٍ تحميل سجل الفواتير...</p>
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل سجل الفواتير...</p>
         </div>
       ) : invoices.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-200 space-y-2">
-          <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
-          <p className="text-xs font-medium text-slate-700">لا توجد فواتير مطابقة للبحث</p>
-          <p className="text-[11px] text-slate-400">قم بتغيير خيارات البحث أو قم بإصدار فاتورة جديدة من نقطة البيع</p>
+        <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
+          <Receipt className="w-10 h-10 text-slate-400 mx-auto" />
+          <p className="text-sm font-bold text-slate-800">لا توجد فواتير مطابقة للبحث</p>
+          <p className="text-xs text-slate-500">قم بتغيير خيارات البحث أو قم بإصدار فاتورة جديدة من نقطة البيع</p>
         </div>
       ) : (
         <Table
@@ -333,14 +334,15 @@ export const InvoicesView: React.FC = () => {
           size="xl"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(null)}>
+              <Button variant="outline" size="md" onClick={() => setSelectedInvoice(null)} className="border-slate-300 font-semibold">
                 إغلاق
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => window.print()}
-                leftIcon={<Printer className="w-3.5 h-3.5" />}
+                leftIcon={<Printer className="w-4.5 h-4.5" />}
+                className="font-bold"
               >
                 طباعة الفاتورة الآن
               </Button>
@@ -350,7 +352,7 @@ export const InvoicesView: React.FC = () => {
           {isLoadingItems ? (
             <div className="p-12 flex flex-col items-center justify-center">
               <Spinner size="md" />
-              <p className="text-xs text-slate-500 mt-2">جارٍ جلب تفاصيل أصناف الفاتورة...</p>
+              <p className="text-sm font-medium text-slate-600 mt-2.5">جارٍ جلب تفاصيل أصناف الفاتورة...</p>
             </div>
           ) : (
             <PrintableInvoice

@@ -142,10 +142,10 @@ export const BackupView: React.FC = () => {
       header: 'اسم ملف النسخة',
       render: (item: BackupItem) => (
         <div>
-          <span className="font-mono font-medium text-slate-900 text-xs block truncate max-w-md">
+          <span className="font-mono font-bold text-slate-900 text-sm block truncate max-w-md">
             {item.filename}
           </span>
-          <span className="text-[10px] text-slate-400 font-mono block truncate max-w-md">
+          <span className="text-xs text-slate-500 font-mono font-medium block truncate max-w-md mt-0.5">
             {item.filepath}
           </span>
         </div>
@@ -155,14 +155,14 @@ export const BackupView: React.FC = () => {
       key: 'date',
       header: 'تاريخ الإنشاء',
       render: (item: BackupItem) => (
-        <span className="font-mono text-slate-500 text-xs tabular-nums">{item.date}</span>
+        <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">{item.date}</span>
       ),
     },
     {
       key: 'size_formatted',
       header: 'الحجم',
       render: (item: BackupItem) => (
-        <span className="font-mono text-slate-700 text-xs tabular-nums">
+        <span className="font-mono text-slate-800 text-sm font-semibold tabular-nums">
           {item.size_formatted}
         </span>
       ),
@@ -180,6 +180,7 @@ export const BackupView: React.FC = () => {
               : 'warning'
           }
           size="sm"
+          className="font-semibold"
         >
           {item.backup_type === 'manual'
             ? 'يدوي'
@@ -193,8 +194,8 @@ export const BackupView: React.FC = () => {
       key: 'status',
       header: 'حالة الفحص',
       render: (item: BackupItem) => (
-        <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+        <span className="inline-flex items-center gap-1.5 text-emerald-800 text-xs font-bold">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>{item.status}</span>
         </span>
       ),
@@ -204,12 +205,13 @@ export const BackupView: React.FC = () => {
       header: 'إجراءات',
       align: 'center',
       render: (item: BackupItem) => (
-        <div className="flex items-center justify-center gap-1.5">
+        <div className="flex items-center justify-center gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={() => setSelectedBackupForRestore(item)}
-            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            leftIcon={<RotateCcw className="w-4 h-4" />}
+            className="h-8 text-xs font-bold px-2.5 border-slate-300 text-slate-800"
           >
             استرجاع
           </Button>
@@ -217,7 +219,8 @@ export const BackupView: React.FC = () => {
             size="sm"
             variant="secondary"
             onClick={() => handleExportBackup(item)}
-            leftIcon={<FolderDown className="w-3.5 h-3.5" />}
+            leftIcon={<FolderDown className="w-4 h-4" />}
+            className="h-8 text-xs font-bold px-2.5"
           >
             تصدير
           </Button>
@@ -232,26 +235,27 @@ export const BackupView: React.FC = () => {
         title="النسخ الاحتياطي والاسترجاع"
         subtitle="حماية وأرشفة قاعدة بيانات قسم الإكسسوارات مع ميزات النسخ التلقائي والاسترجاع الآمن"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={() => {
                 setTempConfig(config);
                 setIsSettingsModalOpen(true);
               }}
-              leftIcon={<Settings className="w-4 h-4 text-slate-500" />}
+              leftIcon={<Settings className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
             >
               إعدادات الجدولة
             </Button>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               onClick={handleCreateManualBackup}
               disabled={isCreatingBackup}
               leftIcon={
-                isCreatingBackup ? <Spinner size="sm" /> : <HardDriveDownload className="w-4 h-4" />
-              }
+                isCreatingBackup ? <Spinner size="sm" /> : <HardDriveDownload className="w-4.5 h-4.5" />}
+              className="font-bold"
             >
               {isCreatingBackup ? 'جارٍ النسخ الاحتياطي...' : 'إنشاء نسخة احتياطية فورية'}
             </Button>
@@ -268,48 +272,48 @@ export const BackupView: React.FC = () => {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">النسخ الاحتياطي التلقائي</span>
-            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">النسخ الاحتياطي التلقائي</span>
+            <Clock className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-base font-semibold text-slate-900">
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-lg font-bold text-slate-900">
               {config.autoBackupEnabled ? 'مفعل (يومياً)' : 'معطل'}
             </span>
-            <Badge variant={config.autoBackupEnabled ? 'success' : 'default'} size="sm">
+            <Badge variant={config.autoBackupEnabled ? 'success' : 'default'} size="sm" className="font-semibold">
               {config.autoBackupEnabled ? 'نشط' : 'متوقف'}
             </Badge>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             الاحتفاظ بآخر {config.retentionCount} نسخ تلقائية
           </p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">إجمالي النسخ المتاحة</span>
-            <Database className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">إجمالي النسخ المتاحة</span>
+            <Database className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="text-base font-semibold text-slate-900 font-mono tabular-nums">{backups.length}</span>
-            <span className="text-xs text-slate-500">نسخة محفوظة</span>
+          <div className="mt-2.5 flex items-baseline gap-1.5">
+            <span className="text-lg font-bold text-slate-900 font-mono tabular-nums">{backups.length}</span>
+            <span className="text-xs text-slate-500 font-medium">نسخة محفوظة</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             آخر نسخة:{' '}
             {backups.length > 0 ? backups[0].date.substring(0, 16) : 'لا توجد نسخ سابقة'}
           </p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">تصدير لوحدة خارجية</span>
-            <Usb className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">تصدير لوحدة خارجية</span>
+            <Usb className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="mt-2">
-            <span className="text-xs font-medium text-slate-800">تصدير إلى Flash Drive</span>
+          <div className="mt-2.5">
+            <span className="text-sm font-bold text-slate-800">تصدير إلى Flash Drive</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             انقر على زر "تصدير" بجانب أي نسخة لتنزيلها أو نسخها
           </p>
         </Card>
@@ -318,25 +322,25 @@ export const BackupView: React.FC = () => {
       {/* Backups Table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-slate-900">أرشيف النسخ الاحتياطية المتوفرة</h3>
-          <span className="text-xs text-slate-500 tabular-nums">{backups.length} ملفات جاهزة للاسترجاع</span>
+          <h3 className="text-sm font-bold text-slate-900">أرشيف النسخ الاحتياطية المتوفرة</h3>
+          <span className="text-sm font-semibold text-slate-500 tabular-nums">{backups.length} ملفات جاهزة للاسترجاع</span>
         </div>
 
         {isLoading ? (
-          <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
+          <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
             <Spinner size="lg" />
-            <p className="text-xs text-slate-500 mt-3">جارٍ فحص النسخ الاحتياطية المتاحة...</p>
+            <p className="text-sm font-medium text-slate-600 mt-3">جارٍ فحص النسخ الاحتياطية المتاحة...</p>
           </div>
         ) : backups.length === 0 ? (
-          <div className="p-16 text-center bg-white rounded-xl border border-slate-200/80 space-y-3">
-            <HardDriveUpload className="w-10 h-10 text-slate-300 mx-auto" />
-            <p className="text-sm font-semibold text-slate-800">لا توجد نسخ احتياطية مسجلة</p>
-            <p className="text-xs text-slate-400">
+          <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
+            <HardDriveUpload className="w-10 h-10 text-slate-400 mx-auto" />
+            <p className="text-sm font-bold text-slate-800">لا توجد نسخ احتياطية مسجلة</p>
+            <p className="text-xs text-slate-500">
               قم بإنشاء نسخة احتياطية فورية بالضغط على الزر بالأعلى
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+          <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
             <Table
               columns={columns}
               data={backups}
@@ -358,65 +362,67 @@ export const BackupView: React.FC = () => {
             <div className="flex items-center justify-between w-full">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setSelectedBackupForRestore(null)}
                 disabled={isRestoring}
+                className="border-slate-300 font-semibold"
               >
                 إلغاء التراجع
               </Button>
               <Button
                 variant="danger"
-                size="sm"
+                size="md"
                 onClick={handleExecuteRestore}
                 disabled={isRestoring}
                 leftIcon={
                   isRestoring ? <Spinner size="sm" /> : <RotateCcw className="w-4 h-4" />
                 }
+                className="font-bold"
               >
                 {isRestoring ? 'جارٍ الاسترجاع الآمن...' : 'نعم، استرجع هذه النسخة'}
               </Button>
             </div>
           }
         >
-          <div className="space-y-4 text-xs">
-            <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-lg space-y-1.5 text-amber-900">
-              <div className="flex items-center gap-1.5 font-semibold text-xs text-amber-800">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+          <div className="space-y-4 text-sm">
+            <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-xl space-y-2 text-amber-900">
+              <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                <AlertTriangle className="w-4.5 h-4.5 shrink-0 text-amber-600" />
                 <span>تنبيه هام قبل الاسترجاع</span>
               </div>
-              <p className="text-[11px] leading-relaxed">
+              <p className="text-xs leading-relaxed">
                 استرجاع هذه النسخة سيقوم <strong>باستبدال كامل بيانات قاعدة البيانات الحالية</strong>{' '}
                 بالبيانات المحفوظة في هذا الملف بتاريخ{' '}
-                <span className="font-mono font-medium text-slate-900">
+                <span className="font-mono font-bold text-slate-900">
                   {selectedBackupForRestore.date}
                 </span>
                 .
               </p>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80 space-y-1.5 font-mono text-[11px]">
+            <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-300 space-y-2 font-mono text-xs">
               <div>
-                <span className="text-slate-500 font-sans">ملف النسخة:</span>{' '}
-                <span className="font-medium text-slate-800">{selectedBackupForRestore.filename}</span>
+                <span className="text-slate-500 font-sans font-semibold">ملف النسخة:</span>{' '}
+                <span className="font-bold text-slate-900">{selectedBackupForRestore.filename}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-sans">حجم النسخة:</span>{' '}
-                <span className="tabular-nums">{selectedBackupForRestore.size_formatted}</span>
+                <span className="text-slate-500 font-sans font-semibold">حجم النسخة:</span>{' '}
+                <span className="tabular-nums font-bold text-slate-800">{selectedBackupForRestore.size_formatted}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-sans">فحص السلامة:</span>{' '}
-                <span className="text-emerald-700 font-medium font-sans">
+                <span className="text-slate-500 font-sans font-semibold">فحص السلامة:</span>{' '}
+                <span className="text-emerald-800 font-bold font-sans">
                   {selectedBackupForRestore.status}
                 </span>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-slate-700 text-[11px] space-y-1">
-              <p className="font-semibold text-slate-900 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <div className="p-3.5 bg-slate-50/90 border border-slate-300 rounded-xl text-slate-700 text-xs space-y-1.5">
+              <p className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-600" />
                 <span>إجراء الحماية التلقائي:</span>
               </p>
-              <p className="text-slate-600">
+              <p className="text-slate-600 leading-relaxed">
                 يقوم النظام تلقائياً بإنشاء نسخة حماية كاملة من بياناتك الحالية (Safeguard Backup)
                 قبل الشروع في الاسترجاع لضمان عدم فقدان أي بيانات.
               </p>
@@ -437,27 +443,29 @@ export const BackupView: React.FC = () => {
             <div className="flex items-center justify-between w-full">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setIsSettingsModalOpen(false)}
+                className="border-slate-300 font-semibold"
               >
                 إلغاء
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={handleSaveSettings}
+                className="font-bold"
               >
                 حفظ الإعدادات
               </Button>
             </div>
           }
         >
-          <div className="space-y-4 text-xs">
+          <div className="space-y-4 text-sm">
             {/* Enable toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200/80">
+            <div className="flex items-center justify-between p-3.5 bg-slate-50/90 rounded-xl border border-slate-300">
               <div>
-                <p className="font-medium text-slate-900">تفعيل النسخ الاحتياطي التلقائي</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="font-bold text-slate-900">تفعيل النسخ الاحتياطي التلقائي</p>
+                <p className="text-xs text-slate-500 mt-1">
                   إنشاء نسخة احتياطية بصورة دورية يومية تلقائياً
                 </p>
               </div>
@@ -467,13 +475,13 @@ export const BackupView: React.FC = () => {
                 onChange={e =>
                   setTempConfig({ ...tempConfig, autoBackupEnabled: e.target.checked })
                 }
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                className="w-4.5 h-4.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
             </div>
 
             {/* Retention count */}
-            <div className="space-y-1.5">
-              <label className="font-medium text-slate-700 block">
+            <div className="space-y-2">
+              <label className="font-bold text-slate-700 block text-xs">
                 الحد الأقصى لعدد النسخ المحفوظة:
               </label>
               <select
@@ -484,14 +492,14 @@ export const BackupView: React.FC = () => {
                     retentionCount: parseInt(e.target.value, 10) || 10,
                   })
                 }
-                className="w-full bg-white border border-slate-200/80 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-slate-400"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-800"
               >
                 <option value={5}>الاحتفاظ بآخر 5 نسخ</option>
                 <option value={10}>الاحتفاظ بآخر 10 نسخ (موصى به)</option>
                 <option value={20}>الاحتفاظ بآخر 20 نسخة</option>
                 <option value={30}>الاحتفاظ بآخر 30 نسخة</option>
               </select>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-xs text-slate-500">
                 يقوم النظام بحذف أقدم النسخ التلقائية الزائدة عن هذا الحد تلقائياً لتوفير المساحة.
               </p>
             </div>

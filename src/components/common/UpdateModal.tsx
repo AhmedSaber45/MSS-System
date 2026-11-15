@@ -132,12 +132,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
         </div>
       }
     >
-      <div className="space-y-4 text-xs">
+      <div className="space-y-4 text-sm">
         {/* Status Header Box */}
-        <div className="p-3.5 rounded-lg border border-slate-200/90 bg-slate-50/70 flex items-center justify-between">
+        <div className="p-4 rounded-xl border border-slate-300 bg-slate-50/80 flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-slate-500 font-medium">الإصدار المثبت حالياً:</span>
-            <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-600">الإصدار المثبت حالياً:</span>
+            <div className="text-base font-bold text-slate-900 flex items-center gap-2">
               <span className="font-mono tabular-nums">v{updateInfo.currentVersion}</span>
               {updateInfo.status === 'UP_TO_DATE' && (
                 <Badge variant="success" size="sm">
@@ -146,7 +146,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
               )}
             </div>
             {updateInfo.lastChecked && (
-              <div className="text-[11px] text-slate-400 tabular-nums">
+              <div className="text-xs text-slate-500 tabular-nums font-medium">
                 آخر فحص: {new Date(updateInfo.lastChecked).toLocaleTimeString('ar-EG')}
               </div>
             )}
@@ -161,25 +161,25 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
             )}
             {updateInfo.status === 'AVAILABLE' && (
               <Badge variant="warning" size="md">
-                <ArrowUpCircle className="w-3.5 h-3.5 ml-1 text-amber-700" />
+                <ArrowUpCircle className="w-4 h-4 ml-1 text-amber-800" />
                 إصدار متاح: v{updateInfo.availableVersion}
               </Badge>
             )}
             {updateInfo.status === 'UP_TO_DATE' && (
               <Badge variant="success" size="md">
-                <CheckCircle2 className="w-3.5 h-3.5 ml-1 text-emerald-700" />
+                <CheckCircle2 className="w-4 h-4 ml-1 text-emerald-800" />
                 النظام محدث بالكامل
               </Badge>
             )}
             {updateInfo.status === 'OFFLINE' && (
               <Badge variant="warning" size="md">
-                <WifiOff className="w-3.5 h-3.5 ml-1 text-amber-700" />
+                <WifiOff className="w-4 h-4 ml-1 text-amber-800" />
                 الجهاز غير متصل بالإنترنت
               </Badge>
             )}
             {updateInfo.status === 'ERROR' && (
               <Badge variant="danger" size="md">
-                <AlertTriangle className="w-3.5 h-3.5 ml-1 text-rose-700" />
+                <AlertTriangle className="w-4 h-4 ml-1 text-rose-800" />
                 فشل الفحص
               </Badge>
             )}
@@ -188,27 +188,27 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
 
         {/* Update Available Details */}
         {updateInfo.status === 'AVAILABLE' && (
-          <div className="space-y-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-300 rounded-xl">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-                <ArrowUpCircle className="w-4 h-4 text-slate-700" />
+              <span className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+                <ArrowUpCircle className="w-4.5 h-4.5 text-slate-800" />
                 <span>تفاصيل الإصدار الجديد v{updateInfo.availableVersion}</span>
               </span>
-              <span className="text-slate-500 text-[11px] tabular-nums">
+              <span className="text-slate-600 text-xs tabular-nums font-medium">
                 {updateInfo.releaseDate ? new Date(updateInfo.releaseDate).toLocaleDateString('ar-EG') : ''}
               </span>
             </div>
 
-            <div className="bg-white p-3 rounded-md border border-slate-200/90 text-slate-700 font-sans leading-relaxed text-xs">
+            <div className="bg-white p-3.5 rounded-lg border border-slate-300 text-slate-800 font-sans leading-relaxed text-sm">
               {updateInfo.releaseNotes}
             </div>
 
             {/* Safeguard Notice */}
-            <div className="flex items-start gap-2 text-slate-700 bg-white p-2.5 rounded-md border border-slate-200/90 text-[11px]">
-              <ShieldCheck className="w-4 h-4 text-emerald-700 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2.5 text-slate-700 bg-white p-3 rounded-lg border border-slate-300 text-xs">
+              <ShieldCheck className="w-4.5 h-4.5 text-emerald-700 mt-0.5 shrink-0" />
               <div>
-                <span className="font-medium text-slate-900">أمان البيانات مضمون (القاعدة 22 و 23):</span>{' '}
-                <span>
+                <span className="font-bold text-slate-900">أمان البيانات مضمون (القاعدة 22 و 23):</span>{' '}
+                <span className="leading-relaxed">
                   يقوم النظام تلقائياً بإنشاء نسخة احتياطية من قاعدة بيانات SQLite المحلية قبل بدء التثبيت، مع ضمان عدم مساس التحديث بملفات العمل في AppData.
                 </span>
               </div>
@@ -232,8 +232,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
             </div>
 
             {updateInfo.preUpdateBackupFilename && (
-              <div className="text-[11px] text-slate-600 flex items-center gap-1 pt-1">
-                <Database className="w-3.5 h-3.5 text-slate-500" />
+              <div className="text-xs text-slate-700 flex items-center gap-1.5 pt-1 font-medium">
+                <Database className="w-4 h-4 text-slate-600" />
                 <span>تم تأمين نسخة احتياطية احترازية: {updateInfo.preUpdateBackupFilename}</span>
               </div>
             )}
@@ -241,12 +241,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
         )}
 
         {/* Technical Architecture Info */}
-        <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-100 space-y-1.5 text-[11px] text-slate-500">
-          <div className="font-medium text-slate-700 flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+        <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
+          <div className="font-bold text-slate-800 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-slate-700" />
             <span>معايير أمان التحديثات المعتمدة في النظام:</span>
           </div>
-          <ul className="list-disc list-inside space-y-1 pr-1 leading-relaxed">
+          <ul className="list-disc list-inside space-y-1.5 pr-1 leading-relaxed font-normal">
             <li>كافة حزم التحديثات موقعة رقمياً بتشفير Minisign ولا يتم تثبيت أي ملف غير موقع ومطابق للمفتاح العام.</li>
             <li>المفتاح الخاص للتوقيع محمي بالكامل ومحجوب عن المستودعات العامة.</li>
             <li>يتم توزيع التحديثات عبر GitHub Releases مع التحقق من الاتصال وسلامة الملفات.</li>

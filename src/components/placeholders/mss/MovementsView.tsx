@@ -160,7 +160,7 @@ export const MovementsView: React.FC = () => {
       key: 'serial_number',
       header: 'سيريال الجهاز',
       render: (item: MSSDeviceMovement) => (
-        <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
+        <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
           {item.serial_number}
         </span>
       ),
@@ -169,7 +169,7 @@ export const MovementsView: React.FC = () => {
       key: 'model_name',
       header: 'الموديل',
       render: (item: MSSDeviceMovement) => (
-        <span className="font-medium text-slate-800 text-xs">
+        <span className="font-bold text-slate-900 text-sm">
           {item.brand ? `${item.brand} ` : ''}
           {item.model_name || 'جهاز لابتوب / شاشة'}
         </span>
@@ -179,9 +179,9 @@ export const MovementsView: React.FC = () => {
       key: 'from_location',
       header: 'المحل المصدر',
       render: (item: MSSDeviceMovement) => (
-        <div className="flex items-center gap-1.5">
-          <Store className="w-3.5 h-3.5 text-slate-400" />
-          <Badge variant={item.from_location === 'محل 1' ? 'primary' : 'default'}>
+        <div className="flex items-center gap-2">
+          <Store className="w-4 h-4 text-slate-500" />
+          <Badge variant={item.from_location === 'محل 1' ? 'primary' : 'default'} size="sm" className="font-semibold">
             {item.from_location}
           </Badge>
         </div>
@@ -191,9 +191,9 @@ export const MovementsView: React.FC = () => {
       key: 'to_location',
       header: 'المحل المستلم',
       render: (item: MSSDeviceMovement) => (
-        <div className="flex items-center gap-1.5">
-          <Store className="w-3.5 h-3.5 text-slate-400" />
-          <Badge variant={item.to_location === 'محل 1' ? 'primary' : 'default'}>
+        <div className="flex items-center gap-2">
+          <Store className="w-4 h-4 text-slate-500" />
+          <Badge variant={item.to_location === 'محل 1' ? 'primary' : 'default'} size="sm" className="font-semibold">
             {item.to_location}
           </Badge>
         </div>
@@ -203,7 +203,7 @@ export const MovementsView: React.FC = () => {
       key: 'movement_date',
       header: 'تاريخ النقل',
       render: (item: MSSDeviceMovement) => (
-        <span className="font-mono text-xs text-slate-500 tabular-nums">
+        <span className="font-mono text-sm text-slate-700 font-medium tabular-nums">
           {formatDate(item.movement_date)}
         </span>
       ),
@@ -212,7 +212,7 @@ export const MovementsView: React.FC = () => {
       key: 'notes',
       header: 'البيان والسبب',
       render: (item: MSSDeviceMovement) => (
-        <span className="text-xs text-slate-600">
+        <span className="text-sm text-slate-700">
           {item.notes || 'نقل مادي بين المحلين'}
         </span>
       ),
@@ -221,7 +221,7 @@ export const MovementsView: React.FC = () => {
       key: 'movement_status',
       header: 'الحالة',
       render: (item: MSSDeviceMovement) => (
-        <Badge variant={item.movement_status === 'COMPLETED' ? 'success' : 'warning'}>
+        <Badge variant={item.movement_status === 'COMPLETED' ? 'success' : 'warning'} size="sm" className="font-semibold">
           {item.movement_status === 'COMPLETED' ? 'مكتمل' : item.movement_status}
         </Badge>
       ),
@@ -237,9 +237,10 @@ export const MovementsView: React.FC = () => {
         actions={
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={handleOpenTransfer}
-            leftIcon={<Plus className="w-4 h-4" />}
+            leftIcon={<Plus className="w-4.5 h-4.5" />}
+            className="font-bold"
           >
             إنشاء إذن نقل جهاز
           </Button>
@@ -255,40 +256,40 @@ export const MovementsView: React.FC = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
-          <p className="text-xs text-slate-500 font-medium mb-1">إجمالي أذونات النقل</p>
+        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
+          <p className="text-xs text-slate-600 font-bold mb-1">إجمالي أذونات النقل</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">{movements.length}</span>
-            <History className="w-4 h-4 text-slate-400" />
+            <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{movements.length}</span>
+            <History className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-[11px] text-slate-400">حركة موثقة بالسيريال</span>
+          <span className="text-xs text-slate-500 mt-1 block">حركة موثقة بالسيريال</span>
         </Card>
 
-        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
-          <p className="text-xs text-slate-500 font-medium mb-1">محولة إلى محل 1</p>
+        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
+          <p className="text-xs text-slate-600 font-bold mb-1">محولة إلى محل 1</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">
+            <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">
               {movements.filter(m => m.to_location === 'محل 1').length}
             </span>
-            <Store className="w-4 h-4 text-slate-400" />
+            <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-[11px] text-slate-400">استلمها الفرع الأول</span>
+          <span className="text-xs text-slate-500 mt-1 block">استلمها الفرع الأول</span>
         </Card>
 
-        <Card className="p-4 bg-white border border-slate-200/80 shadow-2xs">
-          <p className="text-xs text-slate-500 font-medium mb-1">محولة إلى محل 2</p>
+        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
+          <p className="text-xs text-slate-600 font-bold mb-1">محولة إلى محل 2</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-lg font-semibold text-slate-900 font-mono tabular-nums">
+            <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">
               {movements.filter(m => m.to_location === 'محل 2').length}
             </span>
-            <Store className="w-4 h-4 text-slate-400" />
+            <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-[11px] text-slate-400">استلمها الفرع الثاني</span>
+          <span className="text-xs text-slate-500 mt-1 block">استلمها الفرع الثاني</span>
         </Card>
       </div>
 
       {/* Filter and Search Bar */}
-      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs space-y-3">
+      <Card className="p-3.5 bg-white border-slate-300 shadow-2xs space-y-3.5">
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="flex-1 w-full">
             <Input
@@ -296,30 +297,31 @@ export const MovementsView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
 
           <Button
             variant="outline"
-            size="sm"
+            size="md"
             onClick={loadData}
             title="تحديث البيانات"
-            leftIcon={<RotateCcw className="w-4 h-4" />}
+            leftIcon={<RotateCcw className="w-4 h-4 text-slate-600" />}
+            className="border-slate-300 font-semibold"
           >
             تحديث
           </Button>
         </div>
 
         {/* Location Filter Pills */}
-        <div className="flex items-center gap-2 pt-2.5 border-t border-slate-100 text-xs">
-          <span className="font-medium text-slate-500">تصفية الفرع:</span>
-          <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+        <div className="flex items-center gap-2.5 pt-3 border-t border-slate-200 text-sm">
+          <span className="font-bold text-slate-700 text-xs">تصفية الفرع:</span>
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
             <button
               onClick={() => setLocationFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 locationFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -327,9 +329,9 @@ export const MovementsView: React.FC = () => {
             </button>
             <button
               onClick={() => setLocationFilter('محل 1')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 locationFilter === 'محل 1'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -337,9 +339,9 @@ export const MovementsView: React.FC = () => {
             </button>
             <button
               onClick={() => setLocationFilter('محل 2')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 locationFilter === 'محل 2'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >

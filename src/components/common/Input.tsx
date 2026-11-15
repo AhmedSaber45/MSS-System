@@ -35,10 +35,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <div className="w-full">
         {label && (
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-medium text-slate-700">{label}</label>
+            <label className="block text-sm font-semibold text-slate-800">{label}</label>
             {scannerReady && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium">
-                <ScanBarcode className="w-3 h-3 text-blue-700" />
+              <span className="inline-flex items-center gap-1.5 text-xs text-blue-900 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded-md font-semibold">
+                <ScanBarcode className="w-3.5 h-3.5 text-blue-700" />
                 جاهز للمسح
               </span>
             )}
@@ -46,7 +46,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none flex items-center">
               {leftIcon}
             </div>
           )}
@@ -55,13 +55,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             value={value}
             disabled={disabled}
             className={cn(
-              'w-full h-9 px-3 bg-white border rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
+              'w-full h-10 px-3.5 bg-white border rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
               'transition-colors duration-150',
-              'focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800',
+              'focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900',
               'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
-              error ? 'border-rose-300 focus:border-rose-600 focus:ring-rose-600' : 'border-slate-200',
-              leftIcon ? 'pr-9' : 'pr-3',
-              rightIcon || onClear ? 'pl-9' : 'pl-3',
+              error ? 'border-rose-400 focus:border-rose-600 focus:ring-rose-600' : 'border-slate-300 hover:border-slate-400',
+              leftIcon ? 'pr-10' : 'pr-3.5',
+              rightIcon || onClear ? 'pl-10' : 'pl-3.5',
               isMonospace && 'font-mono text-left tracking-wide tabular-nums',
               className
             )}
@@ -71,21 +71,21 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={onClear}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 p-1 rounded transition-colors"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
           {rightIcon && !onClear && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none flex items-center">
               {rightIcon}
             </div>
           )}
         </div>
         {error ? (
-          <p className="mt-1 text-xs text-rose-600 font-normal">{error}</p>
+          <p className="mt-1.5 text-xs text-rose-600 font-semibold">{error}</p>
         ) : helperText ? (
-          <p className="mt-1 text-xs text-slate-500 font-normal">{helperText}</p>
+          <p className="mt-1.5 text-xs text-slate-600 font-normal">{helperText}</p>
         ) : null}
       </div>
     );

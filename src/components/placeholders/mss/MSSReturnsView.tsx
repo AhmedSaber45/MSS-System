@@ -155,7 +155,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'return_number',
       header: 'رقم الإرجاع',
       render: (item: MSSReturn) => (
-        <span className="font-mono font-medium text-slate-800 text-xs tabular-nums">
+        <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">
           {item.return_number}
         </span>
       ),
@@ -164,7 +164,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'invoice_number',
       header: 'الفاتورة الأصلية',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-slate-700 font-medium text-xs tabular-nums">
+        <span className="font-mono text-slate-800 font-bold text-sm tabular-nums">
           {item.invoice_number}
         </span>
       ),
@@ -173,7 +173,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'serial_number',
       header: 'سيريال الجهاز',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
+        <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
           {item.serial_number}
         </span>
       ),
@@ -182,7 +182,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'model_name',
       header: 'الموديل',
       render: (item: MSSReturn) => (
-        <span className="font-medium text-slate-800 text-xs">
+        <span className="font-bold text-slate-900 text-sm">
           {item.brand ? `${item.brand} ` : ''}
           {item.model_name || 'جهاز لابتوب / شاشة'}
         </span>
@@ -192,7 +192,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'refund_amount',
       header: 'المبلغ المسترد',
       render: (item: MSSReturn) => (
-        <span className="font-semibold text-rose-600 font-mono text-xs tabular-nums">
+        <span className="font-bold text-rose-700 font-mono text-sm tabular-nums">
           {formatCurrency(item.refund_amount)}
         </span>
       ),
@@ -201,9 +201,9 @@ export const MSSReturnsView: React.FC = () => {
       key: 'restock_location',
       header: 'موقع الجهاز بعد الإرجاع',
       render: (item: MSSReturn) => (
-        <div className="flex items-center gap-1 font-medium text-xs">
-          <Store className="w-3.5 h-3.5 text-slate-400" />
-          <Badge variant={item.restock_location === 'محل 1' ? 'primary' : 'default'}>
+        <div className="flex items-center gap-1.5 font-semibold text-sm">
+          <Store className="w-4 h-4 text-slate-500" />
+          <Badge variant={item.restock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
             {item.restock_location} ({item.new_status === 'AVAILABLE' ? 'متاح للبيع' : 'صيانة'})
           </Badge>
         </div>
@@ -213,7 +213,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'return_reason',
       header: 'سبب الإرجاع',
       render: (item: MSSReturn) => (
-        <span className="text-xs text-slate-600 max-w-xs truncate block" title={item.return_reason}>
+        <span className="text-sm text-slate-700 max-w-xs truncate block" title={item.return_reason}>
           {item.return_reason}
         </span>
       ),
@@ -222,7 +222,7 @@ export const MSSReturnsView: React.FC = () => {
       key: 'return_date',
       header: 'تاريخ الإرجاع',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-xs text-slate-500 tabular-nums">
+        <span className="font-mono text-sm font-medium text-slate-600 tabular-nums">
           {formatDate(item.return_date)}
         </span>
       ),
@@ -230,7 +230,7 @@ export const MSSReturnsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="مرتجعات أجهزة MSS وعكس العمليات"
         subtitle="توثيق استرجاع الأجهزة المباعة وعكس الأرباح وإعادة السيريال إلى المخزون المادي المعتمد"
@@ -244,13 +244,13 @@ export const MSSReturnsView: React.FC = () => {
       />
 
       {/* Return Lookup & Form Card */}
-      <Card className="p-4 bg-white border-slate-200/80 shadow-2xs space-y-3.5">
-        <h4 className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
-          <Search className="w-4 h-4 text-slate-500" />
+      <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
+        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <Search className="w-4.5 h-4.5 text-slate-500" />
           <span>البحث بالسيريال نمبر أو رقم الفاتورة لبدء عملية الإرجاع</span>
         </h4>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <div className="flex-1">
             <Input
               placeholder="امسح بالباركود أو اكتب السيريال نمبر أو رقم الفاتورة (مثال: 5CD9283-HP أو MSS-INV-101)..."
@@ -258,7 +258,7 @@ export const MSSReturnsView: React.FC = () => {
               onChange={e => setQueryInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLookupInvoice()}
               scannerReady
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4.5 h-4.5" />}
             />
           </div>
           <Button
@@ -266,7 +266,8 @@ export const MSSReturnsView: React.FC = () => {
             size="md"
             onClick={handleLookupInvoice}
             disabled={isSearchingInvoice}
-            leftIcon={isSearchingInvoice ? <Spinner size="sm" /> : <Search className="w-4 h-4" />}
+            className="font-bold"
+            leftIcon={isSearchingInvoice ? <Spinner size="sm" /> : <Search className="w-4.5 h-4.5" />}
           >
             استعلام عن الفاتورة
           </Button>
@@ -278,41 +279,41 @@ export const MSSReturnsView: React.FC = () => {
 
         {/* Found Invoice Preview & Return Form */}
         {foundInvoice && (
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 space-y-3.5 animate-in fade-in">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-300 space-y-4 animate-in fade-in">
             {foundInvoice.is_returned ? (
-              <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-lg text-amber-800 text-xs font-medium flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>هذه الفاتورة ({foundInvoice.invoice_number}) تم إرجاعها مسبقاً، ولا يمكن إرجاعها مرة أخرى.</span>
               </div>
             ) : (
-              <form onSubmit={handleSubmitReturn} className="space-y-3.5">
+              <form onSubmit={handleSubmitReturn} className="space-y-4">
                 {/* Invoice Summary */}
-                <div className="p-3 bg-white rounded-lg border border-slate-200/80 text-xs space-y-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="font-semibold text-slate-900 text-xs">
+                <div className="p-4 bg-white rounded-xl border border-slate-300 text-sm space-y-2.5">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <span className="font-bold text-slate-900 text-base">
                       {foundInvoice.brand} {foundInvoice.model_name}
                     </span>
-                    <span className="font-mono text-xs font-semibold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 tabular-nums">
+                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
                       {foundInvoice.serial_number}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-600">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-600">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">رقم الفاتورة:</span>
-                      <strong className="font-mono text-slate-900 tabular-nums">{foundInvoice.invoice_number}</strong>
+                      <span className="text-slate-500 block text-xs font-semibold">رقم الفاتورة:</span>
+                      <strong className="font-mono text-slate-900 text-sm tabular-nums">{foundInvoice.invoice_number}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">تاريخ البيع:</span>
-                      <span className="font-mono tabular-nums">{formatDate(foundInvoice.sale_date)}</span>
+                      <span className="text-slate-500 block text-xs font-semibold">تاريخ البيع:</span>
+                      <span className="font-mono text-slate-800 text-sm tabular-nums">{formatDate(foundInvoice.sale_date)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">فرع البيع:</span>
-                      <strong>{foundInvoice.selling_branch}</strong>
+                      <span className="text-slate-500 block text-xs font-semibold">فرع البيع:</span>
+                      <strong className="text-slate-900 text-sm">{foundInvoice.selling_branch}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">سعر البيع الفعلي:</span>
-                      <strong className="text-slate-900 font-mono tabular-nums">{formatCurrency(foundInvoice.actual_sale_price)}</strong>
+                      <span className="text-slate-500 block text-xs font-semibold">سعر البيع الفعلي:</span>
+                      <strong className="text-slate-900 font-mono text-sm tabular-nums">{formatCurrency(foundInvoice.actual_sale_price)}</strong>
                     </div>
                   </div>
                 </div>
@@ -329,7 +330,7 @@ export const MSSReturnsView: React.FC = () => {
                   />
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                       المحل المستلم للجهاز المرتجع <span className="text-rose-500">*</span>
                     </label>
                     <Select
@@ -343,7 +344,7 @@ export const MSSReturnsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                       حالة الجهاز بعد الإرجاع <span className="text-rose-500">*</span>
                     </label>
                     <Select
@@ -373,10 +374,10 @@ export const MSSReturnsView: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-3 pt-2">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="md"
                     onClick={() => setFoundInvoice(null)}
                     disabled={isSubmitting}
                   >
@@ -387,7 +388,8 @@ export const MSSReturnsView: React.FC = () => {
                     size="md"
                     onClick={handleSubmitReturn}
                     disabled={isSubmitting}
-                    leftIcon={isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-4 h-4" />}
+                    className="font-bold"
+                    leftIcon={isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-4.5 h-4.5" />}
                   >
                     {isSubmitting ? 'جاري توثيق الإرجاع...' : `تأكيد إرجاع الجهاز (${formatCurrency(refundAmount)})`}
                   </Button>
@@ -399,35 +401,35 @@ export const MSSReturnsView: React.FC = () => {
       </Card>
 
       {/* Completed Returns Table */}
-      <Card className="p-4 bg-white border-slate-200/80 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <History className="w-4 h-4 text-slate-500" />
-            <h4 className="text-xs font-semibold text-slate-900">سجل عمليات الإرجاع السابقة</h4>
+      <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <History className="w-5 h-5 text-slate-600" />
+            <h4 className="text-sm font-bold text-slate-900">سجل عمليات الإرجاع السابقة</h4>
           </div>
 
-          <div className="w-72">
+          <div className="w-full sm:w-80">
             <Input
               placeholder="ابحث برقم الإرجاع، السيريال، أو الفاتورة..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
+              leftIcon={<Search className="w-4 h-4" />}
             />
           </div>
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-xs text-slate-500">
-            <Spinner size="sm" className="mx-auto mb-2" />
+          <div className="p-12 text-center text-sm font-medium text-slate-600">
+            <Spinner size="lg" className="mx-auto mb-3" />
             جاري تحميل سجلات الإرجاع...
           </div>
         ) : filteredReturns.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-12 text-center text-sm text-slate-500 bg-slate-50 rounded-xl border border-slate-300">
             لا توجد عمليات إرجاع مسجلة حتى الآن.
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+          <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
             <Table
               columns={columns}
               data={filteredReturns}

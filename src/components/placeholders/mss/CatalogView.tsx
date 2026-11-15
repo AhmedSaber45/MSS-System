@@ -242,9 +242,10 @@ export const CatalogView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               onClick={handleOpenAddModal}
-              leftIcon={<Plus className="w-4 h-4" />}
+              leftIcon={<Plus className="w-4.5 h-4.5" />}
+              className="font-bold"
             >
               إضافة موديل جديد
             </Button>
@@ -254,52 +255,52 @@ export const CatalogView: React.FC = () => {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">إجمالي الموديلات</span>
-            <Layers className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">إجمالي الموديلات</span>
+            <Layers className="w-5 h-5 text-slate-500" />
           </div>
-          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.totalCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">موديل مسجل بالكتالوج</p>
+          <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.totalCount}</p>
+          <p className="text-xs text-slate-500 mt-1">موديل مسجل بالكتالوج</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">موديلات اللابتوب</span>
-            <Laptop className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">موديلات اللابتوب</span>
+            <Laptop className="w-5 h-5 text-slate-500" />
           </div>
-          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.laptops}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">موديلات أجهزة محمولة</p>
+          <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.laptops}</p>
+          <p className="text-xs text-slate-500 mt-1">موديلات أجهزة محمولة</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">موديلات الشاشات</span>
-            <Monitor className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">موديلات الشاشات</span>
+            <Monitor className="w-5 h-5 text-slate-500" />
           </div>
-          <p className="text-lg font-semibold text-slate-900 font-mono tabular-nums mt-2">{stats.monitors}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">شاشات عرض احترافية</p>
+          <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.monitors}</p>
+          <p className="text-xs text-slate-500 mt-1">شاشات عرض احترافية</p>
         </Card>
 
-        <Card className="p-4 bg-white border-slate-200/80 shadow-2xs">
+        <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">الأجهزة المتاحة بالمحلين</span>
-            <Store className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-600">الأجهزة المتاحة بالمحلين</span>
+            <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xs font-mono tabular-nums font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-xs font-mono tabular-nums font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300">
               محل 1: {stats.totalAvailShop1}
             </span>
-            <span className="text-xs font-mono tabular-nums font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
+            <span className="text-xs font-mono tabular-nums font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300">
               محل 2: {stats.totalAvailShop2}
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">جاهزة للبيع فوراً</p>
+          <p className="text-xs text-slate-500 mt-1">جاهزة للبيع فوراً</p>
         </Card>
       </div>
 
       {/* Filter & Search Toolbar */}
-      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs">
+      <Card className="p-3.5 bg-white border-slate-300 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search Input */}
           <div className="w-full md:w-96">
@@ -308,21 +309,20 @@ export const CatalogView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-              className="text-xs"
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
 
           {/* Category Filter Segmented Control */}
-          <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80 text-xs">
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 text-sm gap-1">
             {CATEGORIES.map(c => (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap ${
                   selectedCategory === c.id
-                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -332,26 +332,26 @@ export const CatalogView: React.FC = () => {
           </div>
 
           {/* View Toggle */}
-          <div className="inline-flex rounded-lg border border-slate-200/80 bg-slate-100 p-0.5">
+          <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1 gap-1">
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="عرض كجدول"
             >
-              <List className="w-4 h-4" />
+              <List className="w-4.5 h-4.5" />
             </button>
             <button
               type="button"
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="عرض كبطاقات"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
@@ -359,35 +359,35 @@ export const CatalogView: React.FC = () => {
 
       {/* Models Listing */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
           <Spinner size="lg" />
-          <p className="text-xs text-slate-500 mt-3">جارٍ تحميل كتالوج الموديلات السحابي...</p>
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل كتالوج الموديلات السحابي...</p>
         </div>
       ) : models.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-200/80 space-y-3">
-          <Layers className="w-10 h-10 text-slate-300 mx-auto" />
-          <p className="text-sm font-semibold text-slate-800">لا توجد موديلات مطابقة في الكتالوج</p>
-          <p className="text-xs text-slate-400">
+        <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
+          <Layers className="w-10 h-10 text-slate-400 mx-auto" />
+          <p className="text-sm font-bold text-slate-800">لا توجد موديلات مطابقة في الكتالوج</p>
+          <p className="text-xs text-slate-500">
             يمكنك إضافة موديل لابتوب أو شاشة جديد بالضغط على زر الإضافة أعلاه
           </p>
         </div>
       ) : viewMode === 'table' ? (
         /* ==================== TABLE VIEW ==================== */
-        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-right">
-              <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+            <table className="w-full text-sm text-right">
+              <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                 <tr>
-                  <th className="py-2.5 px-3">الماركة والموديل</th>
-                  <th className="py-2.5 px-3">النوع</th>
-                  <th className="py-2.5 px-3">المعالج والرام</th>
-                  <th className="py-2.5 px-3">الهارد والشاشة</th>
-                  <th className="py-2.5 px-3 text-left">السعر الاسترشادي</th>
-                  <th className="py-2.5 px-3 text-center">الرصيد الفعلي (محل 1 / محل 2)</th>
-                  <th className="py-2.5 px-3 text-center w-24">إجراءات</th>
+                  <th className="py-3 px-3.5">الماركة والموديل</th>
+                  <th className="py-3 px-3.5">النوع</th>
+                  <th className="py-3 px-3.5">المعالج والرام</th>
+                  <th className="py-3 px-3.5">الهارد والشاشة</th>
+                  <th className="py-3 px-3.5 text-left">السعر الاسترشادي</th>
+                  <th className="py-3 px-3.5 text-center">الرصيد الفعلي (محل 1 / محل 2)</th>
+                  <th className="py-3 px-3.5 text-center w-24">إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {models.map(m => {
                   const avail = availability[m.id] || {
                     available_shop1: 0,
@@ -397,84 +397,84 @@ export const CatalogView: React.FC = () => {
 
                   return (
                     <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <td className="py-3 px-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                             {m.brand}
                           </span>
-                          <span className="font-medium text-slate-900 text-xs">{m.model_name}</span>
+                          <span className="font-bold text-slate-900 text-sm">{m.model_name}</span>
                         </div>
                         {m.specifications && (
-                          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1 max-w-xs">
+                          <p className="text-xs text-slate-500 mt-1 line-clamp-1 max-w-xs">
                             {m.specifications}
                           </p>
                         )}
                       </td>
 
-                      <td className="py-2.5 px-3">
-                        <Badge variant="default" size="sm">
+                      <td className="py-3 px-3.5">
+                        <Badge variant="default" size="sm" className="font-semibold">
                           {m.category}
                         </Badge>
                       </td>
 
-                      <td className="py-2.5 px-3">
+                      <td className="py-3 px-3.5">
                         <div className="space-y-0.5">
                           {m.processor && m.processor !== '-' && (
-                            <p className="font-mono text-slate-800 text-[11px]">{m.processor}</p>
+                            <p className="font-mono font-semibold text-slate-900 text-xs">{m.processor}</p>
                           )}
                           {m.ram && m.ram !== '-' && (
-                            <p className="font-mono text-slate-500 text-[10px]">{m.ram}</p>
+                            <p className="font-mono text-slate-600 text-xs">{m.ram}</p>
                           )}
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-3">
+                      <td className="py-3 px-3.5">
                         <div className="space-y-0.5">
                           {m.storage && m.storage !== '-' && (
-                            <p className="font-mono text-slate-800 text-[11px]">{m.storage}</p>
+                            <p className="font-mono font-semibold text-slate-900 text-xs">{m.storage}</p>
                           )}
                           {m.screen_size && m.screen_size !== '-' && (
-                            <p className="text-slate-500 text-[10px]">{m.screen_size}</p>
+                            <p className="text-slate-600 text-xs font-medium">{m.screen_size}</p>
                           )}
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-3 text-left font-mono font-semibold text-slate-900 text-xs tabular-nums">
+                      <td className="py-3 px-3.5 text-left font-mono font-bold text-slate-900 text-sm tabular-nums">
                         {formatCurrency(m.default_list_price)}
                       </td>
 
                       {/* Separate shop availability display */}
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="inline-flex items-center gap-1.5 font-medium text-[11px] font-mono tabular-nums">
-                          <span className="px-2 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
+                      <td className="py-3 px-3.5 text-center">
+                        <div className="inline-flex items-center gap-1.5 font-bold text-xs font-mono tabular-nums">
+                          <span className="px-2.5 py-1 rounded border bg-slate-100 text-slate-800 border-slate-300">
                             محل 1: {avail.available_shop1}
                           </span>
-                          <span className="px-2 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
+                          <span className="px-2.5 py-1 rounded border bg-slate-100 text-slate-800 border-slate-300">
                             محل 2: {avail.available_shop2}
                           </span>
-                          <span className="text-slate-400 text-[10px]">
+                          <span className="text-slate-500 text-xs font-semibold">
                             (إجمالي {avail.total_available})
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
+                      <td className="py-3 px-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(m)}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
                             title="تعديل الموديل والسعر"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => setModelToDelete(m)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors"
                             title="حذف من الكتالوج"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -496,81 +496,81 @@ export const CatalogView: React.FC = () => {
             };
 
             return (
-              <Card key={m.id} className="bg-white border-slate-200/80 shadow-2xs p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <Card key={m.id} className="bg-white border-slate-300 shadow-2xs p-4 space-y-3.5">
+                <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                         {m.brand}
                       </span>
-                      <Badge variant="default" size="sm">
+                      <Badge variant="default" size="sm" className="font-semibold">
                         {m.category}
                       </Badge>
                     </div>
-                    <h4 className="font-medium text-slate-900 text-xs">{m.model_name}</h4>
+                    <h4 className="font-bold text-slate-900 text-sm">{m.model_name}</h4>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(m)}
-                      className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-slate-900 rounded-md transition-colors"
                     >
-                      <Edit className="w-3.5 h-3.5" />
+                      <Edit className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setModelToDelete(m)}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-rose-700 rounded-md transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
                 {/* Specs Box */}
-                <div className="space-y-1.5 text-xs">
+                <div className="space-y-2 text-sm">
                   {m.processor && m.processor !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Cpu className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono text-[11px] truncate">{m.processor}</span>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Cpu className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="font-mono font-semibold text-xs truncate">{m.processor}</span>
                     </div>
                   )}
                   {m.ram && m.ram !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono text-[11px]">{m.ram}</span>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Layers className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="font-mono text-xs font-medium">{m.ram}</span>
                       {m.storage && m.storage !== '-' && (
-                        <span className="font-mono text-slate-400 text-[11px]">| {m.storage}</span>
+                        <span className="font-mono text-slate-500 text-xs">| {m.storage}</span>
                       )}
                     </div>
                   )}
                   {m.screen_size && m.screen_size !== '-' && (
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Tv className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-[11px]">{m.screen_size}</span>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Tv className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="text-xs font-medium">{m.screen_size}</span>
                     </div>
                   )}
                   {m.specifications && (
-                    <p className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 line-clamp-2">
+                    <p className="text-xs text-slate-500 pt-1.5 border-t border-slate-200 line-clamp-2">
                       {m.specifications}
                     </p>
                   )}
                 </div>
 
                 {/* Availability and Price footer */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 block mb-0.5">السعر الاسترشادي:</span>
-                    <span className="font-mono font-semibold text-slate-900 text-xs tabular-nums">
+                    <span className="text-xs text-slate-500 block mb-0.5 font-semibold">السعر الاسترشادي:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">
                       {formatCurrency(m.default_list_price)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-[11px] font-mono tabular-nums">
-                    <span className="px-1.5 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold tabular-nums">
+                    <span className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300">
                       م1: {avail.available_shop1}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded border bg-slate-50 text-slate-700 border-slate-200/80">
+                    <span className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300">
                       م2: {avail.available_shop2}
                     </span>
                   </div>
@@ -593,28 +593,30 @@ export const CatalogView: React.FC = () => {
             <div className="flex items-center justify-between w-full">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setIsModalOpen(false)}
                 disabled={isSubmitting}
+                className="border-slate-300 font-semibold"
               >
                 إلغاء
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={handleSubmitModel}
                 disabled={isSubmitting}
-                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
+                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4.5 h-4.5" />}
+                className="font-bold"
               >
                 {isSubmitting ? 'جارٍ الحفظ...' : editingModel ? 'حفظ التعديلات' : 'إضافة الموديل للكتالوج'}
               </Button>
             </div>
           }
         >
-          <form onSubmit={handleSubmitModel} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmitModel} className="space-y-4 text-sm">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="font-medium text-slate-700 block mb-1">
+                <label className="font-bold text-slate-700 block mb-1 text-xs">
                   الماركة (Brand) <span className="text-rose-500">*</span>
                 </label>
                 <Input
@@ -626,7 +628,7 @@ export const CatalogView: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-medium text-slate-700 block mb-1">
+                <label className="font-bold text-slate-700 block mb-1 text-xs">
                   اسم الموديل (Model Name) <span className="text-rose-500">*</span>
                 </label>
                 <Input
@@ -638,7 +640,7 @@ export const CatalogView: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-medium text-slate-700 block mb-1">النوع</label>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">النوع</label>
                 <Select
                   value={category}
                   onChange={e => setCategory(e.target.value as MSSCategory)}
@@ -652,39 +654,39 @@ export const CatalogView: React.FC = () => {
             </div>
 
             {/* Hardware Specs Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
               <div>
-                <label className="font-medium text-slate-700 block mb-1">المعالج (CPU)</label>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">المعالج (CPU)</label>
                 <Input
                   placeholder="مثال: Intel Core i5-8350U, i7-1185G7..."
                   value={processor}
                   onChange={e => setProcessor(e.target.value)}
-                  className="font-mono text-xs"
+                  className="font-mono text-sm"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-700 block mb-1">الذاكرة العشوائية (RAM)</label>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">الذاكرة العشوائية (RAM)</label>
                 <Input
                   placeholder="مثال: 16 GB DDR4, 32 GB..."
                   value={ram}
                   onChange={e => setRam(e.target.value)}
-                  className="font-mono text-xs"
+                  className="font-mono text-sm"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-700 block mb-1">سعة التخزين (Storage)</label>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">سعة التخزين (Storage)</label>
                 <Input
                   placeholder="مثال: 512 GB NVMe SSD, 1 TB..."
                   value={storage}
                   onChange={e => setStorage(e.target.value)}
-                  className="font-mono text-xs"
+                  className="font-mono text-sm"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-700 block mb-1">حجم ومواصفات الشاشة</label>
+                <label className="font-bold text-slate-700 block mb-1 text-xs">حجم ومواصفات الشاشة</label>
                 <Input
                   placeholder='مثال: 14" FHD IPS, 24" 144Hz...'
                   value={screenSize}
@@ -694,9 +696,9 @@ export const CatalogView: React.FC = () => {
             </div>
 
             {/* Price and Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-200/80">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
               <div>
-                <label className="font-medium text-slate-700 block mb-1">
+                <label className="font-bold text-slate-700 block mb-1 text-xs">
                   السعر الاسترشادي المشترك
                 </label>
                 <Input
@@ -705,14 +707,14 @@ export const CatalogView: React.FC = () => {
                   step="50"
                   value={defaultListPrice}
                   onChange={e => setDefaultListPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="font-mono font-medium"
+                  className="font-mono font-bold"
                   required
                 />
-                <p className="text-[10px] text-slate-400 mt-1">سعر العرض المعتمد بين المحلين</p>
+                <p className="text-xs text-slate-500 mt-1">سعر العرض المعتمد بين المحلين</p>
               </div>
 
               <div className="md:col-span-2">
-                <label className="font-medium text-slate-700 block mb-1">
+                <label className="font-bold text-slate-700 block mb-1 text-xs">
                   مواصفات وتجهيزات إضافية
                 </label>
                 <Input
@@ -736,24 +738,25 @@ export const CatalogView: React.FC = () => {
           size="sm"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button variant="outline" size="sm" onClick={() => setModelToDelete(null)}>
+              <Button variant="outline" size="md" onClick={() => setModelToDelete(null)} className="border-slate-300 font-semibold">
                 إلغاء
               </Button>
               <Button
                 variant="danger"
-                size="sm"
+                size="md"
                 onClick={handleConfirmDelete}
+                className="font-bold"
               >
                 تأكيد الحذف
               </Button>
             </div>
           }
         >
-          <div className="text-xs space-y-2">
-            <p className="text-slate-700">
+          <div className="text-sm space-y-2">
+            <p className="text-slate-800">
               سيتم حذف الموديل <strong>{modelToDelete.brand} {modelToDelete.model_name}</strong> من الكتالوج.
             </p>
-            <p className="text-slate-500 text-[11px]">
+            <p className="text-slate-500 text-xs">
               ملاحظة: تمنع قاعدة البيانات حذف أي موديل إذا كان مسجلاً له أجهزة فعلية في المخزن لحماية سلامة البيانات.
             </p>
           </div>

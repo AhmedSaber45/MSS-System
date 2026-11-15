@@ -243,7 +243,7 @@ export const ReturnsView: React.FC = () => {
       key: 'return_number',
       header: 'رقم المرتجع',
       render: (r: ReturnRecord) => (
-        <span className="font-mono text-xs font-medium text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/70 tabular-nums">
+        <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
           {r.return_number}
         </span>
       ),
@@ -252,8 +252,8 @@ export const ReturnsView: React.FC = () => {
       key: 'invoice_number',
       header: 'الفاتورة الأصلية',
       render: (r: ReturnRecord) => (
-        <span className="font-mono text-xs font-medium text-slate-900 tabular-nums flex items-center gap-1">
-          <Receipt className="w-3.5 h-3.5 text-slate-400" />
+        <span className="font-mono text-sm font-bold text-slate-900 tabular-nums flex items-center gap-1.5">
+          <Receipt className="w-4 h-4 text-slate-500" />
           <span>{r.invoice_number}</span>
         </span>
       ),
@@ -262,14 +262,14 @@ export const ReturnsView: React.FC = () => {
       key: 'return_date',
       header: 'تاريخ الإرجاع',
       render: (r: ReturnRecord) => (
-        <span className="font-mono text-slate-600 text-xs tabular-nums">{r.return_date}</span>
+        <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">{r.return_date}</span>
       ),
     },
     {
       key: 'refund_amount',
       header: 'المبلغ المسترد',
       render: (r: ReturnRecord) => (
-        <span className="font-mono font-semibold text-rose-700 text-xs tabular-nums">
+        <span className="font-mono font-bold text-rose-700 text-sm tabular-nums">
           {formatCurrency(r.refund_amount)}
         </span>
       ),
@@ -278,7 +278,7 @@ export const ReturnsView: React.FC = () => {
       key: 'refund_method',
       header: 'طريقة الرد',
       render: (r: ReturnRecord) => (
-        <Badge variant="default" size="sm">
+        <Badge variant="default" size="sm" className="font-semibold">
           {r.refund_method}
         </Badge>
       ),
@@ -287,7 +287,7 @@ export const ReturnsView: React.FC = () => {
       key: 'reason',
       header: 'سبب الإرجاع',
       render: (r: ReturnRecord) => (
-        <span className="text-xs text-slate-700 truncate max-w-xs block">{r.reason}</span>
+        <span className="text-sm font-medium text-slate-800 truncate max-w-xs block">{r.reason}</span>
       ),
     },
     {
@@ -299,8 +299,8 @@ export const ReturnsView: React.FC = () => {
           size="sm"
           variant="outline"
           onClick={() => handleOpenReturnModal(r)}
-          leftIcon={<Eye className="w-3.5 h-3.5" />}
-          className="h-7 text-xs px-2"
+          leftIcon={<Eye className="w-4 h-4" />}
+          className="h-8 text-xs font-bold px-3 border-slate-300 text-slate-800"
         >
           تفاصيل
         </Button>
@@ -323,9 +323,9 @@ export const ReturnsView: React.FC = () => {
       />
 
       {/* Invoice Lookup & Process Return Card */}
-      <Card className="p-3.5 space-y-3.5">
+      <Card className="p-4 border-slate-300 space-y-3.5">
         <div>
-          <h3 className="text-xs font-semibold text-slate-900 mb-0.5">
+          <h3 className="text-sm font-bold text-slate-900 mb-0.5">
             بدء حركة إرجاع: البحث برقم الفاتورة الأصلية
           </h3>
           <p className="text-xs text-slate-500">
@@ -333,22 +333,24 @@ export const ReturnsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           <div className="flex-1">
             <Input
               placeholder="اكتب رقم الفاتورة أو جزء منه..."
               value={invoiceSearchQuery}
               onChange={e => setInvoiceSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearchInvoice()}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
               isMonospace
             />
           </div>
           <Button
             variant="primary"
+            size="md"
             onClick={handleSearchInvoice}
             disabled={isSearchingInvoice || !invoiceSearchQuery.trim()}
-            leftIcon={isSearchingInvoice ? <Spinner size="sm" /> : <Search className="w-3.5 h-3.5" />}
+            leftIcon={isSearchingInvoice ? <Spinner size="sm" /> : <Search className="w-4.5 h-4.5" />}
+            className="font-bold"
           >
             بحث عن الفاتورة
           </Button>
@@ -356,33 +358,33 @@ export const ReturnsView: React.FC = () => {
 
         {/* Found Invoice Return Processing Box */}
         {foundInvoice && (
-          <div className="mt-3.5 pt-3.5 border-t border-slate-200/90 space-y-3.5 bg-slate-50/70 p-3.5 rounded-lg border">
+          <div className="mt-4 pt-4 border-t border-slate-200 space-y-4 bg-slate-50/90 p-4 rounded-xl border border-slate-300">
             {/* Invoice Meta Summary */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white p-3 rounded-md border border-slate-200 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-300 text-sm">
               <div>
-                <span className="text-slate-500 block">رقم الفاتورة:</span>
-                <span className="font-mono font-medium text-slate-900 text-xs tabular-nums">
+                <span className="text-slate-500 block text-xs font-semibold mb-0.5">رقم الفاتورة:</span>
+                <span className="font-mono font-bold text-slate-900 tabular-nums">
                   {foundInvoice.invoice_number}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">تاريخ الفاتورة:</span>
-                <span className="font-mono text-slate-800 tabular-nums">{foundInvoice.invoice_date}</span>
+                <span className="text-slate-500 block text-xs font-semibold mb-0.5">تاريخ الفاتورة:</span>
+                <span className="font-mono text-slate-800 font-semibold tabular-nums">{foundInvoice.invoice_date}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">العميل:</span>
-                <span className="font-medium text-slate-800">
+                <span className="text-slate-500 block text-xs font-semibold mb-0.5">العميل:</span>
+                <span className="font-bold text-slate-900">
                   {foundInvoice.customer_name || 'عميل نقدي'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">إجمالي الفاتورة:</span>
-                <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                <span className="text-slate-500 block text-xs font-semibold mb-0.5">إجمالي الفاتورة:</span>
+                <span className="font-mono font-bold text-slate-900 tabular-nums">
                   {formatCurrency(foundInvoice.total_amount)}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">حالة الفاتورة:</span>
+                <span className="text-slate-500 block text-xs font-semibold mb-0.5">حالة الفاتورة:</span>
                 <Badge
                   variant={
                     foundInvoice.status === 'COMPLETED'
@@ -392,6 +394,7 @@ export const ReturnsView: React.FC = () => {
                       : 'danger'
                   }
                   size="sm"
+                  className="font-semibold"
                 >
                   {foundInvoice.status === 'COMPLETED'
                     ? 'مكتملة بالكامل'
@@ -404,23 +407,23 @@ export const ReturnsView: React.FC = () => {
 
             {/* Line Items to Return */}
             <div>
-              <h4 className="text-xs font-semibold text-slate-800 mb-1.5">
+              <h4 className="text-sm font-bold text-slate-900 mb-2">
                 حدد الأصناف والكميات المراد استرجاعها وحالتها المخزنية:
               </h4>
 
-              <div className="border border-slate-200 rounded-md overflow-hidden bg-white">
-                <table className="w-full text-xs text-right">
-                  <thead className="bg-slate-50 font-medium text-slate-600 border-b border-slate-200 select-none">
+              <div className="border border-slate-300 rounded-xl overflow-hidden bg-white">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-300 select-none">
                     <tr>
-                      <th className="py-2 px-3">الصنف</th>
-                      <th className="py-2 px-3 text-center">الكمية المباعة</th>
-                      <th className="py-2 px-3 text-center">سعر البيع الفعلي</th>
-                      <th className="py-2 px-3 text-center w-32">الكمية المرتجعة</th>
-                      <th className="py-2 px-3 text-center w-36">الحالة المخزنية</th>
-                      <th className="py-2 px-3 text-left w-28">المسترد</th>
+                      <th className="py-2.5 px-3.5">الصنف</th>
+                      <th className="py-2.5 px-3.5 text-center">الكمية المباعة</th>
+                      <th className="py-2.5 px-3.5 text-center">سعر البيع الفعلي</th>
+                      <th className="py-2.5 px-3.5 text-center w-36">الكمية المرتجعة</th>
+                      <th className="py-2.5 px-3.5 text-center w-44">الحالة المخزنية</th>
+                      <th className="py-2.5 px-3.5 text-left w-32">المسترد</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-200">
                     {invoiceItems.map(item => {
                       const state = selectedReturnItems.get(item.product_id) || {
                         qty: 0,
@@ -431,22 +434,22 @@ export const ReturnsView: React.FC = () => {
                       return (
                         <tr
                           key={item.id}
-                          className={state.qty > 0 ? 'bg-rose-50/40' : 'hover:bg-slate-50/60'}
+                          className={state.qty > 0 ? 'bg-rose-50/60' : 'hover:bg-slate-50/80'}
                         >
-                          <td className="py-2 px-3">
-                            <p className="font-medium text-slate-900">{item.product_name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono tabular-nums">
+                          <td className="py-2.5 px-3.5">
+                            <p className="font-bold text-slate-900">{item.product_name}</p>
+                            <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">
                               {item.product_code}
                             </p>
                           </td>
-                          <td className="py-2 px-3 text-center font-medium font-mono text-slate-700 tabular-nums">
+                          <td className="py-2.5 px-3.5 text-center font-bold font-mono text-slate-800 tabular-nums">
                             {item.quantity}
                           </td>
-                          <td className="py-2 px-3 text-center font-mono tabular-nums">
+                          <td className="py-2.5 px-3.5 text-center font-mono font-semibold tabular-nums">
                             {formatCurrency(item.actual_price)}
                           </td>
-                          <td className="py-2 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
+                          <td className="py-2.5 px-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
                               <input
                                 type="number"
                                 min="0"
@@ -457,12 +460,12 @@ export const ReturnsView: React.FC = () => {
                                   const clamped = Math.max(0, Math.min(item.quantity, val));
                                   handleItemReturnChange(item.product_id, { qty: clamped });
                                 }}
-                                className="w-14 text-center font-medium text-xs py-1 border border-slate-200 rounded focus:border-slate-800 focus:outline-none font-mono tabular-nums"
+                                className="w-16 text-center font-bold text-sm py-1 border border-slate-300 rounded-lg focus:border-slate-800 focus:outline-none font-mono tabular-nums"
                               />
-                              <span className="text-[10px] text-slate-400 tabular-nums">/ {item.quantity}</span>
+                              <span className="text-xs font-semibold text-slate-500 tabular-nums">/ {item.quantity}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-2.5 px-3.5 text-center">
                             <select
                               value={state.condition}
                               disabled={state.qty === 0}
@@ -471,13 +474,13 @@ export const ReturnsView: React.FC = () => {
                                   condition: e.target.value as 'RESTOCKED' | 'DAMAGED',
                                 })
                               }
-                              className="text-xs py-1 px-1.5 border border-slate-200 rounded bg-white text-slate-700 focus:outline-none disabled:opacity-40"
+                              className="text-xs font-semibold py-1.5 px-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none disabled:opacity-40"
                             >
                               <option value="RESTOCKED">سليم ويُعاد للمخزن</option>
                               <option value="DAMAGED">تالف ولا يُعاد للمخزن</option>
                             </select>
                           </td>
-                          <td className="py-2 px-3 text-left font-mono font-medium text-rose-700 tabular-nums">
+                          <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
                             {state.qty > 0 ? formatCurrency(state.qty * state.refundPrice) : '-'}
                           </td>
                         </tr>
@@ -489,7 +492,7 @@ export const ReturnsView: React.FC = () => {
             </div>
 
             {/* Return Reason, Refund Method & Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-2">
                 <Input
                   label="سبب الإرجاع * (إلزامي للرقابة المالية):"
@@ -514,34 +517,36 @@ export const ReturnsView: React.FC = () => {
             </div>
 
             {/* Actions & Summary Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-200">
-              <div className="flex items-center gap-2.5 text-xs">
-                <span className="text-slate-600">إجمالي المبلغ المسترد:</span>
-                <span className="font-mono font-semibold text-rose-700 text-sm tabular-nums">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-300">
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="text-slate-700 font-medium">إجمالي المبلغ المسترد:</span>
+                <span className="font-mono font-bold text-rose-700 text-base tabular-nums">
                   {formatCurrency(totalCalculatedRefund)}
                 </span>
-                <span className="text-slate-400 tabular-nums">({activeReturnCount} أصناف محددة)</span>
+                <span className="text-slate-500 font-semibold tabular-nums">({activeReturnCount} أصناف محددة)</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="md"
                   onClick={() => {
                     setFoundInvoice(null);
                     setInvoiceItems([]);
                   }}
+                  className="border-slate-300 font-semibold"
                 >
                   إلغاء
                 </Button>
                 <Button
                   variant="danger"
-                  size="sm"
+                  size="md"
                   disabled={activeReturnCount === 0 || !returnReason.trim() || isSubmitting}
                   onClick={handleSubmitReturn}
                   leftIcon={
-                    isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-3.5 h-3.5" />
+                    isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-4 h-4" />
                   }
+                  className="font-bold"
                 >
                   {isSubmitting
                     ? 'جارٍ تسجيل المرتجع...'
@@ -554,22 +559,22 @@ export const ReturnsView: React.FC = () => {
       </Card>
 
       {/* Returns History Archive */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-slate-800">سجل حركات الإرجاع السابقة</h3>
-          <span className="text-xs text-slate-500 tabular-nums">{returnsList.length} حركات مسجلة</span>
+          <h3 className="text-sm font-bold text-slate-900">سجل حركات الإرجاع السابقة</h3>
+          <span className="text-sm font-semibold text-slate-500 tabular-nums">{returnsList.length} حركات مسجلة</span>
         </div>
 
         {isLoadingReturns ? (
-          <div className="p-12 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
+          <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
             <Spinner size="md" />
-            <p className="text-xs text-slate-500 mt-2">جارٍ جلب سجل المرتجعات...</p>
+            <p className="text-sm font-medium text-slate-600 mt-2.5">جارٍ جلب سجل المرتجعات...</p>
           </div>
         ) : returnsList.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-xl border border-slate-200 space-y-1.5">
-            <RotateCcw className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="text-xs font-medium text-slate-700">لا توجد حركات إرجاع مسجلة</p>
-            <p className="text-[11px] text-slate-400">
+          <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2">
+            <RotateCcw className="w-10 h-10 text-slate-400 mx-auto" />
+            <p className="text-sm font-bold text-slate-800">لا توجد حركات إرجاع مسجلة</p>
+            <p className="text-xs text-slate-500">
               جميع عمليات البيع سليمة، أو لم يتم تسجيل أي مرتجع بعد.
             </p>
           </div>
@@ -590,76 +595,77 @@ export const ReturnsView: React.FC = () => {
           title={`تفاصيل حركة الإرجاع: ${viewingReturn.return_number}`}
           subtitle={`مرتجع تابع لفاتورة المبيعات ${viewingReturn.invoice_number}`}
           footer={
-            <Button variant="outline" size="sm" onClick={() => setViewingReturn(null)}>
+            <Button variant="primary" size="md" onClick={() => setViewingReturn(null)} className="font-semibold">
               إغلاق
             </Button>
           }
         >
-          <div className="space-y-3.5 text-xs">
-            <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 bg-slate-50/90 p-4 rounded-xl border border-slate-300">
               <div>
-                <span className="text-slate-500 block mb-0.5">رقم الفاتورة الأصلية:</span>
-                <span className="font-mono font-medium text-slate-900 tabular-nums">
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">رقم الفاتورة الأصلية:</span>
+                <span className="font-mono font-bold text-slate-900 tabular-nums text-sm">
                   {viewingReturn.invoice_number}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block mb-0.5">تاريخ الإرجاع:</span>
-                <span className="font-mono tabular-nums text-slate-700">{viewingReturn.return_date}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">تاريخ الإرجاع:</span>
+                <span className="font-mono tabular-nums text-slate-800 font-semibold text-sm">{viewingReturn.return_date}</span>
               </div>
               <div>
-                <span className="text-slate-500 block mb-0.5">المبلغ المسترد:</span>
-                <span className="font-mono font-semibold text-rose-700 tabular-nums">
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">المبلغ المسترد:</span>
+                <span className="font-mono font-bold text-rose-700 tabular-nums text-sm">
                   {formatCurrency(viewingReturn.refund_amount)}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block mb-0.5">طريقة الرد:</span>
-                <span className="text-slate-700">{viewingReturn.refund_method}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">طريقة الرد:</span>
+                <span className="text-slate-800 font-semibold">{viewingReturn.refund_method}</span>
               </div>
-              <div className="col-span-2 pt-1 border-t border-slate-200">
-                <span className="text-slate-500 block mb-0.5">سبب الإرجاع:</span>
-                <span className="font-medium text-slate-800">{viewingReturn.reason}</span>
+              <div className="col-span-2 pt-2 border-t border-slate-300">
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">سبب الإرجاع:</span>
+                <span className="font-bold text-slate-900">{viewingReturn.reason}</span>
               </div>
             </div>
 
             <div>
-              <h5 className="text-xs font-semibold text-slate-700 mb-1.5">الأصناف المرتجعة:</h5>
+              <h5 className="text-sm font-bold text-slate-900 mb-2">الأصناف المرتجعة:</h5>
               {isLoadingReturnItems ? (
-                <div className="p-6 text-center">
-                  <Spinner size="sm" />
+                <div className="p-8 text-center">
+                  <Spinner size="md" />
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-md overflow-hidden">
-                  <table className="w-full text-xs text-right">
-                    <thead className="bg-slate-50 font-medium text-slate-600 border-b border-slate-200 select-none">
+                <div className="border border-slate-300 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm text-right">
+                    <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-300 select-none">
                       <tr>
-                        <th className="py-2 px-3">الصنف</th>
-                        <th className="py-2 px-3 text-center">الكمية</th>
-                        <th className="py-2 px-3 text-center">سعر الاسترداد</th>
-                        <th className="py-2 px-3 text-center">الحالة</th>
-                        <th className="py-2 px-3 text-left">الإجمالي</th>
+                        <th className="py-2.5 px-3.5">الصنف</th>
+                        <th className="py-2.5 px-3.5 text-center">الكمية</th>
+                        <th className="py-2.5 px-3.5 text-center">سعر الاسترداد</th>
+                        <th className="py-2.5 px-3.5 text-center">الحالة</th>
+                        <th className="py-2.5 px-3.5 text-left">الإجمالي</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200 bg-white">
                       {viewingReturnItems.map(item => (
-                        <tr key={item.id} className="hover:bg-slate-50/60">
-                          <td className="py-2 px-3 font-medium text-slate-900">{item.product_name}</td>
-                          <td className="py-2 px-3 text-center font-mono tabular-nums">
+                        <tr key={item.id} className="hover:bg-slate-50/80">
+                          <td className="py-2.5 px-3.5 font-bold text-slate-900">{item.product_name}</td>
+                          <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
                             {item.quantity_returned}
                           </td>
-                          <td className="py-2 px-3 text-center font-mono tabular-nums">
+                          <td className="py-2.5 px-3.5 text-center font-mono font-semibold tabular-nums">
                             {formatCurrency(item.refund_unit_price)}
                           </td>
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-2.5 px-3.5 text-center">
                             <Badge
                               variant={item.restock_condition === 'RESTOCKED' ? 'success' : 'danger'}
                               size="sm"
+                              className="font-semibold"
                             >
                               {item.restock_condition === 'RESTOCKED' ? 'أُعيد للمخزن' : 'تالف'}
                             </Badge>
                           </td>
-                          <td className="py-2 px-3 text-left font-mono font-medium text-rose-700 tabular-nums">
+                          <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
                             {formatCurrency(item.line_refund_total)}
                           </td>
                         </tr>

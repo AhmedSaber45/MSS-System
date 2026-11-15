@@ -344,11 +344,11 @@ export const SalesView: React.FC = () => {
         subtitle="نظام كاشير سريع — مسح الباركود، حساب الخصومات الفورية، والطباعة الحرارية"
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" size="md" className="font-mono tabular-nums text-xs">
+            <Badge variant="outline" size="md" className="font-mono tabular-nums text-sm font-bold">
               الفاتورة: {nextInvoiceNumber || '...'}
             </Badge>
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2.5 h-8 rounded-lg border border-slate-200">
-              <ScanBarcode className="w-3.5 h-3.5 text-slate-500" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 bg-slate-100 px-3 h-9 rounded-lg border border-slate-300">
+              <ScanBarcode className="w-4.5 h-4.5 text-slate-600" />
               <span>القارئ جاهز</span>
             </div>
           </div>
@@ -360,26 +360,26 @@ export const SalesView: React.FC = () => {
         {/* Right 7 Cols: Product Catalog & Search */}
         <div className="lg:col-span-7 space-y-3.5">
           {/* Search & Barcode Input Card */}
-          <Card className="p-3">
+          <Card className="p-3.5 border-slate-300">
             <Input
               placeholder="امسح الباركود، أو ابحث باسم الصنف أو الكود..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
               scannerReady
               autoFocus
             />
 
             {/* Category Filter Buttons */}
-            <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-0.5 text-xs">
+            <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 text-sm">
               <button
                 type="button"
                 onClick={() => setSelectedCategory('ALL')}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
                   selectedCategory === 'ALL'
-                    ? 'bg-slate-900 text-white font-semibold'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                    ? 'bg-slate-900 text-white font-bold'
+                    : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                 }`}
               >
                 الكل ({products.length})
@@ -391,10 +391,10 @@ export const SalesView: React.FC = () => {
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
                       selectedCategory === cat
-                        ? 'bg-slate-900 text-white font-semibold'
-                        : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                        ? 'bg-slate-900 text-white font-bold'
+                        : 'bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                     }`}
                   >
                     {cat} ({count})
@@ -406,18 +406,18 @@ export const SalesView: React.FC = () => {
 
           {/* Product Grid */}
           {isLoading ? (
-            <div className="p-12 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200">
+            <div className="p-12 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
               <Spinner size="lg" />
-              <p className="text-xs text-slate-500 mt-2.5">جارٍ تحميل الأصناف والأسعار...</p>
+              <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل الأصناف والأسعار...</p>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-xl border border-slate-200 space-y-1.5">
-              <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-medium text-slate-700">لا توجد أصناف مطابقة للبحث</p>
-              <p className="text-[11px] text-slate-400">تأكد من كتابة الاسم أو الكود أو الباركود بشكل صحيح</p>
+            <div className="p-12 text-center bg-white rounded-xl border border-slate-300 space-y-2">
+              <ShoppingBag className="w-10 h-10 text-slate-400 mx-auto" />
+              <p className="text-sm font-bold text-slate-800">لا توجد أصناف مطابقة للبحث</p>
+              <p className="text-xs text-slate-500">تأكد من كتابة الاسم أو الكود أو الباركود بشكل صحيح</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[580px] overflow-y-auto pr-0.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[580px] overflow-y-auto pr-0.5">
               {filteredProducts.map(p => {
                 const isOutOfStock = p.stock <= 0;
                 const inCart = cart.find(c => c.product.id === p.id);
@@ -426,43 +426,43 @@ export const SalesView: React.FC = () => {
                   <div
                     key={p.id}
                     onClick={() => !isOutOfStock && handleAddToCart(p)}
-                    className={`p-3 rounded-lg border transition-colors text-right flex flex-col justify-between relative select-none ${
+                    className={`p-3.5 rounded-xl border transition-colors text-right flex flex-col justify-between relative select-none ${
                       isOutOfStock
                         ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
-                        : 'bg-white hover:bg-slate-50 border-slate-200/90 hover:border-slate-300 shadow-subtle cursor-pointer'
+                        : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-subtle cursor-pointer'
                     }`}
                   >
                     {inCart && (
-                      <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-slate-900 text-white text-[11px] font-mono font-medium rounded-full flex items-center justify-center shadow-subtle">
+                      <span className="absolute -top-2 -left-2 w-6 h-6 bg-slate-900 text-white text-xs font-mono font-bold rounded-full flex items-center justify-center shadow-subtle">
                         {inCart.quantity}
                       </span>
                     )}
 
                     <div>
-                      <div className="flex items-center justify-between gap-1 mb-1.5">
-                        <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate max-w-[100px] tabular-nums">
+                      <div className="flex items-center justify-between gap-1 mb-2">
+                        <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[110px] tabular-nums">
                           {p.code}
                         </span>
                         <span
-                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded tabular-nums ${
+                          className={`text-xs font-bold px-2 py-0.5 rounded tabular-nums ${
                             isOutOfStock
-                              ? 'bg-rose-50 text-rose-700'
+                              ? 'bg-rose-100 text-rose-800'
                               : p.stock <= p.low_stock_threshold
-                              ? 'bg-amber-50 text-amber-800'
-                              : 'bg-emerald-50 text-emerald-800'
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
                           {isOutOfStock ? 'نفد' : `${p.stock} قط.`}
                         </span>
                       </div>
 
-                      <h4 className="text-xs font-medium text-slate-900 line-clamp-2 leading-snug">
+                      <h4 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
                         {p.name}
                       </h4>
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-900 font-mono tabular-nums">
+                    <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">
                         {formatCurrency(p.price)}
                       </span>
                       <Button
@@ -473,9 +473,9 @@ export const SalesView: React.FC = () => {
                           e.stopPropagation();
                           if (!isOutOfStock) handleAddToCart(p);
                         }}
-                        className="h-7 text-xs px-2"
+                        className="h-8 text-xs font-bold px-2.5"
                       >
-                        <Plus className="w-3 h-3 ml-0.5" />
+                        <Plus className="w-3.5 h-3.5 ml-1" />
                         إضافة
                       </Button>
                     </div>
@@ -488,12 +488,12 @@ export const SalesView: React.FC = () => {
 
         {/* Left 5 Cols: Active Cart & Checkout Panel */}
         <div className="lg:col-span-5 space-y-3.5">
-          <Card>
-            <CardHeader className="py-2.5 px-4 bg-slate-50/70 border-b border-slate-100">
+          <Card className="border-slate-300">
+            <CardHeader className="py-3 px-4 bg-slate-100/80 border-b border-slate-300">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-xs font-semibold text-slate-900">سلة البيع الحالية</CardTitle>
-                  <Badge variant="outline" size="sm">
+                  <CardTitle className="text-sm font-bold text-slate-900">سلة البيع الحالية</CardTitle>
+                  <Badge variant="outline" size="sm" className="font-semibold">
                     {cart.length} أصناف
                   </Badge>
                 </div>
@@ -501,61 +501,61 @@ export const SalesView: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleClearCart}
-                    className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1 font-medium transition-colors"
+                    className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1.5 font-semibold transition-colors"
                   >
-                    <RotateCcw className="w-3 h-3" />
+                    <RotateCcw className="w-3.5 h-3.5" />
                     إفراغ السلة
                   </button>
                 )}
               </div>
             </CardHeader>
 
-            <CardContent className="p-3">
+            <CardContent className="p-3.5">
               {cart.length === 0 ? (
-                <div className="py-10 text-center space-y-2">
-                  <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 text-slate-400 mx-auto flex items-center justify-center">
-                    <ShoppingBag className="w-5 h-5" />
+                <div className="py-12 text-center space-y-2.5">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-300 text-slate-500 mx-auto flex items-center justify-center">
+                    <ShoppingBag className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-slate-700">السلة فارغة</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                    <p className="text-sm font-bold text-slate-800">السلة فارغة</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
                       امسح الباركود باستخدام الماسح أو اختر من القائمة لبدء الفاتورة
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-0.5">
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-0.5">
                   {cart.map(item => (
                     <div
                       key={item.product.id}
-                      className="p-2.5 bg-slate-50/70 rounded-lg border border-slate-200/90 space-y-1.5 text-xs"
+                      className="p-3 bg-slate-50/90 rounded-lg border border-slate-300 space-y-2 text-sm"
                     >
                       {/* Top: Name, Code & Delete */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <p className="font-medium text-slate-900 leading-tight">{item.product.name}</p>
-                          <p className="text-[10px] text-slate-400 font-mono tabular-nums mt-0.5">{item.product.code}</p>
+                          <p className="font-bold text-slate-900 leading-snug">{item.product.name}</p>
+                          <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">{item.product.code}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(item.product.id)}
-                          className="text-slate-400 hover:text-rose-700 p-0.5 rounded hover:bg-slate-100 transition-colors"
+                          className="text-slate-500 hover:text-rose-700 p-1 rounded hover:bg-slate-200 transition-colors"
                           title="حذف من السلة"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
                       {/* Controls Row: Quantity, Unit Price, Item Discount, Line Total */}
-                      <div className="grid grid-cols-12 gap-1.5 items-center pt-1 border-t border-slate-200/60">
+                      <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-200">
                         {/* Qty controls */}
-                        <div className="col-span-5 flex items-center gap-1 bg-white border border-slate-200 rounded-md p-0.5">
+                        <div className="col-span-5 flex items-center gap-1 bg-white border border-slate-300 rounded-lg p-0.5">
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                            className="p-1 rounded text-slate-500 hover:bg-slate-100 transition-colors"
+                            className="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
                           >
-                            <Minus className="w-3 h-3" />
+                            <Minus className="w-3.5 h-3.5" />
                           </button>
                           <input
                             type="number"
@@ -563,15 +563,15 @@ export const SalesView: React.FC = () => {
                             max={item.product.stock}
                             value={item.quantity}
                             onChange={e => handleUpdateQuantity(item.product.id, parseInt(e.target.value, 10) || 1)}
-                            className="w-10 text-center font-medium font-mono text-xs bg-transparent focus:outline-none tabular-nums"
+                            className="w-12 text-center font-bold font-mono text-sm bg-transparent focus:outline-none tabular-nums"
                           />
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
                             disabled={item.quantity >= item.product.stock}
-                            className="p-1 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition-colors"
+                            className="p-1.5 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
@@ -584,19 +584,19 @@ export const SalesView: React.FC = () => {
                             value={item.discount || ''}
                             placeholder="خصم"
                             onChange={e => handleUpdateItemDiscount(item.product.id, parseFloat(e.target.value) || 0)}
-                            className="w-full text-center text-xs py-1 px-1 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-slate-800 font-mono tabular-nums"
+                            className="w-full text-center text-xs font-semibold py-1.5 px-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-slate-800 font-mono tabular-nums"
                             title="خصم على الصنف"
                           />
                         </div>
 
                         {/* Line Total */}
-                        <div className="col-span-4 text-left font-mono font-semibold text-slate-900 text-xs tabular-nums">
+                        <div className="col-span-4 text-left font-mono font-bold text-slate-900 text-sm tabular-nums">
                           {formatCurrency(item.line_total)}
                         </div>
                       </div>
 
                       {item.discount > 0 && (
-                        <div className="text-[10px] text-emerald-800 font-medium tabular-nums">
+                        <div className="text-xs text-emerald-800 font-semibold tabular-nums">
                           سعر القطعة بعد الخصم: {formatCurrency(item.actual_price)} (وفر {formatCurrency(item.discount)})
                         </div>
                       )}
@@ -606,10 +606,10 @@ export const SalesView: React.FC = () => {
               )}
 
               {/* Customer Details & Payment Fields */}
-              <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="mt-4 pt-3.5 border-t border-slate-200 space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[11px] font-medium text-slate-600 block mb-1">اسم العميل (اختياري):</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">اسم العميل (اختياري):</label>
                     <Input
                       placeholder="عميل نقدي"
                       value={customerName}
@@ -617,7 +617,7 @@ export const SalesView: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-slate-600 block mb-1">هاتف العميل:</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">هاتف العميل:</label>
                     <Input
                       placeholder="010xxxxxxxx"
                       value={customerPhone}
@@ -628,8 +628,8 @@ export const SalesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-medium text-slate-600 block mb-1">طريقة السداد:</label>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">طريقة السداد:</label>
+                  <div className="grid grid-cols-2 gap-2">
                     {PAYMENT_METHODS.map(m => {
                       const Icon = m.icon;
                       return (
@@ -637,13 +637,13 @@ export const SalesView: React.FC = () => {
                           key={m.id}
                           type="button"
                           onClick={() => setPaymentMethod(m.id)}
-                          className={`flex items-center gap-1.5 p-2 rounded-md text-xs font-medium border transition-colors text-right ${
+                          className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-semibold border transition-colors text-right ${
                             paymentMethod === m.id
-                              ? 'bg-slate-900 text-white border-slate-900'
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                           }`}
                         >
-                          <Icon className="w-3.5 h-3.5 shrink-0" />
+                          <Icon className="w-4.5 h-4.5 shrink-0" />
                           <span className="truncate">{m.label}</span>
                         </button>
                       );
@@ -654,17 +654,17 @@ export const SalesView: React.FC = () => {
             </CardContent>
 
             {/* Financial Summary & Checkout Button */}
-            <CardFooter className="flex-col gap-3 bg-slate-50/70 p-3.5 border-t border-slate-100">
-              <div className="w-full space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-600">
+            <CardFooter className="flex-col gap-3.5 bg-slate-50/90 p-4 border-t border-slate-300">
+              <div className="w-full space-y-2 text-sm">
+                <div className="flex justify-between text-slate-700 font-medium">
                   <span>المجموع الفرعي:</span>
-                  <span className="font-mono font-medium tabular-nums">{formatCurrency(subtotal)}</span>
+                  <span className="font-mono font-bold text-slate-900 tabular-nums">{formatCurrency(subtotal)}</span>
                 </div>
 
                 {/* Overall Invoice Discount */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-600">خصم إضافي على الفاتورة:</span>
-                  <div className="w-24">
+                  <span className="text-slate-700 font-medium">خصم إضافي على الفاتورة:</span>
+                  <div className="w-28">
                     <Input
                       type="number"
                       min="0"
@@ -678,26 +678,26 @@ export const SalesView: React.FC = () => {
                 </div>
 
                 {totalDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-800 bg-emerald-50 px-2 py-1 rounded text-[11px] font-medium">
+                  <div className="flex justify-between text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold">
                     <span>إجمالي الخصومات:</span>
                     <span className="font-mono tabular-nums">{formatCurrency(totalDiscount)}</span>
                   </div>
                 )}
 
-                <div className="border-t border-slate-200 pt-2 flex justify-between items-baseline text-slate-900 font-semibold">
-                  <span className="text-xs">الصافي النهائي المستحق:</span>
-                  <span className="text-base text-slate-900 font-mono tabular-nums">{formatCurrency(finalTotal)}</span>
+                <div className="border-t border-slate-300 pt-2.5 flex justify-between items-baseline text-slate-900 font-bold">
+                  <span className="text-sm">الصافي النهائي المستحق:</span>
+                  <span className="text-xl text-slate-900 font-mono font-bold tabular-nums">{formatCurrency(finalTotal)}</span>
                 </div>
               </div>
 
               {/* Confirm Sale Button */}
               <Button
                 variant="primary"
-                size="md"
+                size="lg"
                 onClick={handleCheckout}
                 disabled={cart.length === 0 || isSubmitting}
-                className="w-full font-medium"
-                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
+                className="w-full font-bold"
+                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-5 h-5" />}
               >
                 {isSubmitting
                   ? 'جارٍ تسجيل الفاتورة...'
@@ -718,14 +718,14 @@ export const SalesView: React.FC = () => {
           size="xl"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button variant="outline" size="sm" onClick={handleStartNewSale} leftIcon={<Plus className="w-3.5 h-3.5" />}>
+              <Button variant="outline" size="md" onClick={handleStartNewSale} leftIcon={<Plus className="w-4 h-4" />}>
                 بدء عملية بيع جديدة
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => window.print()}
-                leftIcon={<FileCheck2 className="w-3.5 h-3.5" />}
+                leftIcon={<FileCheck2 className="w-4.5 h-4.5" />}
               >
                 طباعة الإيصال فوراً
               </Button>

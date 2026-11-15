@@ -300,7 +300,7 @@ export const PurchasesView: React.FC = () => {
       key: 'purchase_number',
       header: 'رقم الفاتورة',
       render: item => (
-        <span className="font-mono text-xs font-medium text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/70 tabular-nums">
+        <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
           {item.purchase_number}
         </span>
       ),
@@ -308,16 +308,16 @@ export const PurchasesView: React.FC = () => {
     {
       key: 'purchase_date',
       header: 'تاريخ الشراء',
-      render: item => <span className="font-mono text-slate-600 text-xs tabular-nums">{item.purchase_date}</span>,
+      render: item => <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">{item.purchase_date}</span>,
     },
     {
       key: 'supplier_name',
       header: 'المورد',
       render: item => (
         <div>
-          <span className="font-medium text-slate-800 text-xs">{item.supplier_name || 'مورد عام'}</span>
+          <span className="font-bold text-slate-900 text-sm">{item.supplier_name || 'مورد عام'}</span>
           {item.supplier_phone && (
-            <span className="block text-[11px] text-slate-400 font-mono tabular-nums">{item.supplier_phone}</span>
+            <span className="block text-xs text-slate-500 font-mono font-medium tabular-nums mt-0.5">{item.supplier_phone}</span>
           )}
         </div>
       ),
@@ -325,19 +325,19 @@ export const PurchasesView: React.FC = () => {
     {
       key: 'items_count',
       header: 'عدد الأصناف',
-      render: item => <span className="tabular-nums text-xs font-medium">{item.items_count} أصناف</span>,
+      render: item => <span className="tabular-nums text-sm font-semibold text-slate-800">{item.items_count} أصناف</span>,
     },
     {
       key: 'total_amount',
       header: 'إجمالي الفاتورة',
       render: item => (
-        <span className="font-semibold text-slate-900 text-xs font-mono tabular-nums">{formatCurrency(item.total_amount)}</span>
+        <span className="font-bold text-slate-900 text-sm font-mono tabular-nums">{formatCurrency(item.total_amount)}</span>
       ),
     },
     {
       key: 'status',
       header: 'حالة القيد',
-      render: () => <Badge variant="success" size="sm">مكتملة ومضافة</Badge>,
+      render: () => <Badge variant="success" size="sm" className="font-semibold">مكتملة ومضافة</Badge>,
     },
     {
       key: 'actions',
@@ -348,8 +348,8 @@ export const PurchasesView: React.FC = () => {
           size="sm"
           variant="outline"
           onClick={() => handleOpenDetails(item)}
-          leftIcon={<Eye className="w-3.5 h-3.5" />}
-          className="h-7 text-xs px-2"
+          leftIcon={<Eye className="w-4 h-4" />}
+          className="h-8 text-xs font-bold px-3 border-slate-300 text-slate-800"
         >
           عرض الفاتورة
         </Button>
@@ -363,21 +363,23 @@ export const PurchasesView: React.FC = () => {
         title="المشتريات والوارد (Accessories Purchases)"
         subtitle="تسجيل فواتير الشراء، بيانات الموردين، وإضافة الكميات وتحديث التكاليف إلى المخزون تلقائياً"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={loadData}
               isLoading={isLoading}
-              leftIcon={<RefreshCw className="w-3.5 h-3.5 text-slate-500" />}
+              leftIcon={<RefreshCw className="w-4 h-4 text-slate-600" />}
+              className="border-slate-300 text-slate-800 font-semibold"
             >
               تحديث
             </Button>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               onClick={handleOpenAddModal}
-              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              leftIcon={<Plus className="w-4.5 h-4.5" />}
+              className="font-bold"
             >
               تسجيل فاتورة شراء جديدة
             </Button>
@@ -408,7 +410,7 @@ export const PurchasesView: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <Card className="p-3">
+      <Card className="p-3.5 border-slate-300">
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="w-full md:w-96">
             <Input
@@ -416,11 +418,11 @@ export const PurchasesView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
-          <div className="text-xs text-slate-500 tabular-nums">
-            عدد الفواتير: <strong className="text-slate-800">{filteredPurchases.length}</strong>
+          <div className="text-sm font-medium text-slate-600 tabular-nums">
+            عدد الفواتير: <strong className="text-slate-900 font-bold">{filteredPurchases.length}</strong>
           </div>
         </div>
       </Card>
@@ -445,25 +447,27 @@ export const PurchasesView: React.FC = () => {
         size="xl"
         footer={
           <div className="flex items-center justify-between w-full">
-            <div className="text-xs font-medium text-slate-800">
-              إجمالي الفاتورة: <span className="text-slate-900 font-semibold font-mono tabular-nums text-sm">{formatCurrency(cartTotalAmount)}</span>
+            <div className="text-sm font-semibold text-slate-800">
+              إجمالي الفاتورة: <span className="text-slate-900 font-bold font-mono tabular-nums text-base">{formatCurrency(cartTotalAmount)}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setIsAddModalOpen(false)}
                 disabled={isSubmitting}
+                className="border-slate-300 font-semibold"
               >
                 إلغاء
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={handleSubmitPurchase}
                 isLoading={isSubmitting}
-                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                leftIcon={<CheckCircle2 className="w-4.5 h-4.5" />}
                 disabled={cartItems.length === 0}
+                className="font-bold"
               >
                 تأكيد الفاتورة وإضافة البضاعة
               </Button>
@@ -471,9 +475,9 @@ export const PurchasesView: React.FC = () => {
           </div>
         }
       >
-        <div className="space-y-4 text-xs text-slate-700">
+        <div className="space-y-4 text-sm text-slate-700">
           {/* Header Info: Number, Date, Supplier */}
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+          <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <Input
               label="رقم الفاتورة *"
               value={purchaseNumber}
@@ -493,7 +497,7 @@ export const PurchasesView: React.FC = () => {
               placeholder="مثال: شركة الأهرام..."
               value={supplierName}
               onChange={e => setSupplierName(e.target.value)}
-              leftIcon={<User className="w-3.5 h-3.5" />}
+              leftIcon={<User className="w-4 h-4 text-slate-500" />}
             />
 
             <Input
@@ -501,19 +505,19 @@ export const PurchasesView: React.FC = () => {
               placeholder="01xxxxxxxxx"
               value={supplierPhone}
               onChange={e => setSupplierPhone(e.target.value)}
-              leftIcon={<Phone className="w-3.5 h-3.5" />}
+              leftIcon={<Phone className="w-4 h-4 text-slate-500" />}
               isMonospace
             />
           </div>
 
           {/* Add Item Row */}
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5">
-            <h4 className="font-semibold text-xs text-slate-900 flex items-center gap-1.5">
-              <Boxes className="w-3.5 h-3.5 text-slate-500" />
+          <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 space-y-3">
+            <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+              <Boxes className="w-4.5 h-4.5 text-slate-600" />
               إضافة صنف إلى الفاتورة
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div className="md:col-span-5">
                 <Select
                   label="اختر الصنف *"
@@ -558,70 +562,70 @@ export const PurchasesView: React.FC = () => {
                   variant="primary"
                   size="md"
                   onClick={handleAddItemToCart}
-                  className="w-full"
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  className="w-full font-bold"
+                  leftIcon={<Plus className="w-4 h-4" />}
                 >
                   إضافة
                 </Button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex items-center gap-2 pt-1">
               <input
                 type="checkbox"
                 id="updateCostCheck"
                 checked={itemUpdateCost}
                 onChange={e => setItemUpdateCost(e.target.checked)}
-                className="rounded border-slate-300 text-slate-900 focus:ring-slate-400 cursor-pointer"
+                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400 cursor-pointer"
               />
-              <label htmlFor="updateCostCheck" className="text-slate-600 cursor-pointer text-xs">
+              <label htmlFor="updateCostCheck" className="text-slate-700 cursor-pointer text-xs font-semibold">
                 تحديث سعر التكلفة الافتراضي في بطاقة الصنف بهذا السعر الجديد
               </label>
             </div>
           </div>
 
           {/* Cart Items Table */}
-          <div className="space-y-1.5">
-            <h4 className="font-semibold text-xs text-slate-800">
+          <div className="space-y-2">
+            <h4 className="font-bold text-sm text-slate-900">
               الأصناف المضافة في الفاتورة ({cartItems.length})
             </h4>
 
             {cartItems.length === 0 ? (
-              <div className="p-6 text-center bg-slate-50 rounded-lg border border-slate-200 text-slate-400 text-xs">
+              <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-300 text-slate-500 text-sm">
                 لم يتم إضافة أي أصناف بعد. اختر الصنف والكمية من الأعلى واضغط على زر "إضافة".
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 select-none">
+              <div className="border border-slate-300 rounded-xl overflow-hidden">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 select-none">
                     <tr>
-                      <th className="px-3 py-2">#</th>
-                      <th className="px-3 py-2">الصنف</th>
-                      <th className="px-3 py-2">الكود</th>
-                      <th className="px-3 py-2 text-center">الكمية</th>
-                      <th className="px-3 py-2">سعر الشراء</th>
-                      <th className="px-3 py-2">الإجمالي</th>
-                      <th className="px-3 py-2 text-center">حذف</th>
+                      <th className="px-3.5 py-2.5">#</th>
+                      <th className="px-3.5 py-2.5">الصنف</th>
+                      <th className="px-3.5 py-2.5">الكود</th>
+                      <th className="px-3.5 py-2.5 text-center">الكمية</th>
+                      <th className="px-3.5 py-2.5">سعر الشراء</th>
+                      <th className="px-3.5 py-2.5">الإجمالي</th>
+                      <th className="px-3.5 py-2.5 text-center">حذف</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
+                  <tbody className="divide-y divide-slate-200 bg-white">
                     {cartItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60">
-                        <td className="px-3 py-2 font-mono text-slate-400 tabular-nums">{idx + 1}</td>
-                        <td className="px-3 py-2 font-medium text-slate-900">{item.product_name}</td>
-                        <td className="px-3 py-2 font-mono text-slate-600 tabular-nums">{item.product_code}</td>
-                        <td className="px-3 py-2 text-center font-semibold text-slate-900 tabular-nums">+{item.quantity}</td>
-                        <td className="px-3 py-2 font-mono tabular-nums">{formatCurrency(item.unit_cost)}</td>
-                        <td className="px-3 py-2 font-mono font-semibold text-slate-900 tabular-nums">
+                      <tr key={idx} className="hover:bg-slate-50/80">
+                        <td className="px-3.5 py-2.5 font-mono text-slate-500 tabular-nums">{idx + 1}</td>
+                        <td className="px-3.5 py-2.5 font-bold text-slate-900">{item.product_name}</td>
+                        <td className="px-3.5 py-2.5 font-mono font-semibold text-slate-600 tabular-nums">{item.product_code}</td>
+                        <td className="px-3.5 py-2.5 text-center font-bold text-slate-900 tabular-nums">+{item.quantity}</td>
+                        <td className="px-3.5 py-2.5 font-mono font-semibold tabular-nums">{formatCurrency(item.unit_cost)}</td>
+                        <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900 tabular-nums">
                           {formatCurrency(item.quantity * item.unit_cost)}
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3.5 py-2.5 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveFromCart(idx)}
-                            className="p-1 text-slate-400 hover:text-rose-700 hover:bg-slate-100 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-slate-100 rounded-md transition-colors"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
@@ -634,12 +638,12 @@ export const PurchasesView: React.FC = () => {
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
               ملاحظات الفاتورة (اختياري)
             </label>
             <textarea
               rows={2}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-colors"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-colors"
               placeholder="مثال: رقم إذن الاستلام، طريقة الدفع، أو أي شروط مع المورد..."
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -656,66 +660,66 @@ export const PurchasesView: React.FC = () => {
         subtitle={`تاريخ الشراء: ${selectedPurchase?.purchase_date || ''}`}
         size="lg"
         footer={
-          <Button variant="primary" size="sm" onClick={() => setIsDetailsModalOpen(false)}>
+          <Button variant="primary" size="md" onClick={() => setIsDetailsModalOpen(false)} className="font-semibold">
             إغلاق
           </Button>
         }
       >
         {selectedPurchase && (
-          <div className="space-y-3.5 text-xs">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50/90 rounded-xl border border-slate-300">
               <div>
-                <span className="text-slate-400 block mb-0.5">رقم الفاتورة:</span>
-                <span className="font-mono font-medium text-slate-900 tabular-nums">{selectedPurchase.purchase_number}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">رقم الفاتورة:</span>
+                <span className="font-mono font-bold text-slate-900 tabular-nums text-sm">{selectedPurchase.purchase_number}</span>
               </div>
               <div>
-                <span className="text-slate-400 block mb-0.5">تاريخ الشراء:</span>
-                <span className="font-mono tabular-nums text-slate-700">{selectedPurchase.purchase_date}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">تاريخ الشراء:</span>
+                <span className="font-mono tabular-nums text-slate-800 font-semibold text-sm">{selectedPurchase.purchase_date}</span>
               </div>
               <div>
-                <span className="text-slate-400 block mb-0.5">المورد:</span>
-                <span className="font-medium text-slate-800">{selectedPurchase.supplier_name || 'مورد عام'}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">المورد:</span>
+                <span className="font-bold text-slate-900 text-sm">{selectedPurchase.supplier_name || 'مورد عام'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block mb-0.5">إجمالي المبلغ:</span>
-                <span className="font-semibold text-slate-900 font-mono tabular-nums">{formatCurrency(selectedPurchase.total_amount)}</span>
+                <span className="text-slate-500 block mb-1 text-xs font-semibold">إجمالي المبلغ:</span>
+                <span className="font-bold text-slate-900 font-mono tabular-nums text-sm">{formatCurrency(selectedPurchase.total_amount)}</span>
               </div>
             </div>
 
             {selectedPurchase.notes && (
-              <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-slate-600">
-                <strong className="text-slate-800">ملاحظات: </strong>
+              <div className="p-3 bg-white rounded-xl border border-slate-300 text-slate-700 text-sm">
+                <strong className="text-slate-900 font-bold">ملاحظات: </strong>
                 {selectedPurchase.notes}
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <h5 className="font-semibold text-xs text-slate-800">الأصناف المشتراة في هذه الفاتورة:</h5>
+            <div className="space-y-2">
+              <h5 className="font-bold text-sm text-slate-900">الأصناف المشتراة في هذه الفاتورة:</h5>
 
               {isLoadingDetails ? (
-                <div className="p-6 text-center text-slate-400">جاري تحميل أصناف الفاتورة...</div>
+                <div className="p-8 text-center text-slate-500 text-sm">جاري تحميل أصناف الفاتورة...</div>
               ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-right text-xs">
-                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 select-none">
+                <div className="border border-slate-300 rounded-xl overflow-hidden">
+                  <table className="w-full text-right text-sm">
+                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 select-none">
                       <tr>
-                        <th className="px-3 py-2">#</th>
-                        <th className="px-3 py-2">اسم الصنف</th>
-                        <th className="px-3 py-2">كود الصنف</th>
-                        <th className="px-3 py-2 text-center">الكمية المشتراة</th>
-                        <th className="px-3 py-2">سعر الشراء للقطعة</th>
-                        <th className="px-3 py-2">إجمالي الصنف</th>
+                        <th className="px-3.5 py-2.5">#</th>
+                        <th className="px-3.5 py-2.5">اسم الصنف</th>
+                        <th className="px-3.5 py-2.5">كود الصنف</th>
+                        <th className="px-3.5 py-2.5 text-center">الكمية المشتراة</th>
+                        <th className="px-3.5 py-2.5">سعر الشراء للقطعة</th>
+                        <th className="px-3.5 py-2.5">إجمالي الصنف</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="divide-y divide-slate-200 bg-white">
                       {selectedPurchaseItems.map((item, idx) => (
-                        <tr key={item.id} className="hover:bg-slate-50/60">
-                          <td className="px-3 py-2 font-mono text-slate-400 tabular-nums">{idx + 1}</td>
-                          <td className="px-3 py-2 font-medium text-slate-900">{item.product_name}</td>
-                          <td className="px-3 py-2 font-mono text-slate-600 tabular-nums">{item.product_code}</td>
-                          <td className="px-3 py-2 text-center font-semibold text-emerald-800 tabular-nums">+{item.quantity}</td>
-                          <td className="px-3 py-2 font-mono tabular-nums">{formatCurrency(item.unit_cost)}</td>
-                          <td className="px-3 py-2 font-mono font-semibold text-slate-900 tabular-nums">{formatCurrency(item.total_cost)}</td>
+                        <tr key={item.id} className="hover:bg-slate-50/80">
+                          <td className="px-3.5 py-2.5 font-mono text-slate-500 tabular-nums">{idx + 1}</td>
+                          <td className="px-3.5 py-2.5 font-bold text-slate-900">{item.product_name}</td>
+                          <td className="px-3.5 py-2.5 font-mono font-semibold text-slate-600 tabular-nums">{item.product_code}</td>
+                          <td className="px-3.5 py-2.5 text-center font-bold text-emerald-800 tabular-nums">+{item.quantity}</td>
+                          <td className="px-3.5 py-2.5 font-mono font-semibold tabular-nums">{formatCurrency(item.unit_cost)}</td>
+                          <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900 tabular-nums">{formatCurrency(item.total_cost)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -22,36 +22,36 @@ const ToastItem: React.FC<{ item: NotificationItem; onDismiss: () => void }> = (
   onDismiss,
 }) => {
   const icons = {
-    success: <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />,
-    error: <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />,
-    warning: <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />,
-    info: <Info className="w-4 h-4 text-sky-700 shrink-0" />,
+    success: <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />,
+    error: <AlertCircle className="w-5 h-5 text-rose-700 shrink-0" />,
+    warning: <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />,
+    info: <Info className="w-5 h-5 text-sky-700 shrink-0" />,
   };
 
   const borders = {
-    success: 'border-emerald-200 bg-white',
-    error: 'border-rose-200 bg-white',
-    warning: 'border-amber-200 bg-white',
-    info: 'border-sky-200 bg-white',
+    success: 'border-emerald-300 bg-white',
+    error: 'border-rose-300 bg-white',
+    warning: 'border-amber-300 bg-white',
+    info: 'border-sky-300 bg-white',
   };
 
   return (
     <div
       className={cn(
-        'pointer-events-auto flex items-start gap-2.5 p-3.5 rounded-lg shadow-dropdown border text-right transition-all duration-150',
+        'pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-dropdown border text-right transition-all duration-150',
         borders[item.type]
       )}
     >
       <div className="mt-0.5">{icons[item.type]}</div>
       <div className="flex-1">
-        <h4 className="text-xs font-semibold text-slate-900">{item.title}</h4>
-        {item.message && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.message}</p>}
+        <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
+        {item.message && <p className="text-sm text-slate-600 mt-1 leading-relaxed">{item.message}</p>}
       </div>
       <button
         onClick={onDismiss}
-        className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+        className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
     </div>
   );

@@ -44,11 +44,11 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
         </Button>
       }
     >
-      <div className="space-y-8 text-xs text-slate-700">
+      <div className="space-y-8 text-sm text-slate-800">
         {/* Section 1: Buttons */}
         <section className="space-y-3">
-          <h4 className="text-sm font-semibold text-slate-900 border-b pb-1.5 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-slate-700" />
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-slate-700" />
             1. الأزرار (Buttons)
           </h4>
           <div className="flex flex-wrap items-center gap-3">
@@ -76,8 +76,8 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
 
         {/* Section 2: Badges */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5">2. الشارات والوسوم (Badges)</h4>
-          <div className="flex flex-wrap items-center gap-2">
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2">2. الشارات والوسوم (Badges)</h4>
+          <div className="flex flex-wrap items-center gap-2.5">
             <Badge variant="default">افتراضي</Badge>
             <Badge variant="primary">رئيسي (أزرق)</Badge>
             <Badge variant="success">ناجح (أخضر)</Badge>
@@ -90,14 +90,14 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
 
         {/* Section 3: Inputs & Select */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5">3. حقول الإدخال والاختيار (Inputs & Select)</h4>
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2">3. حقول الإدخال والاختيار (Inputs & Select)</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
               label="حقل نص عادي مع مسح سريع"
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               onClear={() => setInputValue('')}
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4.5 h-4.5" />}
             />
             <Input
               label="حقل مخصص للباركود والسيريال"
@@ -117,8 +117,8 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
 
         {/* Section 4: Alerts */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5">4. التنبيهات والإشعارات (Alerts)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2">4. التنبيهات والإشعارات (Alerts)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             <Alert type="info" title="تنبيه معلوماتي" message="هذا نموذج لتنبيه معلوماتي يوضح للمستخدم إجراء أو نصيحة." />
             <Alert type="success" title="تنبيه نجاح العملية" message="تم حفظ وتسجيل كافة البيانات بنجاح تام." />
             <Alert type="warning" title="تنبيه تحذيري" message="يرجى مراجعة رصيد الصنف قبل متابعة الحركة." />
@@ -128,33 +128,33 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
 
         {/* Section 5: Notifications (Toasts) */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5 flex items-center justify-between">
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center justify-between">
             <span>5. إشعارات النظام الفورية (Toast Notifications)</span>
           </h4>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <Button
-              size="sm"
+              size="md"
               variant="success"
               onClick={() => showNotification({ type: 'success', title: 'تمت العملية بنجاح', message: 'تم حفظ السجل وتحديث البيانات.' })}
             >
               إشعار نجاح
             </Button>
             <Button
-              size="sm"
+              size="md"
               variant="danger"
               onClick={() => showNotification({ type: 'error', title: 'فشل الإجراء', message: 'حدث خطأ أثناء الاتصال بقاعدة البيانات.' })}
             >
               إشعار خطأ
             </Button>
             <Button
-              size="sm"
+              size="md"
               variant="outline"
               onClick={() => showNotification({ type: 'warning', title: 'تنبيه مخزون', message: 'الصنف قارب على النفاد من المحل.' })}
             >
               إشعار تحذير
             </Button>
             <Button
-              size="sm"
+              size="md"
               variant="secondary"
               onClick={() => showNotification({ type: 'info', title: 'معلومة جديدة', message: 'تم استلام تحديث جديد من السحابة.' })}
             >
@@ -165,8 +165,8 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
 
         {/* Section 6: Table & Skeletons */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between border-b pb-1.5">
-            <h4 className="text-sm font-bold text-slate-900">6. الجداول وحالات التحميل (Tables & Skeleton)</h4>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h4 className="text-base font-bold text-slate-900">6. الجداول وحالات التحميل (Tables & Skeleton)</h4>
             <Button
               size="sm"
               variant="outline"
@@ -175,18 +175,20 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
               {tableLoading ? 'عرض البيانات' : 'تجربة حالة التحميل (Skeleton)'}
             </Button>
           </div>
-          <Table
-            columns={columns}
-            data={sampleTableData}
-            keyExtractor={item => item.id}
-            isLoading={tableLoading}
-          />
+          <div className="border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
+            <Table
+              columns={columns}
+              data={sampleTableData}
+              keyExtractor={item => item.id}
+              isLoading={tableLoading}
+            />
+          </div>
         </section>
 
         {/* Section 7: Spinners */}
         <section className="space-y-3">
-          <h4 className="text-sm font-bold text-slate-900 border-b pb-1.5">7. مؤشرات التحميل (Spinners)</h4>
-          <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-xl">
+          <h4 className="text-base font-bold text-slate-900 border-b pb-2">7. مؤشرات التحميل (Spinners)</h4>
+          <div className="flex items-center gap-6 p-4 bg-slate-50 border border-slate-300 rounded-xl">
             <Spinner size="sm" label="صغير" />
             <Spinner size="md" label="متوسط" />
             <Spinner size="lg" label="كبير" />

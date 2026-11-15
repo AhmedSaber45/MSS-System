@@ -33,16 +33,16 @@ export function Table<T>({
   onRowClick,
 }: TableProps<T>) {
   return (
-    <div className="w-full overflow-hidden border border-slate-200/90 rounded-xl bg-white shadow-subtle">
+    <div className="w-full overflow-hidden border border-slate-300 rounded-xl bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className={cn('w-full text-right text-sm text-slate-700', className)}>
-          <thead className="bg-slate-50/90 text-xs font-medium text-slate-600 border-b border-slate-200/90 select-none">
+        <table className={cn('w-full text-right text-sm text-slate-800', className)}>
+          <thead className="bg-slate-100/90 text-sm font-semibold text-slate-700 border-b border-slate-300 select-none">
             <tr>
               {columns.map(col => (
                 <th
                   key={col.key}
                   className={cn(
-                    'px-4 py-2.5 whitespace-nowrap',
+                    'px-4 py-3 whitespace-nowrap',
                     col.align === 'center'
                       ? 'text-center'
                       : col.align === 'left'
@@ -56,27 +56,27 @@ export function Table<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-[13px]">
+          <tbody className="divide-y divide-slate-200 text-sm">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`}>
                   {columns.map((_, colIdx) => (
-                    <td key={`skel-col-${colIdx}`} className="px-4 py-3">
-                      <Skeleton className="h-3.5 w-full rounded" />
+                    <td key={`skel-col-${colIdx}`} className="px-4 py-3.5">
+                      <Skeleton className="h-4 w-full rounded" />
                     </td>
                   ))}
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center">
+                <td colSpan={columns.length} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 mb-2">
-                      <Inbox className="w-5 h-5" />
+                    <div className="p-3.5 bg-slate-100 border border-slate-300 rounded-xl text-slate-500 mb-3">
+                      <Inbox className="w-8 h-8" />
                     </div>
-                    <p className="text-xs font-medium text-slate-600">{emptyMessage}</p>
+                    <p className="text-sm font-bold text-slate-700">{emptyMessage}</p>
                     {emptySubMessage && (
-                      <p className="text-[11px] text-slate-400 mt-0.5 max-w-sm">{emptySubMessage}</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm font-medium">{emptySubMessage}</p>
                     )}
                   </div>
                 </td>
@@ -87,7 +87,7 @@ export function Table<T>({
                   key={keyExtractor(item, index)}
                   onClick={() => onRowClick && onRowClick(item)}
                   className={cn(
-                    'hover:bg-slate-50/70 transition-colors',
+                    'hover:bg-slate-50 transition-colors',
                     onRowClick && 'cursor-pointer'
                   )}
                 >
@@ -95,7 +95,7 @@ export function Table<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        'px-4 py-2.5 whitespace-nowrap text-slate-700 tabular-nums',
+                        'px-4 py-3 whitespace-nowrap text-slate-800 tabular-nums text-sm',
                         col.align === 'center'
                           ? 'text-center'
                           : col.align === 'left'

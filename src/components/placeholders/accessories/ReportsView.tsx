@@ -101,9 +101,10 @@ export const ReportsView: React.FC = () => {
           <div className="no-print flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={handlePrintReport}
-              leftIcon={<Printer className="w-4 h-4 text-slate-500" />}
+              leftIcon={<Printer className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold"
             >
               طباعة كشف الأرباح
             </Button>
@@ -112,11 +113,11 @@ export const ReportsView: React.FC = () => {
       />
 
       {/* Period Filter Selector */}
-      <Card className="no-print p-2.5 bg-white border-slate-200/80 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">الفترة الزمنية:</span>
-            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80">
+      <Card className="no-print p-3.5 bg-white border-slate-300 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-700">الفترة الزمنية:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
               {[
                 { id: 'today', label: 'اليوم' },
                 { id: 'week', label: 'آخر 7 أيام' },
@@ -128,9 +129,9 @@ export const ReportsView: React.FC = () => {
                   key={p.id}
                   type="button"
                   onClick={() => setPeriod(p.id as any)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                     period === p.id
-                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -141,23 +142,23 @@ export const ReportsView: React.FC = () => {
           </div>
 
           {period === 'custom' && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <Input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="py-1 text-xs font-mono"
+                isMonospace
                 title="من تاريخ"
               />
-              <span className="text-slate-400 text-xs">إلى</span>
+              <span className="text-slate-500 font-semibold text-sm">إلى</span>
               <Input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="py-1 text-xs font-mono"
+                isMonospace
                 title="إلى تاريخ"
               />
-              <Button size="sm" variant="primary" onClick={loadReportData}>
+              <Button size="md" variant="primary" onClick={loadReportData} className="font-bold">
                 تطبيق
               </Button>
             </div>
@@ -167,9 +168,9 @@ export const ReportsView: React.FC = () => {
 
       {/* Main KPI Stats Cards */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
           <Spinner size="lg" />
-          <p className="text-xs text-slate-500 mt-3">جارٍ حساب الإيرادات والتكاليف والأرباح...</p>
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ حساب الإيرادات والتكاليف والأرباح...</p>
         </div>
       ) : summary ? (
         <>
@@ -203,28 +204,28 @@ export const ReportsView: React.FC = () => {
           </div>
 
           {/* Secondary Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs text-sm">
             <div>
-              <span className="text-slate-500 block mb-0.5">صافي المبيعات المحققة</span>
-              <span className="font-mono font-semibold text-slate-900 text-sm tabular-nums">
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">صافي المبيعات المحققة</span>
+              <span className="font-mono font-bold text-slate-900 text-base tabular-nums">
                 {formatCurrency(summary.netSales)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block mb-0.5">متوسط قيمة الفاتورة</span>
-              <span className="font-mono font-semibold text-slate-900 text-sm tabular-nums">
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">متوسط قيمة الفاتورة</span>
+              <span className="font-mono font-bold text-slate-900 text-base tabular-nums">
                 {formatCurrency(summary.avgInvoiceValue)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block mb-0.5">إجمالي الخصومات الممنوحة</span>
-              <span className="font-mono font-semibold text-slate-800 text-sm tabular-nums">
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">إجمالي الخصومات الممنوحة</span>
+              <span className="font-mono font-bold text-slate-800 text-base tabular-nums">
                 {formatCurrency(summary.totalDiscounts)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block mb-0.5">عدد المرتجعات المسجلة</span>
-              <span className="font-mono font-semibold text-slate-800 text-sm tabular-nums">
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">عدد المرتجعات المسجلة</span>
+              <span className="font-mono font-bold text-slate-800 text-base tabular-nums">
                 {summary.returnsCount} عمليات
               </span>
             </div>
@@ -234,52 +235,52 @@ export const ReportsView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Daily History Table (8 Cols) */}
             <div className="lg:col-span-8 space-y-5">
-              <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
-                <CardHeader className="py-3 px-4 bg-slate-50/75 border-b border-slate-200/80">
-                  <CardTitle className="text-xs font-semibold text-slate-900">
+              <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
+                <CardHeader className="py-3.5 px-4 bg-slate-100 border-b border-slate-300">
+                  <CardTitle className="text-sm font-bold text-slate-900">
                     حركة المبيعات والأرباح اليومية (آخر أسبوعين)
                   </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-right">
-                    <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                  <table className="w-full text-sm text-right">
+                    <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                       <tr>
-                        <th className="py-2.5 px-3">التاريخ</th>
-                        <th className="py-2.5 px-3 text-center">الفواتير</th>
-                        <th className="py-2.5 px-3 text-left">المبيعات</th>
-                        <th className="py-2.5 px-3 text-left">التكلفة (COGS)</th>
-                        <th className="py-2.5 px-3 text-left">المرتجعات</th>
-                        <th className="py-2.5 px-3 text-left">مجمل الربح</th>
+                        <th className="py-3 px-3.5">التاريخ</th>
+                        <th className="py-3 px-3.5 text-center">الفواتير</th>
+                        <th className="py-3 px-3.5 text-left">المبيعات</th>
+                        <th className="py-3 px-3.5 text-left">التكلفة (COGS)</th>
+                        <th className="py-3 px-3.5 text-left">المرتجعات</th>
+                        <th className="py-3 px-3.5 text-left">مجمل الربح</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200">
                       {dailySummaries.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400">
+                          <td colSpan={6} className="py-8 text-center text-slate-500 text-sm">
                             لا توجد بيانات مسجلة في هذه الفترة
                           </td>
                         </tr>
                       ) : (
                         dailySummaries.map(d => (
                           <tr key={d.date} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3 text-slate-700 font-mono text-[11px] tabular-nums">
+                            <td className="py-3 px-3.5 text-slate-800 font-mono text-sm font-semibold tabular-nums">
                               {d.date}
                             </td>
-                            <td className="py-2.5 px-3 text-center text-slate-600 font-mono tabular-nums">
+                            <td className="py-3 px-3.5 text-center text-slate-700 font-mono font-medium tabular-nums">
                               {d.invoicesCount}
                             </td>
-                            <td className="py-2.5 px-3 text-left text-slate-900 font-medium font-mono tabular-nums">
+                            <td className="py-3 px-3.5 text-left text-slate-900 font-bold font-mono tabular-nums">
                               {formatCurrency(d.revenue)}
                             </td>
-                            <td className="py-2.5 px-3 text-left text-slate-500 font-mono tabular-nums">
+                            <td className="py-3 px-3.5 text-left text-slate-600 font-mono font-medium tabular-nums">
                               {formatCurrency(d.cogs)}
                             </td>
-                            <td className="py-2.5 px-3 text-left text-rose-600 font-mono tabular-nums">
+                            <td className="py-3 px-3.5 text-left text-rose-700 font-mono font-semibold tabular-nums">
                               {d.refunds > 0 ? formatCurrency(d.refunds) : '—'}
                             </td>
                             <td
-                              className={`py-2.5 px-3 text-left font-semibold font-mono tabular-nums ${
-                                d.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                              className={`py-3 px-3.5 text-left font-bold font-mono tabular-nums ${
+                                d.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'
                               }`}
                             >
                               {formatCurrency(d.grossProfit)}
@@ -293,47 +294,47 @@ export const ReportsView: React.FC = () => {
               </Card>
 
               {/* Top Selling Products */}
-              <Card className="bg-white border-slate-200/80 shadow-2xs overflow-hidden">
-                <CardHeader className="py-3 px-4 bg-slate-50/75 border-b border-slate-200/80">
-                  <CardTitle className="text-xs font-semibold text-slate-900">
+              <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
+                <CardHeader className="py-3.5 px-4 bg-slate-100 border-b border-slate-300">
+                  <CardTitle className="text-sm font-bold text-slate-900">
                     أعلى الأصناف مبيعاً ومساهمة في الأرباح
                   </CardTitle>
                 </CardHeader>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-right">
-                    <thead className="bg-slate-50/75 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                  <table className="w-full text-sm text-right">
+                    <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                       <tr>
-                        <th className="py-2.5 px-3">الصنف</th>
-                        <th className="py-2.5 px-3 text-center">الكمية المباعة</th>
-                        <th className="py-2.5 px-3 text-left">إجمالي الإيراد</th>
-                        <th className="py-2.5 px-3 text-left">إجمالي التكلفة</th>
-                        <th className="py-2.5 px-3 text-left">الربح المحقق</th>
+                        <th className="py-3 px-3.5">الصنف</th>
+                        <th className="py-3 px-3.5 text-center">الكمية المباعة</th>
+                        <th className="py-3 px-3.5 text-left">إجمالي الإيراد</th>
+                        <th className="py-3 px-3.5 text-left">إجمالي التكلفة</th>
+                        <th className="py-3 px-3.5 text-left">الربح المحقق</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200">
                       {topProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-slate-400">
+                          <td colSpan={5} className="py-8 text-center text-slate-500 text-sm">
                             لا توجد مبيعات في الفترة المحددة
                           </td>
                         </tr>
                       ) : (
                         topProducts.map(p => (
                           <tr key={p.productId} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3">
-                              <p className="font-medium text-slate-900">{p.productName}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{p.productCode}</p>
+                            <td className="py-3 px-3.5">
+                              <p className="font-bold text-slate-900">{p.productName}</p>
+                              <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">{p.productCode}</p>
                             </td>
-                            <td className="py-2.5 px-3 text-center font-mono tabular-nums text-slate-700">
+                            <td className="py-3 px-3.5 text-center font-mono font-bold tabular-nums text-slate-800">
                               {p.quantitySold}
                             </td>
-                            <td className="py-2.5 px-3 text-left font-mono font-medium text-slate-900 tabular-nums">
+                            <td className="py-3 px-3.5 text-left font-mono font-bold text-slate-900 tabular-nums">
                               {formatCurrency(p.totalRevenue)}
                             </td>
-                            <td className="py-2.5 px-3 text-left font-mono text-slate-500 tabular-nums">
+                            <td className="py-3 px-3.5 text-left font-mono text-slate-600 font-medium tabular-nums">
                               {formatCurrency(p.totalCost)}
                             </td>
-                            <td className="py-2.5 px-3 text-left font-mono font-semibold text-emerald-700 tabular-nums">
+                            <td className="py-3 px-3.5 text-left font-mono font-bold text-emerald-700 tabular-nums">
                               {formatCurrency(p.grossProfit)}
                             </td>
                           </tr>
@@ -348,49 +349,49 @@ export const ReportsView: React.FC = () => {
             {/* Inventory Valuation Panel (4 Cols) */}
             <div className="lg:col-span-4 space-y-4">
               {valuation && (
-                <Card className="bg-white border-slate-200/80 shadow-2xs p-4 space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
-                      <Package className="w-4 h-4" />
+                <Card className="bg-white border-slate-300 shadow-2xs p-4 space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-200 pb-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700">
+                      <Package className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-semibold text-slate-900">تقييم المخزون الحالي</h4>
-                      <p className="text-[10px] text-slate-400">القيمة التقديرية للبضاعة المتوفرة</p>
+                      <h4 className="text-sm font-bold text-slate-900">تقييم المخزون الحالي</h4>
+                      <p className="text-xs text-slate-500">القيمة التقديرية للبضاعة المتوفرة</p>
                     </div>
                   </div>
 
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between items-center text-slate-600">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center text-slate-700">
                       <span>إجمالي أصناف المحل</span>
-                      <span className="font-semibold text-slate-900 font-mono tabular-nums">
+                      <span className="font-bold text-slate-900 font-mono tabular-nums">
                         {valuation.totalItemsCount}
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-slate-600">
+                    <div className="flex justify-between items-center text-slate-700">
                       <span>إجمالي عدد القطع</span>
-                      <span className="font-semibold text-slate-900 font-mono tabular-nums">
+                      <span className="font-bold text-slate-900 font-mono tabular-nums">
                         {valuation.totalUnitsCount}
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-slate-600">
+                    <div className="flex justify-between items-center text-slate-700">
                       <span>قيمة المخزون بسعر التكلفة</span>
-                      <span className="font-mono font-medium text-slate-900 tabular-nums">
+                      <span className="font-mono font-bold text-slate-900 tabular-nums">
                         {formatCurrency(valuation.totalCostValue)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-slate-600">
+                    <div className="flex justify-between items-center text-slate-700">
                       <span>قيمة المخزون بسعر البيع</span>
-                      <span className="font-mono font-medium text-slate-900 tabular-nums">
+                      <span className="font-mono font-bold text-slate-900 tabular-nums">
                         {formatCurrency(valuation.totalRetailValue)}
                       </span>
                     </div>
 
-                    <div className="pt-2.5 border-t border-slate-200/80 flex justify-between items-center">
-                      <span className="font-medium text-slate-800">الربح التقديري للمخزون</span>
-                      <span className="font-mono font-semibold text-emerald-700 text-sm tabular-nums">
+                    <div className="pt-3 border-t border-slate-300 flex justify-between items-center">
+                      <span className="font-bold text-slate-900">الربح التقديري للمخزون</span>
+                      <span className="font-mono font-bold text-emerald-800 text-base tabular-nums">
                         {formatCurrency(valuation.potentialProfit)}
                       </span>
                     </div>
@@ -399,12 +400,12 @@ export const ReportsView: React.FC = () => {
               )}
 
               {/* Financial Protection Box */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 text-xs text-slate-700">
-                <p className="font-semibold text-slate-900 flex items-center gap-1.5">
-                  <Percent className="w-3.5 h-3.5 text-slate-600" />
+              <div className="p-4 bg-slate-50/90 border border-slate-300 rounded-xl space-y-2 text-sm text-slate-700">
+                <p className="font-bold text-slate-900 flex items-center gap-2">
+                  <Percent className="w-4.5 h-4.5 text-slate-600" />
                   <span>دقة الحسابات المالية (Rule 8)</span>
                 </p>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   تعتمد التقارير على لقطة سعر التكلفة والبيع المسجلة لحظة إصدار الفاتورة، ولا تتأثر بتعديل أسعار المنتجات في القوائم لاحقاً.
                 </p>
               </div>

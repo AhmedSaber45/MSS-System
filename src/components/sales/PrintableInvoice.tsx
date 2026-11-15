@@ -32,48 +32,49 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
   return (
     <div className="space-y-4">
       {/* Controls Bar (hidden during print) */}
-      <div className="no-print flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">تنسيق الطباعة:</span>
-          <div className="inline-flex rounded-lg border border-slate-200/80 bg-slate-100 p-0.5">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-700">تنسيق الطباعة:</span>
+          <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => onFormatChange?.('a4')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 format === 'a4'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <FileText className="w-3.5 h-3.5" />
+              <FileText className="w-4 h-4" />
               <span>فاتورة قياسية A4</span>
             </button>
             <button
               type="button"
               onClick={() => onFormatChange?.('thermal')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 format === 'thermal'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Receipt className="w-3.5 h-3.5" />
+              <Receipt className="w-4 h-4" />
               <span>إيصال حراري (POS 80mm)</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {onClose && (
-            <Button variant="outline" size="sm" onClick={onClose} leftIcon={<X className="w-4 h-4" />}>
+            <Button variant="outline" size="md" onClick={onClose} leftIcon={<X className="w-4.5 h-4.5" />}>
               إغلاق
             </Button>
           )}
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={handlePrint}
-            leftIcon={<Printer className="w-4 h-4" />}
+            className="font-bold"
+            leftIcon={<Printer className="w-4.5 h-4.5" />}
           >
             طباعة الفاتورة الآن
           </Button>
@@ -81,86 +82,86 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
       </div>
 
       {/* Printable Paper Canvas */}
-      <div className="print-container overflow-x-auto bg-slate-100/75 p-4 rounded-xl flex justify-center border border-slate-200/80">
+      <div className="print-container overflow-x-auto bg-slate-100/75 p-6 rounded-xl flex justify-center border border-slate-300">
         {format === 'a4' ? (
           /* ========================================================
              A4 STANDARD FORMAL INVOICE LAYOUT
              ======================================================== */
           <div
             id="printable-invoice-a4"
-            className="print-area w-full max-w-[210mm] min-h-[280mm] bg-white p-8 sm:p-10 shadow-sm border border-slate-200 rounded-sm text-slate-900 space-y-5"
+            className="print-area w-full max-w-[210mm] min-h-[280mm] bg-white p-8 sm:p-12 shadow-sm border border-slate-300 rounded-sm text-slate-900 space-y-6"
             dir="rtl"
           >
             {/* Header */}
-            <div className="flex justify-between items-start border-b border-slate-900 pb-4">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
               <div>
-                <h1 className="text-xl font-semibold text-slate-950 tracking-tight">محل إكسسوارات المحمول</h1>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h1 className="text-2xl font-bold text-slate-950 tracking-tight">محل إكسسوارات المحمول</h1>
+                <p className="text-sm text-slate-600 mt-1">
                   بيع وشراء وصيانة إكسسوارات الهواتف الذكية والأجهزة اللوحية
                 </p>
-                <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1.5">
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
                   <span>هاتف: 01000000000</span>
                   <span>•</span>
                   <span>العنوان: المحل الرئيسي - قسم الإكسسوارات</span>
                 </div>
               </div>
               <div className="text-left" dir="ltr">
-                <span className="inline-block px-2.5 py-0.5 bg-slate-900 text-white text-[11px] font-semibold tracking-wider uppercase rounded">
+                <span className="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-bold tracking-wider uppercase rounded">
                   TAX INVOICE
                 </span>
-                <p className="text-sm font-semibold text-slate-950 font-mono mt-1.5 tabular-nums">{invoice.invoice_number}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-mono tabular-nums">التاريخ: {invoice.invoice_date}</p>
+                <p className="text-base font-bold text-slate-950 font-mono mt-2 tabular-nums">{invoice.invoice_number}</p>
+                <p className="text-xs text-slate-600 mt-0.5 font-mono tabular-nums">التاريخ: {invoice.invoice_date}</p>
               </div>
             </div>
 
             {/* Bill To & Meta Info */}
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 text-xs">
-              <div className="space-y-1">
-                <span className="font-medium text-slate-400 block uppercase tracking-wider text-[10px]">بيانات العميل:</span>
-                <p className="font-semibold text-slate-900 text-xs">{invoice.customer_name || 'عميل نقدي عام'}</p>
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-300 text-sm">
+              <div className="space-y-1.5">
+                <span className="font-semibold text-slate-500 block uppercase tracking-wider text-xs">بيانات العميل:</span>
+                <p className="font-bold text-slate-900 text-sm">{invoice.customer_name || 'عميل نقدي عام'}</p>
                 {invoice.customer_phone && (
-                  <p className="text-slate-500 font-mono text-[11px] tabular-nums">الهاتف: {invoice.customer_phone}</p>
+                  <p className="text-slate-600 font-mono text-xs tabular-nums">الهاتف: {invoice.customer_phone}</p>
                 )}
               </div>
-              <div className="space-y-1 text-left" dir="rtl">
-                <span className="font-medium text-slate-400 block uppercase tracking-wider text-[10px]">معلومات السداد:</span>
-                <p className="font-medium text-slate-900 text-xs">
-                  طريقة الدفع: <span className="text-slate-700">{invoice.payment_method}</span>
+              <div className="space-y-1.5 text-left" dir="rtl">
+                <span className="font-semibold text-slate-500 block uppercase tracking-wider text-xs">معلومات السداد:</span>
+                <p className="font-semibold text-slate-900 text-sm">
+                  طريقة الدفع: <span className="text-slate-800">{invoice.payment_method}</span>
                 </p>
-                <p className="text-slate-400 text-[11px]">حالة الفاتورة: مكتملة ومسددة</p>
+                <p className="text-slate-500 text-xs font-medium">حالة الفاتورة: مكتملة ومسددة</p>
               </div>
             </div>
 
             {/* Line Items Table */}
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <table className="w-full text-xs text-right">
-                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-semibold text-slate-600">
+            <div className="border border-slate-300 rounded-xl overflow-hidden">
+              <table className="w-full text-sm text-right">
+                <thead className="bg-slate-100/90 border-b border-slate-300 text-xs font-bold text-slate-700">
                   <tr>
-                    <th className="py-2.5 px-3 w-10 text-center">#</th>
-                    <th className="py-2.5 px-3">الصنف</th>
-                    <th className="py-2.5 px-3 w-24 text-center">الكود</th>
-                    <th className="py-2.5 px-3 w-20 text-center">الكمية</th>
-                    <th className="py-2.5 px-3 w-24 text-left">السعر الأصلي</th>
-                    <th className="py-2.5 px-3 w-20 text-left">الخصم</th>
-                    <th className="py-2.5 px-3 w-24 text-left">السعر الفعلي</th>
-                    <th className="py-2.5 px-3 w-28 text-left">الإجمالي</th>
+                    <th className="py-3 px-3.5 w-12 text-center">#</th>
+                    <th className="py-3 px-3.5">الصنف</th>
+                    <th className="py-3 px-3.5 w-28 text-center">الكود</th>
+                    <th className="py-3 px-3.5 w-20 text-center">الكمية</th>
+                    <th className="py-3 px-3.5 w-28 text-left">السعر الأصلي</th>
+                    <th className="py-3 px-3.5 w-24 text-left">الخصم</th>
+                    <th className="py-3 px-3.5 w-28 text-left">السعر الفعلي</th>
+                    <th className="py-3 px-3.5 w-32 text-left">الإجمالي</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200">
                   {items.map((item, idx) => (
                     <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px] tabular-nums">{idx + 1}</td>
-                      <td className="py-2 px-3 font-medium text-slate-900">{item.product_name}</td>
-                      <td className="py-2 px-3 text-center font-mono text-slate-400 text-[10px]">{item.product_code}</td>
-                      <td className="py-2 px-3 text-center font-mono font-medium text-slate-800 tabular-nums">{item.quantity}</td>
-                      <td className="py-2 px-3 text-left font-mono text-slate-500 tabular-nums">{formatCurrency(item.original_price)}</td>
-                      <td className="py-2 px-3 text-left font-mono text-rose-600 tabular-nums">
+                      <td className="py-2.5 px-3.5 text-center text-slate-500 font-mono text-xs tabular-nums">{idx + 1}</td>
+                      <td className="py-2.5 px-3.5 font-bold text-slate-900">{item.product_name}</td>
+                      <td className="py-2.5 px-3.5 text-center font-mono text-slate-500 text-xs">{item.product_code}</td>
+                      <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">{item.quantity}</td>
+                      <td className="py-2.5 px-3.5 text-left font-mono text-slate-600 tabular-nums">{formatCurrency(item.original_price)}</td>
+                      <td className="py-2.5 px-3.5 text-left font-mono font-semibold text-rose-600 tabular-nums">
                         {item.discount > 0 ? formatCurrency(item.discount) : '—'}
                       </td>
-                      <td className="py-2 px-3 text-left font-mono font-medium text-slate-800 tabular-nums">
+                      <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-900 tabular-nums">
                         {formatCurrency(item.actual_price)}
                       </td>
-                      <td className="py-2 px-3 text-left font-mono font-semibold text-slate-900 tabular-nums">
+                      <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-950 tabular-nums">
                         {formatCurrency(item.line_total)}
                       </td>
                     </tr>
@@ -170,47 +171,47 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
             </div>
 
             {/* Totals & Notes Section */}
-            <div className="grid grid-cols-12 gap-5 items-start pt-1">
-              <div className="col-span-7 space-y-2.5 text-xs">
+            <div className="grid grid-cols-12 gap-6 items-start pt-2">
+              <div className="col-span-7 space-y-3 text-sm">
                 {invoice.notes && (
-                  <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-slate-700">
-                    <span className="font-medium text-slate-900 block mb-0.5">ملاحظات الفاتورة:</span>
-                    <p className="text-[11px] text-slate-600">{invoice.notes}</p>
+                  <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-800">
+                    <span className="font-bold text-slate-900 block mb-1">ملاحظات الفاتورة:</span>
+                    <p className="text-xs text-slate-600">{invoice.notes}</p>
                   </div>
                 )}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-slate-500 text-[10px] space-y-1">
-                  <p className="font-medium text-slate-800 text-[11px]">شروط الضمان والاسترجاع:</p>
+                <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-600 text-xs space-y-1.5">
+                  <p className="font-bold text-slate-900 text-sm">شروط الضمان والاسترجاع:</p>
                   <p>• البضاعة المباعة ترد وتستبدل خلال 14 يوماً بحالتها الأصلية وفاتورة الشراء الأصلية.</p>
                   <p>• الضمان لا يشمل سوء الاستخدام أو الكسر أو التعرض للسوائل.</p>
                 </div>
               </div>
 
-              <div className="col-span-5 bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 space-y-2 text-xs">
-                <div className="flex justify-between text-slate-600">
+              <div className="col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-2.5 text-sm">
+                <div className="flex justify-between text-slate-700 font-medium">
                   <span>المجموع الفرعي للأصناف:</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(invoice.subtotal)}</span>
+                  <span className="font-mono tabular-nums font-bold">{formatCurrency(invoice.subtotal)}</span>
                 </div>
                 {invoice.discount > 0 && (
-                  <div className="flex justify-between text-rose-600">
+                  <div className="flex justify-between text-rose-600 font-semibold">
                     <span>خصم إضافي على الفاتورة:</span>
-                    <span className="font-mono tabular-nums">- {formatCurrency(invoice.discount)}</span>
+                    <span className="font-mono tabular-nums font-bold">- {formatCurrency(invoice.discount)}</span>
                   </div>
                 )}
                 {totalSavings > 0 && (
-                  <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-medium">
+                  <div className="flex justify-between text-emerald-800 bg-emerald-100 px-3 py-1 rounded-md text-xs font-bold">
                     <span>إجمالي وفر العميل:</span>
                     <span className="font-mono tabular-nums">{formatCurrency(totalSavings)}</span>
                   </div>
                 )}
-                <div className="border-t border-slate-900 pt-2 flex justify-between text-xs font-semibold text-slate-900">
+                <div className="border-t-2 border-slate-900 pt-3 flex justify-between text-base font-bold text-slate-950">
                   <span>الصافي النهائي المستحق:</span>
-                  <span className="font-mono text-sm tabular-nums">{formatCurrency(invoice.total_amount)}</span>
+                  <span className="font-mono text-lg tabular-nums">{formatCurrency(invoice.total_amount)}</span>
                 </div>
               </div>
             </div>
 
             {/* Signatures & Footer */}
-            <div className="pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+            <div className="pt-8 border-t border-slate-200 flex justify-between items-center text-sm text-slate-500 font-medium">
               <div>
                 <p>توقيع المستلم: ___________________</p>
               </div>

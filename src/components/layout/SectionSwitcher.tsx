@@ -14,21 +14,21 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
   };
 
   return (
-    <div className={cn('p-1 bg-slate-100/90 rounded-lg border border-slate-200/90 select-none')}>
-      <div className={cn('grid gap-1', compact ? 'grid-cols-1' : 'grid-cols-2')}>
+    <div className={cn('p-1.5 bg-slate-100 rounded-xl border border-slate-300 select-none shadow-sm')}>
+      <div className={cn('grid gap-1.5', compact ? 'grid-cols-1' : 'grid-cols-2')}>
         {/* Accessories Shop Button */}
         <button
           type="button"
           onClick={() => handleSelect('accessories')}
           className={cn(
-            'flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+            'flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors',
             currentSection === 'accessories'
-              ? 'bg-white text-slate-900 shadow-subtle border border-slate-200/90 font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-300 font-bold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
           )}
           title="قسم محل الإكسسوارات (محلي مستقل)"
         >
-          <Store className={cn('w-3.5 h-3.5', currentSection === 'accessories' ? 'text-blue-700' : 'text-slate-400')} />
+          <Store className={cn('w-4.5 h-4.5', currentSection === 'accessories' ? 'text-blue-700' : 'text-slate-500')} />
           {!compact && <span>الإكسسوارات</span>}
         </button>
 
@@ -37,14 +37,14 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
           type="button"
           onClick={() => handleSelect('mss')}
           className={cn(
-            'flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+            'flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors',
             currentSection === 'mss'
-              ? 'bg-white text-slate-900 shadow-subtle border border-slate-200/90 font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-300 font-bold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
           )}
           title="بيزنس أجهزة MSS (مشترك وسحابي)"
         >
-          <Laptop className={cn('w-3.5 h-3.5', currentSection === 'mss' ? 'text-teal-700' : 'text-slate-400')} />
+          <Laptop className={cn('w-4.5 h-4.5', currentSection === 'mss' ? 'text-teal-700' : 'text-slate-500')} />
           {!compact && <span>أجهزة MSS</span>}
         </button>
       </div>

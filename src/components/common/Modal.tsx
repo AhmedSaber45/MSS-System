@@ -55,33 +55,33 @@ export const Modal: React.FC<ModalProps> = ({
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cn(
-            'relative w-full bg-white rounded-xl shadow-modal border border-slate-200/90 overflow-hidden transition-all',
+            'relative w-full bg-white rounded-2xl shadow-modal border border-slate-300 overflow-hidden transition-all',
             sizeClasses[size]
           )}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+          <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/90">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-              {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+              <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+              {subtitle && <p className="text-sm text-slate-600 mt-1">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 transition-colors"
+              className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-200/70 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Body */}
-          <div className="p-5 max-h-[calc(85vh-120px)] overflow-y-auto text-slate-700 text-sm">
+          <div className="p-6 max-h-[calc(85vh-120px)] overflow-y-auto text-slate-800 text-sm">
             {children}
           </div>
 
           {/* Footer */}
           {footer && (
-            <div className="px-5 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
               {footer}
             </div>
           )}

@@ -41,44 +41,44 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
   };
 
   return (
-    <header className="h-14 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 select-none">
+    <header className="h-16 bg-white border-b border-slate-300 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 select-none shadow-sm">
       {/* Left: Mobile/Sidebar toggle & Active Section Indicator */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3.5">
         <button
           onClick={toggleSidebar}
-          className="text-slate-500 hover:text-slate-800 p-1.5 rounded-md hover:bg-slate-100 transition-colors"
+          className="text-slate-600 hover:text-slate-900 p-2 rounded-lg hover:bg-slate-100 transition-colors"
           title="تبديل القائمة الجانبية"
         >
-          <Menu className="w-4 h-4" />
+          <Menu className="w-5 h-5" />
         </button>
 
         {/* Active Section Tag */}
         <div
           className={cn(
-            'flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-medium',
+            'flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-sm font-bold shadow-sm',
             isAccessories
-              ? 'bg-blue-50/70 border-blue-200 text-blue-900'
-              : 'bg-teal-50/70 border-teal-200 text-teal-950'
+              ? 'bg-blue-50 border-blue-300 text-blue-950'
+              : 'bg-teal-50 border-teal-300 text-teal-950'
           )}
         >
           <div
             className={cn(
-              'w-2 h-2 rounded-full',
-              isAccessories ? 'bg-blue-600' : 'bg-teal-700'
+              'w-2.5 h-2.5 rounded-full',
+              isAccessories ? 'bg-blue-700' : 'bg-teal-700'
             )}
           />
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {isAccessories ? (
               <>
-                <Store className="w-3.5 h-3.5 text-blue-700" />
+                <Store className="w-4.5 h-4.5 text-blue-700" />
                 <span>محل الإكسسوارات</span>
-                <span className="text-[10px] text-blue-700 font-normal">| محلي مستقل</span>
+                <span className="text-xs text-blue-700 font-semibold">| محلي مستقل</span>
               </>
             ) : (
               <>
-                <Laptop className="w-3.5 h-3.5 text-teal-800" />
+                <Laptop className="w-4.5 h-4.5 text-teal-800" />
                 <span>بيزنس أجهزة MSS</span>
-                <span className="text-[10px] text-teal-800 font-normal">| مشترك وسحابي</span>
+                <span className="text-xs text-teal-800 font-semibold">| مشترك وسحابي</span>
               </>
             )}
           </div>
@@ -87,14 +87,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         {/* Quick Switch Button */}
         <button
           onClick={() => setSection(isAccessories ? 'mss' : 'accessories')}
-          className="text-xs text-slate-500 hover:text-slate-900 transition-colors font-normal cursor-pointer mr-1"
+          className="text-sm text-slate-600 hover:text-slate-900 transition-colors font-semibold cursor-pointer mr-2"
         >
           الانتقال إلى {isAccessories ? 'أجهزة MSS' : 'الإكسسوارات'}
         </button>
       </div>
 
       {/* Right: Date, Time, Status, Auto-Updater & Showcase Trigger */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         {/* Automatic Updates Pill Button */}
         <UpdateBadgePill />
 
@@ -104,37 +104,37 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
             size="sm"
             variant="outline"
             onClick={onOpenShowcase}
-            leftIcon={<Layers className="w-3.5 h-3.5 text-slate-500" />}
-            className="text-xs font-medium text-slate-700"
+            leftIcon={<Layers className="w-4 h-4 text-slate-600" />}
+            className="text-xs font-semibold text-slate-800"
           >
             عناصر الواجهة
           </Button>
         )}
 
         {/* Connection status indicator */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 h-8 bg-slate-50 border border-slate-200/90 rounded-lg text-xs font-normal text-slate-600">
+        <div className="hidden md:flex items-center gap-2 px-3 h-9 bg-slate-100/80 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 shadow-sm">
           {isAccessories ? (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-slate-400" />
+              <WifiOff className="w-4 h-4 text-slate-500" />
               <span>محلي (أوفلاين)</span>
             </>
           ) : (
             <>
-              <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-              <span>جاهز للمزامنة</span>
+              <Wifi className="w-4 h-4 text-emerald-700" />
+              <span className="font-semibold text-emerald-900">جاهز للمزامنة</span>
             </>
           )}
         </div>
 
         {/* Live Clock & Date */}
-        <div className="hidden lg:flex items-center gap-2.5 text-xs text-slate-500 bg-slate-50 px-2.5 h-8 rounded-lg border border-slate-200/90 font-normal">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+        <div className="hidden lg:flex items-center gap-3 text-sm text-slate-700 bg-slate-100/80 px-3 h-9 rounded-lg border border-slate-300 font-medium shadow-sm">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-500" />
             <span>{formatDate(currentTime)}</span>
           </div>
           <span className="text-slate-300">|</span>
-          <div className="flex items-center gap-1.5 font-mono tabular-nums">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-2 font-mono tabular-nums font-semibold">
+            <Clock className="w-4 h-4 text-slate-500" />
             <span>{formatTime(currentTime)}</span>
           </div>
         </div>
@@ -142,10 +142,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
         {/* Notifications Icon Button */}
         <button
           onClick={handleQuickNotificationTest}
-          className="relative text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          className="relative text-slate-600 hover:text-slate-900 p-2 rounded-lg hover:bg-slate-100 transition-colors"
           title="الإشعارات (اختبار)"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-5 h-5" />
         </button>
       </div>
     </header>

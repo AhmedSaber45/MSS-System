@@ -57,17 +57,17 @@ export const HistoryView: React.FC = () => {
   const getActionBadge = (type: AuditActionType, title: string) => {
     switch (type) {
       case 'SALE':
-        return <Badge variant="primary">{title}</Badge>;
+        return <Badge variant="primary" size="sm" className="font-semibold">{title}</Badge>;
       case 'RETURN':
-        return <Badge variant="danger">{title}</Badge>;
+        return <Badge variant="danger" size="sm" className="font-semibold">{title}</Badge>;
       case 'PURCHASE':
-        return <Badge variant="info">{title}</Badge>;
+        return <Badge variant="info" size="sm" className="font-semibold">{title}</Badge>;
       case 'STOCK_ADJUSTMENT':
-        return <Badge variant="warning">{title}</Badge>;
+        return <Badge variant="warning" size="sm" className="font-semibold">{title}</Badge>;
       case 'BACKUP':
-        return <Badge variant="success">{title}</Badge>;
+        return <Badge variant="success" size="sm" className="font-semibold">{title}</Badge>;
       default:
-        return <Badge variant="default">{title}</Badge>;
+        return <Badge variant="default" size="sm" className="font-semibold">{title}</Badge>;
     }
   };
 
@@ -76,7 +76,7 @@ export const HistoryView: React.FC = () => {
       key: 'referenceNumber',
       header: 'المرجع',
       render: (item: AuditLogEntry) => (
-        <span className="font-mono font-semibold text-slate-800 text-xs tabular-nums">
+        <span className="font-mono font-bold text-slate-900 text-sm bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
           {item.referenceNumber || item.id}
         </span>
       ),
@@ -85,7 +85,7 @@ export const HistoryView: React.FC = () => {
       key: 'timestamp',
       header: 'التاريخ والوقت',
       render: (item: AuditLogEntry) => (
-        <span className="font-mono text-slate-500 text-xs tabular-nums">
+        <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">
           {item.timestamp ? item.timestamp.replace('T', ' ').substring(0, 19) : item.date}
         </span>
       ),
@@ -94,7 +94,7 @@ export const HistoryView: React.FC = () => {
       key: 'actor',
       header: 'المستخدم',
       render: (item: AuditLogEntry) => (
-        <span className="font-medium text-slate-800 text-xs">{item.actor}</span>
+        <span className="font-bold text-slate-900 text-sm">{item.actor}</span>
       ),
     },
     {
@@ -107,11 +107,11 @@ export const HistoryView: React.FC = () => {
       header: 'المبلغ',
       render: (item: AuditLogEntry) => (
         <span
-          className={`font-mono text-xs font-semibold tabular-nums ${
+          className={`font-mono text-sm font-bold tabular-nums ${
             item.amount === null || item.amount === undefined
               ? 'text-slate-400'
               : item.amount < 0
-              ? 'text-rose-600'
+              ? 'text-rose-700'
               : 'text-slate-900'
           }`}
         >
@@ -123,7 +123,7 @@ export const HistoryView: React.FC = () => {
       key: 'details',
       header: 'التفاصيل',
       render: (item: AuditLogEntry) => (
-        <span className="text-xs text-slate-600 leading-relaxed">{item.details}</span>
+        <span className="text-sm font-medium text-slate-800 leading-relaxed">{item.details}</span>
       ),
     },
   ];
@@ -136,7 +136,7 @@ export const HistoryView: React.FC = () => {
       />
 
       {/* Filter Toolbar */}
-      <Card className="p-3 bg-white border-slate-200/80 shadow-2xs">
+      <Card className="p-3.5 bg-white border-slate-300 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Search input */}
           <div className="md:col-span-4">
@@ -144,8 +144,7 @@ export const HistoryView: React.FC = () => {
               placeholder="ابحث في التفاصيل، المرجع، أو المنفذ..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-              className="text-xs"
+              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
             />
           </div>
 
@@ -162,7 +161,6 @@ export const HistoryView: React.FC = () => {
                 { value: 'STOCK_ADJUSTMENT', label: 'تسويات جردية (ADJUSTMENT)' },
                 { value: 'BACKUP', label: 'نسخ احتياطي (BACKUP)' },
               ]}
-              className="text-xs font-medium"
             />
           </div>
 
@@ -172,15 +170,15 @@ export const HistoryView: React.FC = () => {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="text-xs font-mono"
+              isMonospace
               title="من تاريخ"
             />
-            <span className="text-xs text-slate-400">إلى</span>
+            <span className="text-sm font-semibold text-slate-500">إلى</span>
             <Input
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="text-xs font-mono"
+              isMonospace
               title="إلى تاريخ"
             />
           </div>
@@ -189,11 +187,12 @@ export const HistoryView: React.FC = () => {
           <div className="md:col-span-1 flex justify-end">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={handleResetFilters}
               title="إعادة تعيين الفلاتر"
+              className="w-full border-slate-300"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 text-slate-600" />
             </Button>
           </div>
         </div>
@@ -201,18 +200,18 @@ export const HistoryView: React.FC = () => {
 
       {/* Audit Log Table */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200/80">
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
           <Spinner size="lg" />
-          <p className="text-xs text-slate-500 mt-3">جارٍ جلب السجل التدقيقي للعمليات...</p>
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ جلب السجل التدقيقي للعمليات...</p>
         </div>
       ) : logs.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-200/80 space-y-3">
-          <History className="w-10 h-10 text-slate-300 mx-auto" />
-          <p className="text-sm font-semibold text-slate-800">لا توجد عمليات مطابقة للفلاتر المحددة</p>
-          <p className="text-xs text-slate-400">تأكد من خيارات البحث أو قم بإعادة تعيين الفلاتر</p>
+        <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
+          <History className="w-10 h-10 text-slate-400 mx-auto" />
+          <p className="text-sm font-bold text-slate-800">لا توجد عمليات مطابقة للفلاتر المحددة</p>
+          <p className="text-xs text-slate-500">تأكد من خيارات البحث أو قم بإعادة تعيين الفلاتر</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
           <Table
             columns={columns}
             data={logs}
