@@ -6,6 +6,7 @@ import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { useNavigation } from '@/context/NavigationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 import {
   DollarSign,
   TrendingUp,
@@ -31,6 +32,7 @@ import { UnifiedDashboardView } from '@/components/dashboard/UnifiedDashboardVie
 export const AccessoriesDashboardView: React.FC = () => {
   const { setRoute } = useNavigation();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState<'accessories' | 'unified'>('accessories');
 
   const [metrics, setMetrics] = useState({
@@ -62,12 +64,17 @@ export const AccessoriesDashboardView: React.FC = () => {
 
       setSummary(finSummary);
       setRecentInvoices(allInvoices.slice(0, 5));
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load dashboard data:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في تحديث البيانات',
+        message: err?.message || 'تعذر جلب بيانات لوحة تحكم الإكسسوارات',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showNotification]);
 
   useEffect(() => {
     loadDashboardData();

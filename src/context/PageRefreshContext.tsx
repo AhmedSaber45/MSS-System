@@ -34,7 +34,13 @@ export const PageRefreshProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
 
     try {
-      await refreshFn();
+      // Execute the real asynchronous data refresh operation and guarantee a smooth visual
+      // transition lifecycle (450ms) matching the natural MSS cloud refresh experience so that
+      // local SQLite/memory queries in Accessories don't vanish before React can paint the animation.
+      await Promise.all([
+        refreshFn(),
+        new Promise(resolve => setTimeout(resolve, 450)),
+      ]);
     } finally {
       setIsRefreshing(false);
     }

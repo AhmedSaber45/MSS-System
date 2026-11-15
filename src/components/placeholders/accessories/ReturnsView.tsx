@@ -70,10 +70,15 @@ export const ReturnsView: React.FC = () => {
       setReturnsList(data);
     } catch (err: any) {
       console.warn('Failed to load returns:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب المرتجعات',
+        message: err?.message || 'تعذر تحميل سجل المرتجعات من قاعدة البيانات',
+      });
     } finally {
       setIsLoadingReturns(false);
     }
-  }, [filterQuery, dateFilter.startDate, dateFilter.endDate]);
+  }, [filterQuery, dateFilter.startDate, dateFilter.endDate, showNotification]);
 
   useEffect(() => {
     loadReturns();

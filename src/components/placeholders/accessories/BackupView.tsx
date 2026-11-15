@@ -79,12 +79,17 @@ export const BackupView: React.FC = () => {
     try {
       const data = await backupService.getBackups();
       setBackups(data);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load backups:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب النسخ الاحتياطية',
+        message: err?.message || 'تعذر تحميل سجل النسخ الاحتياطية',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showNotification]);
 
   useEffect(() => {
     loadBackups();

@@ -19,9 +19,11 @@ import { useDateRangeFilter } from '@/lib/dateValidation';
 import { historyService } from '@/services/historyService.ts';
 import type { AuditLogEntry, AuditActionType } from '@/types/history.ts';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 
 export const HistoryView: React.FC = () => {
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -40,12 +42,17 @@ export const HistoryView: React.FC = () => {
         endDate: dateFilter.endDate || undefined,
       });
       setLogs(data);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load audit logs:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب سجل العمليات',
+        message: err?.message || 'تعذر تحميل سجل تدقيق العمليات',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [actionType, searchQuery, dateFilter.startDate, dateFilter.endDate]);
+  }, [actionType, searchQuery, dateFilter.startDate, dateFilter.endDate, showNotification]);
 
   useEffect(() => {
     loadLogs();

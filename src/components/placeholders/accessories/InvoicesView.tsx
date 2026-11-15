@@ -25,10 +25,12 @@ import { useDateRangeFilter } from '@/lib/dateValidation';
 import { salesService } from '@/services/salesService.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 import type { Invoice, InvoiceItem } from '@/types/sale.ts';
 
 export const InvoicesView: React.FC = () => {
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -53,12 +55,17 @@ export const InvoicesView: React.FC = () => {
         paymentMethod: paymentFilter,
       });
       setInvoices(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load invoices:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب الفواتير',
+        message: err?.message || 'تعذر تحميل سجل الفواتير من قاعدة البيانات',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, dateFilter.startDate, dateFilter.endDate, paymentFilter]);
+  }, [searchQuery, dateFilter.startDate, dateFilter.endDate, paymentFilter, showNotification]);
 
   useEffect(() => {
     loadInvoices();

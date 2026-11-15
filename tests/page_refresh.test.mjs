@@ -110,4 +110,54 @@ describe('Page Refresh Architecture & Lifecycle Verification', () => {
     assert.ok(overlayContent.includes('backdrop-blur-xs'), 'Must feature clean Unslop backdrop');
     assert.ok(overlayContent.includes('Spinner'), 'Must utilize shared design system Spinner');
   });
+
+  test('5. Verification of all 10 Accessories views wiring Refresh buttons to triggerRefresh', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+
+    const accessoriesViews = [
+      'src/components/placeholders/accessories/AccessoriesDashboardView.tsx',
+      'src/components/placeholders/accessories/ProductsView.tsx',
+      'src/components/placeholders/accessories/SalesView.tsx',
+      'src/components/placeholders/accessories/PurchasesView.tsx',
+      'src/components/placeholders/accessories/InventoryView.tsx',
+      'src/components/placeholders/accessories/InvoicesView.tsx',
+      'src/components/placeholders/accessories/ReturnsView.tsx',
+      'src/components/placeholders/accessories/ReportsView.tsx',
+      'src/components/placeholders/accessories/HistoryView.tsx',
+      'src/components/placeholders/accessories/BackupView.tsx',
+    ];
+
+    for (const viewPath of accessoriesViews) {
+      const fullPath = path.resolve(viewPath);
+      assert.ok(fs.existsSync(fullPath), `${viewPath} must exist`);
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      assert.ok(
+        content.includes('usePageRefresh'),
+        `${viewPath} must import usePageRefresh`
+      );
+      assert.ok(
+        content.includes('triggerRefresh'),
+        `${viewPath} must use triggerRefresh for its Refresh button`
+      );
+      assert.ok(
+        content.includes('RefreshCw'),
+        `${viewPath} must display the RefreshCw icon`
+      );
+    }
+  });
+
+  test('6. Minimum visual transition window guarantees loading animation visibility for instant local operations', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+
+    const contextPath = path.resolve('src/context/PageRefreshContext.tsx');
+    const contextContent = fs.readFileSync(contextPath, 'utf-8');
+
+    // Must execute Promise.all with refreshFn and a transition delay to prevent React 18 microtask batching
+    assert.ok(
+      contextContent.includes('Promise.all'),
+      'triggerRefresh must await Promise.all to maintain visual animation window'
+    );
+  });
 });

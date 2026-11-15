@@ -7,6 +7,7 @@ import { Alert } from '@/components/common/Alert';
 import { Spinner } from '@/components/common/Spinner';
 import { useNavigation } from '@/context/NavigationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 import {
   DollarSign,
   TrendingUp,
@@ -41,6 +42,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 }) => {
   const { setSection, setRoute } = useNavigation();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
 
   const [period, setPeriod] = useState<ReportPeriod>('month');
   const [customStart, setCustomStart] = useState<string>('');
@@ -57,12 +59,17 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
         customEnd || undefined
       );
       setData(res);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load unified dashboard data:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب بيانات لوحة التحكم',
+        message: err?.message || 'تعذر جلب مؤشرات لوحة التحكم الموحدة',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [period, customStart, customEnd]);
+  }, [period, customStart, customEnd, showNotification]);
 
   useEffect(() => {
     loadData();

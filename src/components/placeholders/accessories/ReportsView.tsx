@@ -19,6 +19,7 @@ import { formatCurrency } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidation';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 import { reportsService } from '@/services/reportsService.ts';
 import type {
   FinancialSummary,
@@ -29,6 +30,7 @@ import type {
 
 export const ReportsView: React.FC = () => {
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'all' | 'custom'>('month');
   const dateFilter = useDateRangeFilter();
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -82,12 +84,17 @@ export const ReportsView: React.FC = () => {
       setDailySummaries(daily);
       setTopProducts(top);
       setValuation(val);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load financial reports:', err);
+      showNotification({
+        type: 'error',
+        title: 'خطأ في جلب التقارير',
+        message: err?.message || 'تعذر تحميل بيانات التقارير المالية وحساب الأرباح',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [getDateRange]);
+  }, [getDateRange, showNotification]);
 
   useEffect(() => {
     loadReportData();
