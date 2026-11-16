@@ -1,0 +1,393 @@
+# Task: MSS System — Application Branding, Copyright, Backup Destinations, and Windows Startup
+
+## Objective
+
+Implement the following four improvements in the existing MSS desktop application.
+
+1. Change the installed application name to **MSS System**.
+2. Add a professional copyright/ownership notice with the following exact information:
+   - Name: Ahmed Saber
+   - Phone: 01030137635
+3. Fix and thoroughly verify backup destination handling, including multiple destinations and scheduled backups.
+4. Add a Startup with Windows feature so the application can launch automatically when Windows starts.
+
+This is an implementation task. Inspect the existing project first, then implement, test, and verify everything. Do not stop after producing an audit report.
+
+---
+
+# Phase 1 — Inspect Project and Runtime Architecture
+
+Before making changes:
+
+1. Read `AGENTS.md`, `rules.md`, `goals.md`, and relevant project documentation.
+2. Inspect the existing Tauri v2 configuration, installer configuration, application entry points, backup implementation, and settings persistence.
+3. Identify the current application identity and all locations where its name is defined.
+4. Determine how the application is currently being launched during development.
+5. Identify whether the user is running:
+   - Vite directly in a normal browser at `http://localhost:5173`, or
+   - The Tauri desktop application through `tauri dev`, which may also load the frontend from `http://localhost:5173`.
+6. Trace the complete backup process from the UI to the actual filesystem write operation.
+7. Inspect how multiple backup destinations are stored, retrieved, and processed.
+8. Inspect the current scheduled backup implementation and its interaction with destination settings.
+
+Do not assume that a successful frontend operation means a real backup file was created.
+
+---
+
+# Phase 2 — Rename the Application to MSS System
+
+The official desktop application name must become:
+
+**MSS System**
+
+Apply this consistently to the appropriate application identity locations.
+
+Inspect and update where necessary:
+
+- Tauri `productName`.
+- Windows installer display name.
+- Installed application name in Windows Apps / Programs and Features.
+- Desktop shortcut name.
+- Start Menu shortcut name.
+- Application title where appropriate.
+- Window title.
+- Installer metadata.
+- Executable naming, where supported and safe.
+- Any application branding metadata that currently exposes the old name.
+
+### Important requirements
+
+- The installed application must visibly appear as `MSS System`.
+- Installing or updating the application must not create unnecessary duplicate shortcuts.
+- Do not change the application's internal database identity or storage directory unnecessarily.
+- Do not accidentally make the updated application look like a completely different application to the existing installation.
+- Preserve existing user data, SQLite database files, backup history, and settings.
+- If changing the application identifier would cause data migration or break existing installations, do not change it without a carefully designed migration strategy.
+
+Verify the actual generated Windows installer and installed application, not only the development window title.
+
+---
+
+# Phase 3 — Add Copyright and Contact Information
+
+Add a clean, professional ownership/copyright notice using these exact details:
+
+**© 2026 Ahmed Saber. All rights reserved.**
+
+**Contact: 01030137635**
+
+### Placement
+
+Inspect the existing application layout and add the notice in an appropriate, unobtrusive location.
+
+Preferred locations:
+
+- Application footer, if the layout has a suitable shared footer.
+- About / Application Information section, if one already exists.
+- Another suitable location that is consistently accessible.
+
+Do not add the same notice repeatedly to every page.
+
+### Phone interaction
+
+Where supported, make the phone number clickable using an appropriate telephone link or copy-to-clipboard interaction.
+
+Ensure the number is displayed exactly as:
+
+`01030137635`
+
+### Design
+
+- Follow the existing MSS visual identity.
+- Keep the notice subtle and professional.
+- Do not make it look like a large advertisement.
+- Ensure it works in the existing responsive layouts.
+- Avoid unnecessary redesign.
+
+---
+
+# Phase 4 — Fix and Verify Backup Destination Handling
+
+This is a critical part of the task.
+
+The user has selected this actual Windows directory:
+
+`C:\Users\Administrator\Desktop\test backup`
+
+Two backups were reportedly generated (one manual and one scheduled), but the expected files were not found inside the selected directory.
+
+Investigate the actual root cause.
+
+### A. Understand the runtime difference
+
+The frontend may be running at:
+
+`http://localhost:5173/`
+
+Determine whether this is:
+
+1. A normal browser session running Vite independently.
+2. A Tauri desktop development session using the Vite development server.
+
+These are not equivalent.
+
+A normal browser session does not automatically have access to Tauri filesystem APIs or the Rust backend.
+
+The backup destination functionality must be implemented through the Tauri desktop backend, using the appropriate Tauri v2 APIs and permissions.
+
+If the application is being tested in a normal browser:
+
+- Detect that Tauri APIs are unavailable.
+- Display a clear explanation that filesystem backup operations require the desktop application.
+- Do not display fake success messages.
+- Do not pretend that a real backup file was created.
+- Do not silently save a fictional destination path.
+
+If running inside Tauri:
+
+- Use the actual native folder picker.
+- Use the actual selected absolute directory path.
+- Perform backup file creation through the desktop backend.
+- Return the actual resulting file paths to the frontend.
+
+### B. Verify the exact selected directory
+
+When the user selects:
+
+`C:\Users\Administrator\Desktop\test backup`
+
+The application must:
+
+1. Preserve the actual selected absolute path.
+2. Persist it correctly.
+3. Pass that exact destination to the backend.
+4. Create the backup file inside that directory.
+5. Verify that the file exists.
+6. Return the actual file path to the UI.
+7. Record the actual file path in backup history.
+
+Do not confuse the selected directory with the generated backup filename.
+
+Do not display a destination path that differs from the actual write location.
+
+### C. Multiple destination support
+
+The user must be able to configure more than one backup destination.
+
+For example:
+
+- `C:\Users\Administrator\Desktop\test backup`
+- `D:\MSS Backups`
+- Another accessible folder.
+
+When multiple destinations are configured, every backup operation must attempt to create a backup file in every configured destination.
+
+This requirement applies to:
+
+- Manual backups.
+- Scheduled backups.
+- Event-triggered backups, if enabled.
+
+For every backup operation:
+
+1. Read the currently saved destination list.
+2. Validate each destination independently.
+3. Generate the backup safely.
+4. Write a valid backup file to each accessible destination.
+5. Verify each generated file independently.
+6. Record the actual result for each destination.
+
+If one destination fails:
+
+- Continue attempting the remaining destinations.
+- Report which destination succeeded and which failed.
+- Never report the entire operation as fully successful if one or more configured destinations failed.
+- Preserve useful error details for the user.
+
+Do not silently skip a destination.
+
+### D. File creation and verification
+
+For every destination, verify:
+
+- The directory exists or is created only according to the existing intended behavior.
+- The directory is writable.
+- The backup file was actually created.
+- The file size is greater than zero.
+- The resulting path is the real absolute path.
+- The backup file is a valid backup using the existing SQLite-safe backup mechanism.
+
+Do not blindly copy an active SQLite database file if doing so could produce an inconsistent backup.
+
+Do not record a successful backup before the file has been verified.
+
+### E. Backup history and opening folders
+
+Ensure that backup history records the actual resulting file paths.
+
+If the UI provides an option to open the backup location:
+
+- Open the real directory containing the backup.
+- Use the actual recorded path.
+- Do not construct a fake or guessed path.
+- Show a clear error if the file or directory no longer exists.
+
+---
+
+# Phase 5 — Verify Scheduled Backups
+
+The user has configured scheduled backups to run every minute.
+
+The application must correctly use the saved schedule and create real backup files in every configured destination.
+
+### Required behavior
+
+- Every-minute scheduling must actually trigger every minute.
+- Each scheduled execution must use the latest saved destination list.
+- Each execution must create a new valid backup file in every configured destination.
+- Backup history must show the actual files and timestamps.
+- The UI must reflect the actual schedule and next execution time.
+- Restarting the application must restore the saved schedule and destinations.
+- Changing the schedule must immediately update the active scheduler.
+- Old schedules must be replaced instead of remaining active.
+- Prevent duplicate scheduler instances.
+- Prevent overlapping backup operations.
+
+### Testing
+
+Perform a real test with a short interval.
+
+1. Configure one destination.
+2. Set the schedule to every minute.
+3. Save the settings.
+4. Verify that the next scheduled execution is calculated correctly.
+5. Wait for the scheduled execution.
+6. Open the selected folder in Windows Explorer.
+7. Verify that a new backup file exists.
+8. Verify that its size is greater than zero.
+9. Verify that backup history points to that exact file.
+10. Add a second destination.
+11. Wait for another scheduled execution.
+12. Verify that both destinations receive a new backup file.
+13. Remove one destination and verify that subsequent backups use only the remaining configured destinations.
+14. Restart the application and verify that the schedule and destination list persist.
+
+Do not use a manual backup as proof that scheduled backups work. Test both independently.
+
+---
+
+# Phase 6 — Add Startup with Windows
+
+Implement automatic application startup when Windows starts.
+
+Use a compatible and properly configured Tauri v2 solution, such as the official Tauri autostart plugin if appropriate for the project's installed version.
+
+### Requirements
+
+- The feature must work in the installed Windows desktop application.
+- It must register the actual installed application for Windows startup.
+- It must survive application restarts and Windows restarts.
+- It must not depend on the Vite development server.
+- It must not attempt to launch `localhost:5173` after installation.
+- It must not create duplicate startup entries.
+- It must be possible to disable the feature safely.
+
+### User experience
+
+Provide a clear setting named:
+
+`Startup with Windows`
+
+The setting should allow the user to enable or disable automatic startup.
+
+If the installer supports a reliable installation-time option, provide the option during installation as well.
+
+Otherwise, provide the setting inside the application and make its current state clear.
+
+Ensure that the selected startup preference is reflected by the actual Windows startup registration, not merely by a saved frontend boolean.
+
+### Important
+
+- Do not silently enable or disable an existing user's startup preference during an update.
+- Handle plugin registration and permission requirements correctly.
+- If the application is uninstalled, its startup registration should be removed.
+- Test the behavior in the installed application, not just development mode.
+
+---
+
+# Phase 7 — Safety and Existing Data
+
+Preserve all existing application data and functionality.
+
+- Do not reset the SQLite database.
+- Do not delete existing backup files or history.
+- Do not change unrelated database schemas.
+- Do not break Supabase synchronization or the outbox.
+- Do not break manual backup, restore, or automatic backup features.
+- Do not create duplicate scheduled backup workers.
+- Do not report success when the underlying operation fails.
+
+If a database or schema change is genuinely necessary:
+
+- Provide one complete, consolidated, safe SQL migration file.
+- Specify its exact repository path.
+- Verify it thoroughly.
+- If it affects Supabase, make it ready for a single execution in Supabase SQL Editor.
+- Do not claim that it has been executed.
+
+---
+
+# Phase 8 — Build and Real Windows Verification
+
+Run the relevant project checks:
+
+- Unit tests.
+- Integration tests.
+- TypeScript checks.
+- Lint.
+- Production frontend build.
+- Tauri Windows build.
+- Installer generation.
+
+Then verify the generated installer.
+
+### Installation verification checklist
+
+1. Install the generated application.
+2. Confirm its name appears as `MSS System`.
+3. Confirm the desktop shortcut is named `MSS System`.
+4. Launch the installed application without running Vite.
+5. Confirm that the application works independently of `localhost:5173`.
+6. Configure the backup destination:
+   `C:\Users\Administrator\Desktop\test backup`
+7. Run a manual backup and verify the physical file in that directory.
+8. Wait for a scheduled backup and verify its physical file.
+9. Configure two destinations and verify that both receive files.
+10. Enable `Startup with Windows`.
+11. Verify that Windows startup registration exists.
+12. Restart Windows if the environment allows it, and verify that the installed application launches automatically.
+13. Disable the setting and verify that automatic startup registration is removed.
+14. Verify that existing application data remains intact.
+
+If a Windows restart or physical installation test cannot be performed in the current environment, state that limitation honestly and provide the exact remaining manual verification steps. Do not claim a test passed without actually performing it.
+
+---
+
+# Final Report
+
+Provide a clear report containing:
+
+1. Files changed.
+2. How the application name was changed.
+3. Where the copyright/contact information appears.
+4. The root cause of the missing backup files.
+5. Whether the problem was caused by browser-only localhost execution, Tauri integration, destination handling, or another issue.
+6. Confirmation of actual backup file creation in the selected folder.
+7. Separate results for manual and scheduled backups.
+8. Confirmation that multiple destinations receive independent backup files.
+9. Confirmation that the every-minute schedule works.
+10. How Startup with Windows was implemented.
+11. Test results and build results.
+12. Any remaining manual installation or verification steps.
+
+**Final instruction:** Implement all four requested changes directly. Do not stop after the audit. Prioritize real Windows filesystem behavior and the installed Tauri application over browser-only development behavior. Do not claim success unless the corresponding functionality has been verified.

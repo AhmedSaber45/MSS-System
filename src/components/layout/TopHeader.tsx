@@ -11,6 +11,7 @@ import {
   Calendar,
   Layers,
   Menu,
+  Settings,
 } from 'lucide-react';
 import { formatDate, formatTime, cn } from '../../lib/utils';
 import { Button } from '../common/Button';
@@ -18,9 +19,10 @@ import { UpdateBadgePill } from '../common/UpdateBadgePill';
 
 export interface TopHeaderProps {
   onOpenShowcase?: () => void;
+  onOpenSettings?: () => void;
 }
 
-export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
+export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase, onOpenSettings }) => {
   const { currentSection, setSection, toggleSidebar } = useNavigation();
   const { toggleDrawer, unreadCount, isDrawerOpen } = useNotification();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -123,6 +125,16 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase }) => {
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
+        </button>
+
+        {/* System Settings & Startup with Windows Modal Trigger */}
+        <button
+          onClick={onOpenSettings}
+          className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+          title="إعدادات النظام والتشغيل التلقائي — Startup with Windows"
+          aria-label="إعدادات النظام"
+        >
+          <Settings className="w-5 h-5" />
         </button>
       </div>
     </header>

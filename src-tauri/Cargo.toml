@@ -1,9 +1,9 @@
 [package]
 name = "shop-management-system"
 version = "1.0.1"
-description = "Shop Management System desktop backend"
-authors = ["Shop System Team"]
-edition = "2021"
+description = "MSS System desktop application backend"
+authors = ["Ahmed Saber"]
+edition = "2026"
 
 [lib]
 name = "shop_management_system_lib"

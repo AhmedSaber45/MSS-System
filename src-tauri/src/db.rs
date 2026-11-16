@@ -222,6 +222,9 @@ pub struct BackupInfo {
     pub backup_type: String,
     pub date: String,
     pub status: String,
+    pub overall_status: Option<String>,
+    pub destinations: Option<Vec<DestinationResult>>,
+    pub error_details: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1889,20 +1892,41 @@ pub fn execute_multi_destination_backup(
         None
     };
 
-    Ok(MultiBackupResult {
+    let multi_res = MultiBackupResult {
         id: filename.clone(),
         filename,
         trigger_type: trig.to_string(),
         date: now.format("%Y-%m-%d %H:%M:%S").to_string(),
-        overall_status,
+        overall_status: overall_status.clone(),
         total_destinations: target_destinations.len(),
         successful_destinations: success_count,
         failed_destinations: fail_count,
         destinations: dest_results,
         size_bytes,
         size_formatted,
-        error_details,
-    })
+        error_details: error_details.clone(),
+    };
+
+    // Persist manifest so destination file paths are permanently retained
+    let manifest_path = default_backups_dir.join("backups_manifest.json");
+    let mut manifest: Vec<MultiBackupResult> = if manifest_path.exists() {
+        fs::read_to_string(&manifest_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    manifest.retain(|m| m.filename != multi_res.filename);
+    manifest.insert(0, multi_res.clone());
+    if manifest.len() > 100 {
+        manifest.truncate(100);
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+        let _ = fs::write(&manifest_path, json);
+    }
+
+    Ok(multi_res)
 }
 
 pub fn create_backup_file(
@@ -1937,6 +1961,9 @@ pub fn create_backup_file(
         } else {
             "فشل".to_string()
         },
+        overall_status: Some(res.overall_status.clone()),
+        destinations: Some(res.destinations),
+        error_details: res.error_details,
     })
 }
 
@@ -1975,6 +2002,17 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
     let backups_dir = get_backups_dir();
     let entries = fs::read_dir(&backups_dir).map_err(|e| e.to_string())?;
 
+    // Load manifest if available to match multi-destination information
+    let manifest_path = backups_dir.join("backups_manifest.json");
+    let manifest: Vec<MultiBackupResult> = if manifest_path.exists() {
+        fs::read_to_string(&manifest_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     let mut backups = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -2009,6 +2047,28 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
                 };
 
+                let matched_meta = manifest.iter().find(|m| m.filename == fname);
+                let (overall_stat, destinations, err_details, display_status) = if let Some(m) = matched_meta {
+                    let st = if m.overall_status == "success" {
+                        "سليم ومتحقق منه".to_string()
+                    } else if m.overall_status == "partial" {
+                        "نجاح جزئي".to_string()
+                    } else {
+                        "فشل".to_string()
+                    };
+                    (Some(m.overall_status.clone()), Some(m.destinations.clone()), m.error_details.clone(), st)
+                } else {
+                    let default_dest = DestinationResult {
+                        path: path.to_string_lossy().to_string(),
+                        status: "success".to_string(),
+                        file_path: Some(path.to_string_lossy().to_string()),
+                        size_bytes: Some(size_bytes),
+                        size_formatted: Some(size_formatted.clone()),
+                        error: None,
+                    };
+                    (Some("success".to_string()), Some(vec![default_dest]), None, "سليم ومتحقق منه".to_string())
+                };
+
                 backups.push(BackupInfo {
                     id: fname.clone(),
                     filename: fname,
@@ -2017,7 +2077,10 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
                     size_formatted,
                     backup_type: b_type.to_string(),
                     date: date_str,
-                    status: "سليم ومتحقق منه".to_string(),
+                    status: display_status,
+                    overall_status: overall_stat,
+                    destinations,
+                    error_details: err_details,
                 });
             }
         }

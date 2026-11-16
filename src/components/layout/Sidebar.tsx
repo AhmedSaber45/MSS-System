@@ -2,10 +2,14 @@ import React from 'react';
 import { useNavigation } from '../../context/NavigationContext';
 import { accessoriesNavItems, mssNavItems } from '../../config/navigationConfig';
 import { SectionSwitcher } from './SectionSwitcher';
-import { ChevronRight, ChevronLeft, Database, Cloud } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Database, Cloud, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  onOpenSettings?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const {
     currentSection,
     currentRoute,
@@ -37,7 +41,7 @@ export const Sidebar: React.FC = () => {
               {isAccessories ? 'ACC' : 'MSS'}
             </div>
             <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-slate-900 truncate">نظام إدارة المحل</h1>
+              <h1 className="text-base font-bold text-slate-900 truncate font-mono">MSS System</h1>
               <p className="text-xs font-semibold text-slate-500 truncate mt-0.5">
                 {isAccessories ? ' الإكسسوارات ' : '  MSS '}
               </p>
@@ -125,8 +129,19 @@ export const Sidebar: React.FC = () => {
         {!isSidebarCollapsed && (
           <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
             <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
-              v1.0.1
+              MSS System v1.0.1
             </span>
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="text-slate-500 hover:text-blue-700 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                title="إعدادات النظام والتشغيل مع Windows"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>الإعدادات</span>
+              </button>
+            )}
           </div>
         )}
 

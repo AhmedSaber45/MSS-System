@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigation } from '../../context/NavigationContext';
 import { Sidebar } from './Sidebar';
 import { TopHeader } from './TopHeader';
+import { AppFooter } from './AppFooter';
 import { ToastContainer } from '../common/Toast';
 import { NotificationDrawer } from '../common/NotificationDrawer';
 import { ComponentShowcaseModal } from '../common/ComponentShowcaseModal';
+import { SystemSettingsModal } from '../common/SystemSettingsModal';
 import { PageRefreshOverlay } from '../common/PageRefreshOverlay';
 
 // Accessories Views
@@ -34,6 +36,7 @@ import { SyncStatusView } from '../placeholders/mss/SyncStatusView';
 export const AppShell: React.FC = () => {
   const { currentSection, currentRoute } = useNavigation();
   const [isShowcaseOpen, setShowcaseOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Render content dynamically based on currentSection and currentRoute
   const renderContent = () => {
@@ -93,19 +96,25 @@ export const AppShell: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 select-none">
       {/* Permanent Right Sidebar (RTL) */}
-      <Sidebar />
+      <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
 
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 h-screen overflow-hidden relative">
         {/* Top Header */}
-        <TopHeader onOpenShowcase={() => setShowcaseOpen(true)} />
+        <TopHeader
+          onOpenShowcase={() => setShowcaseOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
 
         {/* Scrollable Viewport */}
-        <main className="flex-1 overflow-y-auto p-5 md:p-6">
-          <div className="max-w-7xl mx-auto pb-10">
+        <main className="flex-1 overflow-y-auto p-5 md:p-6 pb-2">
+          <div className="max-w-7xl mx-auto pb-6">
             {renderContent()}
           </div>
         </main>
+
+        {/* Centralized Shared Application Footer with Copyright and Contact Notice */}
+        <AppFooter />
 
         {/* Centralized Full-Page Refresh Loading Animation */}
         <PageRefreshOverlay className="top-16" />
@@ -121,6 +130,12 @@ export const AppShell: React.FC = () => {
       <ComponentShowcaseModal
         isOpen={isShowcaseOpen}
         onClose={() => setShowcaseOpen(false)}
+      />
+
+      {/* System Settings & Startup with Windows Modal */}
+      <SystemSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

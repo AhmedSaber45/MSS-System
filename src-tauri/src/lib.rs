@@ -275,17 +275,89 @@ fn open_folder_in_explorer(path: String) -> Result<(), String> {
         use std::process::Command;
         let p = std::path::Path::new(&path);
         if !p.exists() {
-            return Err("المسار غير موجود على القرص".to_string());
+            return Err("المسار غير موجود على القرص أو تم نقله".to_string());
         }
-        Command::new("explorer")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        if p.is_file() {
+            Command::new("explorer")
+                .arg(format!("/select,\"{}\"", path))
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            Command::new("explorer")
+                .arg(&path)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
         Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {
         Ok(())
+    }
+}
+
+// Windows Startup (Autostart) Commands
+#[tauri::command]
+fn get_windows_startup_status() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let output = Command::new("reg")
+            .args(["query", r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "/v", "MSS System"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        Ok(output.status.success())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+fn set_windows_startup_status(enabled: bool) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        if enabled {
+            let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+            let exe_str = exe_path.to_string_lossy().to_string();
+            let quoted_exe = format!("\"{}\"", exe_str);
+            let status = Command::new("reg")
+                .args([
+                    "add",
+                    r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                    "/v",
+                    "MSS System",
+                    "/t",
+                    "REG_SZ",
+                    "/d",
+                    &quoted_exe,
+                    "/f",
+                ])
+                .status()
+                .map_err(|e| e.to_string())?;
+
+            if !status.success() {
+                return Err("فشل تسجيل البرنامج في قائمة بدء تشغيل Windows".to_string());
+            }
+            Ok(true)
+        } else {
+            let _ = Command::new("reg")
+                .args([
+                    "delete",
+                    r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                    "/v",
+                    "MSS System",
+                    "/f",
+                ])
+                .status();
+            Ok(false)
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
     }
 }
 
@@ -359,6 +431,8 @@ pub fn run() {
             select_backup_folder,
             select_save_backup_path,
             open_folder_in_explorer,
+            get_windows_startup_status,
+            set_windows_startup_status,
             adjust_accessories_stock,
             get_accessories_inventory_movements,
             get_accessories_db_status,

@@ -26,7 +26,10 @@ import {
   Info,
   XCircle,
   ExternalLink,
+  Power,
 } from 'lucide-react';
+import { isTauri } from '@tauri-apps/api/core';
+import { autostartService } from '@/services/autostartService';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { backupService } from '@/services/backupService.ts';
@@ -73,6 +76,11 @@ export const BackupView: React.FC = () => {
   const [newDestinationInput, setNewDestinationInput] = useState<string>('');
   const [isAddingDestination, setIsAddingDestination] = useState<boolean>(false);
   const [destinationError, setDestinationError] = useState<string>('');
+  const [isStartupEnabled, setIsStartupEnabled] = useState<boolean>(false);
+
+  useEffect(() => {
+    autostartService.getStartupStatus().then(res => setIsStartupEnabled(res.enabled));
+  }, []);
 
   const loadBackups = useCallback(async () => {
     setIsLoading(true);
@@ -540,7 +548,7 @@ export const BackupView: React.FC = () => {
             >
               إعدادات النسخ التلقائي
             </Button>
-            <Button
+            {/* <Button   never uncoment it 
               variant="outline"
               size="md"
               onClick={handleCreateSaveAsBackup}
@@ -549,7 +557,7 @@ export const BackupView: React.FC = () => {
               className="border-slate-300 font-bold"
             >
               حفظ باسم...
-            </Button>
+            </Button> */}
             <Button
               variant="primary"
               size="md"
@@ -569,7 +577,6 @@ export const BackupView: React.FC = () => {
           </div>
         }
       />
-
       {/* Progress alert if in progress */}
       {isCreatingBackup && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-900 text-sm animate-pulse">
@@ -1087,9 +1094,22 @@ export const BackupView: React.FC = () => {
                     type="text"
                     value={newDestinationInput}
                     onChange={e => setNewDestinationInput(e.target.value)}
-                    placeholder="مثال: D:\MSS Backups أو E:\System Backups"
+                    placeholder="مثال: C:\Users\Administrator\Desktop\test backup أو D:\MSS Backups"
                     className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800"
                   />
+
+                  {isTauri() && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBrowseForDestination}
+                      leftIcon={<FolderOpen className="w-4 h-4 text-slate-600" />}
+                      className="shrink-0 text-xs font-bold border-slate-300"
+                    >
+                      استعراض المجلد
+                    </Button>
+                  )}
 
                   <Button
                     type="button"
@@ -1136,6 +1156,47 @@ export const BackupView: React.FC = () => {
               <p className="text-[11px] text-slate-500">
                 يقوم النظام بحذف أقدم النسخ التلقائية الزائدة عن هذا الحد تلقائياً لتوفير المساحة، مع الحفاظ على النسخ اليدوية.
               </p>
+            </div>
+
+            {/* Startup with Windows Feature */}
+            <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Power className="w-4 h-4 text-blue-600" />
+                    <h5 className="font-bold text-xs text-slate-900">Startup with Windows (التشغيل مع بدء تشغيل النظام)</h5>
+                    <Badge variant={isStartupEnabled ? 'success' : 'default'} size="sm">
+                      {isStartupEnabled ? 'مفعل' : 'معطل'}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    إطلاق تطبيق <strong>MSS System</strong> تلقائياً عند إقلاع نظام التشغيل Windows لضمان استمرار النسخ المجدول كل دقيقة ودقة التوقيت.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isStartupEnabled}
+                  onChange={async e => {
+                    const checked = e.target.checked;
+                    try {
+                      const res = await autostartService.setStartupStatus(checked);
+                      setIsStartupEnabled(res.enabled);
+                      showNotification({
+                        type: 'success',
+                        title: res.enabled ? 'تم تفعيل التشغيل مع Windows' : 'تم تعطيل التشغيل مع Windows',
+                        message: res.message || 'تم تحديث حالة بدء التشغيل بنجاح',
+                      });
+                    } catch (err: any) {
+                      showNotification({
+                        type: 'error',
+                        title: 'فشل تغيير بدء التشغيل',
+                        message: err.message || 'تعذر تعديل الإعداد',
+                      });
+                    }
+                  }}
+                  className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer mt-0.5"
+                />
+              </div>
             </div>
           </div>
         </Modal>

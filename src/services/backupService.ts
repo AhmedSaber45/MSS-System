@@ -94,18 +94,36 @@ export const backupService = {
       try {
         const tauriBackups = await invoke<BackupItem[]>('get_accessories_backups');
         if (Array.isArray(tauriBackups)) {
-          // Sync with local backups
-          return tauriBackups.map(b => ({
-            ...b,
-            destinations: b.destinations && b.destinations.length > 0 ? b.destinations : [
-              {
-                path: b.filepath,
-                status: 'success' as const,
-                file_path: b.filepath,
-                size_formatted: b.size_formatted,
-              },
-            ],
-          }));
+          const localList = getLocalBackups();
+          const localMap = new Map<string, BackupItem>();
+          localList.forEach(item => {
+            if (item.filename) localMap.set(item.filename, item);
+            if (item.id) localMap.set(item.id, item);
+          });
+
+          return tauriBackups.map(b => {
+            const cached = localMap.get(b.filename) || localMap.get(b.id);
+            const mergedDestinations =
+              b.destinations && b.destinations.length > 0
+                ? b.destinations
+                : cached?.destinations && cached.destinations.length > 0
+                  ? cached.destinations
+                  : [
+                      {
+                        path: b.filepath,
+                        status: 'success' as const,
+                        file_path: b.filepath,
+                        size_formatted: b.size_formatted,
+                      },
+                    ];
+
+            return {
+              ...b,
+              destinations: mergedDestinations,
+              overall_status: b.overall_status || cached?.overall_status || 'success',
+              error_details: b.error_details || cached?.error_details,
+            };
+          });
         }
       } catch (err) {
         console.warn('Tauri get_accessories_backups failed, fallback to local storage', err);
@@ -369,7 +387,18 @@ export const backupService = {
       }
 
       // -------------------------------------------------------------
-      // Fallback / Web Mock Mode:
+      // Web Browser Detection vs Node.js Test Runner:
+      // -------------------------------------------------------------
+      const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && Boolean(process.versions?.node);
+      if (!isNode) {
+        // Plain browser session (e.g. http://localhost:5173/) without desktop backend
+        throw new Error(
+          'أنت تعمل حالياً عبر متصفح الويب (http://localhost:5173). عمليات إنشاء وحفظ النسخ الاحتياطية على القرص المحلي (مثل C:\\ أو D:\\) تتطلب تشغيل تطبيق سطح المكتب (MSS System Desktop) للوصول إلى نظام ملفات Windows وقاعدة البيانات الحقيقية. وضع المتصفح لا يملك صلاحية الوصول إلى نظام الملفات.'
+        );
+      }
+
+      // -------------------------------------------------------------
+      // Fallback / Node.js Automated Test Runner Mode:
       // -------------------------------------------------------------
       await new Promise(resolve => setTimeout(resolve, 30));
 
