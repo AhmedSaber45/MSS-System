@@ -325,13 +325,20 @@ export const BackupView: React.FC = () => {
   const columns: Column<BackupItem>[] = [
     {
       key: 'filename',
-      header: 'اسم ملف النسخة والمسار',
+      header: 'ملف النسخة والمسار',
+      className: 'max-w-[210px] xl:max-w-[260px]',
       render: (item: BackupItem) => (
-        <div>
-          <span className="font-mono font-bold text-slate-900 text-sm block truncate max-w-sm">
+        <div className="min-w-0">
+          <span
+            className="font-mono font-bold text-slate-900 text-xs block truncate"
+            title={item.filename}
+          >
             {item.filename}
           </span>
-          <span className="text-xs text-slate-500 font-mono font-medium block truncate max-w-sm mt-0.5">
+          <span
+            className="text-[11px] text-slate-500 font-mono font-medium block truncate mt-0.5"
+            title={item.filepath}
+          >
             {item.filepath}
           </span>
         </div>
@@ -339,14 +346,16 @@ export const BackupView: React.FC = () => {
     },
     {
       key: 'trigger_type',
-      header: 'طريقة الإنشاء',
+      header: 'النوع',
+      align: 'center',
+      className: 'w-24',
       render: (item: BackupItem) => {
         const trigger = item.trigger_type || (item.backup_type === 'auto' ? 'scheduled' : item.backup_type);
         const label =
           trigger === 'after_operation'
-            ? 'بعد عملية ناجحة'
+            ? 'بعد عملية'
             : trigger === 'scheduled'
-              ? 'مجدول زمنياً'
+              ? 'مجدول'
               : trigger === 'safeguard'
                 ? 'حماية سابقة'
                 : 'يدوي';
@@ -361,7 +370,7 @@ export const BackupView: React.FC = () => {
                 : 'default';
 
         return (
-          <Badge variant={variant} size="sm" className="font-semibold">
+          <Badge variant={variant} size="sm" className="font-semibold text-xs whitespace-nowrap">
             {label}
           </Badge>
         );
@@ -370,22 +379,36 @@ export const BackupView: React.FC = () => {
     {
       key: 'date',
       header: 'تاريخ الإنشاء',
-      render: (item: BackupItem) => (
-        <span className="font-mono text-slate-700 text-sm font-medium tabular-nums">{item.date}</span>
-      ),
+      align: 'center',
+      className: 'w-24',
+      render: (item: BackupItem) => {
+        const parts = (item.date || '').split(' ');
+        const dateStr = parts[0] || item.date;
+        const timeStr = parts[1] || '';
+        return (
+          <div className="font-mono tabular-nums leading-tight text-xs">
+            <span className="font-semibold text-slate-800 block">{dateStr}</span>
+            {timeStr && <span className="text-slate-500 text-[11px] block mt-0.5">{timeStr}</span>}
+          </div>
+        );
+      },
     },
     {
       key: 'size_formatted',
       header: 'الحجم',
+      align: 'center',
+      className: 'w-20',
       render: (item: BackupItem) => (
-        <span className="font-mono text-slate-800 text-sm font-semibold tabular-nums">
+        <span className="font-mono text-slate-800 text-xs font-semibold tabular-nums">
           {item.size_formatted}
         </span>
       ),
     },
     {
       key: 'destinations',
-      header: 'الوجهات والمسارات',
+      header: 'الوجهات',
+      align: 'center',
+      className: 'w-24',
       render: (item: BackupItem) => {
         const dests = item.destinations || [];
         const successCount = dests.filter(d => d.status === 'success').length;
@@ -395,42 +418,53 @@ export const BackupView: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedBackupDetails(item)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+            className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
             title="انقر لعرض تفاصيل المسارات والوجهات"
           >
-            <span>{total > 1 ? `${successCount}/${total} وجهات` : 'وجهة واحدة'}</span>
-            <ExternalLink className="w-3 h-3 text-slate-500" />
+            <span>{total > 1 ? `${successCount}/${total} وجهات` : 'وجهة 1'}</span>
+            <ExternalLink className="w-3 h-3 text-slate-500 shrink-0" />
           </button>
         );
       },
     },
     {
       key: 'status',
-      header: 'حالة النسخة',
+      header: 'الحالة',
+      align: 'center',
+      className: 'w-20',
       render: (item: BackupItem) => {
         const isSuccess = item.overall_status === 'success' || item.status.includes('سليم');
         const isPartial = item.overall_status === 'partial' || item.status.includes('جزئي');
 
         if (isSuccess) {
           return (
-            <span className="inline-flex items-center gap-1.5 text-emerald-800 text-xs font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>سليم ومتحقق منه</span>
+            <span
+              className="inline-flex items-center justify-center gap-1 text-emerald-800 text-xs font-bold"
+              title="سليم ومتحقق منه بالكامل"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>سليم</span>
             </span>
           );
         }
         if (isPartial) {
           return (
-            <span className="inline-flex items-center gap-1.5 text-amber-800 text-xs font-bold">
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>نجاح جزئي</span>
+            <span
+              className="inline-flex items-center justify-center gap-1 text-amber-800 text-xs font-bold"
+              title="نجاح جزئي في بعض الوجهات"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>جزئي</span>
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center gap-1.5 text-rose-800 text-xs font-bold">
-            <XCircle className="w-4 h-4 text-rose-600" />
-            <span>فشل الحفظ</span>
+          <span
+            className="inline-flex items-center justify-center gap-1 text-rose-800 text-xs font-bold"
+            title="فشل الحفظ"
+          >
+            <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+            <span>فشل</span>
           </span>
         );
       },
@@ -439,36 +473,35 @@ export const BackupView: React.FC = () => {
       key: 'actions',
       header: 'إجراءات',
       align: 'center',
+      className: 'w-36',
       render: (item: BackupItem) => (
-        <div className="flex items-center justify-center gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => backupService.openBackupFolder(item.filepath)}
-            leftIcon={<FolderOpen className="w-4 h-4 text-slate-600" />}
-            title="فتح مسار النسخة في Windows Explorer"
-            className="h-8 text-xs font-semibold px-2 border-slate-300 text-slate-700"
-          >
-            فتح المجلد
-          </Button>
+        <div className="flex items-center justify-center gap-1">
           <Button
             size="sm"
             variant="outline"
             onClick={() => setSelectedBackupForRestore(item)}
-            leftIcon={<RotateCcw className="w-4 h-4" />}
-            className="h-8 text-xs font-bold px-2.5 border-slate-300 text-slate-800"
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            className="h-7 text-xs font-bold px-2 border-slate-300 text-slate-800 hover:bg-slate-100"
+            title="استرجاع قاعدة البيانات من هذه النسخة"
           >
             استرجاع
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => handleExportBackup(item)}
-            leftIcon={<FolderDown className="w-4 h-4" />}
-            className="h-8 text-xs font-bold px-2.5"
+          <button
+            type="button"
+            onClick={() => backupService.openBackupFolder(item.filepath)}
+            title="فتح مسار النسخة في مستكشف Windows"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-400 transition-colors shrink-0 cursor-pointer"
           >
-            تصدير
-          </Button>
+            <FolderOpen className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportBackup(item)}
+            title="تصدير ملف النسخة الاحتياطية"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-400 transition-colors shrink-0 cursor-pointer"
+          >
+            <FolderDown className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
@@ -478,7 +511,7 @@ export const BackupView: React.FC = () => {
     <div className="space-y-5">
       <PageHeader
         title="إدارة النسخ الاحتياطي والأرشفة"
-        subtitle="حفظ واسترجاع نسخ قاعدة بيانات النظام عبر مسارات متعددة وجدولة تلقائية"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Button
@@ -627,13 +660,12 @@ export const BackupView: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
-            <Table
-              columns={columns}
-              data={backups}
-              keyExtractor={(item: BackupItem) => item.id}
-            />
-          </div>
+          <Table
+            columns={columns}
+            data={backups}
+            density="compact"
+            keyExtractor={(item: BackupItem) => item.id}
+          />
         )}
       </div>
 
@@ -1058,16 +1090,7 @@ export const BackupView: React.FC = () => {
                     placeholder="مثال: D:\MSS Backups أو E:\System Backups"
                     className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBrowseForDestination}
-                    leftIcon={<FolderOpen className="w-4 h-4" />}
-                    className="shrink-0 text-xs font-semibold"
-                  >
-                    Browse
-                  </Button>
+
                   <Button
                     type="button"
                     variant="secondary"

@@ -19,6 +19,7 @@ export interface TableProps<T> {
   emptyMessage?: string;
   emptySubMessage?: string;
   className?: string;
+  density?: 'normal' | 'compact';
   onRowClick?: (item: T) => void;
 }
 
@@ -30,8 +31,10 @@ export function Table<T>({
   emptyMessage = 'لا توجد بيانات متاحة حالياً',
   emptySubMessage,
   className,
+  density = 'normal',
   onRowClick,
 }: TableProps<T>) {
+  const isCompact = density === 'compact';
   return (
     <div className="w-full overflow-hidden border border-slate-300 rounded-xl bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -42,7 +45,8 @@ export function Table<T>({
                 <th
                   key={col.key}
                   className={cn(
-                    'px-4 py-3 whitespace-nowrap',
+                    isCompact ? 'px-3 py-2.5 text-xs' : 'px-4 py-3 text-sm',
+                    'whitespace-nowrap font-semibold',
                     col.align === 'center'
                       ? 'text-center'
                       : col.align === 'left'
@@ -61,7 +65,10 @@ export function Table<T>({
               Array.from({ length: 5 }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`}>
                   {columns.map((_, colIdx) => (
-                    <td key={`skel-col-${colIdx}`} className="px-4 py-3.5">
+                    <td
+                      key={`skel-col-${colIdx}`}
+                      className={cn(isCompact ? 'px-3 py-2' : 'px-4 py-3.5')}
+                    >
                       <Skeleton className="h-4 w-full rounded" />
                     </td>
                   ))}
@@ -95,7 +102,8 @@ export function Table<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        'px-4 py-3 whitespace-nowrap text-slate-800 tabular-nums text-sm',
+                        isCompact ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm',
+                        'whitespace-nowrap text-slate-800 tabular-nums',
                         col.align === 'center'
                           ? 'text-center'
                           : col.align === 'left'
