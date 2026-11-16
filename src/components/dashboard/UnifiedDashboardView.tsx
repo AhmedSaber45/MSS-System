@@ -21,11 +21,14 @@ import {
   Cloud,
   Layers,
   Printer,
+  FileDown,
   ChevronLeft,
 } from 'lucide-react';
 import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
+import { documentPrintService } from '@/lib/documentPrintService';
+import { PrintableUnifiedReport } from '@/components/reports/PrintableUnifiedReport';
 import type {
   ReportPeriod,
   UnifiedBusinessDashboardData,
@@ -75,8 +78,27 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
     loadData();
   }, [loadData]);
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!data) return;
+    await documentPrintService.printElement('unified-report-document-root', {
+      title: `تقرير_تنفيذي_موحد_${new Date().toISOString().slice(0, 10)}`,
+      format: 'report',
+      orientation: 'portrait',
+    });
+  };
+
+  const handleExportPdf = async () => {
+    if (!data) return;
+    showNotification({
+      type: 'info',
+      title: 'استخراج التقرير الموحد كـ PDF',
+      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند الرسمي بجودة عالية.',
+    });
+    await documentPrintService.exportToPdf('unified-report-document-root', {
+      title: `تقرير_تنفيذي_موحد_${new Date().toISOString().slice(0, 10)}`,
+      format: 'report',
+      orientation: 'portrait',
+    });
   };
 
   const navigateToAccessories = (route: any = 'dashboard', params?: Record<string, any>) => {
@@ -96,7 +118,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
       {/* Page Header */}
       <PageHeader
         title="لوحة القيادة الموحدة والتقارير التنفيذية"
-        subtitle="نظرة عامة مجمعة لنشاط محل الإكسسوارات و  MSS مع الفصل الصارم للقواعد المالية"
+        subtitle="نظرة عامة مجمعة لنشاط محل الإكسسوارات و  MSS"
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -111,8 +133,21 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
             <Button
               variant="outline"
               size="sm"
+              onClick={handleExportPdf}
+              disabled={isLoading || !data}
+              leftIcon={<FileDown className="w-3.5 h-3.5 text-blue-600" />}
+              className="border-slate-300 font-bold hover:bg-slate-50 text-slate-800"
+              title="استخراج وحفظ التقرير التنفيذي الموحد كملف PDF"
+            >
+              استخراج PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handlePrint}
+              disabled={isLoading || !data}
               leftIcon={<Printer className="w-3.5 h-3.5 text-slate-500" />}
+              title="طباعة التقرير التنفيذي الموحد"
             >
               طباعة
             </Button>
@@ -141,11 +176,10 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 <button
                   key={opt.id}
                   type="button"
-                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                    period === opt.id
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${period === opt.id
                       ? 'bg-white shadow-sm text-slate-900 font-bold border border-slate-300'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-                  }`}
+                    }`}
                   onClick={() => setPeriod(opt.id as ReportPeriod)}
                 >
                   {opt.label}
@@ -570,6 +604,18 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* Hidden Pristine Unified Executive Report Template for Print & PDF */}
+          <div className="hidden" aria-hidden="true">
+            <div id="unified-report-document-root">
+              <PrintableUnifiedReport
+                data={data}
+                period={period}
+                customStart={customStart}
+                customEnd={customEnd}
+              />
+            </div>
+          </div>
         </>
       )}
     </div>

@@ -18,6 +18,8 @@ import {
   RotateCcw,
   Tag,
   FileCheck2,
+  FileDown,
+  Printer,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -28,6 +30,7 @@ import { usePageRefresh } from '@/context/PageRefreshContext';
 import { productsService } from '@/services/productsService.ts';
 import { salesService } from '@/services/salesService.ts';
 import { PrintableInvoice } from '@/components/sales/PrintableInvoice.tsx';
+import { documentPrintService } from '@/lib/documentPrintService';
 import type { Product } from '@/types/product.ts';
 import type { CartItem, Invoice, InvoiceItem } from '@/types/sale.ts';
 
@@ -816,14 +819,43 @@ export const SalesView: React.FC = () => {
               <Button variant="outline" size="md" onClick={handleStartNewSale} leftIcon={<Plus className="w-4 h-4" />}>
                 بدء عملية بيع جديدة
               </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => window.print()}
-                leftIcon={<FileCheck2 className="w-4.5 h-4.5" />}
-              >
-                طباعة الفاتورة 
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={async () => {
+                    const elementId = printFormat === 'a4' ? 'printable-invoice-a4' : 'printable-invoice-thermal';
+                    showNotification({
+                      type: 'info',
+                      title: 'حفظ الفاتورة بتنسيق PDF',
+                      message: 'تم فتح نافذة الطباعة. اختر الوجهة "حفظ بتنسيق PDF" لحفظ المستند بجودة عالية.',
+                    });
+                    await documentPrintService.exportToPdf(elementId, {
+                      title: `فاتورة_${completedInvoice.invoice_number}`,
+                      format: printFormat,
+                    });
+                  }}
+                  leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
+                  className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+                >
+                  حفظ كـ PDF
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={async () => {
+                    const elementId = printFormat === 'a4' ? 'printable-invoice-a4' : 'printable-invoice-thermal';
+                    await documentPrintService.printElement(elementId, {
+                      title: `فاتورة_${completedInvoice.invoice_number}`,
+                      format: printFormat,
+                    });
+                  }}
+                  leftIcon={<Printer className="w-4.5 h-4.5" />}
+                  className="font-bold shadow-xs"
+                >
+                  طباعة الفاتورة 
+                </Button>
+              </div>
             </div>
           }
         >

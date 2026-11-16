@@ -57,16 +57,63 @@
   outline-offset: 1px;
 }
 
-/* Print styling foundation for invoices and receipts */
+/* Comprehensive print styling for invoices, thermal receipts, and formal reports */
 @media print {
-  body {
-    overflow: visible !important;
-    height: auto !important;
-    background: white !important;
-    color: black !important;
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .no-print {
+  html, body {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide entire application navigation & chrome */
+  aside,
+  nav,
+  header,
+  footer,
+  .no-print,
+  .app-sidebar,
+  .top-header,
+  .app-footer,
+  .notification-toast,
+  [data-no-print] {
     display: none !important;
+  }
+
+  /* Unset flex scroll containers when printing */
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto,
+  .overflow-x-auto {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Table pagination and break controls */
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr, .avoid-break, .print-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .page-break {
+    page-break-before: always !important;
+    break-before: always !important;
   }
 }

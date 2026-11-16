@@ -27,6 +27,7 @@ import { productsService } from '@/services/productsService';
 import { Product, NewProductInput, UpdateProductInput, StockStatusFilter } from '@/types/product';
 import { generateNextProductCode } from '@/lib/productCodeGenerator';
 import { useNotification } from '@/context/NotificationContext';
+import { ProductCreationModal } from './ProductCreationModal';
 
 interface FormState {
   name: string;
@@ -169,20 +170,7 @@ export const ProductsView: React.FC = () => {
     return list;
   }, [products, searchQuery, selectedCategory, selectedStockFilter]);
 
-  // Product Name & Code Handlers
-  const handleProductNameChange = (newName: string) => {
-    setFormData(prev => {
-      if (!isCodeManuallyEdited) {
-        const nextCode = generateNextProductCode(newName, products);
-        return { ...prev, name: newName, code: nextCode };
-      }
-      return { ...prev, name: newName };
-    });
-    if (formErrors.name) {
-      setFormErrors(prev => ({ ...prev, name: '' }));
-    }
-  };
-
+  // Product Code Handlers
   const handleProductCodeChange = (newCode: string) => {
     setIsCodeManuallyEdited(true);
     setFormData(prev => ({ ...prev, code: newCode }));
@@ -260,14 +248,6 @@ export const ProductsView: React.FC = () => {
 
   // Open Add Modal
   const handleOpenAddModal = () => {
-    setIsCodeManuallyEdited(false);
-    const suggestedCode = generateNextProductCode('', products);
-
-    setFormData({
-      ...emptyFormState,
-      code: suggestedCode,
-    });
-    setFormErrors({});
     setIsAddModalOpen(true);
   };
 
@@ -301,50 +281,6 @@ export const ProductsView: React.FC = () => {
   const handleOpenDeleteModal = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
-  };
-
-  // Submit Add Product
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-    try {
-      const finalCategory =
-        formData.category === '__NEW__'
-          ? formData.newCategory.trim()
-          : formData.category.trim();
-
-      const input: NewProductInput = {
-        name: formData.name,
-        code: formData.code,
-        barcode: null,
-        category: finalCategory || null,
-        cost: Number(formData.cost),
-        price: Number(formData.price),
-        stock: Math.floor(Number(formData.stock)),
-        low_stock_threshold: Math.floor(Number(formData.low_stock_threshold)),
-        description: formData.description || null,
-      };
-
-      const created = await productsService.addProduct(input);
-      showNotification({
-        type: 'success',
-        title: 'تمت إضافة المنتج بنجاح',
-        message: `تم حفظ الصنف "${created.name}" في قاعدة بيانات الإكسسوارات المحلية.`,
-      });
-
-      setIsAddModalOpen(false);
-      await loadData();
-    } catch (err: any) {
-      showNotification({
-        type: 'error',
-        title: 'فشل حفظ الصنف',
-        message: err?.message || 'حدث خطأ أثناء حفظ الصنف في قاعدة البيانات',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   // Submit Edit Product
@@ -671,179 +607,12 @@ export const ProductsView: React.FC = () => {
         emptySubMessage="تأكد من كتابة الكلمات بشكل صحيح أو قم بإضافة أصناف جديدة إلى قاعدة البيانات."
       />
 
-      {/* ---------------- MODAL 1: ADD PRODUCT ---------------- */}
-      <Modal
+      {/* ---------------- MODAL 1: ADD PRODUCT (SHARED REUSABLE COMPONENT) ---------------- */}
+      <ProductCreationModal
         isOpen={isAddModalOpen}
-        onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="إضافة منتج إكسسوار جديد"
-        subtitle=""
-        size="lg"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              size="md"
-              onClick={() => setIsAddModalOpen(false)}
-              disabled={isSubmitting}
-            >
-              إلغاء
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleAddSubmit}
-              isLoading={isSubmitting}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              حفظ المنتج الجديد
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleAddSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <Input
-              label="اسم المنتج *"
-              placeholder="مثال: شاحن سريع 20 واط Type-C"
-              value={formData.name}
-              onChange={e => handleProductNameChange(e.target.value)}
-              error={formErrors.name}
-              autoFocus
-            />
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-semibold text-slate-800">
-                  كود الصنف الداخلي <span className="text-rose-500">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleRegenerateCode}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
-                  title="إعادة توليد الكود التلقائي بناءً على اسم الصنف"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                  <span>توليد كود تلقائي</span>
-                </button>
-              </div>
-              <Input
-                placeholder="مثال: CHG-001 أو MO-001"
-                value={formData.code}
-                onChange={e => handleProductCodeChange(e.target.value.toUpperCase())}
-                error={formErrors.code}
-                isMonospace
-              />
-              <span className="text-[11px] text-slate-500 mt-1 block">
-                {isCodeManuallyEdited
-                  ? 'تم تعديل الكود يدوياً (لن يتغير تلقائياً مع الاسم إلا عند النقر على "توليد كود تلقائي")'
-                  : 'كود مقترح تلقائياً بناءً على اسم الصنف (يمكنك تعديله يدوياً في أي وقت)'}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-
-            <div>
-              <Select
-                label="تصنيف الصنف"
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="">-- بدون تصنيف (عام) --</option>
-                {categories.map(c => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                <option value="__NEW__">+ إضافة تصنيف جديد...</option>
-              </Select>
-
-              {formData.category === '__NEW__' && (
-                <div className="mt-2">
-                  <Input
-                    placeholder="اكتب اسم التصنيف الجديد..."
-                    value={formData.newCategory}
-                    onChange={e => setFormData({ ...formData, newCategory: e.target.value })}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 p-4 bg-slate-50 rounded-xl border border-slate-300">
-            <Input
-              label="سعر التكلفة (EGP) *"
-              type="number"
-              step="0.5"
-              min="0"
-              placeholder="0.00"
-              value={formData.cost}
-              onChange={e => setFormData({ ...formData, cost: e.target.value })}
-              error={formErrors.cost}
-            />
-
-            <Input
-              label="سعر البيع (EGP) *"
-              type="number"
-              step="0.5"
-              min="0"
-              placeholder="0.00"
-              value={formData.price}
-              onChange={e => setFormData({ ...formData, price: e.target.value })}
-              error={formErrors.price}
-            />
-
-            <Input
-              label="الكمية المتوفرة *"
-              type="number"
-              min="0"
-              placeholder="0"
-              value={formData.stock}
-              onChange={e => setFormData({ ...formData, stock: e.target.value })}
-              error={formErrors.stock}
-            />
-
-            <Input
-              label="حد تنبيه النواقص *"
-              type="number"
-              min="0"
-              placeholder="5"
-              value={formData.low_stock_threshold}
-              onChange={e => setFormData({ ...formData, low_stock_threshold: e.target.value })}
-              error={formErrors.low_stock_threshold}
-            />
-          </div>
-
-          {Number(formData.price) > 0 && Number(formData.cost) > 0 && (
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-300 text-sm text-slate-800">
-              <span className="flex items-center gap-1.5 font-bold">
-                <TrendingUp className="w-4 h-4 text-slate-600" />
-                هامش الربح المتوقع للقطعة:
-              </span>
-              <span className="font-bold font-mono tabular-nums text-emerald-800">
-                +{formatCurrency(Number(formData.price) - Number(formData.cost))} (
-                {Math.round(
-                  ((Number(formData.price) - Number(formData.cost)) / Number(formData.cost)) * 100
-                )}
-                % نسبة زيادة)
-              </span>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-              ملاحظات أو وصف إضافي (اختياري)
-            </label>
-            <textarea
-              rows={2}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors hover:border-slate-400"
-              placeholder="أي تفاصيل تخص اللون، التوافق، أو الموديل..."
-              value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-        </form>
-      </Modal>
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={loadData}
+      />
 
       {/* ---------------- MODAL 2: EDIT PRODUCT ---------------- */}
       <Modal

@@ -30,6 +30,7 @@ import { Purchase, PurchaseItem, NewPurchaseInput, NewPurchaseItemInput } from '
 import { Product } from '@/types/product';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { ProductCreationModal } from './ProductCreationModal';
 
 interface CartItemRow {
   product_id: string;
@@ -53,6 +54,7 @@ export const PurchasesView: React.FC = () => {
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState<boolean>(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [selectedPurchaseItems, setSelectedPurchaseItems] = useState<PurchaseItem[]>([]);
@@ -151,6 +153,54 @@ export const PurchasesView: React.FC = () => {
     } else {
       setItemCost('');
     }
+  };
+
+  // Handle Product Created from ProductCreationModal (or detected as existing duplicate)
+  const handleProductCreatedFromModal = async (product: Product, _isExistingDuplicate: boolean) => {
+    // 1. Immediately refresh products list in PurchasesView to ensure fresh catalog
+    const refreshed = await productsService.getProducts();
+    setProducts(refreshed);
+
+    // 2. Quantity & cost to insert
+    const parsedQty = parseInt(itemQty, 10);
+    const lineQty = (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 1;
+    const lineCost = product.cost || 0;
+
+    // 3. Automatically add or update item in cart
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(item => item.product_id === product.id);
+      if (existingIndex >= 0) {
+        // If already in cart, increment quantity
+        const updated = [...prev];
+        updated[existingIndex].quantity += lineQty;
+        if (lineCost > 0) {
+          updated[existingIndex].unit_cost = lineCost;
+        }
+        return updated;
+      } else {
+        // Add as new line item
+        return [
+          ...prev,
+          {
+            product_id: product.id,
+            product_name: product.name,
+            product_code: product.code,
+            quantity: lineQty,
+            unit_cost: lineCost,
+            update_product_cost: true,
+          },
+        ];
+      }
+    });
+
+    // 4. Update the active selector row so the product is selected and its cost populated
+    setSelectedProductId(product.id);
+    setItemCost(String(lineCost));
+    setItemQty('1');
+    setItemUpdateCost(true);
+
+    // 5. Close product creation modal only; invoice modal remains open
+    setIsAddProductModalOpen(false);
   };
 
   // Add Item to Cart
@@ -563,19 +613,40 @@ export const PurchasesView: React.FC = () => {
 
           {/* Add Item Row */}
           <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Boxes className="w-4.5 h-4.5 text-slate-600" />
-              إضافة صنف إلى الفاتورة
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <Boxes className="w-4.5 h-4.5 text-slate-600" />
+                إضافة صنف إلى الفاتورة
+              </h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddProductModalOpen(true)}
+                className="font-bold text-xs border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 cursor-pointer"
+                leftIcon={<Plus className="w-3.5 h-3.5 text-blue-600" />}
+              >
+                + إضافة صنف جديد
+              </Button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div className="md:col-span-5">
                 <Select
                   label="اختر الصنف *"
                   value={selectedProductId}
-                  onChange={e => handleProductSelectChange(e.target.value)}
+                  onChange={e => {
+                    if (e.target.value === '__NEW_PRODUCT__') {
+                      setIsAddProductModalOpen(true);
+                      return;
+                    }
+                    handleProductSelectChange(e.target.value);
+                  }}
                 >
                   <option value="">-- اضغط للاختيار من الأصناف ({products.length}) --</option>
+                  <option value="__NEW_PRODUCT__" className="font-bold text-blue-600 bg-blue-50">
+                    + إضافة صنف جديد...
+                  </option>
                   {products.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} [{p.code}] - الرصيد الحالي: {p.stock}
@@ -702,6 +773,15 @@ export const PurchasesView: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* ---------------- MODAL 1.5: ADD PRODUCT DIRECTLY FROM INVOICE ---------------- */}
+      <ProductCreationModal
+        isOpen={isAddProductModalOpen}
+        onClose={() => setIsAddProductModalOpen(false)}
+        onSuccess={handleProductCreatedFromModal}
+        isFromPurchaseInvoice
+        zIndexClassName="z-[60]"
+      />
 
       {/* ---------------- MODAL 2: PURCHASE DETAILS ---------------- */}
       <Modal

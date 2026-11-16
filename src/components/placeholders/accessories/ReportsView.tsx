@@ -14,6 +14,7 @@ import {
   Package,
   Percent,
   Calendar,
+  FileDown,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
@@ -21,6 +22,8 @@ import { useDateRangeFilter, getTodayLocalDateString } from '@/lib/dateValidatio
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useNotification } from '@/context/NotificationContext';
 import { reportsService } from '@/services/reportsService.ts';
+import { documentPrintService } from '@/lib/documentPrintService';
+import { PrintableProfitReport } from '@/components/reports/PrintableProfitReport';
 import type {
   FinancialSummary,
   DailySalesSummary,
@@ -100,8 +103,37 @@ export const ReportsView: React.FC = () => {
     loadReportData();
   }, [loadReportData]);
 
-  const handlePrintReport = () => {
-    window.print();
+  const periodLabels: Record<string, string> = {
+    today: 'اليوم',
+    week: 'آخر 7 أيام',
+    month: 'الشهر الحالي (30 يوم)',
+    all: 'كل الفترات',
+    custom: 'فترة مخصصة',
+  };
+
+  // Direct Print Formal Report (Phase 5)
+  const handlePrintReport = async () => {
+    if (!summary) return;
+    await documentPrintService.printElement('profit-report-document-root', {
+      title: `كشف_الأرباح_${getTodayLocalDateString()}`,
+      format: 'report',
+      orientation: 'portrait',
+    });
+  };
+
+  // Dedicated PDF Export (Phase 6)
+  const handleExportPdf = async () => {
+    if (!summary) return;
+    showNotification({
+      type: 'info',
+      title: 'استخراج تقرير الأرباح كـ PDF',
+      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لتنزيل التقرير المالي المعتمد.',
+    });
+    await documentPrintService.exportToPdf('profit-report-document-root', {
+      title: `تقرير_الأرباح_${getTodayLocalDateString()}`,
+      format: 'report',
+      orientation: 'portrait',
+    });
   };
 
   return (
@@ -111,7 +143,7 @@ export const ReportsView: React.FC = () => {
         title="التقارير المالية والأرباح"
         subtitle=""
         actions={
-          <div className="no-print flex items-center gap-2">
+          <div className="no-print flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="md"
@@ -125,9 +157,22 @@ export const ReportsView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
+              onClick={handleExportPdf}
+              disabled={isLoading || !summary}
+              leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
+              className="border-slate-300 font-bold hover:bg-slate-50 text-slate-800"
+              title="استخراج وحفظ كشف الأرباح كملف PDF"
+            >
+              استخراج PDF
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
               onClick={handlePrintReport}
-              leftIcon={<Printer className="w-4.5 h-4.5 text-slate-600" />}
-              className="border-slate-300 font-semibold"
+              disabled={isLoading || !summary}
+              leftIcon={<Printer className="w-4.5 h-4.5" />}
+              className="font-bold shadow-xs"
+              title="طباعة التقرير المالي الرسمي مباشرة"
             >
               طباعة كشف الأرباح
             </Button>
@@ -421,12 +466,30 @@ export const ReportsView: React.FC = () => {
                   </div>
                 </Card>
               )}
-
-
             </div>
           </div>
         </>
       ) : null}
+
+      {/* Hidden Pristine Print & PDF Template (Phase 5 & 6) */}
+      {summary && (
+        <div className="hidden" aria-hidden="true">
+          <div id="profit-report-document-root">
+            <PrintableProfitReport
+              summary={summary}
+              dailySummaries={dailySummaries}
+              topProducts={topProducts}
+              valuation={valuation}
+              periodLabel={periodLabels[period] || 'فترة محددة'}
+              dateRangeText={
+                period === 'custom' && dateFilter.startDate && dateFilter.endDate
+                  ? `من ${dateFilter.startDate} إلى ${dateFilter.endDate}`
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
