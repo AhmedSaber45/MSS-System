@@ -240,13 +240,13 @@ export const MSSReturnsView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="مرتجعات أجهزة MSS وعكس العمليات"
+        title="مرتجعات أجهزة Compu MSS وعكس العمليات"
         subtitle="توثيق استرجاع الأجهزة المباعة وعكس الأرباح وإعادة السيريال إلى المخزون المادي المعتمد"
         actions={
           <Button
             variant="outline"
             size="md"
-            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث سجل مرتجعات أجهزة MSS...')}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث سجل مرتجعات أجهزة Compu MSS...')}
             disabled={isRefreshing || isLoading}
             leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             className="border-slate-300 font-semibold"

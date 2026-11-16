@@ -42,10 +42,10 @@ export const SectionSwitcher: React.FC<{ compact?: boolean }> = ({ compact = fal
               ? 'bg-white text-slate-900 shadow-sm border border-slate-300 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
           )}
-          title="  MSS "
+          title="قسم Compu MSS للأجهزة"
         >
           <Laptop className={cn('w-4.5 h-4.5', currentSection === 'mss' ? 'text-teal-700' : 'text-slate-500')} />
-          {!compact && <span> MSS</span>}
+          {!compact && <span>Compu MSS</span>}
         </button>
       </div>
     </div>

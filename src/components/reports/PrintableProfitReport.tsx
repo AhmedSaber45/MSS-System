@@ -26,7 +26,7 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
   periodLabel,
   dateRangeText,
   reportTitle = 'كشف الأرباح والأداء المالي والتشغيلي',
-  businessName = 'MSS System — نظام إدارة الأعمال والمبيعات',
+  businessName = 'Compu MSS — نظام إدارة الأعمال والمبيعات',
 }) => {
   const currentDate = new Date().toLocaleDateString('ar-EG', {
     year: 'numeric',
@@ -218,9 +218,8 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
                       {d.refunds > 0 ? formatCurrency(d.refunds) : '—'}
                     </td>
                     <td
-                      className={`py-2.5 px-3.5 text-left font-bold font-mono tabular-nums text-xs ${
-                        d.grossProfit >= 0 ? 'text-emerald-800 print:text-slate-950' : 'text-rose-700'
-                      }`}
+                      className={`py-2.5 px-3.5 text-left font-bold font-mono tabular-nums text-xs ${d.grossProfit >= 0 ? 'text-emerald-800 print:text-slate-950' : 'text-rose-700'
+                        }`}
                     >
                       {formatCurrency(d.grossProfit)}
                     </td>
@@ -381,7 +380,7 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
 
         {/* Legal & Ownership Footer */}
         <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-          <span>نظام MSS System — تم إنشاء التقرير إلكترونياً وهو معتمد بدون تعديل يدوي</span>
+          <span>نظام Compu MSS — تم إنشاء التقرير إلكترونياً وهو معتمد بدون تعديل يدوي</span>
           <span>© 2026 Ahmed Saber. All rights reserved. • Contact: 01030137635</span>
         </div>
       </div>

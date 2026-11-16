@@ -41,9 +41,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               {isAccessories ? 'ACC' : 'MSS'}
             </div>
             <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-slate-900 truncate font-mono">MSS System</h1>
+              <h1 className="text-base font-bold text-slate-900 truncate font-mono">Compu MSS</h1>
               <p className="text-xs font-semibold text-slate-500 truncate mt-0.5">
-                {isAccessories ? ' الإكسسوارات ' : '  MSS '}
+                {isAccessories ? ' الإكسسوارات ' : ' Compu MSS '}
               </p>
             </div>
           </div>
@@ -129,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         {!isSidebarCollapsed && (
           <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
             <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
-              MSS System v1.0.1
+              Compu MSS v1.0.1
             </span>
             {onOpenSettings && (
               <button

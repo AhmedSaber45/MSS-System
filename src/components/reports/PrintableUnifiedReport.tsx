@@ -56,10 +56,10 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-xl font-bold text-slate-950 tracking-tight">
-              MSS System — الإدارة التنفيذية والتقارير المجمعة
+              Compu MSS — الإدارة التنفيذية والتقارير المجمعة
             </h1>
             <p className="text-sm font-semibold text-slate-700 mt-1">
-              تقرير الأداء المالي المجمع — نشاط الإكسسوارات و MSS المشترك
+              تقرير الأداء المالي المجمع — نشاط الإكسسوارات و Compu MSS المشترك
             </p>
             <div className="flex items-center gap-3 text-xs text-slate-600 mt-2">
               <span>تاريخ الاستخراج: {currentDate} ({currentTime})</span>
@@ -94,7 +94,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       {/* 2. Combined Financial Performance Table */}
       <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
         <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-          أولاً: الأداء المالي المجمع للمنشأة (الإكسسوارات + MSS)
+          أولاً: الأداء المالي المجمع للمنشأة (الإكسسوارات + Compu MSS)
         </h3>
 
         <div className="border border-slate-300 rounded-xl overflow-hidden">
@@ -174,7 +174,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
           {/* MSS Activity */}
           <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
             <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
-              2. نشاط أجهزة MSS المشترك (لابتوبات وشاشات)
+              2. نشاط أجهزة Compu MSS المشترك (لابتوبات وشاشات)
             </h4>
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-600">صافي مبيعات الأجهزة:</span>
@@ -185,7 +185,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <span className="font-mono tabular-nums">{formatCurrency(mss.costOfGoodsSold)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
-              <span className="text-slate-900">أرباح MSS المشتركة (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
+              <span className="text-slate-900">أرباح Compu MSS المشتركة (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
               <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(mss.sharedGrossProfit)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
@@ -275,7 +275,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         </div>
 
         <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-          <span>نظام MSS System — وثيقة مالية تنفيذية موحدة صادرة إلكترونياً</span>
+          <span>نظام Compu MSS — وثيقة مالية تنفيذية موحدة صادرة إلكترونياً</span>
           <span>© 2026 Ahmed Saber. All rights reserved. • Contact: 01030137635</span>
         </div>
       </div>

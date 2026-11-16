@@ -118,7 +118,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
       {/* Page Header */}
       <PageHeader
         title="لوحة القيادة الموحدة والتقارير التنفيذية"
-        subtitle="نظرة عامة مجمعة لنشاط محل الإكسسوارات و  MSS"
+        subtitle="نظرة عامة مجمعة لنشاط محل الإكسسوارات و Compu MSS"
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -243,7 +243,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   <div className="flex items-start gap-2.5">
                     <Cloud className="w-4 h-4 text-rose-700 mt-0.5 shrink-0" />
                     <div>
-                      <div className="font-semibold text-xs">تنبيهات مزامنة  MSS</div>
+                      <div className="font-semibold text-xs">تنبيهات مزامنة Compu MSS</div>
                       <div className="text-xs text-rose-800 mt-0.5">
                         يوجد <span className="font-medium tabular-nums">{data.alerts.mssPendingSync.length}</span> عمليات بانتظار المزامنة، و{' '}
                         <span className="font-medium tabular-nums">{data.alerts.mssConflicts.length}</span> تعارضات تتطلب التسوية اليدوية.
@@ -271,7 +271,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 <span>إجمالي الأداء المالي المجمع للمنشأة</span>
               </h3>
               <Badge variant="outline" size="sm">
-                الإكسسوارات +  MSS
+                الإكسسوارات + Compu MSS
               </Badge>
             </div>
 
@@ -392,7 +392,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2.5 text-slate-900">
                     <Laptop className="w-5 h-5 text-teal-700" />
-                    <span> أجهزة MSS (Laptop & Monitor)</span>
+                    <span>أجهزة Compu MSS (Laptop & Monitor)</span>
                   </CardTitle>
                   <CardDescription>
                     سحابي مشترك بين محلين | تتبع بالسيريال | أرباح مشتركة لل
@@ -486,7 +486,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2.5">
                   <Store className="w-5 h-5 text-slate-700" />
-                  <span>المبيعات التشغيلية ل MSS حسب فرع التنفيذ</span>
+                  <span>المبيعات التشغيلية لـ Compu MSS حسب فرع التنفيذ</span>
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">
                   تحديد حجم المعاملات والتحصيل المنفذ من خلال كل فرع
@@ -498,7 +498,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
             <Alert
               type="info"
               title="تنبيه محاسبي حاسم (القاعدة 16): الفصل بين النشاط التشغيلي والربحية المشتركة"
-              message="الأرقام أدناه توضح فقط الفرع الذي قام بتنفيذ وإتمام عملية البيع والتحصيل النقدي. بينما أرباح  MSS هي أرباح موحدة على مستوى النشاط المشترك ككل، ولا يجوز اعتبارها أو نسبتها كأرباح فردية خاصة بالفرع البائع."
+              message="الأرقام أدناه توضح فقط الفرع الذي قام بتنفيذ وإتمام عملية البيع والتحصيل النقدي. بينما أرباح Compu MSS هي أرباح موحدة على مستوى النشاط المشترك ككل، ولا يجوز اعتبارها أو نسبتها كأرباح فردية خاصة بالفرع البائع."
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -554,7 +554,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
             <CardHeader className="py-4 px-6 bg-slate-50 border-b border-slate-200">
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Laptop className="w-5 h-5 text-slate-700" />
-                <span>حالة وتقييم المخزون الفيزيائي لأجهزة MSS حسب الموقع الحالي</span>
+                <span>حالة وتقييم المخزون الفيزيائي لأجهزة Compu MSS حسب الموقع الحالي</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">

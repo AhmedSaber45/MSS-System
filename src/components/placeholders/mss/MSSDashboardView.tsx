@@ -142,7 +142,7 @@ export const MSSDashboardView: React.FC = () => {
               className="px-3 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all"
               onClick={() => setActiveTab('mss')}
             >
-              لوحة  MSS
+              لوحة Compu MSS
             </button>
             <button
               type="button"
@@ -219,7 +219,7 @@ export const MSSDashboardView: React.FC = () => {
             className="px-4 py-2 rounded-lg font-bold bg-white text-slate-900 shadow-subtle border border-slate-300 transition-all"
             onClick={() => setActiveTab('mss')}
           >
-            لوحة  MSS للأجهزة
+            لوحة Compu MSS للأجهزة
           </button>
           <button
             type="button"
@@ -235,14 +235,14 @@ export const MSSDashboardView: React.FC = () => {
       </div>
 
       <PageHeader
-        title="لوحة تحكم  MSS للأجهزة"
+        title="لوحة تحكم Compu MSS للأجهزة"
         subtitle="نظام مشترك سحابي بين محلين مع تتبع السيريال ومزامنة فورية ودعم وضع عدم الاتصال"
         actions={
           <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
               size="md"
-              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة تحكم أجهزة MSS...')}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة تحكم أجهزة Compu MSS...')}
               disabled={isRefreshing || isLoading}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
@@ -274,14 +274,14 @@ export const MSSDashboardView: React.FC = () => {
 
       <Alert
         type="info"
-        title="قواعد  MSS المشترك (Rule 9 & Rule 16)"
+        title="قواعد Compu MSS المشترك (Rule 9 & Rule 16)"
         message="الكتالوج مشترك بين المحلين، وتتبع الأجهزة يكون بالسيريال الفريد لكل وحدة فيزيائية، مع تسجيل فرع البيع ومصدر الجهاز بشكل منفصل تماماً، والأرباح مشتركة على مستوى ال ككل."
       />
 
       {isLoading ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
-          <p className="mt-3 text-sm font-medium text-slate-600">جاري تحميل بيانات  MSS...</p>
+          <p className="mt-3 text-sm font-medium text-slate-600">جاري تحميل بيانات Compu MSS...</p>
         </div>
       ) : (
         <>
@@ -379,7 +379,7 @@ export const MSSDashboardView: React.FC = () => {
           {/* Recent Sales Table */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">آخر مبيعات الأجهزة المسجلة في MSS</h3>
+              <h3 className="text-sm font-bold text-slate-900">آخر مبيعات الأجهزة المسجلة في Compu MSS</h3>
               <Button size="sm" variant="outline" onClick={() => setRoute('invoices')} className="border-slate-300 text-slate-800 font-semibold">
                 عرض سجل الفواتير كاملاً
               </Button>

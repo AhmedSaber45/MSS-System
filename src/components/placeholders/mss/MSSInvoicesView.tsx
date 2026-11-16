@@ -7,13 +7,14 @@ import { Badge } from '@/components/common/Badge';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { Eye, Printer, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw, RefreshCw } from 'lucide-react';
+import { Eye, Printer, FileDown, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { documentPrintService } from '@/lib/documentPrintService';
 
 export const MSSInvoicesView: React.FC = () => {
   const { isRefreshing, triggerRefresh } = usePageRefresh();
@@ -177,7 +178,7 @@ export const MSSInvoicesView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="فواتير مبيعات أجهزة MSS"
+        title="فواتير مبيعات أجهزة Compu MSS"
         subtitle="سجل فواتير مبيعات اللابتوب والشاشات موثقة بالسيريال ولقطات الأسعار مع إسناد فرع البيع ومصدر المخزون"
       />
 
@@ -211,7 +212,7 @@ export const MSSInvoicesView: React.FC = () => {
             </span>
             <TrendingUp className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">   MSS </span>
+          <span className="text-xs text-slate-500 mt-1 block">أرباح Compu MSS المشتركة</span>
         </Card>
       </div>
 
@@ -231,7 +232,7 @@ export const MSSInvoicesView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير مبيعات أجهزة MSS...')}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير مبيعات أجهزة Compu MSS...')}
             disabled={isRefreshing || isLoading}
             title="إعادة تحميل البيانات"
             className="font-semibold"
@@ -325,26 +326,49 @@ export const MSSInvoicesView: React.FC = () => {
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
-            <Button variant="outline" size="md" onClick={() => setSelectedInvoice(null)}>
+            <Button variant="outline" size="md" onClick={() => setSelectedInvoice(null)} className="border-slate-300 font-semibold">
               إغلاق
             </Button>
-            <Button
-              variant="primary"
-              size="md"
-              className="font-bold"
-              onClick={() => window.print()}
-              leftIcon={<Printer className="w-4.5 h-4.5" />}
-            >
-              طباعة الفاتورة A4
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="md"
+                onClick={async () => {
+                  if (!selectedInvoice) return;
+                  await documentPrintService.exportToPdf('mss-invoice-print-root', {
+                    title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
+                    format: 'a4',
+                  });
+                }}
+                leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
+                className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+              >
+                حفظ كـ PDF
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="font-bold shadow-xs"
+                onClick={async () => {
+                  if (!selectedInvoice) return;
+                  await documentPrintService.printElement('mss-invoice-print-root', {
+                    title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
+                    format: 'a4',
+                  });
+                }}
+                leftIcon={<Printer className="w-4.5 h-4.5" />}
+              >
+                طباعة الفاتورة A4
+              </Button>
+            </div>
           </div>
         }
       >
         {selectedInvoice && (
-          <div className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
+          <div id="mss-invoice-print-root" className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
             {/* Header */}
             <div className="text-center pb-4 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">MSS للحلول التقنية واللابتوب</h3>
+              <h3 className="text-lg font-bold text-slate-900">Compu MSS للحلول التقنية واللابتوب</h3>
               <p className="text-slate-500 text-xs mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
             </div>
 

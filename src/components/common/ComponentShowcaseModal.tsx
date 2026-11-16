@@ -84,7 +84,7 @@ export const ComponentShowcaseModal: React.FC<{ isOpen: boolean; onClose: () => 
             <Badge variant="warning">تنبيه (أصفر)</Badge>
             <Badge variant="danger">خطر (أحمر)</Badge>
             <Badge variant="info">معلومة (سماوي)</Badge>
-            <Badge variant="purple">أجهزة MSS (بترولي)</Badge>
+            <Badge variant="purple">أجهزة Compu MSS (بترولي)</Badge>
           </div>
         </section>
 

@@ -1094,7 +1094,7 @@ export const BackupView: React.FC = () => {
                     type="text"
                     value={newDestinationInput}
                     onChange={e => setNewDestinationInput(e.target.value)}
-                    placeholder="مثال: C:\Users\Administrator\Desktop\test backup أو D:\MSS Backups"
+                    placeholder="مثال: C:\Users\Administrator\Desktop\test backup أو D:\Compu MSS Backups"
                     className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800"
                   />
 
@@ -1170,7 +1170,7 @@ export const BackupView: React.FC = () => {
                     </Badge>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    إطلاق تطبيق <strong>MSS System</strong> تلقائياً عند إقلاع نظام التشغيل Windows لضمان استمرار النسخ المجدول كل دقيقة ودقة التوقيت.
+                    إطلاق تطبيق <strong>Compu MSS</strong> تلقائياً عند إقلاع نظام التشغيل Windows لضمان استمرار النسخ المجدول كل دقيقة ودقة التوقيت.
                   </p>
                 </div>
                 <input

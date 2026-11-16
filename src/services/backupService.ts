@@ -206,7 +206,7 @@ export const backupService = {
             title: 'حفظ نسخة احتياطية من قاعدة البيانات',
             defaultPath: defaultFilename || 'MSS_Backup.db',
             filters: [
-              { name: 'قاعدة بيانات MSS (*.db)', extensions: ['db'] },
+              { name: 'قاعدة بيانات Compu MSS (*.db)', extensions: ['db'] },
               { name: 'جميع الملفات (*.*)', extensions: ['*'] },
             ],
           });
@@ -393,7 +393,7 @@ export const backupService = {
       if (!isNode) {
         // Plain browser session (e.g. http://localhost:5173/) without desktop backend
         throw new Error(
-          'أنت تعمل حالياً عبر متصفح الويب (http://localhost:5173). عمليات إنشاء وحفظ النسخ الاحتياطية على القرص المحلي (مثل C:\\ أو D:\\) تتطلب تشغيل تطبيق سطح المكتب (MSS System Desktop) للوصول إلى نظام ملفات Windows وقاعدة البيانات الحقيقية. وضع المتصفح لا يملك صلاحية الوصول إلى نظام الملفات.'
+          'أنت تعمل حالياً عبر متصفح الويب (http://localhost:5173). عمليات إنشاء وحفظ النسخ الاحتياطية على القرص المحلي (مثل C:\\ أو D:\\) تتطلب تشغيل تطبيق سطح المكتب (Compu MSS Desktop) للوصول إلى نظام ملفات Windows وقاعدة البيانات الحقيقية. وضع المتصفح لا يملك صلاحية الوصول إلى نظام الملفات.'
         );
       }
 

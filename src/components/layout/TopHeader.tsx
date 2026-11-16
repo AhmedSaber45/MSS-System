@@ -71,7 +71,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase, onOpenSett
             ) : (
               <>
                 <Laptop className="w-4.5 h-4.5 text-teal-800" />
-                <span>  MSS</span>
+                <span>Compu MSS</span>
             
               </>
             )}
@@ -83,7 +83,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase, onOpenSett
           onClick={() => setSection(isAccessories ? 'mss' : 'accessories')}
           className="text-sm text-slate-600 hover:text-slate-900 transition-colors font-semibold cursor-pointer mr-2"
         >
-          الانتقال إلى {isAccessories ? ' MSS' : 'الإكسسوارات'}
+          الانتقال إلى {isAccessories ? 'Compu MSS' : 'الإكسسوارات'}
         </button>
       </div>
 

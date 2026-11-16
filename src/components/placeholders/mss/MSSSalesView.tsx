@@ -8,12 +8,13 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, ShieldCheck, RefreshCw } from 'lucide-react';
+import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, FileDown, ShieldCheck, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCommerceService } from '@/services/mssCommerceService';
+import { documentPrintService } from '@/lib/documentPrintService';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
 import type { MSSInvoice } from '@/types/mssCommerce';
 
@@ -156,7 +157,7 @@ export const MSSSalesView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="نقطة بيع أجهزة MSS"
+        title="نقطة بيع أجهزة Compu MSS"
         subtitle="توثيق بيع الأجهزة بالسيريال الفردي مع تثبيت فرع البيع ومصدر المخزون وحساب الربح الفعلي الدقيق"
         actions={
           <Button
@@ -469,30 +470,53 @@ export const MSSSalesView: React.FC = () => {
         isOpen={!!completedInvoice}
         onClose={handleStartNewSale}
         title={`تمت عملية البيع بنجاح - فاتورة رقم ${completedInvoice?.invoice_number}`}
-        subtitle="فاتورة بيع جهاز MSS رسمية مع السيريال والضمان ولقطات الأسعار"
+        subtitle="فاتورة بيع جهاز Compu MSS رسمية مع السيريال والضمان ولقطات الأسعار"
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button variant="outline" size="md" onClick={handleStartNewSale} className="border-slate-300 font-semibold">
               تسجيل عملية بيع أخرى
             </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => window.print()}
-              leftIcon={<Printer className="w-4.5 h-4.5" />}
-              className="font-bold"
-            >
-              طباعة الفاتورة A4
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="md"
+                onClick={async () => {
+                  if (!completedInvoice) return;
+                  await documentPrintService.exportToPdf('mss-sale-print-root', {
+                    title: `فاتورة_Compu_MSS_${completedInvoice.invoice_number}`,
+                    format: 'a4',
+                  });
+                }}
+                leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
+                className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+              >
+                حفظ كـ PDF
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={async () => {
+                  if (!completedInvoice) return;
+                  await documentPrintService.printElement('mss-sale-print-root', {
+                    title: `فاتورة_Compu_MSS_${completedInvoice.invoice_number}`,
+                    format: 'a4',
+                  });
+                }}
+                leftIcon={<Printer className="w-4.5 h-4.5" />}
+                className="font-bold shadow-xs"
+              >
+                طباعة الفاتورة A4
+              </Button>
+            </div>
           </div>
         }
       >
         {completedInvoice && (
-          <div className="p-5 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
+          <div id="mss-sale-print-root" className="p-5 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
             {/* Header */}
             <div className="text-center pb-3.5 border-b border-slate-300">
-              <h3 className="text-lg font-bold text-slate-900">MSS للحلول التقنية واللابتوب</h3>
+              <h3 className="text-lg font-bold text-slate-900">Compu MSS للحلول التقنية واللابتوب</h3>
               <p className="text-slate-500 text-xs mt-1">فاتورة بيع وضمان أجهزة رسمية</p>
             </div>
 

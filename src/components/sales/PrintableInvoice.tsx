@@ -141,18 +141,16 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
               <div>
                 <h1 className="text-2xl font-bold text-slate-950 tracking-tight">SOUQ</h1>
                 <p className="text-sm text-slate-600 mt-1">
-                  بيع وشراء وصيانة إكسسوارات الهواتف الذكية والأجهزة اللوحية
+                  بيع أجهزة وإكسسوارات الكمبيوتر والمحمول      
                 </p>
                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
-                  <span>هاتف: 01000000000</span>
+                  <span>هاتف: 01099434534</span>
                   <span>•</span>
-                  <span>العنوان: المحل الرئيسي - قسم الإكسسوارات</span>
+                  <span>العنوان: شبين القناطر كفرطحا الشارع الكبير أمام سوبر ماركت المدينة </span>
                 </div>
               </div>
               <div className="text-left" dir="ltr">
-                <span className="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-bold tracking-wider uppercase rounded">
-                  TAX INVOICE
-                </span>
+   
                 <p className="text-base font-bold text-slate-950 font-mono mt-2 tabular-nums">
                   {invoice.invoice_number}
                 </p>
@@ -257,7 +255,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                 )}
                 <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-600 text-xs space-y-1.5 print:bg-white print:border-slate-300">
                   <p className="font-bold text-slate-900 text-sm">شروط الضمان والاسترجاع:</p>
-                  <p>• البضاعة المباعة ترد وتستبدل خلال 14 يوماً بحالتها الأصلية وفاتورة الشراء الأصلية.</p>
+                  <p>• البضاعة المباعة لا ترد ولكن تستبدل خلال 14 يوماً بحالتها الأصلية وفاتورة الشراء الأصلية.</p>
                   <p>• الضمان لا يشمل سوء الاستخدام أو الكسر أو التعرض للسوائل.</p>
                 </div>
               </div>

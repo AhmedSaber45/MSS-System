@@ -17,7 +17,7 @@ export const autostartService = {
   },
 
   /**
-   * Check whether MSS System is registered to run on Windows startup.
+   * Check whether Compu MSS is registered to run on Windows startup.
    * In Tauri desktop: reads actual Windows Registry key (HKCU\Software\Microsoft\Windows\CurrentVersion\Run).
    * In Web browser: returns saved preference with explanatory status.
    */

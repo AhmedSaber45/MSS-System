@@ -41,7 +41,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
   };
 
   const handleCopyContactCard = async () => {
-    const text = `نظام MSS System\nالمالك والمطور: ${ownerName}\nرقم التواصل: ${phoneNumber}\nجميع الحقوق محفوظة © 2026`;
+    const text = `نظام Compu MSS\nالمالك والمطور: ${ownerName}\nرقم التواصل: ${phoneNumber}\nجميع الحقوق محفوظة © 2026`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedCard(true);
@@ -58,7 +58,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
   const handleOpenWhatsApp = () => {
     const whatsappUrl = `https://wa.me/201030137635?text=${encodeURIComponent(
-      'مرحباً أستاذ أحمد، أتواصل معك بخصوص نظام MSS System'
+      'مرحباً أستاذ أحمد، أتواصل معك بخصوص نظام Compu MSS'
     )}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
@@ -68,7 +68,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
       isOpen={isOpen}
       onClose={onClose}
       title="بيانات التواصل وحقوق الملكية"
-      subtitle="MSS System — التواصل المباشر مع مطور النظام والدعم الفني"
+      subtitle="Compu MSS — التواصل المباشر مع مطور النظام والدعم الفني"
       size="md"
       footer={
         <div className="flex justify-end w-full">
@@ -93,7 +93,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
             <div>
               <h3 className="font-bold text-slate-900 text-base">{ownerName}</h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                مطور ومؤسس نظام MSS System
+                مطور ومؤسس نظام Compu MSS
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
             </span>
           </div>
           <span className="font-mono text-[11px] text-slate-400 font-bold">
-            MSS System v1.0.1
+            Compu MSS v1.0.1
           </span>
         </div>
       </div>

@@ -398,7 +398,7 @@ export const ReservationsView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="حجوزات أجهزة MSS"
+        title="حجوزات أجهزة Compu MSS"
         subtitle="حجز أجهزة محددة بالسيريال للعملاء مع تحديد العربون وتاريخ الانتهاء وتحديث حالة الجهاز في كلا المحلين فورياً"
         actions={
           <Button

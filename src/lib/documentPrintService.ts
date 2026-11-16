@@ -1,5 +1,5 @@
 /**
- * MSS System — Unified Document Printing & PDF Export Service
+ * Compu MSS — Unified Document Printing & PDF Export Service
  * 
  * Provides isolated, clean document printing and PDF export for:
  * 1. A4 Formal Invoices (with multi-page flow and table header repetition)
@@ -32,9 +32,9 @@ export const documentPrintService = {
     }
 
     return new Promise((resolve) => {
-      // 1. Create isolated hidden iframe
+      // 1. Create isolated hidden iframe with offscreen render viewport
       const iframe = document.createElement('iframe');
-      iframe.setAttribute('style', 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;visibility:hidden;z-index:-9999;');
+      iframe.setAttribute('style', 'position:fixed;left:0;top:0;width:210mm;height:1000px;border:none;opacity:0;pointer-events:none;z-index:-9999;');
       document.body.appendChild(iframe);
 
       const iframeDoc = iframe.contentWindow?.document;
@@ -148,7 +148,7 @@ export const documentPrintService = {
               if (document.body.contains(iframe)) {
                 document.body.removeChild(iframe);
               }
-            } catch {}
+            } catch { }
             document.title = originalTitle;
             if (options.onAfterPrint) {
               options.onAfterPrint();
@@ -182,15 +182,12 @@ export const documentPrintService = {
       window.print();
       return;
     }
-    
-    let content = '';
-    if (el.classList.contains('hidden')) {
-      const clone = el.cloneNode(true) as HTMLElement;
-      clone.classList.remove('hidden');
-      content = clone.outerHTML;
-    } else {
-      content = el.outerHTML;
-    }
+
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.classList.remove('hidden');
+    clone.style.display = 'block';
+    clone.style.visibility = 'visible';
+    const content = clone.outerHTML;
     await this.printHtml(content, options);
   },
 
