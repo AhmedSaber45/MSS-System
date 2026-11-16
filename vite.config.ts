@@ -16,6 +16,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    watch: {
+      // Tell Vite to ignore watching `src-tauri` and Cargo build outputs to avoid EBUSY locks on Windows
+      ignored: ['**/src-tauri/**'],
+    },
   },
   // to access the env vars from Tauri
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
