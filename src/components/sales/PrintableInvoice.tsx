@@ -195,48 +195,62 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                 >
                   <tr>
                     <th className="py-3 px-3.5 w-12 text-center">#</th>
-                    <th className="py-3 px-3.5">الصنف</th>
-                    <th className="py-3 px-3.5 w-28 text-center">الكود</th>
+                    <th className="py-3 px-3.5">النوع / البيان</th>
+                    <th className="py-3 px-3.5 w-28 text-center">الكود / التصنيف</th>
                     <th className="py-3 px-3.5 w-20 text-center">الكمية</th>
-                    <th className="py-3 px-3.5 w-28 text-left">السعر الأصلي</th>
+                    <th className="py-3 px-3.5 w-28 text-left">السعر</th>
                     <th className="py-3 px-3.5 w-24 text-left">الخصم</th>
-                    <th className="py-3 px-3.5 w-28 text-left">السعر الفعلي</th>
+                    <th className="py-3 px-3.5 w-28 text-left">الصافي</th>
                     <th className="py-3 px-3.5 w-32 text-left">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {items.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-50/50"
-                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-                    >
-                      <td className="py-2.5 px-3.5 text-center text-slate-500 font-mono text-xs tabular-nums">
-                        {idx + 1}
-                      </td>
-                      <td className="py-2.5 px-3.5 font-bold text-slate-900">
-                        {item.product_name}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-center font-mono text-slate-500 text-xs">
-                        {item.product_code}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
-                        {item.quantity}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-left font-mono text-slate-600 tabular-nums">
-                        {formatCurrency(item.original_price)}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-left font-mono font-semibold text-rose-600 tabular-nums">
-                        {item.discount > 0 ? formatCurrency(item.discount) : '—'}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-900 tabular-nums">
-                        {formatCurrency(item.actual_price)}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-950 tabular-nums">
-                        {formatCurrency(item.line_total)}
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item, idx) => {
+                    const isMaint = item.item_type === 'maintenance';
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-slate-50/50 ${isMaint ? 'bg-amber-50/25' : ''}`}
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                      >
+                        <td className="py-2.5 px-3.5 text-center text-slate-500 font-mono text-xs tabular-nums">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isMaint && (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                صيانة
+                              </span>
+                            )}
+                            <span>{item.product_name}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3.5 text-center font-mono text-slate-600 text-xs">
+                          {isMaint ? (
+                            <span className="text-amber-800 font-bold text-[11px]">خدمة صيانة</span>
+                          ) : (
+                            item.product_code
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
+                          {item.quantity}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-left font-mono text-slate-600 tabular-nums">
+                          {formatCurrency(item.original_price)}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-left font-mono font-semibold text-rose-600 tabular-nums">
+                          {item.discount > 0 ? formatCurrency(item.discount) : '—'}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-900 tabular-nums">
+                          {formatCurrency(item.actual_price)}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-950 tabular-nums">
+                          {formatCurrency(item.line_total)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -357,20 +371,30 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                 <span>الصنف / السعر</span>
                 <span>الإجمالي</span>
               </div>
-              {items.map(item => (
-                <div key={item.id} className="space-y-0.5" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                  <p className="font-bold text-slate-900 leading-tight">{item.product_name}</p>
-                  <div className="flex justify-between text-slate-600 text-[10px]">
-                    <span className="tabular-nums">
-                      {item.quantity} × {formatCurrency(item.actual_price)}
-                      {item.discount > 0 && <span className="text-rose-600 font-semibold"> (وفر {item.discount})</span>}
-                    </span>
-                    <span className="font-bold text-slate-950 font-mono tabular-nums">
-                      {formatCurrency(item.line_total)}
-                    </span>
+              {items.map(item => {
+                const isMaint = item.item_type === 'maintenance';
+                return (
+                  <div key={item.id} className="space-y-0.5" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {isMaint && (
+                        <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-1 rounded border border-amber-300">
+                          صيانة
+                        </span>
+                      )}
+                      <p className="font-bold text-slate-900 leading-tight">{item.product_name}</p>
+                    </div>
+                    <div className="flex justify-between text-slate-600 text-[10px]">
+                      <span className="tabular-nums">
+                        {item.quantity} × {formatCurrency(item.actual_price)}
+                        {item.discount > 0 && <span className="text-rose-600 font-semibold"> (وفر {item.discount})</span>}
+                      </span>
+                      <span className="font-bold text-slate-950 font-mono tabular-nums">
+                        {formatCurrency(item.line_total)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Totals */}

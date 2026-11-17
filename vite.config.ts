@@ -30,5 +30,14 @@ export default defineConfig({
     minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          lucide: ['lucide-react'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
 });

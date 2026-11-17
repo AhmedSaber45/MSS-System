@@ -89,19 +89,19 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'catalog',
-    label: 'كتالوج الأجهزة',
+    label: ' الأجهزة',
     description: 'موديلات اللابتوبات والشاشات المشتركة',
     icon: Laptop,
   },
   {
     id: 'inventory',
-    label: 'المخزون الفعلي (السيريال)',
+    label: 'المخزون ',
     description: 'تتبع كل جهاز بسيرياله في محل 1 ومحل 2',
     icon: Layers,
   },
   {
     id: 'sales',
-    label: 'مبيعات الأجهزة',
+    label: 'المبيعات ',
     description: 'البيع وتحديد فرع البيع وفرع مصدر الجهاز',
     icon: BadgeDollarSign,
   },
@@ -113,7 +113,7 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'invoices',
-    label: 'فواتير MSS',
+    label: ' الفواتير',
     description: 'فواتير الأجهزة متضمنة السيريال والضمان',
     icon: Receipt,
   },
@@ -125,13 +125,13 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'movements',
-    label: 'حركة ونقل الأجهزة',
+    label: ' نقل الأجهزة بين المخازن',
     description: 'تسجيل النقل الفعلي بين محل 1 ومحل 2',
     icon: ArrowLeftRight,
   },
   {
     id: 'reports',
-    label: 'التقارير المشتركة',
+    label: 'التقارير  ',
     description: 'الإيرادات وتكلفة الشراء وصافي أرباح MSS',
     icon: BarChart3,
   },

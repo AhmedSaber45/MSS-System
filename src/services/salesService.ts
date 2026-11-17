@@ -270,13 +270,22 @@ export const salesService = {
 
     // Input item validation
     for (const item of input.items) {
-      if (!item.product_id) {
-        throw new Error('يجب تحديد الصنف');
+      if (item.item_type === 'maintenance') {
+        if (!item.description || !item.description.trim()) {
+          throw new Error('وصف خدمة الصيانة إلزامي');
+        }
+        if (item.price === undefined || item.price < 0) {
+          throw new Error('سعر خدمة الصيانة يجب أن يكون رقماً غير سالب');
+        }
+      } else {
+        if (!item.product_id) {
+          throw new Error('يجب تحديد الصنف');
+        }
       }
       if (item.quantity <= 0) {
         throw new Error('كمية الصنف المباعة يجب أن تكون أكبر من صفر');
       }
-      if (item.discount < 0) {
+      if ((item.discount || 0) < 0) {
         throw new Error('خصم الصنف لا يمكن أن يكون سالباً');
       }
     }
@@ -301,7 +310,12 @@ export const salesService = {
 
     // Pre-flight check: Verify every single product exists and has sufficient stock
     type PreparedItem = {
-      product: Awaited<ReturnType<typeof productsService.getProductById>> extends (infer P | null) ? P : never;
+      itemType: 'product' | 'maintenance';
+      productId?: string | null;
+      productName: string;
+      productCode: string;
+      barcode?: string | null;
+      product?: any;
       quantity: number;
       originalPrice: number;
       discount: number;
@@ -314,34 +328,66 @@ export const salesService = {
     let subtotal = 0;
 
     for (const item of input.items) {
-      const product = await productsService.getProductById(item.product_id);
-      if (!product) {
-        throw new Error(`الصنف بالمعرف ${item.product_id} غير موجود في قاعدة البيانات`);
+      if (item.item_type === 'maintenance') {
+        const desc = (item.description || '').trim();
+        const price = item.price || 0;
+        const discount = item.discount || 0;
+        if (discount > price) {
+          throw new Error(`خصم خدمة الصيانة (${discount}) لا يمكن أن يتجاوز قيمتها (${price})`);
+        }
+        const actualPrice = price - discount;
+        const lineTotal = actualPrice * item.quantity;
+        subtotal += lineTotal;
+
+        preparedItems.push({
+          itemType: 'maintenance',
+          productId: null,
+          productName: desc,
+          productCode: '—',
+          barcode: null,
+          quantity: item.quantity,
+          originalPrice: price,
+          discount,
+          actualPrice,
+          costSnapshot: 0,
+          lineTotal,
+        });
+      } else {
+        const product = await productsService.getProductById(item.product_id!);
+        if (!product) {
+          throw new Error(`الصنف بالمعرف ${item.product_id} غير موجود في قاعدة البيانات`);
+        }
+
+        if (product.stock < item.quantity) {
+          throw new Error(
+            `الرصيد المتاح من الصنف "${product.name}" هو ${product.stock} قطعة فقط، ولا يكفي لبيع ${item.quantity} قطعة`
+          );
+        }
+
+        const discount = item.discount || 0;
+        if (discount > product.price) {
+          throw new Error(`خصم الصنف (${discount}) لا يمكن أن يتجاوز سعر بيعه (${product.price})`);
+        }
+
+        const actualPrice = product.price - discount;
+        const lineTotal = actualPrice * item.quantity;
+        subtotal += lineTotal;
+
+        preparedItems.push({
+          itemType: 'product',
+          productId: product.id,
+          productName: product.name,
+          productCode: product.code,
+          barcode: product.barcode || null,
+          product,
+          quantity: item.quantity,
+          originalPrice: product.price,
+          discount,
+          actualPrice,
+          costSnapshot: product.cost,
+          lineTotal,
+        });
       }
-
-      if (product.stock < item.quantity) {
-        throw new Error(
-          `الرصيد المتاح من الصنف "${product.name}" هو ${product.stock} قطعة فقط، ولا يكفي لبيع ${item.quantity} قطعة`
-        );
-      }
-
-      if (item.discount > product.price) {
-        throw new Error(`خصم الصنف (${item.discount}) لا يمكن أن يتجاوز سعر بيعه (${product.price})`);
-      }
-
-      const actualPrice = product.price - item.discount;
-      const lineTotal = actualPrice * item.quantity;
-      subtotal += lineTotal;
-
-      preparedItems.push({
-        product,
-        quantity: item.quantity,
-        originalPrice: product.price,
-        discount: item.discount,
-        actualPrice,
-        costSnapshot: product.cost,
-        lineTotal,
-      });
     }
 
     if (input.invoice_discount < 0) {
@@ -363,47 +409,51 @@ export const salesService = {
       const itemRecord: InvoiceItem = {
         id: 'iitem-' + Math.random().toString(36).substring(2, 9),
         invoice_id: invoiceId,
-        product_id: p.product.id,
-        product_name: p.product.name,
-        product_code: p.product.code,
-        barcode: p.product.barcode || null,
+        product_id: p.productId,
+        product_name: p.productName,
+        product_code: p.productCode,
+        barcode: p.barcode || null,
         quantity: p.quantity,
         original_price: p.originalPrice,
         discount: p.discount,
         actual_price: p.actualPrice,
         cost_snapshot: p.costSnapshot,
         line_total: p.lineTotal,
+        item_type: p.itemType,
       };
       newItems.push(itemRecord);
 
-      const previousStock = p.product.stock;
-      const newStock = previousStock - p.quantity;
+      // Only deduct inventory and record movements for physical products!
+      if (p.itemType === 'product' && p.product) {
+        const previousStock = p.product.stock;
+        const newStock = previousStock - p.quantity;
 
-      // 1. Deduct stock from product
-      await productsService.updateProduct(p.product.id, {
-        name: p.product.name,
-        code: p.product.code,
-        barcode: p.product.barcode,
-        category: p.product.category,
-        cost: p.product.cost,
-        price: p.product.price,
-        stock: newStock,
-        low_stock_threshold: p.product.low_stock_threshold,
-        description: p.product.description,
-      });
+        // 1. Deduct stock from product
+        await productsService.updateProduct(p.product.id, {
+          name: p.product.name,
+          code: p.product.code,
+          barcode: p.product.barcode,
+          category: p.product.category,
+          cost: p.product.cost,
+          price: p.product.price,
+          stock: newStock,
+          low_stock_threshold: p.product.low_stock_threshold,
+          description: p.product.description,
+        });
 
-      // 2. Record inventory movement as SALE
-      await inventoryService.recordMovementInternal({
-        product_id: p.product.id,
-        product_name: p.product.name,
-        product_code: p.product.code,
-        movement_type: 'SALE',
-        quantity_change: -p.quantity,
-        previous_stock: previousStock,
-        new_stock: newStock,
-        reference_id: invoiceId,
-        reason: `فاتورة مبيعات رقم ${invNum}`,
-      });
+        // 2. Record inventory movement as SALE
+        await inventoryService.recordMovementInternal({
+          product_id: p.product.id,
+          product_name: p.product.name,
+          product_code: p.product.code,
+          movement_type: 'SALE',
+          quantity_change: -p.quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          reference_id: invoiceId,
+          reason: `فاتورة مبيعات رقم ${invNum}`,
+        });
+      }
     }
 
     const newInvoice: Invoice = {

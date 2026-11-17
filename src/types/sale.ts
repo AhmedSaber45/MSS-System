@@ -19,9 +19,9 @@ export interface Invoice {
 export interface InvoiceItem {
   id: string;
   invoice_id: string;
-  product_id: string;
+  product_id?: string | null;
   product_name: string;
-  product_code: string;
+  product_code?: string | null;
   barcode?: string | null;
   quantity: number;
   original_price: number;
@@ -29,10 +29,14 @@ export interface InvoiceItem {
   actual_price: number;
   cost_snapshot: number;
   line_total: number;
+  item_type?: 'product' | 'maintenance';
 }
 
 export interface NewSaleItemInput {
-  product_id: string;
+  item_type?: 'product' | 'maintenance';
+  product_id?: string | null;
+  description?: string;
+  price?: number;
   quantity: number;
   discount: number;
 }
@@ -49,7 +53,11 @@ export interface NewSaleInput {
 }
 
 export interface CartItem {
-  product: Product;
+  id?: string;
+  item_type?: 'product' | 'maintenance';
+  product?: Product;
+  description?: string;
+  price?: number;
   quantity: number;
   discount: number; // per item discount in currency
   actual_price: number;

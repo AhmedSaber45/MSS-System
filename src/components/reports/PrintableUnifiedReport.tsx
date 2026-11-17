@@ -56,7 +56,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-xl font-bold text-slate-950 tracking-tight">
-              Compu MSS — الإدارة التنفيذية والتقارير المجمعة
+              Compu MSS — تقرير مجمع   
             </h1>
             <p className="text-sm font-semibold text-slate-700 mt-1">
               تقرير الأداء المالي المجمع — نشاط الإكسسوارات و Compu MSS المشترك
@@ -69,32 +69,20 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
           </div>
 
           <div className="text-left border border-slate-300 bg-slate-50 p-3 rounded-lg text-xs space-y-1 print:bg-white print:border-slate-400">
-            <span className="font-bold text-slate-900 block">تقرير تنفيذي معتمد</span>
             <p className="text-slate-600 font-mono">المرجع: EXEC-{Date.now().toString(36).toUpperCase()}</p>
-            <p className="text-slate-600 font-medium">الوضعية: نظامية ومدققة</p>
           </div>
         </div>
 
         {/* Title Banner */}
-        <div className="mt-5 pt-4 border-t border-slate-200 flex justify-between items-center bg-slate-100 p-3.5 rounded-lg print:bg-slate-50 print:border print:border-slate-300">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              كشف الأداء المالي والتشغيلي المجمع للمنشأة
-            </h2>
-            <p className="text-xs text-slate-600 mt-0.5">
-              بيان شامل للإيرادات وهوامش الأرباح وتوزيع المبيعات وتقييم المخزون
-            </p>
-          </div>
           <div className="text-left font-mono text-xs font-bold text-slate-800">
             <span className="bg-white px-2 py-1 rounded border border-slate-300">{periodText}</span>
           </div>
-        </div>
       </div>
 
       {/* 2. Combined Financial Performance Table */}
       <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
         <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-          أولاً: الأداء المالي المجمع للمنشأة (الإكسسوارات + Compu MSS)
+          أولاً: الأداء المالي المجمع  (الإكسسوارات + Compu MSS)
         </h3>
 
         <div className="border border-slate-300 rounded-xl overflow-hidden">
@@ -115,13 +103,13 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
                 <td className="py-2.5 px-4 text-left text-xs text-slate-600">نشاط المحل واللابتوبات</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي تكلفة البضاعة المباعة (COGS)</td>
+                <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي تكلفة البضاعة المباعة </td>
                 <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">التكلفة التاريخية الدقيقة</td>
                 <td className="py-2.5 px-4 text-left font-mono tabular-nums text-slate-700">{formatCurrency(combined.combinedCogs)}</td>
                 <td className="py-2.5 px-4 text-left text-xs text-slate-600">تكلفة شراء البضاعة</td>
               </tr>
               <tr className="bg-slate-100 border-t-2 border-slate-900 font-bold print:bg-slate-50">
-                <td className="py-3 px-4 text-slate-950 text-base">مجمل الأرباح المجمعة (Gross Profit)</td>
+                <td className="py-3 px-4 text-slate-950 text-base">مجمل الأرباح المجمعة</td>
                 <td className="py-3 px-4 text-center font-mono text-sm text-slate-900">
                   هامش الربح العام: {combined.profitMarginPercent.toFixed(1)}%
                 </td>
@@ -140,21 +128,21 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       {/* 3. Sectional Business Separation (Rule 6: Accessories vs MSS) */}
       <div className="space-y-3 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
         <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-          ثانياً: التحليل المالي المنفصل لكل نشاط تجاري (فصل القواعد المحاسبية)
+          ثانياً: التحليل المالي المفصل    
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
           {/* Accessories Activity */}
           <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
             <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
-              1. نشاط محل الإكسسوارات (محلي بالكامل)
+              1. نشاط محل الإكسسوارات 
             </h4>
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">صافي مبيعات الإكسسوارات:</span>
+              <span className="text-slate-600">صافي المبيعات :</span>
               <span className="font-mono font-bold text-slate-900">{formatCurrency(accessories.netSales)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">تكلفة بضاعة الإكسسوارات:</span>
+              <span className="text-slate-600">تكلفة البضاعة :</span>
               <span className="font-mono tabular-nums">{formatCurrency(accessories.costOfGoodsSold)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
@@ -166,7 +154,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <span className="font-mono">{accessories.invoicesCount} فاتورة / {accessories.returnsCount} مرتجع</span>
             </div>
             <div className="flex justify-between py-1 pt-2 font-semibold">
-              <span className="text-slate-700">قيمة مخزون الإكسسوارات (تكلفة):</span>
+              <span className="text-slate-700">قيمة المخزون  (تكلفة):</span>
               <span className="font-mono text-slate-900">{formatCurrency(accessories.inventoryCostValuation)}</span>
             </div>
           </div>
@@ -174,18 +162,18 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
           {/* MSS Activity */}
           <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
             <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
-              2. نشاط أجهزة Compu MSS المشترك (لابتوبات وشاشات)
+              2. نشاط  Compu MSS 
             </h4>
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">صافي مبيعات الأجهزة:</span>
+              <span className="text-slate-600">صافي المبيعات :</span>
               <span className="font-mono font-bold text-slate-900">{formatCurrency(mss.netSales)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">تكلفة شراء الأجهزة المباعة:</span>
+              <span className="text-slate-600">تكلفة شراء الأجهزة :</span>
               <span className="font-mono tabular-nums">{formatCurrency(mss.costOfGoodsSold)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
-              <span className="text-slate-900">أرباح Compu MSS المشتركة (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
+              <span className="text-slate-900">أرباح Compu MSS  (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
               <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(mss.sharedGrossProfit)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
@@ -193,7 +181,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <span className="font-mono">{mss.soldDevicesCount} مباع / {mss.returnedDevicesCount} مرتجع / {mss.activeReservationsCount} حجز</span>
             </div>
             <div className="flex justify-between py-1 pt-2 font-semibold">
-              <span className="text-slate-700">قيمة مخزون الأجهزة (تكلفة):</span>
+              <span className="text-slate-700">قيمة  الأجهزة (تكلفة):</span>
               <span className="font-mono text-slate-900">{formatCurrency(mss.inventoryCostValuation)}</span>
             </div>
           </div>
@@ -204,14 +192,14 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       {branchOperationalSales && branchOperationalSales.length > 0 && (
         <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-            ثالثاً: توزيع المبيعات التشغيلية حسب الفروع (Rule 9 & Section 16)
+            ثالثاً: توزيع المبيعات  حسب الفروع 
           </h3>
 
           <div className="border border-slate-300 rounded-xl overflow-hidden">
             <table className="w-full text-xs text-right">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
                 <tr>
-                  <th className="py-2 px-3">الفرع المنفذ للعملية</th>
+                  <th className="py-2 px-3">الفرع   </th>
                   <th className="py-2 px-3 text-center">العمليات المنفذة</th>
                   <th className="py-2 px-3 text-left">إجمالي المبيعات</th>
                   <th className="py-2 px-3 text-left">الخصومات</th>
@@ -238,7 +226,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       {locationStockValuation && locationStockValuation.length > 0 && (
         <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-            رابعاً: تواجد الأجهزة الفعلي في الفروع والمخازن
+            رابعاً: تواجد الأجهزة  في الفروع والمخازن
           </h3>
 
           <div className="grid grid-cols-2 gap-3">
@@ -269,13 +257,13 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
             <p className="font-mono text-slate-400">________________________</p>
           </div>
           <div className="p-3 border border-slate-200 rounded-lg">
-            <p className="mb-8">اعتماد الإدارة المشتركة وختم المنشأة:</p>
+            <p className="mb-8">اعتماد وختم الإدارة   :</p>
             <p className="font-mono text-slate-400">________________________</p>
           </div>
         </div>
 
         <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-          <span>نظام Compu MSS — وثيقة مالية تنفيذية موحدة صادرة إلكترونياً</span>
+          <span>نظام Compu MSS — وثيقة مالية  مجمعة  صادرة إلكترونياً</span>
           <span>© 2026 Ahmed Saber. All rights reserved. • Contact: 01030137635</span>
         </div>
       </div>

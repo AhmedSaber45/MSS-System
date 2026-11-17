@@ -47,7 +47,7 @@ export const ReturnsView: React.FC = () => {
 
   // Active Return Form State
   const [selectedReturnItems, setSelectedReturnItems] = useState<
-    Map<string, { qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED'; remaining?: number }>
+    Map<string, { qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED' | 'SERVICE'; remaining?: number }>
   >(new Map());
   const [returnReason, setReturnReason] = useState<string>('');
   const [refundMethod, setRefundMethod] = useState<string>('نقدي');
@@ -124,14 +124,16 @@ export const ReturnsView: React.FC = () => {
       const summary = await returnsService.getInvoiceReturnSummary(matched.id);
       setReturnSummary(summary);
 
-      // Initialize selected return items map
+      // Initialize selected return items map keyed by item.id
       const initialMap = new Map();
-      summary.itemSummaries.forEach(item => {
-        initialMap.set(item.productId, {
+      items.forEach(item => {
+        const summaryItem = summary.itemSummaries.find(s => s.id === item.id);
+        const remaining = summaryItem ? summaryItem.remainingReturnableQuantity : item.quantity;
+        initialMap.set(item.id, {
           qty: 0,
-          refundPrice: item.actualUnitPrice,
-          condition: 'RESTOCKED',
-          remaining: item.remainingReturnableQuantity,
+          refundPrice: item.actual_price,
+          condition: (item.item_type === 'maintenance' ? 'SERVICE' : 'RESTOCKED') as 'RESTOCKED' | 'DAMAGED' | 'SERVICE',
+          remaining,
         });
       });
       setSelectedReturnItems(initialMap);
@@ -147,13 +149,13 @@ export const ReturnsView: React.FC = () => {
   };
 
   const handleItemReturnChange = (
-    productId: string,
-    updates: Partial<{ qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED' }>
+    itemId: string,
+    updates: Partial<{ qty: number; refundPrice: number; condition: 'RESTOCKED' | 'DAMAGED' | 'SERVICE' }>
   ) => {
     setSelectedReturnItems(prev => {
       const next = new Map(prev);
-      const current = next.get(productId) || { qty: 0, refundPrice: 0, condition: 'RESTOCKED' };
-      next.set(productId, { ...current, ...updates });
+      const current = next.get(itemId) || { qty: 0, refundPrice: 0, condition: 'RESTOCKED' };
+      next.set(itemId, { ...current, ...updates });
       return next;
     });
   };
@@ -201,13 +203,17 @@ export const ReturnsView: React.FC = () => {
     try {
       const itemsToSubmit: NewReturnItemInput[] = [];
 
-      selectedReturnItems.forEach((val, prodId) => {
+      selectedReturnItems.forEach((val, itemId) => {
         if (val.qty > 0) {
+          const invItem = invoiceItems.find(i => i.id === itemId);
+          const isMaint = invItem?.item_type === 'maintenance';
           itemsToSubmit.push({
-            product_id: prodId,
+            invoice_item_id: itemId,
+            product_id: isMaint ? null : (invItem?.product_id || null),
             quantity_returned: val.qty,
             refund_unit_price: val.refundPrice,
-            restock_condition: val.condition,
+            restock_condition: isMaint ? 'SERVICE' : (val.condition as any),
+            item_type: isMaint ? 'maintenance' : 'product',
           });
         }
       });
@@ -460,16 +466,17 @@ export const ReturnsView: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {invoiceItems.map(item => {
+                      const isMaint = item.item_type === 'maintenance';
                       const summaryItem = returnSummary?.itemSummaries.find(
-                        s => s.productId === item.product_id
+                        s => s.id === item.id
                       );
                       const remainingQty = summaryItem ? summaryItem.remainingReturnableQuantity : item.quantity;
                       const prevReturnedQty = summaryItem ? summaryItem.previouslyReturnedQuantity : 0;
 
-                      const state = selectedReturnItems.get(item.product_id) || {
+                      const state = selectedReturnItems.get(item.id) || {
                         qty: 0,
                         refundPrice: item.actual_price,
-                        condition: 'RESTOCKED',
+                        condition: isMaint ? 'SERVICE' : 'RESTOCKED',
                       };
 
                       const isItemFullyReturned = remainingQty === 0;
@@ -486,9 +493,16 @@ export const ReturnsView: React.FC = () => {
                           }
                         >
                           <td className="py-2.5 px-3.5">
-                            <p className="font-bold text-slate-900">{item.product_name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isMaint && (
+                                <Badge variant="warning" size="sm" className="font-bold bg-amber-100 text-amber-900 border-amber-300">
+                                  صيانة
+                                </Badge>
+                              )}
+                              <p className="font-bold text-slate-900">{item.product_name}</p>
+                            </div>
                             <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">
-                              {item.product_code}
+                              {isMaint ? 'خدمة صيانة يدوية' : item.product_code}
                             </p>
                           </td>
                           <td className="py-2.5 px-3.5 text-center font-bold font-mono text-slate-800 tabular-nums">
@@ -526,7 +540,7 @@ export const ReturnsView: React.FC = () => {
                                   onChange={e => {
                                     const val = parseInt(e.target.value, 10) || 0;
                                     const clamped = Math.max(0, Math.min(remainingQty, val));
-                                    handleItemReturnChange(item.product_id, { qty: clamped });
+                                    handleItemReturnChange(item.id, { qty: clamped });
                                   }}
                                   className="w-16 text-center font-bold text-sm py-1 border border-slate-300 rounded-lg focus:border-slate-800 focus:outline-none font-mono tabular-nums"
                                 />
@@ -537,19 +551,25 @@ export const ReturnsView: React.FC = () => {
                             )}
                           </td>
                           <td className="py-2.5 px-3.5 text-center">
-                            <select
-                              value={state.condition}
-                              disabled={isItemFullyReturned || state.qty === 0}
-                              onChange={e =>
-                                handleItemReturnChange(item.product_id, {
-                                  condition: e.target.value as 'RESTOCKED' | 'DAMAGED',
-                                })
-                              }
-                              className="text-xs font-semibold py-1.5 px-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none disabled:opacity-40"
-                            >
-                              <option value="RESTOCKED">سليم ويُعاد للمخزن</option>
-                              <option value="DAMAGED">تالف ولا يُعاد للمخزن</option>
-                            </select>
+                            {isMaint ? (
+                              <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-300">
+                                خدمة (بدون مخزون)
+                              </span>
+                            ) : (
+                              <select
+                                value={state.condition}
+                                disabled={isItemFullyReturned || state.qty === 0}
+                                onChange={e =>
+                                  handleItemReturnChange(item.id, {
+                                    condition: e.target.value as 'RESTOCKED' | 'DAMAGED',
+                                  })
+                                }
+                                className="text-xs font-semibold py-1.5 px-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none disabled:opacity-40"
+                              >
+                                <option value="RESTOCKED">سليم ويُعاد للمخزن</option>
+                                <option value="DAMAGED">تالف ولا يُعاد للمخزن</option>
+                              </select>
+                            )}
                           </td>
                           <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
                             {formatCurrency(state.qty * item.actual_price)}
@@ -759,29 +779,47 @@ export const ReturnsView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
-                      {viewingReturnItems.map(item => (
-                        <tr key={item.id} className="hover:bg-slate-50/80">
-                          <td className="py-2.5 px-3.5 font-bold text-slate-900">{item.product_name}</td>
-                          <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
-                            {item.quantity_returned}
-                          </td>
-                          <td className="py-2.5 px-3.5 text-center font-mono font-semibold tabular-nums">
-                            {formatCurrency(item.refund_unit_price)}
-                          </td>
-                          <td className="py-2.5 px-3.5 text-center">
-                            <Badge
-                              variant={item.restock_condition === 'RESTOCKED' ? 'success' : 'danger'}
-                              size="sm"
-                              className="font-semibold"
-                            >
-                              {item.restock_condition === 'RESTOCKED' ? 'أُعيد للمخزن' : 'تالف'}
-                            </Badge>
-                          </td>
-                          <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
-                            {formatCurrency(item.line_refund_total)}
-                          </td>
-                        </tr>
-                      ))}
+                      {viewingReturnItems.map(item => {
+                        const isMaint = item.item_type === 'maintenance';
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/80">
+                            <td className="py-2.5 px-3.5 font-bold text-slate-900">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {isMaint && (
+                                  <Badge variant="warning" size="sm" className="font-bold bg-amber-100 text-amber-900 border-amber-300">
+                                    صيانة
+                                  </Badge>
+                                )}
+                                <span>{item.product_name}</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
+                              {item.quantity_returned}
+                            </td>
+                            <td className="py-2.5 px-3.5 text-center font-mono font-semibold tabular-nums">
+                              {formatCurrency(item.refund_unit_price)}
+                            </td>
+                            <td className="py-2.5 px-3.5 text-center">
+                              {isMaint ? (
+                                <Badge variant="default" size="sm" className="font-semibold">
+                                  خدمة صيانة
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant={item.restock_condition === 'RESTOCKED' ? 'success' : 'danger'}
+                                  size="sm"
+                                  className="font-semibold"
+                                >
+                                  {item.restock_condition === 'RESTOCKED' ? 'أُعيد للمخزن' : 'تالف'}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3.5 text-left font-mono font-bold text-rose-700 tabular-nums">
+                              {formatCurrency(item.line_refund_total)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

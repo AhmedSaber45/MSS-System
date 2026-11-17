@@ -389,6 +389,136 @@ fn get_accessories_db_status() -> Result<String, String> {
     Ok(format!("SQLite: {}", path.to_string_lossy()))
 }
 
+// Secure Session Storage Commands (Windows DPAPI / OS-Protected Storage)
+#[tauri::command]
+fn save_secure_session(session_json: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+
+        let script = r#"
+            [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+            Add-Type -AssemblyName System.Security
+            $data = [Console]::In.ReadToEnd()
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($data)
+            $enc = [System.Security.Cryptography.ProtectedData]::Protect(
+                $bytes,
+                $null,
+                [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+            )
+            $folder = Join-Path $env:LOCALAPPDATA "CompuMSS"
+            if (!(Test-Path $folder)) {
+                New-Item -ItemType Directory -Path $folder -Force | Out-Null
+            }
+            $target = Join-Path $folder "session.dpapi"
+            [System.IO.File]::WriteAllBytes($target, $enc)
+        "#;
+
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn DPAPI process: {}", e))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(session_json.as_bytes())
+                .map_err(|e| format!("Failed to write session data to DPAPI stdin: {}", e))?;
+        }
+
+        let output = child
+            .wait_with_output()
+            .map_err(|e| format!("Failed to wait for DPAPI process: {}", e))?;
+
+        if !output.status.success() {
+            let err = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("DPAPI encryption failed: {}", err));
+        }
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn load_secure_session() -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let script = r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            Add-Type -AssemblyName System.Security
+            $target = Join-Path $env:LOCALAPPDATA "CompuMSS\session.dpapi"
+            if (!(Test-Path $target)) {
+                exit 0
+            }
+            try {
+                $enc = [System.IO.File]::ReadAllBytes($target)
+                $dec = [System.Security.Cryptography.ProtectedData]::Unprotect(
+                    $enc,
+                    $null,
+                    [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+                )
+                [Console]::Out.Write([System.Text.Encoding]::UTF8.GetString($dec))
+            } catch {
+                exit 2
+            }
+        "#;
+
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+            .output()
+            .map_err(|e| format!("Failed to run DPAPI read: {}", e))?;
+
+        if output.status.code() == Some(2) {
+            return Err("Decryption failed: corrupted session or credentials changed".to_string());
+        }
+
+        let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if s.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(s))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn clear_secure_session() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let script = r#"
+            $target = Join-Path $env:LOCALAPPDATA "CompuMSS\session.dpapi"
+            if (Test-Path $target) {
+                Remove-Item $target -Force
+            }
+        "#;
+
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
+            .status();
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let conn = match init_db() {
@@ -436,6 +566,9 @@ pub fn run() {
             adjust_accessories_stock,
             get_accessories_inventory_movements,
             get_accessories_db_status,
+            save_secure_session,
+            load_secure_session,
+            clear_secure_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

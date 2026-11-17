@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppSection, AccessoriesRoute, MSSRoute, ActiveRoute } from '../types/navigation';
+import { useAuth } from './AuthContext';
 
 interface NavigationContextType {
   currentSection: AppSection;
@@ -16,15 +17,37 @@ interface NavigationContextType {
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentSection, setCurrentSectionState] = useState<AppSection>('accessories');
+  const { user, canAccess } = useAuth();
+
+  // Determine initial section based on user permissions
+  const initialSection: AppSection =
+    user?.allowedModules === 'mss' ? 'mss' : 'accessories';
+
+  const [currentSection, setCurrentSectionState] = useState<AppSection>(initialSection);
   const [accessoriesRoute, setAccessoriesRoute] = useState<AccessoriesRoute>('dashboard');
   const [mssRoute, setMssRoute] = useState<MSSRoute>('dashboard');
   const [routeParams, setRouteParams] = useState<Record<string, any>>({});
   const [isSidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
+  // Sync section if user permission changes or on login
+  useEffect(() => {
+    if (user) {
+      if (user.allowedModules === 'mss' && currentSection !== 'mss') {
+        setCurrentSectionState('mss');
+      } else if (user.allowedModules === 'accessories' && currentSection !== 'accessories') {
+        setCurrentSectionState('accessories');
+      }
+    }
+  }, [user, currentSection]);
+
   const currentRoute = currentSection === 'accessories' ? accessoriesRoute : mssRoute;
 
   const setSection = (section: AppSection) => {
+    // Authoritative check before setting section
+    if (!canAccess(section)) {
+      console.warn(`Denied attempt to navigate to unauthorized section: ${section}`);
+      return;
+    }
     setCurrentSectionState(section);
   };
 

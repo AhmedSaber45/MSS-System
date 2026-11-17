@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.ts';
+import { desktopAuthService } from './desktopAuthService.ts';
 import type {
   OutboxOperation,
   SyncOperationType,
@@ -335,6 +336,17 @@ export const mssSyncService = {
   },
 
   async _executeSync(): Promise<{ synced: number; conflicts: number; failed: number }> {
+    // Phase 3 Auth Guard: When a session is active, verify user has MSS permission before cloud sync
+    const currentSession = await desktopAuthService.loadSecureSession();
+    if (
+      currentSession &&
+      currentSession.user.allowedModules !== 'mss' &&
+      currentSession.user.allowedModules !== 'both'
+    ) {
+      // Preserve pending outbox records safely without syncing
+      return { synced: 0, conflicts: 0, failed: 0 };
+    }
+
     const isOnline = await this.checkConnectivity();
     if (!isOnline) {
       return { synced: 0, conflicts: 0, failed: 0 };
@@ -416,6 +428,25 @@ export const mssSyncService = {
                 description: `تعارض بيع مزدوج: تم بيع الجهاز بالسيريال (${serial}) مسبقاً في (${existingInv.selling_branch}) بفاتورة رقم (${existingInv.invoice_number}) أثناء انقطاع الاتصال.`,
                 remoteState: existingInv,
               };
+            } else if (op.branch) {
+              let remoteDev: any = null;
+              try {
+                const { data } = await supabase
+                  .from('mss_devices')
+                  .select('id, stock_location, status')
+                  .eq('serial_number', serial)
+                  .maybeSingle();
+                remoteDev = data;
+              } catch {
+                // ignore
+              }
+              if (remoteDev && remoteDev.stock_location !== op.branch) {
+                detectedConflict = {
+                  type: 'STALE_STOCK_TRANSFER',
+                  description: `تعارض بيع لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى موقع (${remoteDev.stock_location}) بينما تمت محاولة بيعه من (${op.branch}) أوفلاين.`,
+                  remoteState: remoteDev,
+                };
+              }
             }
           }
         } else if (op.type === 'RESERVATION_CREATE') {
@@ -443,6 +474,12 @@ export const mssSyncService = {
               description: `تعارض حجز: الجهاز بالسيريال (${serial}) محجوز أو مباع بالفعل في السحابة بحالة (${remoteDev.status}).`,
               remoteState: remoteDev,
             };
+          } else if (remoteDev && op.branch && remoteDev.stock_location !== op.branch) {
+            detectedConflict = {
+              type: 'STALE_STOCK_TRANSFER',
+              description: `تعارض حجز لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى (${remoteDev.stock_location}) بينما تمت محاولة حجزه من (${op.branch}).`,
+              remoteState: remoteDev,
+            };
           }
         } else if (op.type === 'DEVICE_TRANSFER') {
           const serial = op.payload.serial_number;
@@ -467,6 +504,12 @@ export const mssSyncService = {
             detectedConflict = {
               type: 'STALE_STOCK_TRANSFER',
               description: `تعارض نقل مخزون قديم: الجهاز بالسيريال (${serial}) تم بيعه بالفعل في الفرع الآخر ولا يمكن نقله.`,
+              remoteState: remoteDev,
+            };
+          } else if (remoteDev && op.payload.from_location && remoteDev.stock_location !== op.payload.from_location) {
+            detectedConflict = {
+              type: 'STALE_STOCK_TRANSFER',
+              description: `تعارض نقل مخزون: موقع الجهاز بالسيريال (${serial}) في السحابة هو (${remoteDev.stock_location}) وليس (${op.payload.from_location}).`,
               remoteState: remoteDev,
             };
           }

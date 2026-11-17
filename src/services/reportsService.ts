@@ -4,6 +4,7 @@ import type {
   TopSellingProduct,
   InventoryValuation,
 } from '../types/reports.ts';
+import type { InvoiceItem } from '../types/sale.ts';
 import { salesService } from './salesService.ts';
 import { returnsService } from './returnsService.ts';
 import { productsService } from './productsService.ts';
@@ -37,7 +38,7 @@ export const reportsService = {
     let totalInvoiceDiscounts = 0;
 
     // Cache invoice items for fast lookup and accurate historical cost snapshots
-    const invoiceItemsMap = new Map<string, Array<{ product_id: string; cost_snapshot: number; quantity: number }>>();
+    const invoiceItemsMap = new Map<string, InvoiceItem[]>();
 
     for (const inv of invoices) {
       grossSales += inv.total_amount;
@@ -68,9 +69,12 @@ export const reportsService = {
 
       for (const item of rItems) {
         if (item.restock_condition === 'RESTOCKED') {
+          if (!item.product_id || item.item_type === 'maintenance') {
+            continue; // Maintenance has no product COGS reversal
+          }
           const origItem = origInvoiceItems?.find(ii => ii.product_id === item.product_id);
           let unitCost = origItem ? (origItem.cost_snapshot || 0) : 0;
-          if (unitCost === 0) {
+          if (unitCost === 0 && item.product_id) {
             const prod = await productsService.getProductById(item.product_id);
             unitCost = prod?.cost || 0;
           }
@@ -126,7 +130,7 @@ export const reportsService = {
     const returns = await returnsService.getReturns({ startDate: minDate, endDate: maxDate });
 
     // Preload items for all relevant invoices
-    const invoiceItemsMap = new Map<string, Array<{ product_id: string; cost_snapshot: number; quantity: number }>>();
+    const invoiceItemsMap = new Map<string, InvoiceItem[]>();
     for (const inv of invoices) {
       const items = await salesService.getInvoiceItems(inv.id);
       invoiceItemsMap.set(inv.id, items);
@@ -158,7 +162,7 @@ export const reportsService = {
         const rItems = returnItemsMap.get(ret.id) || [];
         const origItems = invoiceItemsMap.get(ret.invoice_id) || [];
         for (const item of rItems) {
-          if (item.restock_condition === 'RESTOCKED') {
+          if (item.restock_condition === 'RESTOCKED' && item.product_id && item.item_type !== 'maintenance') {
             const origItem = origItems.find(ii => ii.product_id === item.product_id);
             const unitCost = origItem?.cost_snapshot || 0;
             dayReversedCogs += unitCost * item.quantity_returned;
@@ -209,9 +213,13 @@ export const reportsService = {
     for (const inv of invoices) {
       const items = await salesService.getInvoiceItems(inv.id);
       for (const item of items) {
+        if (!item.product_id || item.item_type === 'maintenance') {
+          continue; // Top selling products only aggregates physical inventory products
+        }
+
         const existing = productStats.get(item.product_id) || {
           name: item.product_name,
-          code: item.product_code,
+          code: item.product_code || '—',
           soldQty: 0,
           returnedQty: 0,
           grossRevenue: 0,
@@ -232,6 +240,9 @@ export const reportsService = {
     for (const ret of returns) {
       const rItems = await returnsService.getReturnItems(ret.id);
       for (const rItem of rItems) {
+        if (!rItem.product_id || rItem.item_type === 'maintenance') {
+          continue;
+        }
         const existing = productStats.get(rItem.product_id);
         if (existing) {
           existing.returnedQty += rItem.quantity_returned;

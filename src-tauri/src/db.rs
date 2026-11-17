@@ -134,7 +134,7 @@ pub struct Invoice {
 pub struct InvoiceItem {
     pub id: String,
     pub invoice_id: String,
-    pub product_id: String,
+    pub product_id: Option<String>,
     pub product_name: String,
     pub product_code: String,
     pub barcode: Option<String>,
@@ -144,11 +144,20 @@ pub struct InvoiceItem {
     pub actual_price: f64,
     pub cost_snapshot: f64,
     pub line_total: f64,
+    #[serde(default = "default_item_type")]
+    pub item_type: String,
+}
+
+fn default_item_type() -> String {
+    "product".to_string()
 }
 
 #[derive(Debug, Deserialize)]
 pub struct NewSaleItemInput {
-    pub product_id: String,
+    pub product_id: Option<String>,
+    pub item_type: Option<String>,
+    pub description: Option<String>,
+    pub price: Option<f64>,
     pub quantity: i64,
     pub discount: f64,
 }
@@ -183,21 +192,26 @@ pub struct ReturnRecord {
 pub struct ReturnItemRecord {
     pub id: String,
     pub return_id: String,
-    pub product_id: String,
+    pub invoice_item_id: Option<String>,
+    pub product_id: Option<String>,
     pub product_name: String,
     pub product_code: String,
     pub quantity_returned: i64,
     pub refund_unit_price: f64,
     pub line_refund_total: f64,
     pub restock_condition: String,
+    #[serde(default = "default_item_type")]
+    pub item_type: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct NewReturnItemInput {
-    pub product_id: String,
+    pub invoice_item_id: Option<String>,
+    pub product_id: Option<String>,
     pub quantity_returned: i64,
     pub refund_unit_price: f64,
     pub restock_condition: String,
+    pub item_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -345,7 +359,7 @@ pub fn init_db() -> Result<Connection, rusqlite::Error> {
         "CREATE TABLE IF NOT EXISTS accessories_invoice_items (
             id TEXT PRIMARY KEY,
             invoice_id TEXT NOT NULL REFERENCES accessories_invoices(id) ON DELETE CASCADE,
-            product_id TEXT NOT NULL REFERENCES accessories_products(id),
+            product_id TEXT REFERENCES accessories_products(id),
             product_name TEXT NOT NULL,
             product_code TEXT NOT NULL,
             barcode TEXT,
@@ -354,7 +368,8 @@ pub fn init_db() -> Result<Connection, rusqlite::Error> {
             discount REAL NOT NULL DEFAULT 0.0 CHECK (discount >= 0),
             actual_price REAL NOT NULL CHECK (actual_price >= 0),
             cost_snapshot REAL NOT NULL CHECK (cost_snapshot >= 0),
-            line_total REAL NOT NULL CHECK (line_total >= 0)
+            line_total REAL NOT NULL CHECK (line_total >= 0),
+            item_type TEXT NOT NULL DEFAULT 'product'
         );",
         [],
     )?;
@@ -399,16 +414,114 @@ pub fn init_db() -> Result<Connection, rusqlite::Error> {
         "CREATE TABLE IF NOT EXISTS accessories_return_items (
             id TEXT PRIMARY KEY,
             return_id TEXT NOT NULL REFERENCES accessories_returns(id) ON DELETE CASCADE,
-            product_id TEXT NOT NULL REFERENCES accessories_products(id),
+            invoice_item_id TEXT REFERENCES accessories_invoice_items(id),
+            product_id TEXT REFERENCES accessories_products(id),
             product_name TEXT NOT NULL,
             product_code TEXT NOT NULL,
             quantity_returned INTEGER NOT NULL CHECK (quantity_returned > 0),
             refund_unit_price REAL NOT NULL CHECK (refund_unit_price >= 0),
             line_refund_total REAL NOT NULL CHECK (line_refund_total >= 0),
-            restock_condition TEXT NOT NULL DEFAULT 'RESTOCKED'
+            restock_condition TEXT NOT NULL DEFAULT 'RESTOCKED',
+            item_type TEXT NOT NULL DEFAULT 'product'
         );",
         [],
     )?;
+
+    // Migration: ensure accessories_invoice_items allows NULL product_id and has item_type
+    let inv_needs_migration: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(accessories_invoice_items)")?;
+        let mut rows = stmt.query([])?;
+        let mut prod_id_not_null = false;
+        let mut has_item_type = false;
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(1)?;
+            let notnull: i64 = row.get(3)?;
+            if name == "product_id" && notnull == 1 {
+                prod_id_not_null = true;
+            }
+            if name == "item_type" {
+                has_item_type = true;
+            }
+        }
+        prod_id_not_null || !has_item_type
+    };
+
+    if inv_needs_migration {
+        conn.execute_batch(
+            "PRAGMA foreign_keys = OFF;
+            CREATE TABLE IF NOT EXISTS accessories_invoice_items_backup (
+                id TEXT PRIMARY KEY,
+                invoice_id TEXT NOT NULL REFERENCES accessories_invoices(id) ON DELETE CASCADE,
+                product_id TEXT REFERENCES accessories_products(id),
+                product_name TEXT NOT NULL,
+                product_code TEXT NOT NULL,
+                barcode TEXT,
+                quantity INTEGER NOT NULL CHECK (quantity > 0),
+                original_price REAL NOT NULL CHECK (original_price >= 0),
+                discount REAL NOT NULL DEFAULT 0.0 CHECK (discount >= 0),
+                actual_price REAL NOT NULL CHECK (actual_price >= 0),
+                cost_snapshot REAL NOT NULL CHECK (cost_snapshot >= 0),
+                line_total REAL NOT NULL CHECK (line_total >= 0),
+                item_type TEXT NOT NULL DEFAULT 'product'
+            );
+            INSERT OR IGNORE INTO accessories_invoice_items_backup
+                (id, invoice_id, product_id, product_name, product_code, barcode, quantity, original_price, discount, actual_price, cost_snapshot, line_total, item_type)
+            SELECT id, invoice_id, product_id, product_name, product_code, barcode, quantity, original_price, discount, actual_price, cost_snapshot, line_total, 'product'
+            FROM accessories_invoice_items;
+            DROP TABLE accessories_invoice_items;
+            ALTER TABLE accessories_invoice_items_backup RENAME TO accessories_invoice_items;
+            PRAGMA foreign_keys = ON;"
+        )?;
+    }
+
+    // Migration: ensure accessories_return_items allows NULL product_id, has invoice_item_id and item_type
+    let ret_needs_migration: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(accessories_return_items)")?;
+        let mut rows = stmt.query([])?;
+        let mut prod_id_not_null = false;
+        let mut has_item_type = false;
+        let mut has_invoice_item_id = false;
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(1)?;
+            let notnull: i64 = row.get(3)?;
+            if name == "product_id" && notnull == 1 {
+                prod_id_not_null = true;
+            }
+            if name == "item_type" {
+                has_item_type = true;
+            }
+            if name == "invoice_item_id" {
+                has_invoice_item_id = true;
+            }
+        }
+        prod_id_not_null || !has_item_type || !has_invoice_item_id
+    };
+
+    if ret_needs_migration {
+        conn.execute_batch(
+            "PRAGMA foreign_keys = OFF;
+            CREATE TABLE IF NOT EXISTS accessories_return_items_backup (
+                id TEXT PRIMARY KEY,
+                return_id TEXT NOT NULL REFERENCES accessories_returns(id) ON DELETE CASCADE,
+                invoice_item_id TEXT REFERENCES accessories_invoice_items(id),
+                product_id TEXT REFERENCES accessories_products(id),
+                product_name TEXT NOT NULL,
+                product_code TEXT NOT NULL,
+                quantity_returned INTEGER NOT NULL CHECK (quantity_returned > 0),
+                refund_unit_price REAL NOT NULL CHECK (refund_unit_price >= 0),
+                line_refund_total REAL NOT NULL CHECK (line_refund_total >= 0),
+                restock_condition TEXT NOT NULL DEFAULT 'RESTOCKED',
+                item_type TEXT NOT NULL DEFAULT 'product'
+            );
+            INSERT OR IGNORE INTO accessories_return_items_backup
+                (id, return_id, invoice_item_id, product_id, product_name, product_code, quantity_returned, refund_unit_price, line_refund_total, restock_condition, item_type)
+            SELECT id, return_id, NULL, product_id, product_name, product_code, quantity_returned, refund_unit_price, line_refund_total, restock_condition, 'product'
+            FROM accessories_return_items;
+            DROP TABLE accessories_return_items;
+            ALTER TABLE accessories_return_items_backup RENAME TO accessories_return_items;
+            PRAGMA foreign_keys = ON;"
+        )?;
+    }
 
     // Indexes
     conn.execute("CREATE INDEX IF NOT EXISTS idx_accessories_products_code ON accessories_products(code);", [])?;
@@ -942,18 +1055,19 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
     // Pre-validate stock and prices for all items
     let mut subtotal: f64 = 0.0;
     struct ProcessedSaleItem {
-        product_id: String,
+        product_id: Option<String>,
         name: String,
         code: String,
         barcode: Option<String>,
         quantity: i64,
-        previous_stock: i64,
-        new_stock: i64,
+        previous_stock: Option<i64>,
+        new_stock: Option<i64>,
         original_price: f64,
         discount: f64,
         actual_price: f64,
         cost_snapshot: f64,
         line_total: f64,
+        item_type: String,
     }
 
     let mut processed_items = Vec::new();
@@ -963,13 +1077,53 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
             return Err("كمية البيع يجب أن تكون أكبر من صفر".into());
         }
 
+        let is_maintenance = item.item_type.as_deref() == Some("maintenance") || item.product_id.is_none();
+        if is_maintenance {
+            let desc = item.description.as_deref().unwrap_or("").trim();
+            if desc.is_empty() {
+                return Err("يرجى كتابة وصف خدمة الصيانة المنفذة".into());
+            }
+            let price = item.price.unwrap_or(0.0);
+            if price < 0.0 {
+                return Err("سعر خدمة الصيانة لا يمكن أن يكون سالباً".into());
+            }
+            if item.discount < 0.0 {
+                return Err("خصم البند لا يمكن أن يكون سالباً".into());
+            }
+            if item.discount > price {
+                return Err("الخصم على خدمة الصيانة لا يمكن أن يتجاوز سعرها".into());
+            }
+
+            let actual_price = price - item.discount;
+            let line_total = (item.quantity as f64) * actual_price;
+            subtotal += line_total;
+
+            processed_items.push(ProcessedSaleItem {
+                product_id: None,
+                name: desc.to_string(),
+                code: "—".to_string(),
+                barcode: None,
+                quantity: item.quantity,
+                previous_stock: None,
+                new_stock: None,
+                original_price: price,
+                discount: item.discount,
+                actual_price,
+                cost_snapshot: 0.0,
+                line_total,
+                item_type: "maintenance".to_string(),
+            });
+            continue;
+        }
+
+        let pid = item.product_id.as_deref().unwrap_or("");
         let (name, code, barcode, stock, price, cost): (String, String, Option<String>, i64, f64, f64) = tx
             .query_row(
                 "SELECT name, code, barcode, stock, price, cost FROM accessories_products WHERE id = ?1",
-                params![item.product_id],
+                params![pid],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
             )
-            .map_err(|_| format!("الصنف بالمعرف '{}' غير موجود", item.product_id))?;
+            .map_err(|_| format!("الصنف بالمعرف '{}' غير موجود", pid))?;
 
         if stock < item.quantity {
             return Err(format!(
@@ -992,18 +1146,19 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
         let new_stock = stock - item.quantity;
 
         processed_items.push(ProcessedSaleItem {
-            product_id: item.product_id.clone(),
+            product_id: Some(pid.to_string()),
             name,
             code,
             barcode,
             quantity: item.quantity,
-            previous_stock: stock,
-            new_stock,
+            previous_stock: Some(stock),
+            new_stock: Some(new_stock),
             original_price: price,
             discount: item.discount,
             actual_price,
             cost_snapshot: cost,
             line_total,
+            item_type: "product".to_string(),
         });
     }
 
@@ -1049,8 +1204,8 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
 
         tx.execute(
             "INSERT INTO accessories_invoice_items 
-                (id, invoice_id, product_id, product_name, product_code, barcode, quantity, original_price, discount, actual_price, cost_snapshot, line_total)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                (id, invoice_id, product_id, product_name, product_code, barcode, quantity, original_price, discount, actual_price, cost_snapshot, line_total, item_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 item_id,
                 invoice_id,
@@ -1064,34 +1219,38 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
                 p_item.actual_price,
                 p_item.cost_snapshot,
                 p_item.line_total,
+                p_item.item_type,
             ],
         ).map_err(|e| e.to_string())?;
 
-        // Deduct product stock
-        tx.execute(
-            "UPDATE accessories_products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
-            params![p_item.new_stock, now, p_item.product_id],
-        ).map_err(|e| e.to_string())?;
+        // Deduct product stock & log movement ONLY if product
+        if p_item.item_type == "product" {
+            if let (Some(ref pid), Some(new_st), Some(prev_st)) = (&p_item.product_id, p_item.new_stock, p_item.previous_stock) {
+                tx.execute(
+                    "UPDATE accessories_products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![new_st, now, pid],
+                ).map_err(|e| e.to_string())?;
 
-        // Record inventory movement
-        let reason_text = format!("صرف مبيعات فاتورة رقم {}", inv_num);
-        tx.execute(
-            "INSERT INTO accessories_inventory_movements
-                (id, product_id, product_name, product_code, movement_type, quantity_change, previous_stock, new_stock, reference_id, reason, created_at)
-             VALUES (?1, ?2, ?3, ?4, 'SALE', ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                movement_id,
-                p_item.product_id,
-                p_item.name,
-                p_item.code,
-                -p_item.quantity,
-                p_item.previous_stock,
-                p_item.new_stock,
-                invoice_id,
-                reason_text,
-                now,
-            ],
-        ).map_err(|e| e.to_string())?;
+                let reason_text = format!("صرف مبيعات فاتورة رقم {}", inv_num);
+                tx.execute(
+                    "INSERT INTO accessories_inventory_movements
+                        (id, product_id, product_name, product_code, movement_type, quantity_change, previous_stock, new_stock, reference_id, reason, created_at)
+                     VALUES (?1, ?2, ?3, ?4, 'SALE', ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        movement_id,
+                        pid,
+                        p_item.name,
+                        p_item.code,
+                        -p_item.quantity,
+                        prev_st,
+                        new_st,
+                        invoice_id,
+                        reason_text,
+                        now,
+                    ],
+                ).map_err(|e| e.to_string())?;
+            }
+        }
     }
 
     tx.commit().map_err(|e| e.to_string())?;
@@ -1157,7 +1316,8 @@ pub fn fetch_invoice_items(conn: &Connection, invoice_id: &str) -> Result<Vec<In
     let mut stmt = conn
         .prepare(
             "SELECT id, invoice_id, product_id, product_name, product_code, barcode, 
-                    quantity, original_price, discount, actual_price, cost_snapshot, line_total
+                    quantity, original_price, discount, actual_price, cost_snapshot, line_total,
+                    COALESCE(item_type, 'product')
              FROM accessories_invoice_items
              WHERE invoice_id = ?1
              ORDER BY product_name ASC",
@@ -1179,6 +1339,7 @@ pub fn fetch_invoice_items(conn: &Connection, invoice_id: &str) -> Result<Vec<In
                 actual_price: row.get(9)?,
                 cost_snapshot: row.get(10)?,
                 line_total: row.get(11)?,
+                item_type: row.get(12)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1427,14 +1588,16 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
 
     // Process return items
     struct ProcessedReturnItem {
-        product_id: String,
+        invoice_item_id: Option<String>,
+        product_id: Option<String>,
         name: String,
         code: String,
         quantity_returned: i64,
         refund_unit_price: f64,
         line_refund_total: f64,
         restock_condition: String,
-        current_stock: i64,
+        current_stock: Option<i64>,
+        item_type: String,
     }
 
     let mut processed_items = Vec::new();
@@ -1448,21 +1611,83 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
             return Err("سعر الوحدة المسترد لا يمكن أن يكون سالباً".into());
         }
 
+        let is_maintenance = r_item.item_type.as_deref() == Some("maintenance") || r_item.product_id.is_none();
+        if is_maintenance {
+            let inv_item_opt: Option<(String, i64, f64)> = if let Some(ref inv_item_id) = r_item.invoice_item_id {
+                tx.query_row(
+                    "SELECT product_name, quantity, actual_price FROM accessories_invoice_items WHERE id = ?1",
+                    params![inv_item_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                ).ok()
+            } else {
+                tx.query_row(
+                    "SELECT product_name, quantity, actual_price FROM accessories_invoice_items WHERE invoice_id = ?1 AND item_type = 'maintenance'",
+                    params![input.invoice_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                ).ok()
+            };
+
+            let (name, sold_qty, _actual_price) = match inv_item_opt {
+                Some(data) => data,
+                None => ("خدمة صيانة".to_string(), r_item.quantity_returned, r_item.refund_unit_price),
+            };
+
+            let prev_returned: i64 = if let Some(ref inv_item_id) = r_item.invoice_item_id {
+                tx.query_row(
+                    "SELECT COALESCE(SUM(ri.quantity_returned), 0) FROM accessories_return_items ri JOIN accessories_returns r ON ri.return_id = r.id WHERE r.invoice_id = ?1 AND ri.invoice_item_id = ?2",
+                    params![input.invoice_id, inv_item_id],
+                    |row| row.get(0),
+                ).unwrap_or(0)
+            } else {
+                tx.query_row(
+                    "SELECT COALESCE(SUM(ri.quantity_returned), 0) FROM accessories_return_items ri JOIN accessories_returns r ON ri.return_id = r.id WHERE r.invoice_id = ?1 AND ri.item_type = 'maintenance'",
+                    params![input.invoice_id],
+                    |row| row.get(0),
+                ).unwrap_or(0)
+            };
+
+            let remaining_returnable = (sold_qty - prev_returned).max(0);
+            if r_item.quantity_returned > remaining_returnable {
+                return Err(format!(
+                    "الكمية المطلوب إرجاعها ({}) لخدمة '{}' تتجاوز الكمية المتبقية القابلة للإرجاع ({})",
+                    r_item.quantity_returned, name, remaining_returnable
+                ));
+            }
+
+            let line_refund = r_item.refund_unit_price * (r_item.quantity_returned as f64);
+            calculated_refund_total += line_refund;
+
+            processed_items.push(ProcessedReturnItem {
+                invoice_item_id: r_item.invoice_item_id.clone(),
+                product_id: None,
+                name,
+                code: "—".to_string(),
+                quantity_returned: r_item.quantity_returned,
+                refund_unit_price: r_item.refund_unit_price,
+                line_refund_total: line_refund,
+                restock_condition: "SERVICE".to_string(),
+                current_stock: None,
+                item_type: "maintenance".to_string(),
+            });
+            continue;
+        }
+
+        let pid = r_item.product_id.as_deref().unwrap_or("");
         // Verify product exists
         let prod_res: Result<(String, String, i64), _> = tx.query_row(
             "SELECT name, code, stock FROM accessories_products WHERE id = ?1",
-            params![r_item.product_id],
+            params![pid],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         );
         let (name, code, stock) = match prod_res {
             Ok(p) => p,
-            Err(_) => return Err(format!("الصنف بالمعرف {} غير موجود", r_item.product_id)),
+            Err(_) => return Err(format!("الصنف بالمعرف {} غير موجود", pid)),
         };
 
         // Verify product was sold in this invoice and calculate remaining returnable quantity
         let sold_qty: i64 = match tx.query_row(
             "SELECT quantity FROM accessories_invoice_items WHERE invoice_id = ?1 AND product_id = ?2",
-            params![input.invoice_id, r_item.product_id],
+            params![input.invoice_id, pid],
             |row| row.get(0),
         ) {
             Ok(q) => q,
@@ -1474,7 +1699,7 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
              FROM accessories_return_items ri
              JOIN accessories_returns r ON ri.return_id = r.id
              WHERE r.invoice_id = ?1 AND ri.product_id = ?2",
-            params![input.invoice_id, r_item.product_id],
+            params![input.invoice_id, pid],
             |row| row.get(0),
         ).unwrap_or(0);
 
@@ -1496,14 +1721,16 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
         };
 
         processed_items.push(ProcessedReturnItem {
-            product_id: r_item.product_id.clone(),
+            invoice_item_id: r_item.invoice_item_id.clone(),
+            product_id: Some(pid.to_string()),
             name,
             code,
             quantity_returned: r_item.quantity_returned,
             refund_unit_price: r_item.refund_unit_price,
             line_refund_total: line_refund,
             restock_condition: condition,
-            current_stock: stock,
+            current_stock: Some(stock),
+            item_type: "product".to_string(),
         });
     }
 
@@ -1537,11 +1764,12 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
         let item_id = uuid::Uuid::new_v4().to_string();
         tx.execute(
             "INSERT INTO accessories_return_items 
-                (id, return_id, product_id, product_name, product_code, quantity_returned, refund_unit_price, line_refund_total, restock_condition)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                (id, return_id, invoice_item_id, product_id, product_name, product_code, quantity_returned, refund_unit_price, line_refund_total, restock_condition, item_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 item_id,
                 return_id,
+                p_item.invoice_item_id,
                 p_item.product_id,
                 p_item.name,
                 p_item.code,
@@ -1549,39 +1777,42 @@ pub fn insert_return(conn: &mut Connection, input: NewReturnInput) -> Result<Ret
                 p_item.refund_unit_price,
                 p_item.line_refund_total,
                 p_item.restock_condition,
+                p_item.item_type,
             ],
         ).map_err(|e| e.to_string())?;
 
-        // Restock inventory if condition is RESTOCKED
-        if p_item.restock_condition == "RESTOCKED" {
-            let previous_stock = p_item.current_stock;
-            let new_stock = previous_stock + p_item.quantity_returned;
+        // Restock inventory ONLY if product and condition is RESTOCKED
+        if p_item.item_type == "product" && p_item.restock_condition == "RESTOCKED" {
+            if let (Some(ref pid), Some(current_stock)) = (&p_item.product_id, p_item.current_stock) {
+                let previous_stock = current_stock;
+                let new_stock = previous_stock + p_item.quantity_returned;
 
-            tx.execute(
-                "UPDATE accessories_products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
-                params![new_stock, now, p_item.product_id],
-            ).map_err(|e| e.to_string())?;
+                tx.execute(
+                    "UPDATE accessories_products SET stock = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![new_stock, now, pid],
+                ).map_err(|e| e.to_string())?;
 
-            let movement_id = uuid::Uuid::new_v4().to_string();
-            let movement_reason = format!("مرتجع مبيعات فاتورة رقم {} - {}", invoice_number, reason_clean);
+                let movement_id = uuid::Uuid::new_v4().to_string();
+                let movement_reason = format!("مرتجع مبيعات فاتورة رقم {} - {}", invoice_number, reason_clean);
 
-            tx.execute(
-                "INSERT INTO accessories_inventory_movements
-                    (id, product_id, product_name, product_code, movement_type, quantity_change, previous_stock, new_stock, reference_id, reason, created_at)
-                 VALUES (?1, ?2, ?3, ?4, 'RETURN_RESTOCKED', ?5, ?6, ?7, ?8, ?9, ?10)",
-                params![
-                    movement_id,
-                    p_item.product_id,
-                    p_item.name,
-                    p_item.code,
-                    p_item.quantity_returned,
-                    previous_stock,
-                    new_stock,
-                    return_id,
-                    movement_reason,
-                    now,
-                ],
-            ).map_err(|e| e.to_string())?;
+                tx.execute(
+                    "INSERT INTO accessories_inventory_movements
+                        (id, product_id, product_name, product_code, movement_type, quantity_change, previous_stock, new_stock, reference_id, reason, created_at)
+                     VALUES (?1, ?2, ?3, ?4, 'RETURN_RESTOCKED', ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        movement_id,
+                        pid,
+                        p_item.name,
+                        p_item.code,
+                        p_item.quantity_returned,
+                        previous_stock,
+                        new_stock,
+                        return_id,
+                        movement_reason,
+                        now,
+                    ],
+                ).map_err(|e| e.to_string())?;
+            }
         }
     }
 
@@ -1661,8 +1892,9 @@ pub fn fetch_all_returns(conn: &Connection) -> Result<Vec<ReturnRecord>, String>
 pub fn fetch_return_items(conn: &Connection, return_id: &str) -> Result<Vec<ReturnItemRecord>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, return_id, product_id, product_name, product_code, 
-                    quantity_returned, refund_unit_price, line_refund_total, restock_condition
+            "SELECT id, return_id, invoice_item_id, product_id, product_name, product_code, 
+                    quantity_returned, refund_unit_price, line_refund_total, restock_condition,
+                    COALESCE(item_type, 'product')
              FROM accessories_return_items
              WHERE return_id = ?1
              ORDER BY product_name ASC",
@@ -1674,13 +1906,15 @@ pub fn fetch_return_items(conn: &Connection, return_id: &str) -> Result<Vec<Retu
             Ok(ReturnItemRecord {
                 id: row.get(0)?,
                 return_id: row.get(1)?,
-                product_id: row.get(2)?,
-                product_name: row.get(3)?,
-                product_code: row.get(4)?,
-                quantity_returned: row.get(5)?,
-                refund_unit_price: row.get(6)?,
-                line_refund_total: row.get(7)?,
-                restock_condition: row.get(8)?,
+                invoice_item_id: row.get(2)?,
+                product_id: row.get(3)?,
+                product_name: row.get(4)?,
+                product_code: row.get(5)?,
+                quantity_returned: row.get(6)?,
+                refund_unit_price: row.get(7)?,
+                line_refund_total: row.get(8)?,
+                restock_condition: row.get(9)?,
+                item_type: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?;

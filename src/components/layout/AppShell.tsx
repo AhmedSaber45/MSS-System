@@ -8,6 +8,7 @@ import { NotificationDrawer } from '../common/NotificationDrawer';
 import { ComponentShowcaseModal } from '../common/ComponentShowcaseModal';
 import { SystemSettingsModal } from '../common/SystemSettingsModal';
 import { PageRefreshOverlay } from '../common/PageRefreshOverlay';
+import { ModuleGuard } from '../auth/ModuleGuard';
 
 // Accessories Views
 import { AccessoriesDashboardView } from '../placeholders/accessories/AccessoriesDashboardView';
@@ -109,7 +110,9 @@ export const AppShell: React.FC = () => {
         {/* Scrollable Viewport */}
         <main className="flex-1 overflow-y-auto p-5 md:p-6 pb-2">
           <div className="max-w-7xl mx-auto pb-6">
-            {renderContent()}
+            <ModuleGuard module={currentSection}>
+              {renderContent()}
+            </ModuleGuard>
           </div>
         </main>
 

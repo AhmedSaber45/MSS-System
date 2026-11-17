@@ -155,20 +155,25 @@ export const returnsService = {
     for (const ret of invoiceReturns) {
       const items = await this.getReturnItems(ret.id);
       for (const item of items) {
-        previouslyReturnedQtyByProduct[item.product_id] =
-          (previouslyReturnedQtyByProduct[item.product_id] || 0) + item.quantity_returned;
+        const key = item.invoice_item_id || item.product_id || item.id;
+        previouslyReturnedQtyByProduct[key] =
+          (previouslyReturnedQtyByProduct[key] || 0) + item.quantity_returned;
       }
     }
 
     const totalRefundedAmount = invoiceReturns.reduce((sum, r) => sum + r.refund_amount, 0);
 
     const itemSummaries = invoiceItems.map(item => {
-      const returnedQty = previouslyReturnedQtyByProduct[item.product_id] || 0;
+      const key = item.id;
+      const prodKey = item.product_id || item.id;
+      const returnedQty = (previouslyReturnedQtyByProduct[key] || 0) + (item.product_id ? (previouslyReturnedQtyByProduct[prodKey] || 0) : 0);
       const remainingQty = Math.max(0, item.quantity - returnedQty);
       return {
-        productId: item.product_id,
+        id: item.id,
+        itemType: item.item_type || 'product',
+        productId: item.product_id || null,
         productName: item.product_name,
-        productCode: item.product_code,
+        productCode: item.product_code || '—',
         soldQuantity: item.quantity,
         previouslyReturnedQuantity: returnedQty,
         remainingReturnableQuantity: remainingQty,
@@ -244,13 +249,17 @@ export const returnsService = {
     }
 
     for (const item of input.items) {
-      const summaryItem = returnSummary.itemSummaries.find(i => i.productId === item.product_id);
+      const summaryItem = returnSummary.itemSummaries.find(i =>
+        (item.invoice_item_id && i.id === item.invoice_item_id) ||
+        (item.product_id && i.productId === item.product_id) ||
+        (item.item_type === 'maintenance' && i.itemType === 'maintenance')
+      );
       if (!summaryItem) {
-        throw new Error(`الصنف المحدد لم يتم بيعه في الفاتورة رقم ${returnSummary.invoice.invoice_number}`);
+        throw new Error(`الصنف أو الخدمة المحددة لم يتم بيعها في الفاتورة رقم ${returnSummary.invoice.invoice_number}`);
       }
       if (item.quantity_returned > summaryItem.remainingReturnableQuantity) {
         throw new Error(
-          `الكمية المطلوب إرجاعها (${item.quantity_returned}) للصنف "${summaryItem.productName}" تتجاوز الكمية المتبقية القابلة للإرجاع (${summaryItem.remainingReturnableQuantity}).`
+          `الكمية المطلوب إرجاعها (${item.quantity_returned}) لـ "${summaryItem.productName}" تتجاوز الكمية المتبقية القابلة للإرجاع (${summaryItem.remainingReturnableQuantity}).`
         );
       }
     }
@@ -274,6 +283,8 @@ export const returnsService = {
     const invoice = await salesService.getInvoiceById(input.invoice_id);
     if (!invoice) throw new Error('الفاتورة الأصلية غير موجودة');
 
+    const origInvoiceItems = await salesService.getInvoiceItems(input.invoice_id);
+
     if (invoice.status === 'RETURNED_FULL') {
       throw new Error('تم استرجاع هذه الفاتورة بالكامل مسبقاً ولا يمكن إضافة مرتجع جديد لها');
     }
@@ -285,8 +296,24 @@ export const returnsService = {
     let calculatedRefund = 0;
 
     for (const rItem of input.items) {
-      const product = await productsService.getProductById(rItem.product_id);
-      if (!product) throw new Error(`الصنف بالمعرف ${rItem.product_id} غير موجود`);
+      const isMaint = rItem.item_type === 'maintenance' || !rItem.product_id;
+      let prodName = '';
+      let prodCode = '—';
+      let prodId: string | null = null;
+
+      if (isMaint) {
+        // Find corresponding invoice item for name
+        const invItem = origInvoiceItems.find(i => (rItem.invoice_item_id && i.id === rItem.invoice_item_id) || i.item_type === 'maintenance');
+        prodName = invItem?.product_name || 'خدمة صيانة';
+        prodCode = '—';
+        prodId = null;
+      } else {
+        const product = await productsService.getProductById(rItem.product_id!);
+        if (!product) throw new Error(`الصنف بالمعرف ${rItem.product_id} غير موجود`);
+        prodName = product.name;
+        prodCode = product.code;
+        prodId = product.id;
+      }
 
       const lineTotal = rItem.quantity_returned * rItem.refund_unit_price;
       calculatedRefund += lineTotal;
@@ -294,44 +321,49 @@ export const returnsService = {
       const returnItemRecord: ReturnItemRecord = {
         id: 'ritem-' + Math.random().toString(36).substring(2, 9),
         return_id: returnId,
-        product_id: product.id,
-        product_name: product.name,
-        product_code: product.code,
+        invoice_item_id: rItem.invoice_item_id || null,
+        product_id: prodId,
+        product_name: prodName,
+        product_code: prodCode,
         quantity_returned: rItem.quantity_returned,
         refund_unit_price: rItem.refund_unit_price,
         line_refund_total: lineTotal,
-        restock_condition: rItem.restock_condition,
+        restock_condition: isMaint ? 'SERVICE' : rItem.restock_condition,
+        item_type: isMaint ? 'maintenance' : 'product',
       };
       newItems.push(returnItemRecord);
 
-      // If condition is RESTOCKED, return item to sellable inventory and log movement
-      if (rItem.restock_condition === 'RESTOCKED') {
-        const previousStock = product.stock;
-        const newStock = previousStock + rItem.quantity_returned;
+      // CRITICAL: Only restock if NOT maintenance and condition is RESTOCKED
+      if (!isMaint && rItem.restock_condition === 'RESTOCKED' && prodId) {
+        const product = await productsService.getProductById(prodId);
+        if (product) {
+          const previousStock = product.stock;
+          const newStock = previousStock + rItem.quantity_returned;
 
-        await productsService.updateProduct(product.id, {
-          name: product.name,
-          code: product.code,
-          barcode: product.barcode,
-          category: product.category,
-          cost: product.cost,
-          price: product.price,
-          stock: newStock,
-          low_stock_threshold: product.low_stock_threshold,
-          description: product.description,
-        });
+          await productsService.updateProduct(product.id, {
+            name: product.name,
+            code: product.code,
+            barcode: product.barcode,
+            category: product.category,
+            cost: product.cost,
+            price: product.price,
+            stock: newStock,
+            low_stock_threshold: product.low_stock_threshold,
+            description: product.description,
+          });
 
-        await inventoryService.recordMovementInternal({
-          product_id: product.id,
-          product_name: product.name,
-          product_code: product.code,
-          movement_type: 'RETURN_RESTOCKED',
-          quantity_change: rItem.quantity_returned,
-          previous_stock: previousStock,
-          new_stock: newStock,
-          reference_id: returnId,
-          reason: `مرتجع مبيعات فاتورة رقم ${invoice.invoice_number} - ${input.reason.trim()}`,
-        });
+          await inventoryService.recordMovementInternal({
+            product_id: product.id,
+            product_name: product.name,
+            product_code: product.code,
+            movement_type: 'RETURN_RESTOCKED',
+            quantity_change: rItem.quantity_returned,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            reference_id: returnId,
+            reason: `مرتجع مبيعات فاتورة رقم ${invoice.invoice_number} - ${input.reason.trim()}`,
+          });
+        }
       }
     }
 
@@ -367,7 +399,11 @@ export const returnsService = {
           .reduce((sum, r) => sum + r.refund_amount, 0);
 
         const allItemsFullyReturned = returnSummary.itemSummaries.every(sItem => {
-          const thisReturnItem = input.items.find(i => i.product_id === sItem.productId);
+          const thisReturnItem = input.items.find(i =>
+            (i.invoice_item_id && i.invoice_item_id === sItem.id) ||
+            (i.product_id && i.product_id === sItem.productId) ||
+            (i.item_type === 'maintenance' && sItem.itemType === 'maintenance')
+          );
           const returnedInThisTx = thisReturnItem ? thisReturnItem.quantity_returned : 0;
           return (sItem.previouslyReturnedQuantity + returnedInThisTx) >= sItem.soldQuantity;
         });

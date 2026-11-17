@@ -552,8 +552,8 @@ export const MSSInventoryView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="المخزون الفعلي بالسيريال"
-        subtitle="تتبع دقيق لكل قطعة لابتوب وشاشة بسيريالها الخاص المنفصل وموقعها المادي الحقيقي بين المحلين"
+        title="المخزون  "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button

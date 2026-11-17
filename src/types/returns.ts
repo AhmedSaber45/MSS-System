@@ -1,13 +1,15 @@
 export interface ReturnItemRecord {
   id: string;
   return_id: string;
-  product_id: string;
+  invoice_item_id?: string | null;
+  product_id?: string | null;
   product_name: string;
-  product_code: string;
+  product_code?: string | null;
   quantity_returned: number;
   refund_unit_price: number;
   line_refund_total: number;
-  restock_condition: 'RESTOCKED' | 'DAMAGED'; // 'RESTOCKED' (سليم ويعاد للمخزون) or 'DAMAGED' (تالف ولا يعاد للمخزون)
+  restock_condition: 'RESTOCKED' | 'DAMAGED' | 'SERVICE'; // 'RESTOCKED' (سليم ويعاد للمخزون) or 'DAMAGED' (تالف ولا يعاد للمخزون) or 'SERVICE' (صيانة لا تؤثر على المخزون)
+  item_type?: 'product' | 'maintenance';
 }
 
 export interface ReturnRecord {
@@ -25,10 +27,12 @@ export interface ReturnRecord {
 }
 
 export interface NewReturnItemInput {
-  product_id: string;
+  invoice_item_id?: string | null;
+  product_id?: string | null;
   quantity_returned: number;
   refund_unit_price: number;
-  restock_condition: 'RESTOCKED' | 'DAMAGED';
+  restock_condition: 'RESTOCKED' | 'DAMAGED' | 'SERVICE';
+  item_type?: 'product' | 'maintenance';
 }
 
 export interface NewReturnInput {

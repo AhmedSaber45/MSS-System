@@ -219,7 +219,7 @@ export const MSSDashboardView: React.FC = () => {
             className="px-4 py-2 rounded-lg font-bold bg-white text-slate-900 shadow-subtle border border-slate-300 transition-all"
             onClick={() => setActiveTab('mss')}
           >
-            لوحة Compu MSS للأجهزة
+            لوحة Compu MSS 
           </button>
           <button
             type="button"
@@ -235,14 +235,14 @@ export const MSSDashboardView: React.FC = () => {
       </div>
 
       <PageHeader
-        title="لوحة تحكم Compu MSS للأجهزة"
-        subtitle="نظام مشترك سحابي بين محلين مع تتبع السيريال ومزامنة فورية ودعم وضع عدم الاتصال"
+        title="لوحة تحكم Compu MSS "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
               size="md"
-              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة تحكم أجهزة Compu MSS...')}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث مؤشرات لوحة تحكم  Compu MSS...')}
               disabled={isRefreshing || isLoading}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
@@ -272,11 +272,7 @@ export const MSSDashboardView: React.FC = () => {
         }
       />
 
-      <Alert
-        type="info"
-        title="قواعد Compu MSS المشترك (Rule 9 & Rule 16)"
-        message="الكتالوج مشترك بين المحلين، وتتبع الأجهزة يكون بالسيريال الفريد لكل وحدة فيزيائية، مع تسجيل فرع البيع ومصدر الجهاز بشكل منفصل تماماً، والأرباح مشتركة على مستوى ال ككل."
-      />
+
 
       {isLoading ? (
         <div className="py-16 text-center">
@@ -288,33 +284,33 @@ export const MSSDashboardView: React.FC = () => {
           {/* Top 5 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatsCard
-              title="مخزون محل 1 الفعلي"
+              title="مخزون محل 1 "
               value={`${shop1Available} جهاز`}
-              subtitle="متوفر وجاهز للبيع الفوري"
+              subtitle=""
               icon={Store}
             />
             <StatsCard
-              title="مخزون محل 2 الفعلي"
+              title="مخزون محل 2  "
               value={`${shop2Available} جهاز`}
-              subtitle="متوفر وجاهز للبيع الفوري"
+              subtitle=""
               icon={Store}
             />
             <StatsCard
-              title="أجهزة محجوزة لعملاء"
+              title="أجهزة محجوزة "
               value={`${activeReservationsCount} أجهزة`}
-              subtitle="موقوفة من البيع المباشر"
+              subtitle=""
               icon={BookmarkCheck}
             />
             <StatsCard
-              title="مجمل الربح المشترك"
+              title="مجمل الربح "
               value={formatCurrency(sharedProfit)}
-              subtitle="أرباح موحدة على مستوى النشاط"
+              subtitle=""
               icon={TrendingUp}
             />
             <StatsCard
               title="حالة المزامنة السحابية"
               value={syncStatusText}
-              subtitle="دعم كامل لوضع الأوفلاين"
+              subtitle=""
               icon={Cloud}
             />
           </div>
@@ -323,7 +319,7 @@ export const MSSDashboardView: React.FC = () => {
           <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
             <CardHeader className="py-3.5 px-4 bg-slate-100 border-b border-slate-300 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-900">
-                موقف الأجهزة المتوفرة بالموديل بين المحلين
+                 الأجهزة المتوفرة بالموديل  
               </CardTitle>
               <Button
                 variant="ghost"
@@ -339,9 +335,9 @@ export const MSSDashboardView: React.FC = () => {
                 <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                   <tr>
                     <th className="py-3 px-3.5">موديل الجهاز</th>
-                    <th className="py-3 px-3.5 text-center">محل 1 (الكمية)</th>
-                    <th className="py-3 px-3.5 text-center">محل 2 (الكمية)</th>
-                    <th className="py-3 px-3.5 text-center">الإجمالي المشترك</th>
+                    <th className="py-3 px-3.5 text-center">محل 1</th>
+                    <th className="py-3 px-3.5 text-center">محل 2</th>
+                    <th className="py-3 px-3.5 text-center">الإجمالي </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -379,7 +375,7 @@ export const MSSDashboardView: React.FC = () => {
           {/* Recent Sales Table */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">آخر مبيعات الأجهزة المسجلة في Compu MSS</h3>
+              <h3 className="text-sm font-bold text-slate-900">آخر مبيعات    Compu MSS</h3>
               <Button size="sm" variant="outline" onClick={() => setRoute('invoices')} className="border-slate-300 text-slate-800 font-semibold">
                 عرض سجل الفواتير كاملاً
               </Button>

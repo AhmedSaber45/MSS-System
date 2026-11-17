@@ -274,7 +274,7 @@ export const ReportsView: React.FC = () => {
           {/* Secondary Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs text-sm">
             <div>
-              <span className="text-slate-500 block mb-1 text-xs font-semibold">تكلفة البضاعة المباعة (COGS)</span>
+              <span className="text-slate-500 block mb-1 text-xs font-semibold">تكلفة البضاعة المباعة </span>
               <span className="font-mono font-bold text-slate-800 text-base tabular-nums">
                 {formatCurrency(summary.costOfGoodsSold)}
               </span>

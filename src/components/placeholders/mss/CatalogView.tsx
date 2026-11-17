@@ -35,10 +35,9 @@ import type {
 } from '@/types/mssCatalog.ts';
 
 const CATEGORIES: { id: string; label: string }[] = [
-  { id: 'ALL', label: 'جميع الموديلات' },
+  { id: 'ALL', label: 'الكل ' },
   { id: 'لابتوب', label: 'لابتوب' },
   { id: 'شاشة', label: 'شاشات' },
-  { id: 'أخرى', label: 'أخرى / ملحقات' },
 ];
 
 export const CatalogView: React.FC = () => {
@@ -239,8 +238,8 @@ export const CatalogView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="كتالوج موديلات الأجهزة"
-        subtitle="المواصفات الفنية الموحدة والأسعار الاسترشادية المشتركة والأرصدة المتوفرة بين المحلين"
+        title=" موديلات الأجهزة"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -274,7 +273,7 @@ export const CatalogView: React.FC = () => {
             <Layers className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.totalCount}</p>
-          <p className="text-xs text-slate-500 mt-1">موديل مسجل بالكتالوج</p>
+        
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
@@ -283,7 +282,7 @@ export const CatalogView: React.FC = () => {
             <Laptop className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.laptops}</p>
-          <p className="text-xs text-slate-500 mt-1">موديلات أجهزة محمولة</p>
+       
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
@@ -292,7 +291,7 @@ export const CatalogView: React.FC = () => {
             <Monitor className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.monitors}</p>
-          <p className="text-xs text-slate-500 mt-1">شاشات عرض احترافية</p>
+
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
@@ -308,7 +307,6 @@ export const CatalogView: React.FC = () => {
               محل 2: {stats.totalAvailShop2}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">جاهزة للبيع فوراً</p>
         </Card>
       </div>
 
@@ -374,12 +372,12 @@ export const CatalogView: React.FC = () => {
       {isLoading ? (
         <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
           <Spinner size="lg" />
-          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل كتالوج الموديلات السحابي...</p>
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل  الموديلات ...</p>
         </div>
       ) : models.length === 0 ? (
         <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
           <Layers className="w-10 h-10 text-slate-400 mx-auto" />
-          <p className="text-sm font-bold text-slate-800">لا توجد موديلات مطابقة في الكتالوج</p>
+          <p className="text-sm font-bold text-slate-800">لا توجد موديلات مطابقة  </p>
           <p className="text-xs text-slate-500">
             يمكنك إضافة موديل لابتوب أو شاشة جديد بالضغط على زر الإضافة أعلاه
           </p>
@@ -391,12 +389,12 @@ export const CatalogView: React.FC = () => {
             <table className="w-full text-sm text-right">
               <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                 <tr>
-                  <th className="py-3 px-3.5">الماركة والموديل</th>
+                  <th className="py-3 px-3.5"> الموديل</th>
                   <th className="py-3 px-3.5">النوع</th>
                   <th className="py-3 px-3.5">المعالج والرام</th>
                   <th className="py-3 px-3.5">الهارد والشاشة</th>
-                  <th className="py-3 px-3.5 text-left">السعر الاسترشادي</th>
-                  <th className="py-3 px-3.5 text-center">الرصيد الفعلي (محل 1 / محل 2)</th>
+                  <th className="py-3 px-3.5 text-left">السعر </th>
+                  <th className="py-3 px-3.5 text-center">  (محل 1 / محل 2)</th>
                   <th className="py-3 px-3.5 text-center w-24">إجراءات</th>
                 </tr>
               </thead>
@@ -599,8 +597,8 @@ export const CatalogView: React.FC = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => !isSubmitting && setIsModalOpen(false)}
-          title={editingModel ? `تعديل الموديل: ${editingModel.brand} ${editingModel.model_name}` : 'إضافة موديل جديد للكتالوج المشترك'}
-          subtitle="المواصفات الفنية الموحدة والأسعار الاسترشادية لأجهزة اللابتوب والشاشات"
+          title={editingModel ? `تعديل الموديل: ${editingModel.brand} ${editingModel.model_name}` : 'إضافة موديل جديد  '}
+          subtitle=""
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -621,7 +619,7 @@ export const CatalogView: React.FC = () => {
                 leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4.5 h-4.5" />}
                 className="font-bold"
               >
-                {isSubmitting ? 'جارٍ الحفظ...' : editingModel ? 'حفظ التعديلات' : 'إضافة الموديل للكتالوج'}
+                {isSubmitting ? 'جارٍ الحفظ...' : editingModel ? 'حفظ التعديلات' : 'إضافة الموديل '}
               </Button>
             </div>
           }
@@ -630,7 +628,7 @@ export const CatalogView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  الماركة (Brand) <span className="text-rose-500">*</span>
+                  الماركة<span className="text-rose-500">*</span>
                 </label>
                 <Input
                   placeholder="مثال: Lenovo, Dell, HP..."
@@ -642,7 +640,7 @@ export const CatalogView: React.FC = () => {
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  اسم الموديل (Model Name) <span className="text-rose-500">*</span>
+                  اسم الموديل <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   placeholder="مثال: ThinkPad T480..."
@@ -660,7 +658,6 @@ export const CatalogView: React.FC = () => {
                   options={[
                     { value: 'لابتوب', label: 'لابتوب' },
                     { value: 'شاشة', label: 'شاشة' },
-                    { value: 'أخرى', label: 'أخرى / ملحقات' },
                   ]}
                 />
               </div>
@@ -712,7 +709,7 @@ export const CatalogView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
               <div>
                 <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  السعر الاسترشادي المشترك
+                  السعر  
                 </label>
                 <Input
                   type="number"
@@ -723,12 +720,11 @@ export const CatalogView: React.FC = () => {
                   className="font-mono font-bold"
                   required
                 />
-                <p className="text-xs text-slate-500 mt-1">سعر العرض المعتمد بين المحلين</p>
               </div>
 
               <div className="md:col-span-2">
                 <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  مواصفات وتجهيزات إضافية
+                 ملاحظات
                 </label>
                 <Input
                   placeholder="مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي..."
@@ -746,7 +742,7 @@ export const CatalogView: React.FC = () => {
         <Modal
           isOpen={!!modelToDelete}
           onClose={() => setModelToDelete(null)}
-          title="تأكيد حذف الموديل من الكتالوج"
+          title="تأكيد حذف الموديل  "
           subtitle="هل أنت متأكد من رغبتك في حذف هذا الموديل؟"
           size="sm"
           footer={
@@ -770,7 +766,7 @@ export const CatalogView: React.FC = () => {
               سيتم حذف الموديل <strong>{modelToDelete.brand} {modelToDelete.model_name}</strong> من الكتالوج.
             </p>
             <p className="text-slate-500 text-xs">
-              ملاحظة: تمنع قاعدة البيانات حذف أي موديل إذا كان مسجلاً له أجهزة فعلية في المخزن لحماية سلامة البيانات.
+              ملاحظة: ممنوع   حذف أي موديل إذا كان مسجلاً له أجهزة فعلية في المخزن لحماية سلامة البيانات.
             </p>
           </div>
         </Modal>

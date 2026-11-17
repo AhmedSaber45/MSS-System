@@ -114,25 +114,25 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-200">
               <tr>
-                <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي المبيعات (Gross Sales)</td>
+                <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي المبيعات </td>
                 <td className="py-2.5 px-4 text-center font-mono tabular-nums text-slate-700">{summary.invoicesCount} فاتورة مسددة</td>
                 <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-slate-900">{formatCurrency(summary.totalRevenue)}</td>
                 <td className="py-2.5 px-4 text-left text-xs font-medium text-slate-600">إجمالي حركة المبيعات</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-4 font-semibold text-slate-900">المرتجعات والمسحوبات (Returns & Refunds)</td>
+                <td className="py-2.5 px-4 font-semibold text-slate-900">المرتجعات والمسحوبات </td>
                 <td className="py-2.5 px-4 text-center font-mono tabular-nums text-slate-700">{summary.returnsCount} عمليات استرجاع</td>
                 <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-rose-700">- {formatCurrency(summary.totalRefunds)}</td>
                 <td className="py-2.5 px-4 text-left text-xs font-medium text-rose-700">خصم من إجمالي المبيعات</td>
               </tr>
               <tr className="bg-slate-50 font-bold">
-                <td className="py-2.5 px-4 text-slate-900">صافي المبيعات المحققة (Net Sales)</td>
+                <td className="py-2.5 px-4 text-slate-900">صافي المبيعات المحققة </td>
                 <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">المبيعات - المرتجعات</td>
                 <td className="py-2.5 px-4 text-left font-mono tabular-nums text-slate-950 text-base">{formatCurrency(summary.netSales)}</td>
                 <td className="py-2.5 px-4 text-left text-xs text-slate-700">الأساس الفعلي لاحتساب الربح</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-4 font-semibold text-slate-900">تكلفة البضاعة المباعة (Net COGS)</td>
+                <td className="py-2.5 px-4 font-semibold text-slate-900">تكلفة البضاعة المباعة </td>
                 <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">التكلفة التاريخية الدقيقة</td>
                 <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-slate-700">{formatCurrency(summary.costOfGoodsSold)}</td>
                 <td className="py-2.5 px-4 text-left text-xs font-medium text-slate-600">تكلفة شراء المنتجات المباعة</td>

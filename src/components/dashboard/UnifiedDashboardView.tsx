@@ -266,18 +266,14 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
           {/* Section 1: Combined Executive Financial KPIs */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <h3 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
-                <Layers className="w-3.5 h-3.5 text-slate-500" />
-                <span>إجمالي الأداء المالي المجمع للمنشأة</span>
-              </h3>
-              <Badge variant="outline" size="sm">
+              <Badge variant="outline" size="md"> 
                 الإكسسوارات + Compu MSS
               </Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <StatsCard
-                title="إجمالي الإيرادات المجمعة"
+                title="إجمالي الإيرادات "
                 value={formatCurrency(data.combined.combinedRevenue)}
                 subtitle={`${data.combined.totalTransactionsCount} معاملة بيع خلال الفترة`}
                 icon={DollarSign}
@@ -289,7 +285,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 icon={ShoppingBag}
               />
               <StatsCard
-                title="مجمل الربح الإجمالي للمنشأة"
+                title="مجمل الربح الإجمالي "
                 value={formatCurrency(data.combined.combinedGrossProfit)}
                 subtitle={`هامش ربح إجمالي ${data.combined.profitMarginPercent.toFixed(1)}%`}
                 icon={TrendingUp}
@@ -311,11 +307,9 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2.5 text-slate-900">
                     <ShoppingBag className="w-5 h-5 text-blue-700" />
-                    <span>محل الإكسسوارات (Accessories Shop)</span>
+                    <span>محل الإكسسوارات</span>
                   </CardTitle>
-                  <CardDescription>
-                    SQLite محلي ومستقل بالكامل | أرباح ملكية فردية للمحل
-                  </CardDescription>
+
                 </div>
                 <Button
                   size="sm"
@@ -339,7 +333,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-xs text-slate-600 font-semibold">مجمل أرباح الإكسسوارات</span>
+                    <span className="text-xs text-slate-600 font-semibold">مجمل الأرباح </span>
                     <div className="text-xl font-bold text-emerald-800 mt-1 tabular-nums">
                       {formatCurrency(data.accessories.grossProfit)}
                     </div>
@@ -351,7 +345,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm space-y-2">
                   <div className="font-bold text-slate-900 flex justify-between">
-                    <span>حالة وتقييم المخزون المحلي:</span>
+                    <span>حالة وتقييم المخزون :</span>
                     <span className="font-mono tabular-nums text-slate-800">
                       {data.accessories.totalProducts} صنف ({formatPieceCount(data.accessories.totalUnits, { zeroText: '0 قطعة' })})
                     </span>
@@ -392,11 +386,8 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2.5 text-slate-900">
                     <Laptop className="w-5 h-5 text-teal-700" />
-                    <span>أجهزة Compu MSS (Laptop & Monitor)</span>
+                    <span> Compu MSS </span>
                   </CardTitle>
-                  <CardDescription>
-                    سحابي مشترك بين محلين | تتبع بالسيريال | أرباح مشتركة لل
-                  </CardDescription>
                 </div>
                 <Button
                   size="sm"
@@ -410,7 +401,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3.5">
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-xs text-slate-600 font-semibold">إجمالي مبيعات الأجهزة</span>
+                    <span className="text-xs text-slate-600 font-semibold">إجمالي المبيعات </span>
                     <div className="text-xl font-bold text-slate-900 mt-1 tabular-nums">
                       {formatCurrency(data.mss.netSales)}
                     </div>
@@ -421,7 +412,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600 font-semibold">مجمل الربح المشترك</span>
+                      <span className="text-xs text-slate-600 font-semibold">مجمل الربح </span>
                       <Badge variant="purple" size="sm">
                         مشترك
                       </Badge>
@@ -429,9 +420,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                     <div className="text-xl font-bold text-emerald-800 mt-1 tabular-nums">
                       {formatCurrency(data.mss.sharedGrossProfit)}
                     </div>
-                    <span className="text-xs text-slate-500 font-medium">
-                      على مستوى ال ككل
-                    </span>
+
                   </div>
                 </div>
 
@@ -461,7 +450,6 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-                  <span className="text-slate-600 font-semibold">حالة السحابة والمزامنة:</span>
                   <div className="flex gap-2 items-center">
                     {data.mss.isOnline ? (
                       <Badge variant="success">السحابة متصلة</Badge>
@@ -486,20 +474,12 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2.5">
                   <Store className="w-5 h-5 text-slate-700" />
-                  <span>المبيعات التشغيلية لـ Compu MSS حسب فرع التنفيذ</span>
+                  <span>المبيعات التشغيلية لـ Compu MSS مفصلة  </span>
                 </h3>
-                <p className="text-sm text-slate-600 mt-1">
-                  تحديد حجم المعاملات والتحصيل المنفذ من خلال كل فرع
-                </p>
               </div>
             </div>
 
-            {/* Rule 16 Callout Alert */}
-            <Alert
-              type="info"
-              title="تنبيه محاسبي حاسم (القاعدة 16): الفصل بين النشاط التشغيلي والربحية المشتركة"
-              message="الأرقام أدناه توضح فقط الفرع الذي قام بتنفيذ وإتمام عملية البيع والتحصيل النقدي. بينما أرباح Compu MSS هي أرباح موحدة على مستوى النشاط المشترك ككل، ولا يجوز اعتبارها أو نسبتها كأرباح فردية خاصة بالفرع البائع."
-            />
+  
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {data.branchOperationalSales.map((branchData, idx) => (
@@ -524,21 +504,21 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                     </div>
 
                     <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                      <span className="text-slate-600 font-medium">الإيراد المحصل عبر الفرع:</span>
+                      <span className="text-slate-600 font-medium">الإيراد المحصل  :</span>
                       <span className="font-bold text-slate-900 font-mono tabular-nums">
                         {formatCurrency(branchData.revenue)}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-                      <span className="text-slate-600 font-medium">الخصومات الممنوحة بالفرع:</span>
+                      <span className="text-slate-600 font-medium">الخصومات الممنوحة :</span>
                       <span className="font-semibold text-slate-700 font-mono tabular-nums">
                         {formatCurrency(branchData.discounts)}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center py-1.5">
-                      <span className="text-slate-600 font-medium">مبيعات أجهزة من الفرع الآخر (Cross-Branch):</span>
+                      <span className="text-slate-600 font-medium">مبيعات أجهزة من مخزون  الفرع الآخر :</span>
                       <span className="font-bold text-slate-900 font-mono tabular-nums">
                         {branchData.crossBranchSalesCount} عملية
                       </span>
@@ -554,7 +534,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
             <CardHeader className="py-4 px-6 bg-slate-50 border-b border-slate-200">
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Laptop className="w-5 h-5 text-slate-700" />
-                <span>حالة وتقييم المخزون الفيزيائي لأجهزة Compu MSS حسب الموقع الحالي</span>
+                <span>حالة وتقييم المخزون  لأجهزة Compu MSS   </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">

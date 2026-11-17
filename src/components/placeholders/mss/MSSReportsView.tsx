@@ -424,22 +424,22 @@ export const MSSReportsView: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     <tr>
-                      <td className="py-2 px-3.5 font-bold">إجمالي المبيعات (Gross Sales)</td>
+                      <td className="py-2 px-3.5 font-bold">إجمالي المبيعات </td>
                       <td className="py-2 px-3.5 font-mono font-bold text-left tabular-nums">{formatCurrency(summary.totalRevenue)}</td>
                       <td className="py-2 px-3.5 text-xs text-slate-600">قبل خصم المرتجعات ({summary.soldDevicesCount} جهاز)</td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3.5 font-bold">إجمالي المرتجعات (Refunds)</td>
+                      <td className="py-2 px-3.5 font-bold">إجمالي المرتجعات </td>
                       <td className="py-2 px-3.5 font-mono font-bold text-left text-rose-700 tabular-nums">{formatCurrency(summary.totalRefunds)}</td>
                       <td className="py-2 px-3.5 text-xs text-slate-600">{summary.returnedDevicesCount} جهاز مسترد إلى المخزون</td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3.5 font-bold">صافي الإيرادات (Net Sales)</td>
+                      <td className="py-2 px-3.5 font-bold">صافي الإيرادات </td>
                       <td className="py-2 px-3.5 font-mono font-bold text-left text-blue-900 tabular-nums">{formatCurrency(summary.netSales)}</td>
                       <td className="py-2 px-3.5 text-xs text-slate-600">الإيراد الفعلي بعد استبعاد المرتجعات</td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3.5 font-bold">تكلفة الأجهزة المباعة (COGS)</td>
+                      <td className="py-2 px-3.5 font-bold">تكلفة الأجهزة المباعة </td>
                       <td className="py-2 px-3.5 font-mono font-bold text-left text-slate-700 tabular-nums">{formatCurrency(summary.costOfGoodsSold)}</td>
                       <td className="py-2 px-3.5 text-xs text-slate-600">تكلفة شراء الأجهزة المحفوظة تاريخياً</td>
                     </tr>

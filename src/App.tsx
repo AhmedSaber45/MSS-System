@@ -1,8 +1,12 @@
 import React, { useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { NavigationProvider } from './context/NavigationContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { PageRefreshProvider } from './context/PageRefreshContext';
 import { AppShell } from './components/layout/AppShell';
+import { LoginView } from './components/auth/LoginView';
+import { AuthLoadingSplash } from './components/auth/AuthLoadingSplash';
+import { ToastContainer } from './components/common/Toast';
 import { backupService } from './services/backupService';
 
 // Background scheduler manager that runs across the entire application lifecycle
@@ -50,15 +54,41 @@ const BackupSchedulerManager: React.FC = () => {
   return null;
 };
 
+// Root Component that enforces authenticated session state before rendering Shell
+const AppRootContent: React.FC = () => {
+  const { status } = useAuth();
+
+  if (status === 'loading') {
+    return <AuthLoadingSplash />;
+  }
+
+  if (status === 'authenticated' || status === 'offline_authorized') {
+    return (
+      <>
+        <BackupSchedulerManager />
+        <NavigationProvider>
+          <PageRefreshProvider>
+            <AppShell />
+          </PageRefreshProvider>
+        </NavigationProvider>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <LoginView />
+      <ToastContainer />
+    </>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <NotificationProvider>
-      <BackupSchedulerManager />
-      <NavigationProvider>
-        <PageRefreshProvider>
-          <AppShell />
-        </PageRefreshProvider>
-      </NavigationProvider>
+      <AuthProvider>
+        <AppRootContent />
+      </AuthProvider>
     </NotificationProvider>
   );
 };

@@ -388,7 +388,6 @@ export const ProductCreationModal: React.FC<ProductCreationModalProps> = ({
                 className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
                 title="إعادة توليد الكود التلقائي بناءً على اسم الصنف"
               >
-                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                 <span>توليد كود تلقائي</span>
               </button>
             </div>

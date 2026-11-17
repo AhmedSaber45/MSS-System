@@ -23,6 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Wrench,
+  Edit3,
 } from 'lucide-react';
 import { formatCurrency, formatPieceCount } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
@@ -64,6 +66,15 @@ export const SalesView: React.FC = () => {
 
   // Checkout submission lock
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Maintenance Modal State
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState<boolean>(false);
+  const [editingMaintenanceId, setEditingMaintenanceId] = useState<string | null>(null);
+  const [maintDescription, setMaintDescription] = useState<string>('');
+  const [maintPrice, setMaintPrice] = useState<string>('');
+  const [maintQuantity, setMaintQuantity] = useState<number>(1);
+  const [maintDiscount, setMaintDiscount] = useState<string>('');
+  const [maintError, setMaintError] = useState<string>('');
 
   // Success print modal state
   const [completedInvoice, setCompletedInvoice] = useState<Invoice | null>(null);
@@ -148,7 +159,9 @@ export const SalesView: React.FC = () => {
     }
 
     setCart(prevCart => {
-      const existingIndex = prevCart.findIndex(item => item.product.id === product.id);
+      const existingIndex = prevCart.findIndex(
+        item => item.item_type !== 'maintenance' && item.product?.id === product.id
+      );
 
       if (existingIndex >= 0) {
         const existing = prevCart[existingIndex];
@@ -174,6 +187,8 @@ export const SalesView: React.FC = () => {
         return [
           ...prevCart,
           {
+            id: product.id,
+            item_type: 'product',
             product,
             quantity: 1,
             discount: 0,
@@ -185,17 +200,112 @@ export const SalesView: React.FC = () => {
     });
   }, [showNotification]);
 
+  // Open modal to add new manual maintenance entry
+  const handleOpenAddMaintenance = () => {
+    setEditingMaintenanceId(null);
+    setMaintDescription('');
+    setMaintPrice('');
+    setMaintQuantity(1);
+    setMaintDiscount('');
+    setMaintError('');
+    setIsMaintenanceModalOpen(true);
+  };
+
+  // Open modal to edit existing maintenance entry
+  const handleOpenEditMaintenance = (item: CartItem) => {
+    setEditingMaintenanceId(item.id || null);
+    setMaintDescription(item.description || '');
+    setMaintPrice(item.price !== undefined ? String(item.price) : String(item.actual_price));
+    setMaintQuantity(item.quantity || 1);
+    setMaintDiscount(item.discount > 0 ? String(item.discount) : '');
+    setMaintError('');
+    setIsMaintenanceModalOpen(true);
+  };
+
+  // Save manual maintenance entry
+  const handleSaveMaintenance = () => {
+    const desc = maintDescription.trim();
+    if (!desc) {
+      setMaintError('يرجى إدخال وصف العمل المنفذ (خدمة الصيانة)');
+      return;
+    }
+
+    const price = parseFloat(maintPrice);
+    if (isNaN(price) || price < 0) {
+      setMaintError('يرجى إدخال سعر صحيح غير سالب للخدمة');
+      return;
+    }
+
+    const qty = Math.max(1, maintQuantity || 1);
+    const discount = parseFloat(maintDiscount) || 0;
+    if (discount < 0) {
+      setMaintError('الخصم لا يمكن أن يكون سالباً');
+      return;
+    }
+    if (discount > price) {
+      setMaintError('قيمة الخصم لا يمكن أن تتجاوز سعر الخدمة');
+      return;
+    }
+
+    const actualPrice = price - discount;
+    const lineTotal = actualPrice * qty;
+
+    if (editingMaintenanceId) {
+      setCart(prev =>
+        prev.map(item => {
+          if (item.id === editingMaintenanceId) {
+            return {
+              ...item,
+              description: desc,
+              price,
+              quantity: qty,
+              discount,
+              actual_price: actualPrice,
+              line_total: lineTotal,
+            };
+          }
+          return item;
+        })
+      );
+      showNotification({
+        type: 'info',
+        title: 'تم تحديث بند الصيانة',
+        message: `تم تعديل خدمة "${desc}" بنجاح.`,
+      });
+    } else {
+      const newItem: CartItem = {
+        id: 'maint-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7),
+        item_type: 'maintenance',
+        description: desc,
+        price,
+        quantity: qty,
+        discount,
+        actual_price: actualPrice,
+        line_total: lineTotal,
+      };
+      setCart(prev => [...prev, newItem]);
+      showNotification({
+        type: 'success',
+        title: 'تمت إضافة بند الصيانة',
+        message: `تمت إضافة خدمة "${desc}" بقيمة ${formatCurrency(lineTotal)} إلى الفاتورة.`,
+      });
+    }
+
+    setIsMaintenanceModalOpen(false);
+  };
+
   // Modify item quantity
-  const handleUpdateQuantity = (productId: string, newQty: number) => {
+  const handleUpdateQuantity = (itemId: string, newQty: number) => {
     if (newQty <= 0) {
-      handleRemoveItem(productId);
+      handleRemoveItem(itemId);
       return;
     }
 
     setCart(prevCart => {
       return prevCart.map(item => {
-        if (item.product.id === productId) {
-          if (newQty > item.product.stock) {
+        const currentId = item.id || item.product?.id;
+        if (currentId === itemId) {
+          if (item.item_type !== 'maintenance' && item.product && newQty > item.product.stock) {
             showNotification({
               type: 'warning',
               title: 'تجاوز الرصيد المتاح',
@@ -215,12 +325,14 @@ export const SalesView: React.FC = () => {
   };
 
   // Modify item discount
-  const handleUpdateItemDiscount = (productId: string, discountAmount: number) => {
+  const handleUpdateItemDiscount = (itemId: string, discountAmount: number) => {
     setCart(prevCart => {
       return prevCart.map(item => {
-        if (item.product.id === productId) {
-          const validDiscount = Math.max(0, Math.min(item.product.price, discountAmount));
-          const actualPrice = item.product.price - validDiscount;
+        const currentId = item.id || item.product?.id;
+        if (currentId === itemId) {
+          const basePrice = item.item_type === 'maintenance' ? (item.price ?? 0) : (item.product?.price ?? 0);
+          const validDiscount = Math.max(0, Math.min(basePrice, discountAmount));
+          const actualPrice = basePrice - validDiscount;
           return {
             ...item,
             discount: validDiscount,
@@ -234,8 +346,8 @@ export const SalesView: React.FC = () => {
   };
 
   // Remove single item from cart
-  const handleRemoveItem = (productId: string) => {
-    setCart(prev => prev.filter(i => i.product.id !== productId));
+  const handleRemoveItem = (itemId: string) => {
+    setCart(prev => prev.filter(i => (i.id || i.product?.id) !== itemId));
   };
 
   // Clear entire cart
@@ -270,7 +382,7 @@ export const SalesView: React.FC = () => {
       showNotification({
         type: 'warning',
         title: 'السلة فارغة',
-        message: 'يرجى اختيار صنف واحد على الأقل لإتمام البيع.',
+        message: 'يرجى اختيار صنف أو خدمة صيانة واحدة على الأقل لإتمام البيع.',
       });
       return;
     }
@@ -279,7 +391,7 @@ export const SalesView: React.FC = () => {
       showNotification({
         type: 'error',
         title: 'قيمة الخصم غير صالحة',
-        message: 'خصم الفاتورة الإجمالي لا يمكن أن يتجاوز مجموع الأصناف.',
+        message: 'خصم الفاتورة الإجمالي لا يمكن أن يتجاوز مجموع الأصناف والخدمات.',
       });
       return;
     }
@@ -293,11 +405,23 @@ export const SalesView: React.FC = () => {
         invoice_discount: invoiceDiscount,
         payment_method: paymentMethod,
         notes: saleNotes.trim() || undefined,
-        items: cart.map(item => ({
-          product_id: item.product.id,
-          quantity: item.quantity,
-          discount: item.discount,
-        })),
+        items: cart.map(item => {
+          if (item.item_type === 'maintenance') {
+            return {
+              item_type: 'maintenance' as const,
+              description: item.description,
+              price: item.price,
+              quantity: item.quantity,
+              discount: item.discount,
+            };
+          }
+          return {
+            item_type: 'product' as const,
+            product_id: item.product!.id,
+            quantity: item.quantity,
+            discount: item.discount,
+          };
+        }),
       };
 
       const invoice = await salesService.createSale(saleInput);
@@ -310,7 +434,7 @@ export const SalesView: React.FC = () => {
       showNotification({
         type: 'success',
         title: 'تم تسجيل الفاتورة بنجاح',
-        message: `تم إصدار الفاتورة (${invoice.invoice_number}) وخصم الكميات من المخزن.`,
+        message: `تم إصدار الفاتورة (${invoice.invoice_number}) وتحديث الحسابات.`,
       });
 
       // Reset cart and reload product stock
@@ -364,14 +488,29 @@ export const SalesView: React.FC = () => {
         <div className="lg:col-span-7 space-y-3.5">
           {/* Search & Catalog Filter Card */}
           <Card className="p-3.5 border-slate-300">
-            <Input
-              placeholder="   ابحث باسم الصنف أو الكود..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-              autoFocus
-            />
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1">
+                <Input
+                  placeholder="ابحث باسم الصنف أو الكود..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery('')}
+                  leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
+                  autoFocus
+                />
+              </div>
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                onClick={handleOpenAddMaintenance}
+                leftIcon={<Wrench className="w-4.5 h-4.5 text-white" />}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-xs"
+                title="إضافة خدمة صيانة يدوية للفاتورة الحالية"
+              >
+                صيانة
+              </Button>
+            </div>
 
             {/* Category Filter Buttons */}
             <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 text-sm">
@@ -414,7 +553,7 @@ export const SalesView: React.FC = () => {
             <div className="p-12 text-center bg-white rounded-xl border border-slate-300 space-y-2">
               <ShoppingBag className="w-10 h-10 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-800">لا توجد أصناف مطابقة للبحث</p>
-              <p className="text-xs text-slate-500">تأكد من كتابة الاسم أو الكود   بشكل صحيح</p>
+              <p className="text-xs text-slate-500">تأكد من كتابة الاسم أو الكود بشكل صحيح، أو استخدم زر "صيانة" لإضافة خدمة</p>
             </div>
           ) : (
             <div className="space-y-3.5">
@@ -423,7 +562,7 @@ export const SalesView: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                   {paginatedProducts.map(p => {
                     const isOutOfStock = p.stock <= 0;
-                    const inCart = cart.find(c => c.product.id === p.id);
+                    const inCart = cart.find(c => c.item_type !== 'maintenance' && c.product?.id === p.id);
 
                     return (
                       <div
@@ -593,19 +732,31 @@ export const SalesView: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-sm font-bold text-slate-900">سلة البيع الحالية</CardTitle>
                   <Badge variant="outline" size="sm" className="font-semibold">
-                    {cart.length} أصناف
+                    {cart.length} بنود
                   </Badge>
                 </div>
-                {cart.length > 0 && (
-                  <button
+                <div className="flex items-center gap-2">
+                  <Button
                     type="button"
-                    onClick={handleClearCart}
-                    className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1.5 font-semibold transition-colors"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenAddMaintenance}
+                    leftIcon={<Wrench className="w-3.5 h-3.5 text-amber-700" />}
+                    className="h-7 text-xs border-amber-300 bg-amber-50/60 hover:bg-amber-100 text-amber-900 font-bold"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    إفراغ السلة
-                  </button>
-                )}
+                    + صيانة
+                  </Button>
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearCart}
+                      className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1 font-semibold transition-colors pr-1 border-r border-slate-300"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      إفراغ
+                    </button>
+                  )}
+                </div>
               </div>
             </CardHeader>
 
@@ -618,89 +769,134 @@ export const SalesView: React.FC = () => {
                   <div>
                     <p className="text-sm font-bold text-slate-800">السلة فارغة</p>
                     <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                      اختر من القائمة لبدء الفاتورة
+                      اختر أصنافاً من القائمة أو اضغط على زر "صيانة" لإضافة خدمة
                     </p>
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenAddMaintenance}
+                        leftIcon={<Wrench className="w-3.5 h-3.5 text-amber-700" />}
+                        className="text-xs font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      >
+                        إضافة خدمة صيانة
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-0.5">
-                  {cart.map(item => (
-                    <div
-                      key={item.product.id}
-                      className="p-3 bg-slate-50/90 rounded-lg border border-slate-300 space-y-2 text-sm"
-                    >
-                      {/* Top: Name, Code & Delete */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <p className="font-bold text-slate-900 leading-snug">{item.product.name}</p>
-                          <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">{item.product.code}</p>
+                  {cart.map(item => {
+                    const isMaintenance = item.item_type === 'maintenance';
+                    const itemId = item.id || (item.product ? item.product.id : `item-${Math.random()}`);
+                    const itemName = isMaintenance ? item.description : item.product?.name;
+                    const itemCode = isMaintenance ? 'خدمة صيانة يدوية' : item.product?.code;
+
+                    return (
+                      <div
+                        key={itemId}
+                        className={`p-3 rounded-lg border space-y-2 text-sm ${
+                          isMaintenance
+                            ? 'bg-amber-50/70 border-amber-200'
+                            : 'bg-slate-50/90 border-slate-300'
+                        }`}
+                      >
+                        {/* Top: Name, Code & Delete */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isMaintenance && (
+                                <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  صيانة
+                                </span>
+                              )}
+                              <p className="font-bold text-slate-900 leading-snug">{itemName}</p>
+                            </div>
+                            <p className="text-xs text-slate-500 font-mono font-semibold tabular-nums mt-0.5">
+                              {itemCode}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {isMaintenance && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditMaintenance(item)}
+                                className="text-slate-500 hover:text-amber-800 p-1 rounded hover:bg-amber-100/80 transition-colors"
+                                title="تعديل بند الصيانة"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(itemId)}
+                              className="text-slate-500 hover:text-rose-700 p-1 rounded hover:bg-slate-200 transition-colors"
+                              title="حذف من السلة"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.product.id)}
-                          className="text-slate-500 hover:text-rose-700 p-1 rounded hover:bg-slate-200 transition-colors"
-                          title="حذف من السلة"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+
+                        {/* Controls Row: Quantity, Unit Price, Item Discount, Line Total */}
+                        <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-200">
+                          {/* Qty controls */}
+                          <div className="col-span-5 flex items-center gap-1 bg-white border border-slate-300 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(itemId, item.quantity - 1)}
+                              className="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={isMaintenance ? 9999 : item.product?.stock}
+                              value={item.quantity}
+                              onChange={e => handleUpdateQuantity(itemId, parseInt(e.target.value, 10) || 1)}
+                              className="w-12 text-center font-bold font-mono text-sm bg-transparent focus:outline-none tabular-nums"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(itemId, item.quantity + 1)}
+                              disabled={!isMaintenance && (item.product?.stock !== undefined ? item.quantity >= item.product.stock : false)}
+                              className="p-1.5 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Item discount input */}
+                          <div className="col-span-3">
+                            <input
+                              type="number"
+                              min="0"
+                              max={isMaintenance ? (item.price || 0) : item.product?.price}
+                              value={item.discount || ''}
+                              placeholder="خصم"
+                              onChange={e => handleUpdateItemDiscount(itemId, parseFloat(e.target.value) || 0)}
+                              className="w-full text-center text-xs font-semibold py-1.5 px-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-slate-800 font-mono tabular-nums"
+                              title="خصم على البند"
+                            />
+                          </div>
+
+                          {/* Line Total */}
+                          <div className="col-span-4 text-left font-mono font-bold text-slate-900 text-sm tabular-nums">
+                            {formatCurrency(item.line_total)}
+                          </div>
+                        </div>
+
+                        {item.discount > 0 && (
+                          <div className="text-xs text-emerald-800 font-semibold tabular-nums">
+                            سعر الوحدة بعد الخصم: {formatCurrency(item.actual_price)}
+                          </div>
+                        )}
                       </div>
-
-                      {/* Controls Row: Quantity, Unit Price, Item Discount, Line Total */}
-                      <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-200">
-                        {/* Qty controls */}
-                        <div className="col-span-5 flex items-center gap-1 bg-white border border-slate-300 rounded-lg p-0.5">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                            className="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            max={item.product.stock}
-                            value={item.quantity}
-                            onChange={e => handleUpdateQuantity(item.product.id, parseInt(e.target.value, 10) || 1)}
-                            className="w-12 text-center font-bold font-mono text-sm bg-transparent focus:outline-none tabular-nums"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
-                            disabled={item.quantity >= item.product.stock}
-                            className="p-1.5 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Item discount input */}
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            min="0"
-                            max={item.product.price}
-                            value={item.discount || ''}
-                            placeholder="خصم"
-                            onChange={e => handleUpdateItemDiscount(item.product.id, parseFloat(e.target.value) || 0)}
-                            className="w-full text-center text-xs font-semibold py-1.5 px-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-slate-800 font-mono tabular-nums"
-                            title="خصم على الصنف"
-                          />
-                        </div>
-
-                        {/* Line Total */}
-                        <div className="col-span-4 text-left font-mono font-bold text-slate-900 text-sm tabular-nums">
-                          {formatCurrency(item.line_total)}
-                        </div>
-                      </div>
-
-                      {item.discount > 0 && (
-                        <div className="text-xs text-emerald-800 font-semibold tabular-nums">
-                          سعر القطعة بعد الخصم: {formatCurrency(item.actual_price)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -805,6 +1001,130 @@ export const SalesView: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Maintenance Item Modal */}
+      <Modal
+        isOpen={isMaintenanceModalOpen}
+        onClose={() => setIsMaintenanceModalOpen(false)}
+        title={editingMaintenanceId ? 'تعديل بند صيانة' : 'إضافة بند صيانة للفاتورة'}
+        subtitle="تسجيل خدمة صيانة بمواصفات وسعر محدد يدوياً"
+        size="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setIsMaintenanceModalOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleSaveMaintenance}
+              leftIcon={<CheckCircle className="w-4.5 h-4.5" />}
+              className="bg-amber-600 hover:bg-amber-700 font-bold"
+            >
+              {editingMaintenanceId ? 'حفظ التعديل' : 'إضافة إلى الفاتورة'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-1">
+          {maintError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs font-bold">
+              {maintError}
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">
+              وصف العمل المنفذ (الخدمة) <span className="text-rose-600">*</span>
+            </label>
+            <Input
+              placeholder="مثال: تعريج سلك نت، تغيير سوكت، صيانة باور..."
+              value={maintDescription}
+              onChange={e => {
+                setMaintDescription(e.target.value);
+                if (maintError) setMaintError('');
+              }}
+              autoFocus
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              أدخل بياناً واضحاً للعمل الذي تم تنفيذه للعميل ليظهر في الفاتورة المطبوعة.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                سعر الخدمة (جنيه) <span className="text-rose-600">*</span>
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                placeholder="0.00"
+                value={maintPrice}
+                onChange={e => {
+                  setMaintPrice(e.target.value);
+                  if (maintError) setMaintError('');
+                }}
+                isMonospace
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                الكمية / العدد
+              </label>
+              <Input
+                type="number"
+                min="1"
+                value={maintQuantity}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  setMaintQuantity(isNaN(val) ? 1 : Math.max(1, val));
+                }}
+                isMonospace
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">
+              خصم على الخدمة (اختياري)
+            </label>
+            <Input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.00"
+              value={maintDiscount}
+              onChange={e => {
+                setMaintDiscount(e.target.value);
+                if (maintError) setMaintError('');
+              }}
+              isMonospace
+            />
+          </div>
+
+          {/* Realtime Calculation Preview */}
+          {parseFloat(maintPrice) > 0 && (
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex items-center justify-between text-xs">
+              <span className="text-amber-900 font-bold">إجمالي بند الصيانة المستحق:</span>
+              <span className="font-mono font-bold text-slate-900 text-sm">
+                {formatCurrency(
+                  Math.max(
+                    0,
+                    (parseFloat(maintPrice) || 0) - (parseFloat(maintDiscount) || 0)
+                  ) * Math.max(1, maintQuantity || 1)
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Sale Completed Print Modal */}
       {completedInvoice && (
