@@ -400,8 +400,30 @@ export const UsersView: React.FC = () => {
             <tbody className="divide-y divide-brand-border text-slate-300">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
-                    {loading ? 'جاري التحميل...' : 'لا يوجد مستخدمون مطابقون لمعايير البحث'}
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Users className="w-8 h-8 text-slate-600" />
+                      <p className="text-sm font-semibold text-slate-300">
+                        {loading
+                          ? 'جاري التحميل...'
+                          : users.length === 0
+                          ? 'لا يوجد مستخدمون مسجلون في النظام حتى الآن'
+                          : 'لا يوجد مستخدمون مطابقون لمعايير البحث'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {users.length === 0
+                          ? 'ابدأ بإضافة أول حساب مستخدم لتحديد الصلاحيات ورمز الدخول'
+                          : 'جرب تعديل كلمات البحث أو تصفية الصلاحيات'}
+                      </p>
+                      {!loading && (
+                        <button
+                          onClick={() => setIsCreateOpen(true)}
+                          className="mt-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          + إضافة مستخدم جديد
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

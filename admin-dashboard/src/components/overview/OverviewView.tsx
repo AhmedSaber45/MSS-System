@@ -72,14 +72,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Top Welcome & Quick Actions */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-brand-card via-brand-surface to-brand-card border border-brand-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div className="p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
             <span className="text-xs font-semibold text-emerald-400">نظام الإدارة المركزي جاهز ونشط</span>
           </div>
-          <h2 className="text-xl font-bold text-white">مرحباً بك في لوحة تحكم Compu MSS</h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <h2 className="text-lg font-bold text-white">مرحباً بك في لوحة تحكم Compu MSS</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
             إدارة الفروع، صلاحيات مستخدمي المحلات، تشفير رموز الدخول وسجل التدقيق المركزي.
           </p>
         </div>
@@ -87,14 +87,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           <button
             onClick={() => onNavigate('users')}
-            className="flex-1 md:flex-none px-4 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white text-xs font-semibold rounded-lg shadow-lg shadow-brand-primary/20 flex items-center justify-center gap-2 transition-all"
+            className="flex-1 md:flex-none px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors"
           >
             <Users className="w-4 h-4" />
             <span>إضافة مستخدم</span>
           </button>
           <button
             onClick={() => onNavigate('stores')}
-            className="flex-1 md:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-brand-border flex items-center justify-center gap-2 transition-all"
+            className="flex-1 md:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-brand-border flex items-center justify-center gap-1.5 transition-colors"
           >
             <Store className="w-4 h-4" />
             <span>إضافة فرع / مخزن</span>

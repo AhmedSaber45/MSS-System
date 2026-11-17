@@ -50,19 +50,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
-      {/* Background radial glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-brand-bg to-brand-bg pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-sm">
         {/* Brand Card */}
-        <div className="bg-brand-card border border-brand-border rounded-2xl p-8 shadow-2xl space-y-6">
+        <div className="bg-brand-card border border-brand-border rounded-2xl p-6 sm:p-7 shadow-sm space-y-5">
           {/* Logo & Header */}
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white mx-auto shadow-xl shadow-brand-primary/25">
-              <Building2 className="w-7 h-7" />
+            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white mx-auto shadow-sm">
+              <Building2 className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-wide">Compu MSS</h1>
-            <p className="text-xs text-slate-400 font-medium">لوحة تحكم الإدارة المركزية (Admin Dashboard)</p>
+            <h1 className="text-xl font-bold text-white tracking-wide">Compu MSS</h1>
+            <p className="text-xs text-slate-400 font-medium">لوحة تحكم الإدارة المركزية</p>
           </div>
 
           {/* Error Message */}
@@ -84,9 +81,9 @@ export default function LoginPage() {
                   placeholder="admin"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full p-3 bg-brand-surface border border-brand-border rounded-xl text-slate-200 placeholder-slate-500 font-mono pr-10 focus:outline-none focus:border-brand-primary transition-colors"
+                  className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 placeholder-slate-500 font-mono pr-9 focus:outline-none focus:border-blue-500 transition-colors"
                 />
-                <User className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
             </div>
 
@@ -99,13 +96,13 @@ export default function LoginPage() {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-3 bg-brand-surface border border-brand-border rounded-xl text-slate-200 font-mono pr-10 pl-10 focus:outline-none focus:border-brand-primary transition-colors"
+                  className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono pr-9 pl-9 focus:outline-none focus:border-blue-500 transition-colors"
                 />
-                <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -115,7 +112,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-brand-primary hover:bg-brand-secondary text-white font-semibold text-sm rounded-xl shadow-lg shadow-brand-primary/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2 cursor-pointer"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 mt-1 cursor-pointer"
             >
               {loading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -128,25 +125,25 @@ export default function LoginPage() {
             {/* Quick 1-Click Login Option */}
             <div className="pt-2">
               <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-brand-border/60"></div>
-                <span className="flex-shrink mx-3 text-[10px] text-slate-500 font-medium">أو الدخول المباشر بنقرة واحدة</span>
-                <div className="flex-grow border-t border-brand-border/60"></div>
+                <div className="flex-grow border-t border-brand-border"></div>
+                <span className="flex-shrink mx-2 text-[10px] text-slate-500 font-medium">أو الدخول المباشر بنقرة واحدة</span>
+                <div className="flex-grow border-t border-brand-border"></div>
               </div>
               <button
                 type="button"
                 onClick={handleQuickLogin}
                 disabled={loading}
-                className="w-full mt-2 py-2.5 bg-brand-surface hover:bg-slate-800 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/60 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-sm cursor-pointer"
+                className="w-full mt-1.5 py-2 bg-brand-surface hover:bg-slate-800 text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
               >
-                <Zap className="w-4 h-4 text-amber-400 fill-amber-400/20" />
-                <span>دخول سريع كمدير (بدون كتابة اسم المستخدم أو كلمة المرور)</span>
+                <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
+                <span>دخول سريع كمدير (نقرة واحدة بدون كتابة كلمة المرور)</span>
               </button>
             </div>
           </form>
 
           {/* Security & Access Info */}
-          <div className="pt-4 border-t border-brand-border/60 text-center space-y-1.5 text-[11px] text-slate-500">
-            <p>لوحة تحكم إدارية خاصة — التسجيل مقصور على المشرفين المصرح لهم فقط</p>
+          <div className="pt-3 border-t border-brand-border text-center space-y-1 text-[11px] text-slate-500">
+            <p>لوحة تحكم إدارية خاصة — الوصول مقصور على المشرفين المصرح لهم فقط</p>
             <p className="text-[10px] text-slate-600">
               © 2026 Ahmed Saber • 01030137635
             </p>

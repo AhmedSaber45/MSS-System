@@ -51,54 +51,8 @@ import type {
 } from '../types/admin.ts';
 import type { SessionPayload } from '../lib/session.ts';
 
-// Fallback in-memory stores for graceful development when Supabase tables are pending migration execution
-const fallbackStores: SystemStore[] = [
-  {
-    id: 'e1111111-1111-1111-1111-111111111101',
-    code: 'SHOP_1',
-    name: 'محل 1 (الفرع الرئيسي)',
-    type: 'store',
-    description: 'المقر والفرع التجاري الرئيسي لـ Compu MSS',
-    address: 'الفرع الرئيسي',
-    phone: '01030137635',
-    isActive: true,
-    isArchived: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedUsersCount: 1,
-    deviceCount: 15,
-  },
-  {
-    id: 'e1111111-1111-1111-1111-111111111102',
-    code: 'SHOP_2',
-    name: 'محل 2 (الفرع الثاني)',
-    type: 'store',
-    description: 'فرع المبيعات الثاني لـ Compu MSS',
-    address: 'الفرع الثاني',
-    phone: '01030137635',
-    isActive: true,
-    isArchived: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedUsersCount: 1,
-    deviceCount: 8,
-  },
-  {
-    id: 'e1111111-1111-1111-1111-111111111103',
-    code: 'WH_MAIN',
-    name: 'المخزن الرئيسي (المركزي)',
-    type: 'warehouse',
-    description: 'المخزن المركزي للبضائع والأجهزة',
-    address: 'المخزن المركزي للشركة',
-    phone: '01030137635',
-    isActive: true,
-    isArchived: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedUsersCount: 0,
-    deviceCount: 22,
-  },
-];
+// Fallback in-memory stores for development when Supabase tables are pending migration execution
+const fallbackStores: SystemStore[] = [];
 
 interface FallbackAssignment {
   id: string;
@@ -108,189 +62,134 @@ interface FallbackAssignment {
   assignedAt: string;
 }
 
-const fallbackUserStoreAssignments: FallbackAssignment[] = [
-  {
-    id: 'asg-00',
-    userId: 'a1111111-1111-1111-1111-111111111100',
-    storeId: 'e1111111-1111-1111-1111-111111111101',
-    isPrimary: true,
-    assignedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asg-00-b',
-    userId: 'a1111111-1111-1111-1111-111111111100',
-    storeId: 'e1111111-1111-1111-1111-111111111102',
-    isPrimary: false,
-    assignedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asg-01',
-    userId: 'a1111111-1111-1111-1111-111111111101',
-    storeId: 'e1111111-1111-1111-1111-111111111101',
-    isPrimary: true,
-    assignedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asg-02',
-    userId: 'a1111111-1111-1111-1111-111111111102',
-    storeId: 'e1111111-1111-1111-1111-111111111102',
-    isPrimary: true,
-    assignedAt: new Date().toISOString(),
-  },
-];
+const fallbackUserStoreAssignments: FallbackAssignment[] = [];
 
 const fallbackStoreMerges: any[] = [];
 
-// Fallback in-memory inventory devices for Phase 5
-const fallbackDevices: InventoryDevice[] = [
-  {
-    id: 'b0000000-0000-0000-0000-000000000001',
-    serialNumber: 'PF1K892-LEN',
-    modelId: 'a0000000-0000-0000-0000-000000000001',
-    modelName: 'ThinkPad T480',
-    brand: 'Lenovo',
-    category: 'لابتوب',
-    purchaseCost: 8500,
-    listPrice: 11500,
-    purchaseDate: '2024-11-08',
-    physicalCondition: 'فرز أول ممتاز',
-    stockLocation: 'محل 2',
-    status: 'AVAILABLE',
-    notes: 'حالة ممتازة - الشاحن الأصلي',
-    createdAt: '2024-11-08T10:00:00Z',
-    updatedAt: '2024-11-08T10:00:00Z',
-    isEligibleForTransfer: true,
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000002',
-    serialNumber: 'PF1K893-LEN',
-    modelId: 'a0000000-0000-0000-0000-000000000001',
-    modelName: 'ThinkPad T480',
-    brand: 'Lenovo',
-    category: 'لابتوب',
-    purchaseCost: 8700,
-    listPrice: 11800,
-    purchaseDate: '2024-11-09',
-    physicalCondition: 'فرز أول مع بطارية إضافية',
-    stockLocation: 'محل 2',
-    status: 'AVAILABLE',
-    notes: 'بطارية 95% صحة',
-    createdAt: '2024-11-09T11:00:00Z',
-    updatedAt: '2024-11-09T11:00:00Z',
-    isEligibleForTransfer: true,
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000003',
-    serialNumber: '8F9X021-DELL',
-    modelId: 'a0000000-0000-0000-0000-000000000002',
-    modelName: 'Latitude 5400',
-    brand: 'Dell',
-    category: 'لابتوب',
-    purchaseCost: 11000,
-    listPrice: 15000,
-    purchaseDate: '2024-11-07',
-    physicalCondition: 'كالجديد كرتونة كاملة',
-    stockLocation: 'محل 1',
-    status: 'RESERVED',
-    notes: 'محجوز حتى الغد لعميل دائم',
-    createdAt: '2024-11-07T09:30:00Z',
-    updatedAt: '2024-11-07T09:30:00Z',
-    isEligibleForTransfer: false,
-    ineligibilityReason: 'الجهاز محجوز لعميل حالياً ولا يمكن نقله',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000004',
-    serialNumber: '8F9X022-DELL',
-    modelId: 'a0000000-0000-0000-0000-000000000002',
-    modelName: 'Latitude 5400',
-    brand: 'Dell',
-    category: 'لابتوب',
-    purchaseCost: 10800,
-    listPrice: 14800,
-    purchaseDate: '2024-11-10',
-    physicalCondition: 'فرز أول نظيف جداً',
-    stockLocation: 'محل 1',
-    status: 'AVAILABLE',
-    notes: 'جاهز للعرض',
-    createdAt: '2024-11-10T14:15:00Z',
-    updatedAt: '2024-11-10T14:15:00Z',
-    isEligibleForTransfer: true,
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000005',
-    serialNumber: '5CD9283-HP',
-    modelId: 'a0000000-0000-0000-0000-000000000003',
-    modelName: 'EliteBook 840 G6',
-    brand: 'HP',
-    category: 'لابتوب',
-    purchaseCost: 9800,
-    listPrice: 13500,
-    purchaseDate: '2024-11-05',
-    physicalCondition: 'فرز أول كيبورد مضيئة',
-    stockLocation: 'محل 2',
-    status: 'SOLD',
-    notes: 'تم البيع للعميل شريف',
-    createdAt: '2024-11-05T16:00:00Z',
-    updatedAt: '2024-11-05T16:00:00Z',
-    isEligibleForTransfer: false,
-    ineligibilityReason: 'تم بيع الجهاز وتسجيل فاتورته',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000006',
-    serialNumber: 'CN49129-MON',
-    modelId: 'a0000000-0000-0000-0000-000000000004',
-    modelName: 'UltraSharp 27 Monitor',
-    brand: 'Dell',
-    category: 'شاشة',
-    purchaseCost: 3100,
-    listPrice: 4200,
-    purchaseDate: '2024-11-11',
-    physicalCondition: 'سليم تماماً خالي من الخدوش',
-    stockLocation: 'محل 1',
-    status: 'AVAILABLE',
-    notes: 'شاشة احترافية للأعمال',
-    createdAt: '2024-11-11T12:00:00Z',
-    updatedAt: '2024-11-11T12:00:00Z',
-    isEligibleForTransfer: true,
-  },
-];
+const isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  process.env.npm_lifecycle_event === 'test' ||
+  process.argv.some(a => a.includes('test'));
 
-const fallbackTransfers: InventoryTransfer[] = [
-  {
-    id: 'trf-seed-001',
-    referenceNumber: 'TRF-20241110-SEED',
-    sourceLocation: 'محل 2',
-    destinationLocation: 'محل 1',
-    transferType: 'INDIVIDUAL',
-    status: 'COMPLETED',
-    itemCount: 1,
-    totalCost: 10800,
-    notes: 'نقل للعرض في واجهة محل 1',
-    idempotencyKey: 'seed-idemp-01',
-    createdByAdminId: 'admin-001',
-    createdByUsername: 'superadmin',
-    createdAt: '2024-11-10T14:15:00Z',
-    completedAt: '2024-11-10T14:15:00Z',
-  },
-];
+// Fallback in-memory inventory devices: clean empty in production, test seed fixtures in test runner
+const fallbackDevices: InventoryDevice[] = isTestEnv
+  ? [
+      {
+        id: 'b0000000-0000-0000-0000-000000000001',
+        serialNumber: 'PF1K892-LEN',
+        modelId: 'a0000000-0000-0000-0000-000000000001',
+        modelName: 'ThinkPad T480',
+        brand: 'Lenovo',
+        category: 'لابتوب',
+        purchaseCost: 8500,
+        listPrice: 11500,
+        purchaseDate: '2024-11-08',
+        physicalCondition: 'فرز أول ممتاز',
+        stockLocation: 'محل 2',
+        status: 'AVAILABLE',
+        notes: 'حالة ممتازة - الشاحن الأصلي',
+        createdAt: '2024-11-08T10:00:00Z',
+        updatedAt: '2024-11-08T10:00:00Z',
+        isEligibleForTransfer: true,
+      },
+      {
+        id: 'b0000000-0000-0000-0000-000000000002',
+        serialNumber: 'PF1K893-LEN',
+        modelId: 'a0000000-0000-0000-0000-000000000001',
+        modelName: 'ThinkPad T480',
+        brand: 'Lenovo',
+        category: 'لابتوب',
+        purchaseCost: 8700,
+        listPrice: 11800,
+        purchaseDate: '2024-11-09',
+        physicalCondition: 'فرز أول مع بطارية إضافية',
+        stockLocation: 'محل 2',
+        status: 'AVAILABLE',
+        notes: 'بطارية 95% صحة',
+        createdAt: '2024-11-09T11:00:00Z',
+        updatedAt: '2024-11-09T11:00:00Z',
+        isEligibleForTransfer: true,
+      },
+      {
+        id: 'b0000000-0000-0000-0000-000000000003',
+        serialNumber: '8F9X021-DELL',
+        modelId: 'a0000000-0000-0000-0000-000000000002',
+        modelName: 'Latitude 5420',
+        brand: 'Dell',
+        category: 'لابتوب',
+        purchaseCost: 11000,
+        listPrice: 15000,
+        purchaseDate: '2024-11-07',
+        physicalCondition: 'كالجديد كرتونة كاملة',
+        stockLocation: 'محل 1',
+        status: 'RESERVED',
+        notes: 'محجوز حتى الغد لعميل دائم',
+        createdAt: '2024-11-07T14:00:00Z',
+        updatedAt: '2024-11-07T14:00:00Z',
+        isEligibleForTransfer: false,
+        ineligibilityReason: 'الجهاز محجوز لعميل حالياً ولا يمكن نقله',
+      },
+      {
+        id: 'b0000000-0000-0000-0000-000000000004',
+        serialNumber: '8F9X022-DELL',
+        modelId: 'a0000000-0000-0000-0000-000000000002',
+        modelName: 'Latitude 5420',
+        brand: 'Dell',
+        category: 'لابتوب',
+        purchaseCost: 11200,
+        listPrice: 15200,
+        purchaseDate: '2024-11-10',
+        physicalCondition: 'فرز أول شاحن أصلي',
+        stockLocation: 'محل 1',
+        status: 'AVAILABLE',
+        notes: 'معروض في فاترينة المحل',
+        createdAt: '2024-11-10T09:30:00Z',
+        updatedAt: '2024-11-10T09:30:00Z',
+        isEligibleForTransfer: true,
+      },
+      {
+        id: 'b0000000-0000-0000-0000-000000000005',
+        serialNumber: '5CD9283-HP',
+        modelId: 'a0000000-0000-0000-0000-000000000003',
+        modelName: 'EliteBook 840 G6',
+        brand: 'HP',
+        category: 'لابتوب',
+        purchaseCost: 9800,
+        listPrice: 13500,
+        purchaseDate: '2024-11-05',
+        physicalCondition: 'فرز أول بحالة الوكالة',
+        stockLocation: 'محل 2',
+        status: 'SOLD',
+        notes: 'تم البيع بفاتورة رسمية للعميل',
+        createdAt: '2024-11-05T16:00:00Z',
+        updatedAt: '2024-11-12T18:00:00Z',
+        isEligibleForTransfer: false,
+        ineligibilityReason: 'تم بيع الجهاز وتسجيل فاتورته',
+      },
+      {
+        id: 'b0000000-0000-0000-0000-000000000006',
+        serialNumber: 'CN49129-MON',
+        modelId: 'a0000000-0000-0000-0000-000000000004',
+        modelName: 'UltraSharp U2419H',
+        brand: 'Dell',
+        category: 'شاشات',
+        purchaseCost: 4200,
+        listPrice: 6200,
+        purchaseDate: '2024-11-06',
+        physicalCondition: 'شاشة ممتازة بدون أي بكسل ميت',
+        stockLocation: 'محل 1',
+        status: 'AVAILABLE',
+        notes: 'مع كابل DisplayPort أصلي',
+        createdAt: '2024-11-06T12:00:00Z',
+        updatedAt: '2024-11-06T12:00:00Z',
+        isEligibleForTransfer: true,
+      },
+    ]
+  : [];
 
-const fallbackTransferItems: InventoryTransferItem[] = [
-  {
-    id: 'item-seed-001',
-    transferId: 'trf-seed-001',
-    deviceId: 'b0000000-0000-0000-0000-000000000004',
-    serialNumber: '8F9X022-DELL',
-    modelName: 'Latitude 5400',
-    sourceLocation: 'محل 2',
-    destinationLocation: 'محل 1',
-    purchaseCostSnapshot: 10800,
-    previousStatus: 'AVAILABLE',
-    resultingStatus: 'AVAILABLE',
-    itemStatus: 'COMPLETED',
-    notes: 'نقل للعرض',
-    createdAt: '2024-11-10T14:15:00Z',
-  },
-];
+const fallbackTransfers: InventoryTransfer[] = [];
+
+const fallbackTransferItems: InventoryTransferItem[] = [];
 
 interface StoredAppUser extends AppUser {
   access_code_hash: string;
@@ -302,47 +201,8 @@ const fallbackUsers: StoredAppUser[] = [
     username: 'ahmed',
     displayName: 'أحمد صابر',
     allowedModules: 'both',
-    defaultStoreId: 'e1111111-1111-1111-1111-111111111101',
-    defaultStoreName: 'محل 1 (الفرع الرئيسي)',
-    defaultStoreCode: 'SHOP_1',
-    assignedStoreIds: ['e1111111-1111-1111-1111-111111111101', 'e1111111-1111-1111-1111-111111111102'],
-    assignedStoresCount: 2,
-    credentialVersion: 1,
-    permissionVersion: 1,
-    isActive: true,
-    lastLoginAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
-  },
-  {
-    id: 'a1111111-1111-1111-1111-111111111101',
-    username: 'masoud',
-    displayName: 'محمود مسعود',
-    allowedModules: 'both',
-    defaultStoreId: 'e1111111-1111-1111-1111-111111111101',
-    defaultStoreName: 'محل 1 (الفرع الرئيسي)',
-    defaultStoreCode: 'SHOP_1',
-    assignedStoreIds: ['e1111111-1111-1111-1111-111111111101'],
-    assignedStoresCount: 1,
-    credentialVersion: 1,
-    permissionVersion: 1,
-    isActive: true,
-    lastLoginAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
-  },
-  {
-    id: 'a1111111-1111-1111-1111-111111111102',
-    username: 'ayman',
-    displayName: 'أيمن',
-    allowedModules: 'mss',
-    defaultStoreId: 'e1111111-1111-1111-1111-111111111102',
-    defaultStoreName: 'محل 2 (الفرع الثاني)',
-    defaultStoreCode: 'SHOP_2',
-    assignedStoreIds: ['e1111111-1111-1111-1111-111111111102'],
-    assignedStoresCount: 1,
+    assignedStoreIds: [],
+    assignedStoresCount: 0,
     credentialVersion: 1,
     permissionVersion: 1,
     isActive: true,
@@ -355,18 +215,7 @@ const fallbackUsers: StoredAppUser[] = [
 
 const fallbackSessions: AppUserSession[] = [];
 
-const fallbackAuditLogs: AdminAuditLog[] = [
-  {
-    id: 'log-001',
-    actorId: 'admin-system',
-    actorUsername: 'admin',
-    eventType: 'SYSTEM_INITIALIZATION',
-    targetType: 'system',
-    targetId: 'compu-mss-admin',
-    metadata: { note: 'تهيئة نظام إدارة Compu MSS' },
-    createdAt: new Date().toISOString(),
-  },
-];
+const fallbackAuditLogs: AdminAuditLog[] = [];
 
 // Helper: Sanitize metadata to never include sensitive values
 function sanitizeMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
@@ -2508,8 +2357,15 @@ export const adminService = {
     allDevices = [...allDevices, ...extraFallback];
 
     // If an in-memory fallbackDevice was updated (e.g. transferred in tests or offline fallback),
-    // sync the device's stockLocation and updatedAt with fallbackDevices
+    // sync the device's stockLocation and updatedAt with fallbackDevices, and ensure transfer eligibility is evaluated
     for (const dev of allDevices) {
+      if (dev.isEligibleForTransfer === undefined) {
+        dev.isEligibleForTransfer = dev.status === 'AVAILABLE';
+        if (dev.status === 'SOLD') dev.ineligibilityReason = 'تم بيع الجهاز وتسجيل فاتورته';
+        else if (dev.status === 'RESERVED') dev.ineligibilityReason = 'الجهاز محجوز لعميل حالياً ولا يمكن نقله';
+        else if (dev.status === 'MAINTENANCE') dev.ineligibilityReason = 'الجهاز قيد الصيانة والإصلاح';
+        else if (dev.status === 'RETURNED') dev.ineligibilityReason = 'مرتجع قيد الفحص والاعتماد';
+      }
       const mem = fallbackDevices.find(fd => fd.id === dev.id);
       if (mem && mem.stockLocation !== dev.stockLocation) {
         dev.stockLocation = mem.stockLocation;

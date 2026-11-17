@@ -263,8 +263,22 @@ export const InventoryTransfersView: React.FC = () => {
                 <tr>
                   <td colSpan={9} className="p-12 text-center text-slate-500">
                     <Boxes className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-                    <p className="text-sm font-semibold text-slate-300">لا توجد عمليات تحويل مطابقة</p>
-                    <p className="text-xs text-slate-500 mt-1">ابدأ تحويل أجهزة جديد أو عدل معايير البحث.</p>
+                    <p className="text-sm font-semibold text-slate-300">
+                      {transfers.length === 0 ? 'لا توجد عمليات تحويل سابقة' : 'لا توجد عمليات تحويل مطابقة'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {transfers.length === 0
+                        ? 'يمكنك بدء تحويل أجهزة بين الفروع والمخازن فور توفر أجهزة مسجلة في المخزون'
+                        : 'ابدأ تحويل أجهزة جديد أو عدل معايير البحث.'}
+                    </p>
+                    {transfers.length === 0 && (
+                      <button
+                        onClick={() => setIsWizardOpen(true)}
+                        className="mt-3 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        + إنشاء تحويل جديد
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (

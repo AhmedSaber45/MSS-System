@@ -215,17 +215,17 @@ export const desktopAuthService = {
 
       // 2. Local fallback for default administrator account on first run / offline mode
       const norm = username.trim().toLowerCase();
-      if ((norm === 'ahmed' || norm === 'masoud') && accessCode === '1234') {
+      if (norm === 'ahmed' && accessCode === '1234') {
         const nowIso = new Date().toISOString();
         const storedSession: StoredSession = {
           sessionToken: `sess_local_${Date.now()}`,
           user: {
-            id: norm === 'ahmed' ? 'a1111111-1111-1111-1111-111111111100' : 'a1111111-1111-1111-1111-111111111101',
-            username: norm,
-            displayName: norm === 'ahmed' ? 'أحمد صابر' : 'محمود مسعود',
+            id: 'a1111111-1111-1111-1111-111111111100',
+            username: 'ahmed',
+            displayName: 'أحمد صابر',
             allowedModules: 'both',
-            defaultStoreId: 'e1111111-1111-1111-1111-111111111101',
-            assignedStoreIds: ['e1111111-1111-1111-1111-111111111101', 'e1111111-1111-1111-1111-111111111102'],
+            defaultStoreId: undefined,
+            assignedStoreIds: [],
             credentialVersion: 1,
             permissionVersion: 1,
           },

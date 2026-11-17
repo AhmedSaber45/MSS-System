@@ -182,7 +182,6 @@ INSERT INTO public.app_users (
     username,
     display_name,
     allowed_modules,
-    default_store_id,
     access_code_hash,
     credential_version,
     permission_version,
@@ -193,29 +192,6 @@ INSERT INTO public.app_users (
         'ahmed',
         'أحمد صابر',
         'both',
-        'e1111111-1111-1111-1111-111111111101',
-        '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.',
-        1,
-        1,
-        true
-    ),
-    (
-        'a1111111-1111-1111-1111-111111111101',
-        'masoud',
-        'محمود مسعود',
-        'both',
-        'e1111111-1111-1111-1111-111111111101',
-        '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.',
-        1,
-        1,
-        true
-    ),
-    (
-        'a1111111-1111-1111-1111-111111111102',
-        'ayman',
-        'أيمن',
-        'mss',
-        'e1111111-1111-1111-1111-111111111102',
         '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.',
         1,
         1,
@@ -225,11 +201,3 @@ ON CONFLICT (username) DO UPDATE SET
     access_code_hash = EXCLUDED.access_code_hash,
     is_active = true,
     updated_at = timezone('utc', now());
-
-INSERT INTO public.user_store_assignments (user_id, store_id, is_primary)
-VALUES
-    ('a1111111-1111-1111-1111-111111111100', 'e1111111-1111-1111-1111-111111111101', true),
-    ('a1111111-1111-1111-1111-111111111100', 'e1111111-1111-1111-1111-111111111102', false),
-    ('a1111111-1111-1111-1111-111111111101', 'e1111111-1111-1111-1111-111111111101', true),
-    ('a1111111-1111-1111-1111-111111111102', 'e1111111-1111-1111-1111-111111111102', true)
-ON CONFLICT (user_id, store_id) DO NOTHING;

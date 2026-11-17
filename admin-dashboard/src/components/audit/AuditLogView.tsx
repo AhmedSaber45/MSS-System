@@ -148,8 +148,20 @@ export const AuditLogView: React.FC = () => {
             <tbody className="divide-y divide-brand-border text-slate-300">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    {loading ? 'جاري التحميل...' : 'لا توجد سجلات تدقيق مطابقة'}
+                  <td colSpan={5} className="py-12 text-center text-slate-500">
+                    <ShieldAlert className="w-8 h-8 mx-auto text-slate-600 mb-2" />
+                    <p className="text-sm font-semibold text-slate-300">
+                      {loading
+                        ? 'جاري التحميل...'
+                        : logs.length === 0
+                        ? 'لا توجد سجلات تدقيق حتى الآن'
+                        : 'لا توجد سجلات تدقيق مطابقة لمعايير البحث'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {logs.length === 0
+                        ? 'يتم توثيق كافة العمليات الإدارية الحساسة آلياً وفور حدوثها'
+                        : 'جرب تعديل مصطلح البحث أو تصفية نوع الهدف'}
+                    </p>
                   </td>
                 </tr>
               ) : (

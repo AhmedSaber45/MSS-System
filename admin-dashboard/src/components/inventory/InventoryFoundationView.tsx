@@ -310,8 +310,14 @@ export const InventoryFoundationView: React.FC<InventoryFoundationViewProps> = (
                 <tr>
                   <td colSpan={9} className="p-12 text-center text-slate-500">
                     <Boxes className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-                    <p className="text-sm font-semibold text-slate-300">لا توجد أجهزة مطابقة</p>
-                    <p className="text-xs text-slate-500 mt-1">جرب تغيير معايير البحث أو تصفية الموقع.</p>
+                    <p className="text-sm font-semibold text-slate-300">
+                      {devices.length === 0 ? 'لا توجد أجهزة مسجلة في المخزون حتى الآن' : 'لا توجد أجهزة مطابقة لمعايير البحث'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {devices.length === 0
+                        ? 'يتم تسجيل الأجهزة ومطابقتها تلقائياً عبر فروع ومخازن منظومة Compu MSS'
+                        : 'جرب تغيير معايير البحث أو تصفية الموقع والحالة.'}
+                    </p>
                   </td>
                 </tr>
               ) : (
