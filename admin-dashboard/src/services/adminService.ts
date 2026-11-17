@@ -110,15 +110,29 @@ interface FallbackAssignment {
 
 const fallbackUserStoreAssignments: FallbackAssignment[] = [
   {
+    id: 'asg-00',
+    userId: 'a1111111-1111-1111-1111-111111111100',
+    storeId: 'e1111111-1111-1111-1111-111111111101',
+    isPrimary: true,
+    assignedAt: new Date().toISOString(),
+  },
+  {
+    id: 'asg-00-b',
+    userId: 'a1111111-1111-1111-1111-111111111100',
+    storeId: 'e1111111-1111-1111-1111-111111111102',
+    isPrimary: false,
+    assignedAt: new Date().toISOString(),
+  },
+  {
     id: 'asg-01',
-    userId: 'u1111111-1111-1111-1111-111111111101',
+    userId: 'a1111111-1111-1111-1111-111111111101',
     storeId: 'e1111111-1111-1111-1111-111111111101',
     isPrimary: true,
     assignedAt: new Date().toISOString(),
   },
   {
     id: 'asg-02',
-    userId: 'u1111111-1111-1111-1111-111111111102',
+    userId: 'a1111111-1111-1111-1111-111111111102',
     storeId: 'e1111111-1111-1111-1111-111111111102',
     isPrimary: true,
     assignedAt: new Date().toISOString(),
@@ -284,7 +298,25 @@ interface StoredAppUser extends AppUser {
 
 const fallbackUsers: StoredAppUser[] = [
   {
-    id: 'u1111111-1111-1111-1111-111111111101',
+    id: 'a1111111-1111-1111-1111-111111111100',
+    username: 'ahmed',
+    displayName: 'أحمد صابر',
+    allowedModules: 'both',
+    defaultStoreId: 'e1111111-1111-1111-1111-111111111101',
+    defaultStoreName: 'محل 1 (الفرع الرئيسي)',
+    defaultStoreCode: 'SHOP_1',
+    assignedStoreIds: ['e1111111-1111-1111-1111-111111111101', 'e1111111-1111-1111-1111-111111111102'],
+    assignedStoresCount: 2,
+    credentialVersion: 1,
+    permissionVersion: 1,
+    isActive: true,
+    lastLoginAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
+  },
+  {
+    id: 'a1111111-1111-1111-1111-111111111101',
     username: 'masoud',
     displayName: 'محمود مسعود',
     allowedModules: 'both',
@@ -299,10 +331,10 @@ const fallbackUsers: StoredAppUser[] = [
     lastLoginAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    access_code_hash: '$2a$10$wWj6tD8489vO0k4YhQ/v1.K6qW939tHqP.Xb0H.oV0x9b9g9b9b9b',
+    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
   },
   {
-    id: 'u1111111-1111-1111-1111-111111111102',
+    id: 'a1111111-1111-1111-1111-111111111102',
     username: 'ayman',
     displayName: 'أيمن',
     allowedModules: 'mss',
@@ -317,7 +349,7 @@ const fallbackUsers: StoredAppUser[] = [
     lastLoginAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    access_code_hash: '$2a$10$wWj6tD8489vO0k4YhQ/v1.K6qW939tHqP.Xb0H.oV0x9b9g9b9b9b',
+    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
   },
 ];
 

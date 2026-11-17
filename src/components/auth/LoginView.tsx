@@ -166,6 +166,22 @@ export const LoginView: React.FC = () => {
                 <span>دخول النظام</span>
               )}
             </button>
+
+            {/* Quick Fill Default Credentials */}
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('ahmed');
+                  setAccessCode('1234');
+                  clearError();
+                  setLocalError(null);
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-blue-950/40 border border-blue-500/20 cursor-pointer"
+              >
+                <span>⚡ تعبئة بيانات الدخول الافتراضية (ahmed / 1234)</span>
+              </button>
+            </div>
           </form>
 
           {/* Security Notice */}

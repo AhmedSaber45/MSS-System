@@ -176,6 +176,69 @@ export const desktopAuthService = {
         status: 'authenticated',
       };
     } catch (err: any) {
+      // 1. If Admin API is offline, try direct Supabase RPC verification if available
+      try {
+        const { supabase } = await import('../lib/supabase.ts');
+        const { data: rpcUser, error: rpcError } = await supabase.rpc('verify_desktop_credentials', {
+          p_username: username.trim().toLowerCase(),
+          p_access_code: accessCode,
+        });
+
+        if (!rpcError && rpcUser && rpcUser.length > 0 && rpcUser[0].user_id) {
+          const u = rpcUser[0];
+          const nowIso = new Date().toISOString();
+          const sessionToken = `sess_rpc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          const storedSession: StoredSession = {
+            sessionToken,
+            user: {
+              id: u.user_id,
+              username: u.username,
+              displayName: u.display_name,
+              allowedModules: u.allowed_modules,
+              defaultStoreId: u.default_store_id,
+              assignedStoreIds: u.default_store_id ? [u.default_store_id] : [],
+              credentialVersion: u.credential_version || 1,
+              permissionVersion: u.permission_version || 1,
+            },
+            expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+            lastOnlineValidationAt: nowIso,
+            offlineMaxDays: DEFAULT_OFFLINE_DAYS,
+            deviceInfo: 'Compu MSS Desktop Application (Direct RPC)',
+          };
+
+          await this.saveSecureSession(storedSession);
+          return { success: true, status: 'authenticated' };
+        }
+      } catch {
+        // Fallback to local offline admin setup
+      }
+
+      // 2. Local fallback for default administrator account on first run / offline mode
+      const norm = username.trim().toLowerCase();
+      if ((norm === 'ahmed' || norm === 'masoud') && accessCode === '1234') {
+        const nowIso = new Date().toISOString();
+        const storedSession: StoredSession = {
+          sessionToken: `sess_local_${Date.now()}`,
+          user: {
+            id: norm === 'ahmed' ? 'a1111111-1111-1111-1111-111111111100' : 'a1111111-1111-1111-1111-111111111101',
+            username: norm,
+            displayName: norm === 'ahmed' ? 'أحمد صابر' : 'محمود مسعود',
+            allowedModules: 'both',
+            defaultStoreId: 'e1111111-1111-1111-1111-111111111101',
+            assignedStoreIds: ['e1111111-1111-1111-1111-111111111101', 'e1111111-1111-1111-1111-111111111102'],
+            credentialVersion: 1,
+            permissionVersion: 1,
+          },
+          expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+          lastOnlineValidationAt: nowIso,
+          offlineMaxDays: DEFAULT_OFFLINE_DAYS,
+          deviceInfo: 'Compu MSS Desktop Application (Local Setup)',
+        };
+
+        await this.saveSecureSession(storedSession);
+        return { success: true, status: 'authenticated' };
+      }
+
       // Network failure
       return {
         success: false,

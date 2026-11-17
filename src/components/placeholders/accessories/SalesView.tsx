@@ -1006,8 +1006,8 @@ export const SalesView: React.FC = () => {
       <Modal
         isOpen={isMaintenanceModalOpen}
         onClose={() => setIsMaintenanceModalOpen(false)}
-        title={editingMaintenanceId ? 'تعديل بند صيانة' : 'إضافة بند صيانة للفاتورة'}
-        subtitle="تسجيل خدمة صيانة بمواصفات وسعر محدد يدوياً"
+        title={editingMaintenanceId ? 'تعديل  صيانة' : 'إضافة  صيانة للفاتورة'}
+        subtitle=""
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1039,10 +1039,10 @@ export const SalesView: React.FC = () => {
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
-              وصف العمل المنفذ (الخدمة) <span className="text-rose-600">*</span>
+              وصف العمل  <span className="text-rose-600">*</span>
             </label>
             <Input
-              placeholder="مثال: تعريج سلك نت، تغيير سوكت، صيانة باور..."
+              placeholder="صيانة: ..."
               value={maintDescription}
               onChange={e => {
                 setMaintDescription(e.target.value);
@@ -1050,9 +1050,6 @@ export const SalesView: React.FC = () => {
               }}
               autoFocus
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              أدخل بياناً واضحاً للعمل الذي تم تنفيذه للعميل ليظهر في الفاتورة المطبوعة.
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
