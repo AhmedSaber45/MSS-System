@@ -6,6 +6,7 @@ export interface MSSCatalogModel {
   model_name: string;
   category: MSSCategory;
   processor?: string | null;
+  gpu?: string | null;
   ram?: string | null;
   storage?: string | null;
   screen_size?: string | null;
@@ -20,6 +21,7 @@ export interface NewMSSModelInput {
   model_name: string;
   category: MSSCategory;
   processor?: string;
+  gpu?: string;
   ram?: string;
   storage?: string;
   screen_size?: string;
@@ -32,6 +34,7 @@ export interface UpdateMSSModelInput {
   model_name?: string;
   category?: MSSCategory;
   processor?: string;
+  gpu?: string;
   ram?: string;
   storage?: string;
   screen_size?: string;

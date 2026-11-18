@@ -2,21 +2,29 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 import { AlertCircle, CheckCircle2, Info, AlertTriangle, X } from 'lucide-react';
 
+export type AlertVariant = 'info' | 'success' | 'warning' | 'danger' | 'error';
+
 export interface AlertProps {
-  type?: 'info' | 'success' | 'warning' | 'danger';
+  type?: AlertVariant;
+  variant?: AlertVariant;
   title?: string;
-  message: string;
+  message?: string;
+  children?: React.ReactNode;
   onDismiss?: () => void;
   className?: string;
 }
 
 export const Alert: React.FC<AlertProps> = ({
-  type = 'info',
+  type,
+  variant,
   title,
   message,
+  children,
   onDismiss,
   className,
 }) => {
+  const rawType = variant || type || 'info';
+  const effectiveType = rawType === 'error' ? 'danger' : rawType;
   const configs = {
     info: {
       bg: 'bg-sky-50 border-sky-300 text-sky-950',
@@ -36,7 +44,7 @@ export const Alert: React.FC<AlertProps> = ({
     },
   };
 
-  const current = configs[type];
+  const current = configs[effectiveType] || configs.info;
 
   return (
     <div
@@ -49,7 +57,8 @@ export const Alert: React.FC<AlertProps> = ({
       {current.icon}
       <div className="flex-1">
         {title && <h5 className="font-bold text-sm mb-1">{title}</h5>}
-        <p className="text-sm leading-relaxed font-normal">{message}</p>
+        {message && <p className="text-sm leading-relaxed font-normal">{message}</p>}
+        {children}
       </div>
       {onDismiss && (
         <button

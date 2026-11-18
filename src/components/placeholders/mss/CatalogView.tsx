@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
+  CircuitBoard,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
@@ -63,6 +64,7 @@ export const CatalogView: React.FC = () => {
   const [modelName, setModelName] = useState<string>('');
   const [category, setCategory] = useState<MSSCategory>('لابتوب');
   const [processor, setProcessor] = useState<string>('');
+  const [gpu, setGpu] = useState<string>('');
   const [ram, setRam] = useState<string>('');
   const [storage, setStorage] = useState<string>('');
   const [screenSize, setScreenSize] = useState<string>('');
@@ -99,6 +101,7 @@ export const CatalogView: React.FC = () => {
     setModelName('');
     setCategory('لابتوب');
     setProcessor('');
+    setGpu('');
     setRam('');
     setStorage('');
     setScreenSize('');
@@ -114,6 +117,7 @@ export const CatalogView: React.FC = () => {
     setModelName(model.model_name);
     setCategory(model.category);
     setProcessor(model.processor || '');
+    setGpu(model.gpu || '');
     setRam(model.ram || '');
     setStorage(model.storage || '');
     setScreenSize(model.screen_size || '');
@@ -161,6 +165,7 @@ export const CatalogView: React.FC = () => {
         model_name: modelName.trim(),
         category,
         processor: processor.trim() || undefined,
+        gpu: (category === 'لابتوب' && gpu.trim()) ? gpu.trim() : undefined,
         ram: ram.trim() || undefined,
         storage: storage.trim() || undefined,
         screen_size: screenSize.trim() || undefined,
@@ -433,6 +438,9 @@ export const CatalogView: React.FC = () => {
                           {m.processor && m.processor !== '-' && (
                             <p className="font-mono font-semibold text-slate-900 text-xs">{m.processor}</p>
                           )}
+                          {m.gpu && m.gpu !== '-' && (
+                            <p className="font-mono text-blue-700 font-medium text-[11px]">🎮 {m.gpu}</p>
+                          )}
                           {m.ram && m.ram !== '-' && (
                             <p className="font-mono text-slate-600 text-xs">{m.ram}</p>
                           )}
@@ -544,6 +552,12 @@ export const CatalogView: React.FC = () => {
                     <div className="flex items-center gap-2 text-slate-700">
                       <Cpu className="w-4 h-4 text-slate-500 shrink-0" />
                       <span className="font-mono font-semibold text-xs truncate">{m.processor}</span>
+                    </div>
+                  )}
+                  {m.gpu && m.gpu !== '-' && (
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <CircuitBoard className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="font-mono font-medium text-xs truncate">{m.gpu}</span>
                     </div>
                   )}
                   {m.ram && m.ram !== '-' && (
@@ -674,6 +688,20 @@ export const CatalogView: React.FC = () => {
                   className="font-mono text-sm"
                 />
               </div>
+
+              {category === 'لابتوب' && (
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1 text-xs">
+                    كارت الشاشة (GPU) <span className="text-slate-400 font-normal">(اختياري)</span>
+                  </label>
+                  <Input
+                    placeholder="مثال: Intel UHD 620, Nvidia RTX 3060 6GB..."
+                    value={gpu}
+                    onChange={e => setGpu(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1 text-xs">الذاكرة العشوائية (RAM)</label>

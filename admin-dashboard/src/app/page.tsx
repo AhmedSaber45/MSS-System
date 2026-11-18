@@ -6,10 +6,6 @@ import { AdminSidebar, NavTab } from '@/components/layout/AdminSidebar';
 import { AdminHeader } from '@/components/layout/AdminHeader';
 import { OverviewView } from '@/components/overview/OverviewView';
 import { UsersView } from '@/components/users/UsersView';
-import { StoresView } from '@/components/stores/StoresView';
-import { InventoryFoundationView } from '@/components/inventory/InventoryFoundationView';
-import { InventoryTransfersView } from '@/components/transfers/InventoryTransfersView';
-import { AuditLogView } from '@/components/audit/AuditLogView';
 import { SettingsView } from '@/components/settings/SettingsView';
 import { RefreshCw } from 'lucide-react';
 
@@ -87,10 +83,6 @@ export default function AdminDashboardPage() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {currentTab === 'overview' && <OverviewView onNavigate={(tab) => setCurrentTab(tab)} />}
           {currentTab === 'users' && <UsersView />}
-          {currentTab === 'stores' && <StoresView />}
-          {currentTab === 'inventory' && <InventoryFoundationView onNavigate={(tab) => setCurrentTab(tab)} />}
-          {currentTab === 'transfers' && <InventoryTransfersView />}
-          {currentTab === 'audit' && <AuditLogView />}
           {currentTab === 'settings' && <SettingsView />}
         </main>
       </div>

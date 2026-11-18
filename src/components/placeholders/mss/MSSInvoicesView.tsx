@@ -422,7 +422,7 @@ export const MSSInvoicesView: React.FC = () => {
                 </span>
               </div>
               <p className="text-slate-500 font-mono text-xs">
-                {[selectedInvoice.processor, selectedInvoice.ram, selectedInvoice.storage, selectedInvoice.screen_size]
+                {[selectedInvoice.processor, selectedInvoice.gpu, selectedInvoice.ram, selectedInvoice.storage, selectedInvoice.screen_size]
                   .filter(Boolean)
                   .join(' • ')}
               </p>

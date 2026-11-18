@@ -233,7 +233,7 @@ export const MSSSalesView: React.FC = () => {
                       {selectedDevice.brand} {selectedDevice.model_name}
                     </h4>
                     <p className="text-slate-500 font-mono font-medium text-xs mt-0.5">
-                      {[selectedDevice.model?.processor, selectedDevice.model?.ram, selectedDevice.model?.storage]
+                      {[selectedDevice.model?.processor, selectedDevice.model?.gpu, selectedDevice.model?.ram, selectedDevice.model?.storage]
                         .filter(Boolean)
                         .join(' • ')}
                     </p>
@@ -563,7 +563,7 @@ export const MSSSalesView: React.FC = () => {
                 </span>
               </div>
               <p className="text-slate-500 font-mono text-xs font-medium">
-                {[completedInvoice.processor, completedInvoice.ram, completedInvoice.storage, completedInvoice.screen_size]
+                {[completedInvoice.processor, completedInvoice.gpu, completedInvoice.ram, completedInvoice.storage, completedInvoice.screen_size]
                   .filter(Boolean)
                   .join(' • ')}
               </p>

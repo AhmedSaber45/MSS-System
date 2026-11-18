@@ -15,6 +15,8 @@ import {
   BookmarkCheck,
   ArrowLeftRight,
   Cloud,
+  Store,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const accessoriesNavItems: NavItemConfig[] = [
@@ -125,9 +127,21 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'movements',
-    label: ' نقل الأجهزة بين المخازن',
-    description: 'تسجيل النقل الفعلي بين محل 1 ومحل 2',
+    label: 'تحويلات ونقل الأجهزة',
+    description: 'إدارة التحويلات الفردية والجماعية بين الفروع والمخازن',
     icon: ArrowLeftRight,
+  },
+  {
+    id: 'stores',
+    label: 'الفروع والمخازن',
+    description: 'إدارة الفروع، المخازن، تعيينات الشركاء وعمليات الدمج',
+    icon: Store,
+  },
+  {
+    id: 'audit',
+    label: 'سجل النشاط والتدقيق',
+    description: 'سجل تدقيق غير قابل للتعديل لكافة العمليات الإدارية',
+    icon: ShieldCheck,
   },
   {
     id: 'reports',

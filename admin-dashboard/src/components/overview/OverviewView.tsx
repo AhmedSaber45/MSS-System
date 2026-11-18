@@ -80,7 +80,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
           </div>
           <h2 className="text-lg font-bold text-white">مرحباً بك في لوحة تحكم Compu MSS</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            إدارة الفروع، صلاحيات مستخدمي المحلات، تشفير رموز الدخول وسجل التدقيق المركزي.
+            إدارة الحسابات الإدارية، صلاحيات مستخدمي المحلات، وتشفير رموز الدخول وسياسات الأمان المركزية.
           </p>
         </div>
 
@@ -90,14 +90,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
             className="flex-1 md:flex-none px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors"
           >
             <Users className="w-4 h-4" />
-            <span>إضافة مستخدم</span>
+            <span>إدارة المستخدمين</span>
           </button>
           <button
-            onClick={() => onNavigate('stores')}
+            onClick={() => onNavigate('settings')}
             className="flex-1 md:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-brand-border flex items-center justify-center gap-1.5 transition-colors"
           >
-            <Store className="w-4 h-4" />
-            <span>إضافة فرع / مخزن</span>
+            <ShieldCheck className="w-4 h-4" />
+            <span>إعدادات النظام والأمان</span>
           </button>
         </div>
       </div>
@@ -247,13 +247,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
                 <h3 className="text-sm font-bold text-white">آخر النشاطات الإدارية</h3>
                 <p className="text-xs text-slate-400">سجل العمليات الإدارية المنفذة مؤخراً</p>
               </div>
-              <button
-                onClick={() => onNavigate('audit')}
-                className="text-xs text-brand-primary hover:text-brand-accent font-medium flex items-center gap-1"
-              >
-                <span>عرض الكل</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
+              <span className="text-[11px] text-slate-500 font-medium">
+                (سجل التدقيق الشامل متاح بتطبيق المكتبي)
+              </span>
             </div>
 
             <div className="space-y-2.5 overflow-y-auto max-h-[220px]">

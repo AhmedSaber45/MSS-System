@@ -31,6 +31,8 @@ import { ReservationsView } from '../placeholders/mss/ReservationsView';
 import { MSSInvoicesView } from '../placeholders/mss/MSSInvoicesView';
 import { MSSReturnsView } from '../placeholders/mss/MSSReturnsView';
 import { MovementsView } from '../placeholders/mss/MovementsView';
+import { MSSStoresView } from '../placeholders/mss/MSSStoresView';
+import { MSSAuditLogView } from '../placeholders/mss/MSSAuditLogView';
 import { MSSReportsView } from '../placeholders/mss/MSSReportsView';
 import { SyncStatusView } from '../placeholders/mss/SyncStatusView';
 
@@ -84,6 +86,10 @@ export const AppShell: React.FC = () => {
           return <MSSReturnsView />;
         case 'movements':
           return <MovementsView />;
+        case 'stores':
+          return <MSSStoresView />;
+        case 'audit':
+          return <MSSAuditLogView />;
         case 'reports':
           return <MSSReportsView />;
         case 'sync':

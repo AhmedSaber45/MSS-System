@@ -23,6 +23,8 @@ export type MSSRoute =
   | 'invoices'
   | 'returns'
   | 'movements'
+  | 'stores'
+  | 'audit'
   | 'reports'
   | 'sync';
 

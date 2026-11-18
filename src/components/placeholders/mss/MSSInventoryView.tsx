@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -23,6 +23,9 @@ import type {
   MSSDeviceMovement,
 } from '@/types/mssInventory';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
+import { mssOperationalService } from '@/services/mssOperationalService';
+import type { SystemStore, TransferPreviewResponse, ExecuteTransferResult } from '@/types/mssOperational';
+import { useAuth } from '@/context/AuthContext';
 import {
   Plus,
   Search,
@@ -42,23 +45,42 @@ import {
   AlertTriangle,
   RotateCcw,
   RefreshCw,
+  CheckSquare,
+  Square,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
 } from 'lucide-react';
 
 export const MSSInventoryView: React.FC = () => {
+  const { user } = useAuth();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
 
   // Data states
   const [devices, setDevices] = useState<MSSDevice[]>([]);
   const [catalogModels, setCatalogModels] = useState<MSSCatalogModel[]>([]);
+  const [systemStores, setSystemStores] = useState<SystemStore[]>([]);
   const [summary, setSummary] = useState<MSSInventorySummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [locationFilter, setLocationFilter] = useState<'ALL' | MSSStockLocation>('ALL');
+  const [locationFilter, setLocationFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | MSSDeviceStatus>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
+
+  // Multi-Selection State for Bulk Transfers
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
+  const [isMultiTransferWizardOpen, setIsMultiTransferWizardOpen] = useState<boolean>(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [wizardSource, setWizardSource] = useState<string>('محل 1');
+  const [wizardDest, setWizardDest] = useState<string>('محل 2');
+  const [wizardNotes, setWizardNotes] = useState<string>('تحويل مخزون محدد');
+  const [wizardPreview, setWizardPreview] = useState<TransferPreviewResponse | null>(null);
+  const [wizardResult, setWizardResult] = useState<ExecuteTransferResult | null>(null);
+  const [isExecutingTransfer, setIsExecutingTransfer] = useState<boolean>(false);
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -90,18 +112,27 @@ export const MSSInventoryView: React.FC = () => {
   const [transferNotes, setTransferNotes] = useState<string>('');
   const [transferError, setTransferError] = useState<string>('');
 
+  const actor = useMemo(() => {
+    return {
+      id: user?.id || 'admin',
+      username: user?.username || 'admin',
+    };
+  }, [user]);
+
   // Load Data
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [devList, modelsList, sum] = await Promise.all([
+      const [devList, modelsList, sum, stores] = await Promise.all([
         mssInventoryService.getDevices(),
         mssCatalogService.getModels(),
         mssInventoryService.getInventorySummary(),
+        mssOperationalService.getStores({ includeArchived: false }),
       ]);
       setDevices(devList);
       setCatalogModels(modelsList);
       setSummary(sum);
+      setSystemStores(stores);
     } catch (err: any) {
       console.error('Failed to load inventory data:', err);
       showNotification({
@@ -117,6 +148,92 @@ export const MSSInventoryView: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Dynamic location options from system stores or fallback
+  const locationOptions = useMemo(() => {
+    if (systemStores.length > 0) {
+      return systemStores.map(s => s.name);
+    }
+    return ['محل 1', 'محل 2'];
+  }, [systemStores]);
+
+  // Bulk Transfer Handlers
+  const handleOpenBulkTransfer = () => {
+    if (selectedDeviceIds.length === 0) return;
+    const selectedDevs = devices.filter(d => selectedDeviceIds.includes(d.id));
+    const firstLoc = selectedDevs[0]?.stock_location || 'محل 1';
+    setWizardSource(firstLoc);
+    const otherStore =
+      systemStores.find(s => s.name !== firstLoc)?.name || (firstLoc === 'محل 1' ? 'محل 2' : 'محل 1');
+    setWizardDest(otherStore);
+    setWizardNotes(`تحويل دفعة أجهزة (${selectedDeviceIds.length} جهاز)`);
+    setWizardPreview(null);
+    setWizardResult(null);
+    setWizardStep(1);
+    setIsMultiTransferWizardOpen(true);
+  };
+
+  const handlePreviewBulkTransfer = async () => {
+    if (wizardSource === wizardDest) {
+      showNotification({
+        type: 'warning',
+        title: 'تنبيه موقع التحويل',
+        message: 'لا يمكن تحويل الأجهزة إلى نفس موقع المصدر الحالي',
+      });
+      return;
+    }
+    try {
+      const preview = await mssOperationalService.previewInventoryTransfer({
+        sourceLocation: wizardSource,
+        destinationLocation: wizardDest,
+        transferType: 'SELECTED',
+        deviceIds: selectedDeviceIds,
+      });
+      setWizardPreview(preview);
+      setWizardStep(2);
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'خطأ في معاينة التحويل',
+        message: err.message || 'تعذر حساب وتدقيق معاينة التحويل',
+      });
+    }
+  };
+
+  const handleExecuteBulkTransfer = async () => {
+    if (!wizardPreview || !wizardPreview.canTransfer) return;
+    setIsExecutingTransfer(true);
+    try {
+      const result = await mssOperationalService.executeInventoryTransfer(
+        {
+          sourceLocation: wizardSource,
+          destinationLocation: wizardDest,
+          transferType: 'SELECTED',
+          deviceIds: wizardPreview.eligibleDevices.map(d => d.id),
+          notes: wizardNotes.trim() || undefined,
+          confirmed: true,
+        },
+        actor
+      );
+      setWizardResult(result);
+      setWizardStep(3);
+      setSelectedDeviceIds([]);
+      showNotification({
+        type: 'success',
+        title: 'تم تنفيذ التحويل بنجاح',
+        message: result.message,
+      });
+      await loadData();
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل التحويل الجماعي',
+        message: err.message || 'حدث خطأ أثناء تنفيذ عملية التحويل',
+      });
+    } finally {
+      setIsExecutingTransfer(false);
+    }
+  };
 
   // Copy Serial Number to Clipboard
   const handleCopySerial = (serial: string) => {
@@ -372,6 +489,7 @@ export const MSSInventoryView: React.FC = () => {
   const filteredDevices = devices.filter(d => {
     if (locationFilter !== 'ALL' && d.stock_location !== locationFilter) return false;
     if (statusFilter !== 'ALL' && d.status !== statusFilter) return false;
+    if (categoryFilter !== 'ALL' && d.category !== categoryFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const matchSerial = d.serial_number.toLowerCase().includes(q);
@@ -388,6 +506,30 @@ export const MSSInventoryView: React.FC = () => {
 
   // Table Columns
   const columns: Column<MSSDevice>[] = [
+    {
+      key: 'select',
+      header: 'تحديد',
+      render: (item: MSSDevice) => {
+        const isEligible = item.status === 'AVAILABLE';
+        const isChecked = selectedDeviceIds.includes(item.id);
+        return (
+          <div className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={!isEligible}
+              onChange={() => {
+                setSelectedDeviceIds(prev =>
+                  prev.includes(item.id) ? prev.filter(x => x !== item.id) : [...prev, item.id]
+                );
+              }}
+              title={!isEligible ? 'غير متاح للتحويل (مباع أو محجوز)' : undefined}
+              className="rounded border-slate-300 text-blue-600 disabled:opacity-30 cursor-pointer"
+            />
+          </div>
+        );
+      },
+    },
     {
       key: 'serial_number',
       header: 'السيريال نمبر',
@@ -429,7 +571,7 @@ export const MSSInventoryView: React.FC = () => {
           </div>
           {item.model && (
             <p className="text-xs text-slate-500 font-mono font-medium">
-              {[item.model.processor, item.model.ram, item.model.storage, item.model.screen_size]
+              {[item.model.processor, item.model.gpu, item.model.ram, item.model.storage, item.model.screen_size]
                 .filter(x => x && x !== '-')
                 .join(' • ')}
             </p>
@@ -552,10 +694,22 @@ export const MSSInventoryView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="المخزون  "
-        subtitle=""
+        title="المخزون الفعلي ومتابعة السيريالات"
+        subtitle="تتبع دقيق لكل قطعة هاردوير بسيريالها الفريد، وحركتها وتكلفتها وحالتها في مختلف الفروع والمخازن"
         actions={
           <div className="flex items-center gap-2.5">
+            {selectedDeviceIds.length > 0 && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleOpenBulkTransfer}
+                leftIcon={<ArrowLeftRight className="w-4.5 h-4.5" />}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                تحويل الأجهزة المحددة ({selectedDeviceIds.length})
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="md"
@@ -670,8 +824,8 @@ export const MSSInventoryView: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-sm">
           {/* Location Filter */}
           <div className="flex items-center gap-2.5">
-            <span className="font-bold text-slate-700 text-xs">المحل:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+            <span className="font-bold text-slate-700 text-xs">الموقع / الفرع:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
               <button
                 onClick={() => setLocationFilter('ALL')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
@@ -682,26 +836,43 @@ export const MSSInventoryView: React.FC = () => {
               >
                 الكل ({devices.length})
               </button>
-              <button
-                onClick={() => setLocationFilter('محل 1')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  locationFilter === 'محل 1'
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 1 ({devices.filter(d => d.stock_location === 'محل 1').length})
-              </button>
-              <button
-                onClick={() => setLocationFilter('محل 2')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  locationFilter === 'محل 2'
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 2 ({devices.filter(d => d.stock_location === 'محل 2').length})
-              </button>
+              {locationOptions.map(loc => (
+                <button
+                  key={loc}
+                  onClick={() => setLocationFilter(loc)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    locationFilter === loc
+                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {loc} ({devices.filter(d => d.stock_location === loc).length})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Filter */}
+          <div className="flex items-center gap-2.5">
+            <span className="font-bold text-slate-700 text-xs">التصنيف:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+              {[
+                { id: 'ALL', label: 'الكل' },
+                { id: 'لابتوب', label: 'لابتوب' },
+                { id: 'شاشة', label: 'شاشة' },
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    categoryFilter === cat.id
+                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -735,6 +906,70 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Bulk Selection Actions Banner */}
+      {selectedDeviceIds.length > 0 && (
+        <Card className="p-3.5 bg-emerald-50 border-emerald-300 text-xs shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold">
+              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+              <span>
+                تم تحديد <strong className="font-mono text-sm underline">{selectedDeviceIds.length}</strong> جهاز جاهز للتحويل الجماعي بين الفروع
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedDeviceIds([])}
+                className="text-slate-600 hover:text-slate-900 text-xs"
+              >
+                إلغاء التحديد
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenBulkTransfer}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                leftIcon={<ArrowLeftRight className="w-3.5 h-3.5" />}
+              >
+                بدء تحويل الأجهزة المحددة ({selectedDeviceIds.length})
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Selection Helpers */}
+      <div className="flex items-center justify-between px-1 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <span>إجمالي المعروض: <strong>{filteredDevices.length}</strong></span>
+          {filteredDevices.some(d => d.status === 'AVAILABLE') && (
+            <>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const avail = filteredDevices.filter(d => d.status === 'AVAILABLE').map(d => d.id);
+                  setSelectedDeviceIds(Array.from(new Set([...selectedDeviceIds, ...avail])));
+                }}
+                className="text-blue-600 hover:underline font-semibold"
+              >
+                تحديد جميع الأجهزة المتاحة الظاهرة ({filteredDevices.filter(d => d.status === 'AVAILABLE').length})
+              </button>
+            </>
+          )}
+        </div>
+        {selectedDeviceIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedDeviceIds([])}
+            className="text-rose-600 hover:underline font-semibold"
+          >
+            إلغاء تحديد الكل ({selectedDeviceIds.length})
+          </button>
+        )}
+      </div>
 
       {/* Main Table */}
       {isLoading ? (
@@ -1219,10 +1454,14 @@ export const MSSInventoryView: React.FC = () => {
               </div>
 
               {selectedDevice.model && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[10px]">المعالج:</span>
                     <span className="font-medium text-slate-700">{selectedDevice.model.processor || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">كارت الشاشة:</span>
+                    <span className="font-medium text-blue-700 font-mono">{selectedDevice.model.gpu || '-'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">الرام:</span>
@@ -1353,6 +1592,263 @@ export const MSSInventoryView: React.FC = () => {
             <p className="font-mono text-slate-600">السيريال: {selectedDevice?.serial_number}</p>
             <p className="text-slate-500">الموقع: {selectedDevice?.stock_location}</p>
           </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: Multi-Device Guided Transfer Wizard */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isMultiTransferWizardOpen}
+        onClose={() => !isExecutingTransfer && setIsMultiTransferWizardOpen(false)}
+        title="معالج تحويل الأجهزة الجماعي بين الفروع والمخازن"
+        subtitle={`نقل ${selectedDeviceIds.length} جهاز محدد بطريقة ذرية موثوقة`}
+        size="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            {wizardStep === 1 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMultiTransferWizardOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handlePreviewBulkTransfer}
+                  leftIcon={<ArrowLeft className="w-4 h-4" />}
+                >
+                  معاينة وتدقيق التحويل
+                </Button>
+              </>
+            )}
+
+            {wizardStep === 2 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setWizardStep(1)}
+                  disabled={isExecutingTransfer}
+                >
+                  العودة للتعديل
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleExecuteBulkTransfer}
+                  disabled={isExecutingTransfer || !wizardPreview?.canTransfer}
+                  leftIcon={
+                    isExecutingTransfer ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )
+                  }
+                  className="bg-emerald-600 hover:bg-emerald-700 font-bold"
+                >
+                  {isExecutingTransfer ? 'جارٍ التحويل الذري...' : 'تأكيد وتنفيذ التحويل الآن'}
+                </Button>
+              </>
+            )}
+
+            {wizardStep === 3 && (
+              <div className="w-full flex justify-end">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsMultiTransferWizardOpen(false)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  تم، إغلاق المعالج
+                </Button>
+              </div>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          {/* Steps Indicator */}
+          <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200">
+            {[
+              { s: 1, title: 'المواقع والملاحظات' },
+              { s: 2, title: 'المعاينة والتدقيق' },
+              { s: 3, title: 'إيصال النقل' },
+            ].map(st => (
+              <div
+                key={st.s}
+                className={`p-2 rounded-lg text-center font-bold text-xs flex items-center justify-center gap-1.5 ${
+                  wizardStep === st.s
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : wizardStep > st.s
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-slate-50 text-slate-400 border border-slate-200'
+                }`}
+              >
+                <span
+                  className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] ${
+                    wizardStep === st.s
+                      ? 'bg-blue-600 text-white'
+                      : wizardStep > st.s
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-300 text-slate-700'
+                  }`}
+                >
+                  {st.s}
+                </span>
+                <span>{st.title}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* STEP 1 */}
+          {wizardStep === 1 && (
+            <div className="space-y-3">
+              <Alert variant="info" title="تأكيد مواقع النقل">
+                سيتم نقل الأجهزة المحددة ({selectedDeviceIds.length} جهاز) من موقعها الحالي إلى الموقع المستلم.
+              </Alert>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    موقع المصدر (الموقع الحالي):
+                  </label>
+                  <Select
+                    value={wizardSource}
+                    onChange={e => setWizardSource(e.target.value)}
+                    options={locationOptions.map(l => ({ value: l, label: l }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    موقع الوجهة (المستلم):
+                  </label>
+                  <Select
+                    value={wizardDest}
+                    onChange={e => setWizardDest(e.target.value)}
+                    options={locationOptions
+                      .filter(l => l !== wizardSource)
+                      .map(l => ({ value: l, label: l }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">ملاحظات التحويل (اختياري):</label>
+                <Input
+                  value={wizardNotes}
+                  onChange={e => setWizardNotes(e.target.value)}
+                  placeholder="سبب النقل، أمر الصرف، أو ملاحظات التسليم..."
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <span className="font-bold text-slate-800 block">الأجهزة المحددة للتحويل:</span>
+                <div className="max-h-36 overflow-y-auto divide-y divide-slate-200">
+                  {devices
+                    .filter(d => selectedDeviceIds.includes(d.id))
+                    .map(d => (
+                      <div key={d.id} className="py-1.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-slate-900">{d.brand} {d.model_name}</span>
+                          <span className="text-slate-500 font-mono text-[11px] mr-2">[{d.serial_number}]</span>
+                        </div>
+                        <Badge variant={d.status === 'AVAILABLE' ? 'success' : 'warning'} size="sm">
+                          {d.status}
+                        </Badge>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2 */}
+          {wizardStep === 2 && wizardPreview && (
+            <div className="space-y-3">
+              {wizardPreview.canTransfer ? (
+                <Alert variant="success" title="جاهز للتحويل">
+                  تم فحص وتدقيق كافة الأجهزة بنجاح. الأجهزة مطابقة وجاهزة للتحويل الذري الفوري.
+                </Alert>
+              ) : (
+                <Alert variant="danger" title="تعذر التحويل">
+                  توجد قيود تمنع تنفيذ التحويل:
+                  <ul className="list-disc pr-4 mt-1 space-y-0.5">
+                    {wizardPreview.validationErrors?.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="text-slate-500 block text-[11px]">موقع المصدر</span>
+                  <strong className="text-slate-900">{wizardSource}</strong>
+                </div>
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="text-slate-500 block text-[11px]">الموقع المستلم</span>
+                  <strong className="text-blue-700">{wizardDest}</strong>
+                </div>
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="text-slate-500 block text-[11px]">الأجهزة المؤهلة</span>
+                  <strong className="text-emerald-700 font-mono text-sm">
+                    {wizardPreview.eligibleDevices.length} جهاز
+                  </strong>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="flex justify-between text-slate-700 font-medium">
+                  <span>إجمالي تكلفة الأجهزة المنقولة:</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {formatCurrency(wizardPreview.totalEligibleCost)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  * التحويل لا يؤثر على تكلفة الشراء أو الأرباح التاريخية للأجهزة طبقاً لقواعد النظام (Rules C & D).
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3 */}
+          {wizardStep === 3 && wizardResult && (
+            <div className="space-y-3 text-center py-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h4 className="text-base font-bold text-slate-900">تم تنفيذ عملية التحويل بنجاح!</h4>
+              <p className="text-slate-600">{wizardResult.message}</p>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-right space-y-2 max-w-md mx-auto text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">رقم مرجع التحويل:</span>
+                  <span className="font-mono font-bold text-slate-900">{wizardResult.referenceNumber || wizardResult.transferId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">عدد الأجهزة المنقولة:</span>
+                  <span className="font-mono font-bold text-emerald-700">{wizardResult.itemCount} جهاز</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">من موقع:</span>
+                  <span className="font-bold text-slate-800">{wizardSource}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">إلى موقع:</span>
+                  <span className="font-bold text-blue-700">{wizardDest}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">تاريخ ووقت التنفيذ:</span>
+                  <span className="font-mono text-slate-700">{formatDate(wizardResult.transferredAt || new Date().toISOString())}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

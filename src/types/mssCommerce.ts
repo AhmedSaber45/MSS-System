@@ -29,6 +29,7 @@ export interface MSSInvoice {
   model_name?: string;
   category?: string;
   processor?: string | null;
+  gpu?: string | null;
   ram?: string | null;
   storage?: string | null;
   screen_size?: string | null;

@@ -19,6 +19,7 @@ const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
     model_name: 'ThinkPad T480',
     category: 'لابتوب',
     processor: 'Intel Core i5-8350U',
+    gpu: 'Intel UHD Graphics 620',
     ram: '16 GB DDR4',
     storage: '256 GB NVMe SSD',
     screen_size: '14" FHD IPS',
@@ -33,6 +34,7 @@ const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
     model_name: 'Latitude 5420',
     category: 'لابتوب',
     processor: 'Intel Core i5-1145G7',
+    gpu: 'Intel Iris Xe Graphics',
     ram: '16 GB DDR4',
     storage: '512 GB NVMe SSD',
     screen_size: '14" FHD Anti-Glare',
@@ -47,6 +49,7 @@ const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
     model_name: 'EliteBook 840 G6',
     category: 'لابتوب',
     processor: 'Intel Core i7-8665U',
+    gpu: 'Intel UHD Graphics 620',
     ram: '16 GB DDR4',
     storage: '512 GB NVMe SSD',
     screen_size: '14" FHD IPS',
@@ -61,6 +64,7 @@ const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
     model_name: 'UltraSharp U2419H',
     category: 'شاشة',
     processor: '-',
+    gpu: null,
     ram: '-',
     storage: '-',
     screen_size: '24" FHD IPS InfinityEdge',
@@ -134,6 +138,7 @@ export const mssCatalogService = {
           model_name: row.model_name,
           category: row.category as MSSCategory,
           processor: row.processor,
+          gpu: row.gpu || null,
           ram: row.ram,
           storage: row.storage,
           screen_size: row.screen_size,
@@ -160,6 +165,7 @@ export const mssCatalogService = {
           m.brand.toLowerCase().includes(q) ||
           m.model_name.toLowerCase().includes(q) ||
           (m.processor && m.processor.toLowerCase().includes(q)) ||
+          (m.gpu && m.gpu.toLowerCase().includes(q)) ||
           (m.ram && m.ram.toLowerCase().includes(q)) ||
           (m.storage && m.storage.toLowerCase().includes(q)) ||
           (m.specifications && m.specifications.toLowerCase().includes(q))
@@ -201,6 +207,7 @@ export const mssCatalogService = {
       model_name: modelName,
       category: input.category,
       processor: input.processor?.trim() || null,
+      gpu: input.gpu?.trim() || null,
       ram: input.ram?.trim() || null,
       storage: input.storage?.trim() || null,
       screen_size: input.screen_size?.trim() || null,
@@ -219,6 +226,7 @@ export const mssCatalogService = {
           model_name: newModel.model_name,
           category: newModel.category,
           processor: newModel.processor,
+          gpu: newModel.gpu,
           ram: newModel.ram,
           storage: newModel.storage,
           screen_size: newModel.screen_size,
@@ -265,6 +273,7 @@ export const mssCatalogService = {
       model_name: input.model_name?.trim() ?? current.model_name,
       category: input.category ?? current.category,
       processor: input.processor !== undefined ? input.processor.trim() || null : current.processor,
+      gpu: input.gpu !== undefined ? input.gpu.trim() || null : current.gpu,
       ram: input.ram !== undefined ? input.ram.trim() || null : current.ram,
       storage: input.storage !== undefined ? input.storage.trim() || null : current.storage,
       screen_size: input.screen_size !== undefined ? input.screen_size.trim() || null : current.screen_size,
@@ -282,6 +291,7 @@ export const mssCatalogService = {
           model_name: updated.model_name,
           category: updated.category,
           processor: updated.processor,
+          gpu: updated.gpu,
           ram: updated.ram,
           storage: updated.storage,
           screen_size: updated.screen_size,

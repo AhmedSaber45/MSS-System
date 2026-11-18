@@ -4,16 +4,12 @@ import React from 'react';
 import {
   LayoutDashboard,
   Users,
-  Store,
-  Boxes,
-  ArrowLeftRight,
-  ShieldAlert,
   Settings,
   ShieldCheck,
   Building2,
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'users' | 'stores' | 'inventory' | 'transfers' | 'audit' | 'settings';
+export type NavTab = 'overview' | 'users' | 'settings';
 
 interface AdminSidebarProps {
   currentTab: NavTab;
@@ -38,26 +34,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       id: 'users' as NavTab,
       label: 'إدارة المستخدمين',
       icon: Users,
-    },
-    {
-      id: 'stores' as NavTab,
-      label: 'الفروع والمخازن',
-      icon: Store,
-    },
-    {
-      id: 'inventory' as NavTab,
-      label: 'المخزون المشترك',
-      icon: Boxes,
-    },
-    {
-      id: 'transfers' as NavTab,
-      label: 'تحويلات المخزون',
-      icon: ArrowLeftRight,
-    },
-    {
-      id: 'audit' as NavTab,
-      label: 'سجل النشاط والتدقيق',
-      icon: ShieldAlert,
     },
     {
       id: 'settings' as NavTab,
