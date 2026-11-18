@@ -128,6 +128,25 @@ pub struct Invoice {
     pub status: String,
     pub items_count: i64,
     pub created_at: String,
+    #[serde(default = "default_payment_type")]
+    pub payment_type: String,
+    #[serde(default = "default_payment_status")]
+    pub payment_status: String,
+    #[serde(default)]
+    pub paid_amount: f64,
+    #[serde(default)]
+    pub remaining_balance: f64,
+    pub due_date: Option<String>,
+    #[serde(default)]
+    pub installments_count: i64,
+}
+
+fn default_payment_type() -> String {
+    "FULL".to_string()
+}
+
+fn default_payment_status() -> String {
+    "PAID".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -162,6 +181,14 @@ pub struct NewSaleItemInput {
     pub discount: f64,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct InstallmentInput {
+    pub installment_number: i64,
+    pub due_date: String,
+    pub expected_amount: f64,
+    pub notes: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct NewSaleInput {
     pub invoice_number: String,
@@ -171,6 +198,46 @@ pub struct NewSaleInput {
     pub payment_method: String,
     pub notes: Option<String>,
     pub items: Vec<NewSaleItemInput>,
+    pub payment_type: Option<String>,
+    pub initial_payment: Option<f64>,
+    pub due_date: Option<String>,
+    pub installments: Option<Vec<InstallmentInput>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InvoicePayment {
+    pub id: String,
+    pub invoice_id: String,
+    pub amount: f64,
+    pub payment_date: String,
+    pub payment_method: String,
+    pub notes: Option<String>,
+    pub recorded_by: Option<String>,
+    pub is_reversal: bool,
+    pub reversal_of_id: Option<String>,
+    pub reversal_reason: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstallmentScheduleItem {
+    pub id: String,
+    pub invoice_id: String,
+    pub installment_number: i64,
+    pub due_date: String,
+    pub expected_amount: f64,
+    pub notes: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NewPaymentInput {
+    pub invoice_id: String,
+    pub amount: f64,
+    pub payment_date: String,
+    pub payment_method: String,
+    pub notes: Option<String>,
+    pub recorded_by: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -523,7 +590,50 @@ pub fn init_db() -> Result<Connection, rusqlite::Error> {
         )?;
     }
 
+    // Phase 2: Deferred & Installment Sales Migration for accessories_invoices
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN payment_type TEXT NOT NULL DEFAULT 'FULL';", []);
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'PAID';", []);
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN paid_amount REAL NOT NULL DEFAULT 0.0;", []);
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN remaining_balance REAL NOT NULL DEFAULT 0.0;", []);
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN due_date TEXT;", []);
+    let _ = conn.execute("ALTER TABLE accessories_invoices ADD COLUMN installments_count INTEGER NOT NULL DEFAULT 0;", []);
+
+    // Create accessories_payments table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS accessories_payments (
+            id TEXT PRIMARY KEY,
+            invoice_id TEXT NOT NULL REFERENCES accessories_invoices(id) ON DELETE RESTRICT,
+            amount REAL NOT NULL,
+            payment_date TEXT NOT NULL,
+            payment_method TEXT NOT NULL DEFAULT 'نقدي',
+            notes TEXT,
+            recorded_by TEXT,
+            is_reversal INTEGER NOT NULL DEFAULT 0,
+            reversal_of_id TEXT REFERENCES accessories_payments(id),
+            reversal_reason TEXT,
+            created_at TEXT NOT NULL
+        );",
+        [],
+    )?;
+
+    // Create accessories_installment_schedules table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS accessories_installment_schedules (
+            id TEXT PRIMARY KEY,
+            invoice_id TEXT NOT NULL REFERENCES accessories_invoices(id) ON DELETE CASCADE,
+            installment_number INTEGER NOT NULL,
+            due_date TEXT NOT NULL,
+            expected_amount REAL NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL
+        );",
+        [],
+    )?;
+
     // Indexes
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_acc_inv_payment_status ON accessories_invoices(payment_status);", [])?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_acc_payments_invoice ON accessories_payments(invoice_id);", [])?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_acc_schedules_invoice ON accessories_installment_schedules(invoice_id);", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_accessories_products_code ON accessories_products(code);", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_accessories_products_barcode ON accessories_products(barcode);", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_accessories_products_name ON accessories_products(name);", [])?;
@@ -1171,11 +1281,31 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
 
     let final_total = subtotal - input.invoice_discount;
 
+    let payment_type = input.payment_type.unwrap_or_else(|| "FULL".to_string());
+    let initial_payment = input.initial_payment.unwrap_or(0.0);
+    let (paid_amount, remaining_balance, payment_status) = if payment_type == "DEFERRED" {
+        let paid = initial_payment;
+        let rem = (final_total - paid).max(0.0);
+        let status = if rem <= 0.001 {
+            "PAID".to_string()
+        } else if paid > 0.0 {
+            "PARTIALLY_PAID".to_string()
+        } else {
+            "UNPAID".to_string()
+        };
+        (paid, rem, status)
+    } else {
+        (final_total, 0.0, "PAID".to_string())
+    };
+
+    let next_due_date = input.due_date.clone();
+    let installments_cnt = input.installments.as_ref().map(|v| v.len() as i64).unwrap_or(0);
+
     // 1. Insert invoice record
     tx.execute(
         "INSERT INTO accessories_invoices 
-            (id, invoice_number, invoice_date, customer_name, customer_phone, subtotal, discount, total_amount, payment_method, notes, status, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'COMPLETED', ?11)",
+            (id, invoice_number, invoice_date, customer_name, customer_phone, subtotal, discount, total_amount, payment_method, notes, status, created_at, payment_type, payment_status, paid_amount, remaining_balance, due_date, installments_count)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'COMPLETED', ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         params![
             invoice_id,
             inv_num,
@@ -1188,6 +1318,12 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
             input.payment_method.trim(),
             input.notes.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty()),
             now,
+            payment_type,
+            payment_status,
+            paid_amount,
+            remaining_balance,
+            next_due_date,
+            installments_cnt,
         ],
     ).map_err(|e| {
         if e.to_string().contains("UNIQUE constraint failed: accessories_invoices.invoice_number") {
@@ -1196,6 +1332,46 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
             e.to_string()
         }
     })?;
+
+    // Record initial payment transaction if any
+    if paid_amount > 0.0 {
+        let pay_id = uuid::Uuid::new_v4().to_string();
+        let _ = tx.execute(
+            "INSERT INTO accessories_payments
+                (id, invoice_id, amount, payment_date, payment_method, notes, is_reversal, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)",
+            params![
+                pay_id,
+                invoice_id,
+                paid_amount,
+                today_date,
+                input.payment_method.trim(),
+                if payment_type == "DEFERRED" { "دفعة أولى عند البيع بالتقسيط / الأجل" } else { "سداد كامل عند إصدار الفاتورة" },
+                now
+            ],
+        );
+    }
+
+    // Record planned installment schedules if any
+    if let Some(ref insts) = input.installments {
+        for inst in insts {
+            let sch_id = uuid::Uuid::new_v4().to_string();
+            let _ = tx.execute(
+                "INSERT INTO accessories_installment_schedules
+                    (id, invoice_id, installment_number, due_date, expected_amount, notes, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    sch_id,
+                    invoice_id,
+                    inst.installment_number,
+                    inst.due_date,
+                    inst.expected_amount,
+                    inst.notes.as_deref(),
+                    now
+                ],
+            );
+        }
+    }
 
     // 2. Insert invoice items, deduct inventory, and record movement
     for p_item in processed_items {
@@ -1269,6 +1445,12 @@ pub fn insert_sale(conn: &mut Connection, input: NewSaleInput) -> Result<Invoice
         status: "COMPLETED".to_string(),
         items_count: input.items.len() as i64,
         created_at: now,
+        payment_type,
+        payment_status,
+        paid_amount,
+        remaining_balance,
+        due_date: next_due_date,
+        installments_count: installments_cnt,
     })
 }
 
@@ -1277,7 +1459,13 @@ pub fn fetch_all_invoices(conn: &Connection) -> Result<Vec<Invoice>, String> {
         .prepare(
             "SELECT inv.id, inv.invoice_number, inv.invoice_date, inv.customer_name, 
                     inv.customer_phone, inv.subtotal, inv.discount, inv.total_amount, 
-                    inv.payment_method, inv.notes, inv.status, COUNT(i.id), inv.created_at
+                    inv.payment_method, inv.notes, inv.status, COUNT(i.id), inv.created_at,
+                    COALESCE(inv.payment_type, 'FULL'),
+                    COALESCE(inv.payment_status, 'PAID'),
+                    COALESCE(inv.paid_amount, inv.total_amount),
+                    COALESCE(inv.remaining_balance, 0.0),
+                    inv.due_date,
+                    COALESCE(inv.installments_count, 0)
              FROM accessories_invoices inv
              LEFT JOIN accessories_invoice_items i ON inv.id = i.invoice_id
              GROUP BY inv.id
@@ -1301,6 +1489,12 @@ pub fn fetch_all_invoices(conn: &Connection) -> Result<Vec<Invoice>, String> {
                 status: row.get(10)?,
                 items_count: row.get(11)?,
                 created_at: row.get(12)?,
+                payment_type: row.get(13)?,
+                payment_status: row.get(14)?,
+                paid_amount: row.get(15)?,
+                remaining_balance: row.get(16)?,
+                due_date: row.get(17)?,
+                installments_count: row.get(18)?,
             })
         })
         .map_err(|e| e.to_string())?;

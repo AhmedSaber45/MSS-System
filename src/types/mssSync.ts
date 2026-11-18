@@ -6,7 +6,10 @@ export type SyncOperationType =
   | 'RESERVATION_CANCEL'
   | 'RETURN_PROCESS'
   | 'DEVICE_ADD'
-  | 'DEVICE_TRANSFER';
+  | 'DEVICE_TRANSFER'
+  | 'PAYMENT_RECORD'
+  | 'PAYMENT_REVERSE'
+  | 'INSTALLMENT_SCHEDULE_UPDATE';
 
 export type SyncOperationStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT' | 'FAILED';
 

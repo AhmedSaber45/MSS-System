@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.ts';
 import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidation.ts';
+import { roundMoney } from '../lib/accounting.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
@@ -12,11 +13,19 @@ import type {
   MSSReturn,
   NewMSSReturnInput,
   MSSStockLocation,
+  MSSPayment,
+  MSSInstallmentScheduleItem,
+  NewMSSPaymentInput,
+  MSSInstallmentPlanInput,
+  MSSPaymentType,
+  MSSPaymentStatus,
 } from '../types/mssCommerce.ts';
 
 const MSS_INVOICES_CACHE_KEY = 'shop_mss_invoices_cache_v1';
 const MSS_RESERVATIONS_CACHE_KEY = 'shop_mss_reservations_cache_v1';
 const MSS_RETURNS_CACHE_KEY = 'shop_mss_returns_cache_v1';
+const MSS_PAYMENTS_CACHE_KEY = 'shop_mss_payments_cache_v1';
+const MSS_SCHEDULES_CACHE_KEY = 'shop_mss_installment_schedules_cache_v1';
 
 // Seed initial invoices
 const INITIAL_SEED_INVOICES: MSSInvoice[] = [
@@ -44,6 +53,11 @@ const INITIAL_SEED_INVOICES: MSSInvoice[] = [
     brand: 'HP',
     model_name: 'EliteBook 840 G6',
     category: 'لابتوب',
+    payment_type: 'FULL',
+    payment_status: 'PAID',
+    paid_amount: 13000,
+    remaining_balance: 0,
+    installments_count: 0,
   },
 ];
 
@@ -71,6 +85,21 @@ const INITIAL_SEED_RESERVATIONS: MSSReservation[] = [
 
 // Seed initial returns
 const INITIAL_SEED_RETURNS: MSSReturn[] = [];
+
+// Seed initial payment transactions
+const INITIAL_SEED_PAYMENTS: MSSPayment[] = [
+  {
+    id: 'pay-seed-mss-01',
+    invoice_id: 'd0000000-0000-0000-0000-000000000001',
+    amount: 13000,
+    payment_date: '2024-11-12',
+    payment_method: 'نقدي',
+    notes: 'سداد كامل عند تأكيد البيع',
+    recorded_by: 'النظام',
+    is_reversal: false,
+    created_at: '2024-11-12T13:30:00Z',
+  },
+];
 
 function getCachedInvoices(): MSSInvoice[] {
   try {
@@ -126,6 +155,93 @@ function saveCachedReturns(returns: MSSReturn[]): void {
   localStorage.setItem(MSS_RETURNS_CACHE_KEY, JSON.stringify(returns));
 }
 
+function getCachedPayments(): MSSPayment[] {
+  try {
+    const raw = localStorage.getItem(MSS_PAYMENTS_CACHE_KEY);
+    if (!raw) {
+      localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify(INITIAL_SEED_PAYMENTS));
+      return INITIAL_SEED_PAYMENTS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PAYMENTS;
+  } catch {
+    return INITIAL_SEED_PAYMENTS;
+  }
+}
+
+function saveCachedPayments(payments: MSSPayment[]): void {
+  localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify(payments));
+}
+
+function getCachedSchedules(): MSSInstallmentScheduleItem[] {
+  try {
+    const raw = localStorage.getItem(MSS_SCHEDULES_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedSchedules(schedules: MSSInstallmentScheduleItem[]): void {
+  localStorage.setItem(MSS_SCHEDULES_CACHE_KEY, JSON.stringify(schedules));
+}
+
+/**
+ * Authoritative financial calculation for MSS invoices
+ */
+export function computeMSSInvoicePaymentStatus(
+  totalAmount: number,
+  payments: MSSPayment[],
+  dueDate?: string | null,
+  schedule: MSSInstallmentScheduleItem[] = []
+): { paidAmount: number; remainingBalance: number; paymentStatus: MSSPaymentStatus } {
+  const netPaid = roundMoney(
+    payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  );
+  const remainingBalance = Math.max(0, roundMoney(totalAmount - netPaid));
+
+  let paymentStatus: MSSPaymentStatus;
+  const today = getTodayLocalDateString();
+
+  if (remainingBalance <= 0.001) {
+    paymentStatus = 'PAID';
+  } else {
+    let isOverdue = false;
+    if (dueDate && dueDate < today) {
+      isOverdue = true;
+    }
+    if (!isOverdue && schedule.length > 0) {
+      const sorted = [...schedule].sort(
+        (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+      );
+      let cumExpected = 0;
+      for (const item of sorted) {
+        cumExpected += item.expected_amount;
+        if (item.due_date < today && roundMoney(netPaid) < roundMoney(cumExpected)) {
+          isOverdue = true;
+          break;
+        }
+      }
+    }
+
+    if (isOverdue) {
+      paymentStatus = 'OVERDUE';
+    } else if (netPaid > 0) {
+      paymentStatus = 'PARTIALLY_PAID';
+    } else {
+      paymentStatus = 'UNPAID';
+    }
+  }
+
+  return {
+    paidAmount: netPaid,
+    remainingBalance,
+    paymentStatus,
+  };
+}
+
 export const mssCommerceService = {
   /**
    * Fetch all MSS invoices with model metadata and offline caching
@@ -137,6 +253,7 @@ export const mssCommerceService = {
     isReturned?: boolean;
     startDate?: string;
     endDate?: string;
+    paymentStatus?: string;
   }): Promise<MSSInvoice[]> {
     let invoices: MSSInvoice[] = [];
     let isCloudFetched = false;
@@ -152,7 +269,7 @@ export const mssCommerceService = {
         .order('sale_date', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        invoices = data.map((row: any) => ({
+        const cloudInvoices = data.map((row: any) => ({
           id: row.id,
           invoice_number: row.invoice_number,
           device_id: row.device_id,
@@ -173,7 +290,30 @@ export const mssCommerceService = {
           is_returned: Boolean(row.is_returned),
           created_at: row.created_at,
           updated_at: row.updated_at,
+          payment_type: (row.payment_type as MSSPaymentType) || 'FULL',
+          payment_status: (row.payment_status as MSSPaymentStatus) || 'PAID',
+          paid_amount: Number(row.paid_amount) || Number(row.actual_sale_price) || 0,
+          remaining_balance: Number(row.remaining_balance) || 0,
+          due_date: row.due_date || null,
+          installments_count: Number(row.installments_count) || 0,
         }));
+
+        const localCached = getCachedInvoices();
+        const mergedMap = new Map<string, MSSInvoice>();
+        for (const ci of cloudInvoices) {
+          mergedMap.set(ci.invoice_number, ci);
+        }
+        for (const li of localCached) {
+          if (!mergedMap.has(li.invoice_number)) {
+            mergedMap.set(li.invoice_number, li);
+          }
+        }
+        for (const si of INITIAL_SEED_INVOICES) {
+          if (!mergedMap.has(si.invoice_number)) {
+            mergedMap.set(si.invoice_number, si);
+          }
+        }
+        invoices = Array.from(mergedMap.values());
         saveCachedInvoices(invoices);
         isCloudFetched = true;
       }
@@ -185,9 +325,22 @@ export const mssCommerceService = {
       invoices = getCachedInvoices();
     }
 
-    // Attach enriched metadata
+    const allPayments = getCachedPayments();
+    const allSchedules = getCachedSchedules();
+
+    // Attach enriched metadata & dynamically recompute payment statuses
     invoices = invoices.map(inv => {
       const m = modelMap.get(inv.model_id);
+      const invPayments = allPayments.filter(p => p.invoice_id === inv.id || p.invoice_id === inv.invoice_number);
+      const invSchedules = allSchedules.filter(s => s.invoice_id === inv.id || s.invoice_id === inv.invoice_number);
+
+      const metrics = computeMSSInvoicePaymentStatus(
+        inv.actual_sale_price,
+        invPayments,
+        inv.due_date,
+        invSchedules
+      );
+
       return {
         ...inv,
         brand: m?.brand || '',
@@ -198,6 +351,13 @@ export const mssCommerceService = {
         ram: m?.ram || null,
         storage: m?.storage || null,
         screen_size: m?.screen_size || null,
+        payment_type: inv.payment_type || 'FULL',
+        payment_status: metrics.paymentStatus,
+        paid_amount: metrics.paidAmount,
+        remaining_balance: metrics.remainingBalance,
+        installments_count: invSchedules.length > 0 ? invSchedules.length : inv.installments_count || 0,
+        payments: invPayments,
+        installment_schedule: invSchedules,
       };
     });
 
@@ -212,6 +372,10 @@ export const mssCommerceService = {
 
     if (filters?.isReturned !== undefined) {
       invoices = invoices.filter(inv => inv.is_returned === filters.isReturned);
+    }
+
+    if (filters?.paymentStatus && filters.paymentStatus !== 'ALL') {
+      invoices = invoices.filter(inv => inv.payment_status === filters.paymentStatus);
     }
 
     if (filters?.startDate || filters?.endDate) {
@@ -335,6 +499,81 @@ export const mssCommerceService = {
     const now = new Date().toISOString();
     const newId = 'inv-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
 
+    // Phase 2: Deferred & Installment Calculation
+    const paymentType: MSSPaymentType = input.payment_type || 'FULL';
+    let paidAmount = 0;
+    let remainingBalance = 0;
+    let paymentStatus: MSSPaymentStatus = 'PAID';
+    const initialPaymentsToStore: MSSPayment[] = [];
+    const schedulesToStore: MSSInstallmentScheduleItem[] = [];
+
+    if (paymentType === 'DEFERRED') {
+      const initialPayment = input.initial_payment !== undefined ? Number(input.initial_payment) : 0;
+      if (isNaN(initialPayment) || initialPayment < 0) {
+        throw new Error('الدفعة المقدمة لا يمكن أن تكون سالبة');
+      }
+      if (roundMoney(initialPayment) > actualSalePrice) {
+        throw new Error('الدفعة المقدمة لا يمكن أن تتجاوز إجمالي سعر البيع الفعلي');
+      }
+
+      paidAmount = roundMoney(initialPayment);
+      remainingBalance = roundMoney(actualSalePrice - paidAmount);
+
+      if (input.installments && input.installments.length > 0) {
+        for (const inst of input.installments) {
+          if (!inst.due_date) throw new Error('تاريخ استحقاق القسط مطلوب');
+          if (inst.expected_amount <= 0) throw new Error('مبلغ القسط المتوقع يجب أن يكون أكبر من صفر');
+          schedulesToStore.push({
+            id: 'sch-mss-' + Math.random().toString(36).substring(2, 9),
+            invoice_id: newId,
+            installment_number: inst.installment_number,
+            due_date: inst.due_date,
+            expected_amount: roundMoney(inst.expected_amount),
+            notes: inst.notes || null,
+            created_at: now,
+          });
+        }
+      }
+
+      if (paidAmount > 0) {
+        initialPaymentsToStore.push({
+          id: 'pay-mss-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+          invoice_id: newId,
+          amount: paidAmount,
+          payment_date: now.substring(0, 10),
+          payment_method: input.payment_method?.trim() || 'نقدي',
+          notes: 'دفعة أولى عند البيع بالتقسيط / الأجل',
+          recorded_by: null,
+          is_reversal: false,
+          created_at: now,
+        });
+      }
+
+      const nextDue = input.due_date || (schedulesToStore[0]?.due_date ?? null);
+      const metrics = computeMSSInvoicePaymentStatus(actualSalePrice, initialPaymentsToStore, nextDue, schedulesToStore);
+      paymentStatus = metrics.paymentStatus;
+    } else {
+      paidAmount = actualSalePrice;
+      remainingBalance = 0;
+      paymentStatus = 'PAID';
+
+      if (actualSalePrice > 0) {
+        initialPaymentsToStore.push({
+          id: 'pay-mss-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+          invoice_id: newId,
+          amount: actualSalePrice,
+          payment_date: now.substring(0, 10),
+          payment_method: input.payment_method?.trim() || 'نقدي',
+          notes: 'سداد كامل عند تأكيد البيع',
+          recorded_by: null,
+          is_reversal: false,
+          created_at: now,
+        });
+      }
+    }
+
+    const nextDueDate = input.due_date || (schedulesToStore[0]?.due_date ?? null);
+
     const newInvoice: MSSInvoice = {
       id: newId,
       invoice_number: invoiceNumber,
@@ -364,6 +603,14 @@ export const mssCommerceService = {
       ram: device.model?.ram,
       storage: device.model?.storage,
       screen_size: device.model?.screen_size,
+      payment_type: paymentType,
+      payment_status: paymentStatus,
+      paid_amount: paidAmount,
+      remaining_balance: remainingBalance,
+      due_date: nextDueDate,
+      installments_count: schedulesToStore.length,
+      payments: initialPaymentsToStore,
+      installment_schedule: schedulesToStore,
     };
 
     // 1. Try remote insert to Supabase
@@ -388,6 +635,12 @@ export const mssCommerceService = {
           notes: newInvoice.notes,
           sale_date: newInvoice.sale_date,
           is_returned: false,
+          payment_type: newInvoice.payment_type,
+          payment_status: newInvoice.payment_status,
+          paid_amount: newInvoice.paid_amount,
+          remaining_balance: newInvoice.remaining_balance,
+          due_date: newInvoice.due_date,
+          installments_count: newInvoice.installments_count,
         })
         .select()
         .single();
@@ -396,6 +649,9 @@ export const mssCommerceService = {
         newInvoice.id = data.id;
         newInvoice.created_at = data.created_at;
         newInvoice.updated_at = data.updated_at;
+        // update foreign key in initial payments and schedules
+        initialPaymentsToStore.forEach(p => (p.invoice_id = data.id));
+        schedulesToStore.forEach(s => (s.invoice_id = data.id));
       }
     } catch (err) {
       console.warn('Supabase insert invoice failed, cached locally:', err);
@@ -411,10 +667,18 @@ export const mssCommerceService = {
       await this.updateReservationStatus(activeRes.id, 'FULFILLED');
     }
 
-    // 4. Update local cache
+    // 4. Update local caches
     const cached = getCachedInvoices();
     cached.unshift(newInvoice);
     saveCachedInvoices(cached);
+
+    if (initialPaymentsToStore.length > 0) {
+      saveCachedPayments([...getCachedPayments(), ...initialPaymentsToStore]);
+    }
+
+    if (schedulesToStore.length > 0) {
+      saveCachedSchedules([...getCachedSchedules(), ...schedulesToStore]);
+    }
 
     // 5. Queue in Outbox for reliable synchronization
     mssSyncService
@@ -429,6 +693,400 @@ export const mssCommerceService = {
     backupService.notifyDataChanged(`بيع جهاز MSS: ${newInvoice.invoice_number}`);
 
     return newInvoice;
+  },
+
+  /**
+   * Record a new customer payment for an existing MSS deferred invoice
+   */
+  async recordPayment(
+    invoiceId: string,
+    input: NewMSSPaymentInput
+  ): Promise<{ invoice: MSSInvoice; payment: MSSPayment }> {
+    const amount = roundMoney(Number(input.amount));
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error('قيمة الدفعة المحصلة يجب أن تكون أكبر من صفر');
+    }
+
+    const allInvoices = getCachedInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId || inv.invoice_number === invoiceId);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة غير موجودة');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const existingPayments = await this.getPayments(invoice.id);
+    const existingSchedules = await this.getInstallmentSchedule(invoice.id);
+
+    const currentMetrics = computeMSSInvoicePaymentStatus(
+      invoice.actual_sale_price,
+      existingPayments,
+      invoice.due_date,
+      existingSchedules
+    );
+
+    if (amount > roundMoney(currentMetrics.remainingBalance)) {
+      throw new Error(
+        `قيمة الدفعة (${amount} EGP) لا يمكن أن تتجاوز الرصيد المتبقي على الفاتورة (${currentMetrics.remainingBalance} EGP)`
+      );
+    }
+
+    const now = new Date().toISOString();
+    const newPayment: MSSPayment = {
+      id: 'pay-mss-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+      invoice_id: invoice.id,
+      amount,
+      payment_date: input.payment_date || getTodayLocalDateString(),
+      payment_method: input.payment_method || 'نقدي',
+      notes: input.notes?.trim() || null,
+      recorded_by: input.recorded_by || null,
+      is_reversal: false,
+      created_at: now,
+    };
+
+    // Try remote insert to Supabase
+    try {
+      const { data, error } = await supabase
+        .from('mss_payments')
+        .insert({
+          invoice_id: newPayment.invoice_id,
+          amount: newPayment.amount,
+          payment_date: newPayment.payment_date,
+          payment_method: newPayment.payment_method,
+          notes: newPayment.notes,
+          recorded_by: newPayment.recorded_by,
+          is_reversal: false,
+        })
+        .select()
+        .single();
+      if (!error && data?.id) {
+        newPayment.id = data.id;
+      }
+    } catch (err) {
+      console.warn('Supabase insert payment failed, cached locally:', err);
+    }
+
+    // Save payment locally
+    const allPayments = getCachedPayments();
+    allPayments.push(newPayment);
+    saveCachedPayments(allPayments);
+
+    // Recompute invoice metrics
+    const updatedPayments = [...existingPayments, newPayment];
+    const newMetrics = computeMSSInvoicePaymentStatus(
+      invoice.actual_sale_price,
+      updatedPayments,
+      invoice.due_date,
+      existingSchedules
+    );
+
+    let nextDueDate = invoice.due_date;
+    if (newMetrics.remainingBalance <= 0) {
+      nextDueDate = null;
+    } else if (existingSchedules.length > 0) {
+      const sorted = [...existingSchedules].sort(
+        (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+      );
+      let cum = 0;
+      for (const item of sorted) {
+        cum += item.expected_amount;
+        if (roundMoney(newMetrics.paidAmount) < roundMoney(cum)) {
+          nextDueDate = item.due_date;
+          break;
+        }
+      }
+    }
+
+    const updatedInvoice: MSSInvoice = {
+      ...invoice,
+      paid_amount: newMetrics.paidAmount,
+      remaining_balance: newMetrics.remainingBalance,
+      payment_status: newMetrics.paymentStatus,
+      due_date: nextDueDate,
+      payments: updatedPayments,
+      installment_schedule: existingSchedules,
+      updated_at: now,
+    };
+
+    // Try remote update in Supabase mss_invoices
+    try {
+      await supabase
+        .from('mss_invoices')
+        .update({
+          paid_amount: updatedInvoice.paid_amount,
+          remaining_balance: updatedInvoice.remaining_balance,
+          payment_status: updatedInvoice.payment_status,
+          due_date: updatedInvoice.due_date,
+          updated_at: now,
+        })
+        .eq('id', invoice.id);
+    } catch (err) {
+      console.warn('Supabase update invoice balance failed, cached locally:', err);
+    }
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveCachedInvoices(allInvoices);
+
+    // Queue in Outbox
+    try {
+      await mssSyncService.queueOperation(
+        'PAYMENT_RECORD',
+        { payment: newPayment, invoice_id: invoice.id, balances: newMetrics },
+        `تحصيل دفعة بقيمة ${amount} EGP لفاتورة MSS رقم (${invoice.invoice_number})`,
+        invoice.selling_branch
+      );
+    } catch (err) {
+      console.warn('Queue PAYMENT_RECORD failed:', err);
+    }
+
+    backupService.notifyDataChanged(`تحصيل دفعة MSS: ${invoice.invoice_number}`);
+
+    return { invoice: updatedInvoice, payment: newPayment };
+  },
+
+  /**
+   * Safely reverse a payment transaction for an MSS invoice
+   */
+  async reversePayment(
+    paymentId: string,
+    reason: string,
+    recorded_by?: string
+  ): Promise<{ invoice: MSSInvoice; reversalPayment: MSSPayment }> {
+    const safeReason = (reason || '').trim();
+    if (!safeReason) {
+      throw new Error('سبب إلغاء/عكس الدفعة إلزامي لضمان النزاهة المالية.');
+    }
+
+    const allPayments = getCachedPayments();
+    const payment = allPayments.find(p => p.id === paymentId);
+    if (!payment) {
+      throw new Error('الدفعة المطلوب إلغاؤها غير موجودة.');
+    }
+
+    if (payment.is_reversal) {
+      throw new Error('لا يمكن إلغاء دفعة عكسية مسجلة مسبقاً.');
+    }
+
+    const alreadyReversed = allPayments.some(p => p.reversal_of_id === paymentId);
+    if (alreadyReversed) {
+      throw new Error('تم إلغاء وعكس هذه الدفعة مسبقاً.');
+    }
+
+    const allInvoices = getCachedInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === payment.invoice_id || inv.invoice_number === payment.invoice_id);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة المرتبطة بالدفعة غير موجودة.');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const now = new Date().toISOString();
+
+    const reversalPayment: MSSPayment = {
+      id: 'pay-mss-rev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+      invoice_id: payment.invoice_id,
+      amount: -payment.amount,
+      payment_date: getTodayLocalDateString(),
+      payment_method: payment.payment_method,
+      notes: `إلغاء دفعة: ${safeReason}`,
+      recorded_by: recorded_by || null,
+      is_reversal: true,
+      reversal_of_id: payment.id,
+      reversal_reason: safeReason,
+      created_at: now,
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('mss_payments')
+        .insert({
+          invoice_id: reversalPayment.invoice_id,
+          amount: reversalPayment.amount,
+          payment_date: reversalPayment.payment_date,
+          payment_method: reversalPayment.payment_method,
+          notes: reversalPayment.notes,
+          recorded_by: reversalPayment.recorded_by,
+          is_reversal: true,
+          reversal_of_id: reversalPayment.reversal_of_id,
+          reversal_reason: reversalPayment.reversal_reason,
+        })
+        .select()
+        .single();
+      if (!error && data?.id) {
+        reversalPayment.id = data.id;
+      }
+    } catch (err) {
+      console.warn('Supabase insert reversal payment failed, cached locally:', err);
+    }
+
+    allPayments.push(reversalPayment);
+    saveCachedPayments(allPayments);
+
+    const invPayments = allPayments.filter(p => p.invoice_id === invoice.id);
+    const invSchedules = await this.getInstallmentSchedule(invoice.id);
+    const newMetrics = computeMSSInvoicePaymentStatus(
+      invoice.actual_sale_price,
+      invPayments,
+      invoice.due_date,
+      invSchedules
+    );
+
+    const updatedInvoice: MSSInvoice = {
+      ...invoice,
+      paid_amount: newMetrics.paidAmount,
+      remaining_balance: newMetrics.remainingBalance,
+      payment_status: newMetrics.paymentStatus,
+      payments: invPayments,
+      installment_schedule: invSchedules,
+      updated_at: now,
+    };
+
+    try {
+      await supabase
+        .from('mss_invoices')
+        .update({
+          paid_amount: updatedInvoice.paid_amount,
+          remaining_balance: updatedInvoice.remaining_balance,
+          payment_status: updatedInvoice.payment_status,
+          updated_at: now,
+        })
+        .eq('id', invoice.id);
+    } catch (err) {
+      console.warn('Supabase update invoice balance failed:', err);
+    }
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveCachedInvoices(allInvoices);
+
+    try {
+      await mssSyncService.queueOperation(
+        'PAYMENT_REVERSE',
+        { reversal: reversalPayment, invoice_id: invoice.id, balances: newMetrics },
+        `عكس دفعة لفاتورة MSS رقم (${invoice.invoice_number}): ${safeReason}`,
+        invoice.selling_branch
+      );
+    } catch (err) {
+      console.warn('Queue PAYMENT_REVERSE failed:', err);
+    }
+
+    backupService.notifyDataChanged(`عكس دفعة MSS: ${invoice.invoice_number}`);
+
+    return { invoice: updatedInvoice, reversalPayment };
+  },
+
+  /**
+   * Get payments recorded for an MSS invoice
+   */
+  async getPayments(invoiceId: string): Promise<MSSPayment[]> {
+    const all = getCachedPayments();
+    return all
+      .filter(p => p.invoice_id === invoiceId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  /**
+   * Get installment schedule for an MSS invoice
+   */
+  async getInstallmentSchedule(invoiceId: string): Promise<MSSInstallmentScheduleItem[]> {
+    const all = getCachedSchedules();
+    return all
+      .filter(s => s.invoice_id === invoiceId)
+      .sort((a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date));
+  },
+
+  /**
+   * Update the future installment schedule for an MSS invoice
+   */
+  async updateInstallmentSchedule(
+    invoiceId: string,
+    installments: MSSInstallmentPlanInput[]
+  ): Promise<MSSInstallmentScheduleItem[]> {
+    if (!installments || installments.length === 0) {
+      throw new Error('يجب تحديد قسط واحد على الأقل في الجدول.');
+    }
+
+    for (const inst of installments) {
+      if (!inst.due_date) throw new Error('تاريخ استحقاق القسط مطلوب');
+      if (inst.expected_amount <= 0) throw new Error('مبلغ القسط المتوقع يجب أن يكون أكبر من صفر');
+    }
+
+    const allInvoices = getCachedInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId || inv.invoice_number === invoiceId);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة غير موجودة');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const now = new Date().toISOString();
+
+    const newSchedules: MSSInstallmentScheduleItem[] = installments.map(inst => ({
+      id: 'sch-mss-' + Math.random().toString(36).substring(2, 9),
+      invoice_id: invoice.id,
+      installment_number: inst.installment_number,
+      due_date: inst.due_date,
+      expected_amount: roundMoney(inst.expected_amount),
+      notes: inst.notes || null,
+      created_at: now,
+    }));
+
+    // Update local cache
+    const allSchedules = getCachedSchedules().filter(s => s.invoice_id !== invoice.id);
+    saveCachedSchedules([...allSchedules, ...newSchedules]);
+
+    // Recalculate next due date
+    const invPayments = await this.getPayments(invoice.id);
+    const sorted = [...newSchedules].sort(
+      (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+    );
+    let nextDueDate: string | null = null;
+    const paid = roundMoney(invPayments.reduce((s, p) => s + p.amount, 0));
+    let cum = 0;
+    for (const item of sorted) {
+      cum += item.expected_amount;
+      if (paid < roundMoney(cum)) {
+        nextDueDate = item.due_date;
+        break;
+      }
+    }
+    if (!nextDueDate && sorted.length > 0) {
+      nextDueDate = sorted[sorted.length - 1].due_date;
+    }
+
+    const metrics = computeMSSInvoicePaymentStatus(
+      invoice.actual_sale_price,
+      invPayments,
+      nextDueDate,
+      newSchedules
+    );
+
+    const updatedInvoice: MSSInvoice = {
+      ...invoice,
+      due_date: nextDueDate,
+      installments_count: newSchedules.length,
+      payment_status: metrics.paymentStatus,
+      paid_amount: metrics.paidAmount,
+      remaining_balance: metrics.remainingBalance,
+      installment_schedule: newSchedules,
+      payments: invPayments,
+      updated_at: now,
+    };
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveCachedInvoices(allInvoices);
+
+    // Queue in Outbox
+    try {
+      await mssSyncService.queueOperation(
+        'INSTALLMENT_SCHEDULE_UPDATE',
+        { invoice_id: invoice.id, schedules: newSchedules, due_date: nextDueDate, installments_count: newSchedules.length },
+        `تحديث جدول أقساط فاتورة MSS رقم (${invoice.invoice_number})`,
+        invoice.selling_branch
+      );
+    } catch (err) {
+      console.warn('Queue INSTALLMENT_SCHEDULE_UPDATE failed:', err);
+    }
+
+    backupService.notifyDataChanged(`تحديث جدول أقساط MSS: ${invoice.invoice_number}`);
+
+    return newSchedules;
   },
 
   /**

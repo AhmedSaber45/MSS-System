@@ -121,8 +121,8 @@ export const MSSAuditLogView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="سجل النشاط  الإداري "
-        subtitle=" "
+        title="سجل النشاط والتدقيق الإداري"
+        subtitle="سجل موثق محمي ضد التعديل"
         actions={
           <Button
             variant="outline"

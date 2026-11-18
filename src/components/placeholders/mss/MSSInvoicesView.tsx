@@ -2,28 +2,58 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
+import { Select } from '@/components/common/Select';
 import { Table, Column } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { Eye, Printer, FileDown, Search, Store, FileText, DollarSign, TrendingUp, RotateCcw, RefreshCw } from 'lucide-react';
+import {
+  Eye,
+  Printer,
+  FileDown,
+  Search,
+  Store,
+  FileText,
+  DollarSign,
+  TrendingUp,
+  RotateCcw,
+  RefreshCw,
+  Wallet,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
 import { usePageRefresh } from '@/context/PageRefreshContext';
+import { useNotification } from '@/context/NotificationContext';
 import { documentPrintService } from '@/lib/documentPrintService';
+import {
+  PaymentHistorySection,
+  PaymentRecordItem,
+  PaymentScheduleItem,
+} from '@/components/common/PaymentHistorySection';
 
 export const MSSInvoicesView: React.FC = () => {
   const { isRefreshing, triggerRefresh } = usePageRefresh();
+  const { showNotification } = useNotification();
   const [invoices, setInvoices] = useState<MSSInvoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sellingBranchFilter, setSellingBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('ALL');
   const [selectedInvoice, setSelectedInvoice] = useState<MSSInvoice | null>(null);
   const dateFilter = useDateRangeFilter();
+
+  // Modal tab and sub-details
+  const [modalTab, setModalTab] = useState<'print' | 'payments'>('print');
+  const [invoicePayments, setInvoicePayments] = useState<PaymentRecordItem[]>([]);
+  const [invoiceSchedule, setInvoiceSchedule] = useState<PaymentScheduleItem[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState<boolean>(false);
 
   // Load Invoices
   const loadData = useCallback(async () => {
@@ -36,7 +66,7 @@ export const MSSInvoicesView: React.FC = () => {
       });
       setInvoices(list);
     } catch (err) {
-      console.error('Failed to load invoices:', err);
+      console.error('Failed to load MSS invoices:', err);
     } finally {
       setIsLoading(false);
     }
@@ -46,15 +76,110 @@ export const MSSInvoicesView: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  // Open invoice modal
+  const handleOpenInvoiceModal = async (
+    invoice: MSSInvoice,
+    tab: 'print' | 'payments' = 'print'
+  ) => {
+    setSelectedInvoice(invoice);
+    setModalTab(tab);
+    setIsLoadingPayments(true);
+    try {
+      const [payments, schedule] = await Promise.all([
+        mssCommerceService.getPayments(invoice.id),
+        mssCommerceService.getInstallmentSchedule(invoice.id),
+      ]);
+      setInvoicePayments(payments);
+      setInvoiceSchedule(schedule);
+    } catch (err) {
+      console.error('Failed to load payments or schedule:', err);
+    } finally {
+      setIsLoadingPayments(false);
+    }
+  };
+
+  // Refresh invoice data inside the open modal
+  const refreshModalInvoice = async (invoiceId: string) => {
+    try {
+      const [allInvs, payments, schedule] = await Promise.all([
+        mssCommerceService.getInvoices({}),
+        mssCommerceService.getPayments(invoiceId),
+        mssCommerceService.getInstallmentSchedule(invoiceId),
+      ]);
+      const updated = allInvs.find(i => i.id === invoiceId);
+      if (updated) {
+        setSelectedInvoice(updated);
+      }
+      setInvoicePayments(payments);
+      setInvoiceSchedule(schedule);
+      setInvoices(allInvs);
+    } catch (err) {
+      console.error('Failed to refresh modal invoice:', err);
+    }
+  };
+
+  // Handle recording payment
+  const handleRecordPayment = async (data: {
+    amount: number;
+    payment_date: string;
+    payment_method: string;
+    notes?: string;
+  }) => {
+    if (!selectedInvoice) return;
+    await mssCommerceService.recordPayment(selectedInvoice.id, {
+      invoice_id: selectedInvoice.id,
+      amount: data.amount,
+      payment_date: data.payment_date,
+      payment_method: data.payment_method,
+      notes: data.notes,
+    });
+    showNotification({
+      type: 'success',
+      title: 'تم تسجيل الدفعة بنجاح',
+      message: `تم تحصيل مبلغ ${formatCurrency(data.amount)} وتحديث رصيد الفاتورة.`,
+    });
+    await refreshModalInvoice(selectedInvoice.id);
+  };
+
+  // Handle reversing payment
+  const handleReversePayment = async (paymentId: string, reason: string) => {
+    if (!selectedInvoice) return;
+    await mssCommerceService.reversePayment(paymentId, reason);
+    showNotification({
+      type: 'info',
+      title: 'تم عكس الدفعة بنجاح',
+      message: 'تم تسجيل قيد عكسي وتحديث رصيد الفاتورة وحالتها تلقائياً.',
+    });
+    await refreshModalInvoice(selectedInvoice.id);
+  };
+
+  // Handle updating schedule
+  const handleUpdateSchedule = async (newSchedule: any[]) => {
+    if (!selectedInvoice) return;
+    await mssCommerceService.updateInstallmentSchedule(selectedInvoice.id, newSchedule);
+    showNotification({
+      type: 'success',
+      title: 'تم تحديث جدول الأقساط',
+      message: 'تم حفظ جدول مواعيد ومبالغ الأقساط المحدث.',
+    });
+    await refreshModalInvoice(selectedInvoice.id);
+  };
+
   // Aggregated KPIs
   const totalInvoices = invoices.length;
   const activeInvoices = invoices.filter(i => !i.is_returned);
   const totalRevenue = activeInvoices.reduce((sum, i) => sum + i.actual_sale_price, 0);
-  const totalProfit = activeInvoices.reduce((sum, i) => sum + i.gross_profit, 0);
+  const totalPaid = activeInvoices.reduce(
+    (sum, i) => sum + (i.paid_amount ?? i.actual_sale_price),
+    0
+  );
+  const totalReceivables = activeInvoices.reduce((sum, i) => sum + (i.remaining_balance ?? 0), 0);
+  const overdueCount = activeInvoices.filter(i => i.payment_status === 'OVERDUE').length;
 
   // Filtered Invoices
   const filteredInvoices = invoices.filter(inv => {
     if (sellingBranchFilter !== 'ALL' && inv.selling_branch !== sellingBranchFilter) return false;
+    if (paymentStatusFilter !== 'ALL' && inv.payment_status !== paymentStatusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const matchNum = inv.invoice_number.toLowerCase().includes(q);
@@ -68,6 +193,13 @@ export const MSSInvoicesView: React.FC = () => {
     }
     return true;
   });
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSellingBranchFilter('ALL');
+    setPaymentStatusFilter('ALL');
+    dateFilter.clearDateRange();
+  };
 
   // Table Columns
   const columns: Column<MSSInvoice>[] = [
@@ -106,7 +238,7 @@ export const MSSInvoicesView: React.FC = () => {
     },
     {
       key: 'selling_branch',
-      header: 'فرع البيع',
+      header: 'الفرع',
       render: (item: MSSInvoice) => (
         <Badge variant={item.selling_branch === 'محل 1' ? 'primary' : 'default'} size="sm">
           {item.selling_branch}
@@ -114,20 +246,8 @@ export const MSSInvoicesView: React.FC = () => {
       ),
     },
     {
-      key: 'source_branch',
-      header: 'مصدر المخزون',
-      render: (item: MSSInvoice) => (
-        <div className="flex items-center gap-1.5 font-semibold text-sm">
-          <Store className="w-4 h-4 text-slate-500" />
-          <Badge variant={item.source_branch === 'محل 1' ? 'primary' : 'default'} size="sm">
-            {item.source_branch}
-          </Badge>
-        </div>
-      ),
-    },
-    {
       key: 'actual_sale_price',
-      header: 'سعر البيع الفعلي',
+      header: 'سعر الفاتورة',
       render: (item: MSSInvoice) => (
         <span className="font-bold text-slate-900 font-mono text-sm tabular-nums">
           {formatCurrency(item.actual_sale_price)}
@@ -135,42 +255,89 @@ export const MSSInvoicesView: React.FC = () => {
       ),
     },
     {
-      key: 'gross_profit',
-      header: 'مجمل الربح',
+      key: 'paid_amount',
+      header: 'المدفوع',
       render: (item: MSSInvoice) => (
-        <span
-          className={`font-bold font-mono text-sm tabular-nums ${
-            item.gross_profit >= 0 ? 'text-emerald-700' : 'text-rose-700'
-          }`}
-        >
-          {item.gross_profit >= 0 ? `+${formatCurrency(item.gross_profit)}` : formatCurrency(item.gross_profit)}
+        <span className="font-bold text-emerald-700 font-mono text-sm tabular-nums">
+          {formatCurrency(item.paid_amount ?? item.actual_sale_price)}
         </span>
       ),
     },
     {
-      key: 'is_returned',
-      header: 'الحالة',
-      render: (item: MSSInvoice) =>
-        item.is_returned ? (
-          <Badge variant="danger" size="sm">مرتجع</Badge>
-        ) : (
-          <Badge variant="success" size="sm">سارية</Badge>
-        ),
+      key: 'remaining_balance',
+      header: 'المتبقي',
+      render: (item: MSSInvoice) => {
+        const remaining = item.remaining_balance ?? 0;
+        return (
+          <span
+            className={`font-bold font-mono text-sm tabular-nums ${
+              remaining > 0 ? 'text-rose-700' : 'text-slate-500'
+            }`}
+          >
+            {remaining > 0 ? formatCurrency(remaining) : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'payment_status',
+      header: 'حالة السداد',
+      render: (item: MSSInvoice) => {
+        const st = item.payment_status || 'PAID';
+        if (st === 'PAID') {
+          return (
+            <Badge variant="success" size="sm">
+              مسددة
+            </Badge>
+          );
+        }
+        if (st === 'PARTIALLY_PAID') {
+          return (
+            <Badge variant="warning" size="sm">
+              جزئي
+            </Badge>
+          );
+        }
+        if (st === 'OVERDUE') {
+          return (
+            <Badge variant="danger" size="sm">
+              متأخر
+            </Badge>
+          );
+        }
+        return (
+          <Badge variant="danger" size="sm">
+            غير مسدد
+          </Badge>
+        );
+      },
     },
     {
       key: 'actions',
-      header: 'معاينة وطباعة',
+      header: 'إجراءات ومعاينة',
       align: 'center',
       render: (item: MSSInvoice) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setSelectedInvoice(item)}
-          className="h-8 px-3 text-xs font-semibold"
-          leftIcon={<Eye className="w-4 h-4 text-slate-500" />}
-        >
-          عرض الفاتورة
-        </Button>
+        <div className="flex items-center justify-center gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleOpenInvoiceModal(item, 'payments')}
+            className="h-8 px-2.5 text-xs font-bold border-emerald-300 text-emerald-900 bg-emerald-50/50 hover:bg-emerald-100"
+            leftIcon={<Wallet className="w-3.5 h-3.5 text-emerald-600" />}
+            title="إدارة التحصيل وسجل الدفعات والأقساط"
+          >
+            تحصيل
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleOpenInvoiceModal(item, 'print')}
+            className="h-8 px-2.5 text-xs font-semibold"
+            leftIcon={<Eye className="w-3.5 h-3.5 text-slate-500" />}
+          >
+            عرض
+          </Button>
+        </div>
       ),
     },
   ];
@@ -178,129 +345,144 @@ export const MSSInvoicesView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="فواتير مبيعات  Compu MSS"
-        subtitle=""
+        title="فواتير مبيعات وتحصيلات Compu MSS"
+        subtitle="متابعة فواتير الأجهزة النقدية والآجلة وتحصيل الأقساط"
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير وسجلات Compu MSS...')}
+            disabled={isRefreshing || isLoading}
+            leftIcon={
+              <RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+            }
+            className="border-slate-300 text-slate-800 font-semibold"
+          >
+            تحديث
+          </Button>
+        }
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الفواتير </p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الفواتير</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{totalInvoices}</span>
+            <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+              {totalInvoices}
+            </span>
             <FileText className="w-5 h-5 text-slate-500" />
           </div>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الإيراد الفعلي </p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي المبيعات</p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
               {formatCurrency(totalRevenue)}
             </span>
             <DollarSign className="w-5 h-5 text-slate-500" />
           </div>
-    
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي مجمل الربح </p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">المحصل فعلياً</p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-700 font-mono tabular-nums">
-              {formatCurrency(totalProfit)}
+              {formatCurrency(totalPaid)}
             </span>
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
+          <p className="text-sm text-slate-600 font-semibold mb-1">المستحقات المعلقة (الديون)</p>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-rose-700 font-mono tabular-nums">
+              {formatCurrency(totalReceivables)}
+            </span>
+            <Wallet className="w-5 h-5 text-rose-600" />
           </div>
         </Card>
       </div>
 
-      {/* Search and Filter */}
-      <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
-        <div className="flex flex-col md:flex-row items-center gap-3">
-          <div className="flex-1 w-full">
+      {/* Filter Bar */}
+      <Card className="p-4 bg-white border border-slate-300 shadow-2xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          <div className="sm:col-span-4">
             <Input
-              placeholder="ابحث برقم الفاتورة، السيريال، اسم العميل، الهاتف، أو الموديل..."
+              placeholder="البحث برقم الفاتورة، السيريال، الموديل، العميل..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4.5 h-4.5" />}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
             />
           </div>
 
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير   Compu MSS...')}
-            disabled={isRefreshing || isLoading}
-            title="إعادة تحميل البيانات"
-            className="font-semibold"
-            leftIcon={<RefreshCw className={`w-4.5 h-4.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
-          >
-            Refresh
-          </Button>
-        </div>
+          <div className="sm:col-span-3">
+            <DateRangeInputs
+              startDate={dateFilter.startDate}
+              endDate={dateFilter.endDate}
+              maxStartDate={dateFilter.maxStartDate}
+              minEndDate={dateFilter.minEndDate}
+              maxEndDate={dateFilter.maxEndDate}
+              error={dateFilter.error}
+              onStartDateChange={dateFilter.setStartDate}
+              onEndDateChange={dateFilter.setEndDate}
+              onClear={dateFilter.clearDateRange}
+            />
+          </div>
 
-        {/* Date Filter & Branch Pills */}
-        <div className="pt-3 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <DateRangeInputs
-            startDate={dateFilter.startDate}
-            endDate={dateFilter.endDate}
-            onStartDateChange={dateFilter.setStartDate}
-            onEndDateChange={dateFilter.setEndDate}
-            error={dateFilter.error}
-            onClear={dateFilter.reset}
-          />
+          <div className="sm:col-span-2">
+            <Select
+              value={sellingBranchFilter}
+              onChange={e => setSellingBranchFilter(e.target.value as any)}
+            >
+              <option value="ALL">جميع الفروع</option>
+              <option value="محل 1">محل 1</option>
+              <option value="محل 2">محل 2</option>
+            </Select>
+          </div>
 
-          <div className="flex items-center gap-2.5 text-sm">
-            <span className="font-semibold text-slate-700 text-sm shrink-0">فرع البيع:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300">
-              <button
-                onClick={() => setSellingBranchFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  sellingBranchFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                كلا الفرعين ({invoices.length})
-              </button>
-              <button
-                onClick={() => setSellingBranchFilter('محل 1')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  sellingBranchFilter === 'محل 1'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 1 ({invoices.filter(i => i.selling_branch === 'محل 1').length})
-              </button>
-              <button
-                onClick={() => setSellingBranchFilter('محل 2')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  sellingBranchFilter === 'محل 2'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                محل 2 ({invoices.filter(i => i.selling_branch === 'محل 2').length})
-              </button>
-            </div>
+          <div className="sm:col-span-2">
+            <Select
+              value={paymentStatusFilter}
+              onChange={e => setPaymentStatusFilter(e.target.value)}
+            >
+              <option value="ALL">جميع حالات السداد</option>
+              <option value="PAID">مسددة بالكامل</option>
+              <option value="PARTIALLY_PAID">مسددة جزئياً</option>
+              <option value="UNPAID">غير مسددة</option>
+              <option value="OVERDUE">متأخرة عن الموعد</option>
+            </Select>
+          </div>
+
+          <div className="sm:col-span-1 flex justify-end">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={handleResetFilters}
+              title="إعادة تعيين الفلاتر"
+              className="w-full border-slate-300"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-600" />
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* Table */}
+      {/* Invoices Table */}
       {isLoading ? (
-        <Card className="p-12 text-center bg-white border-slate-300">
-          <Spinner size="lg" className="mx-auto mb-3" />
-          <p className="text-sm font-medium text-slate-600">جاري تحميل سجلات الفواتير...</p>
-        </Card>
+        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
+          <Spinner size="lg" />
+          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل فواتير الأجهزة...</p>
+        </div>
       ) : filteredInvoices.length === 0 ? (
-        <Card className="p-12 text-center space-y-3 bg-white border-slate-300">
+        <Card className="p-12 text-center bg-white border border-slate-300 shadow-2xs space-y-3">
           <FileText className="w-12 h-12 mx-auto text-slate-400" />
           <h3 className="text-base font-bold text-slate-800">لا توجد فواتير مطابقة</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            تظهر هنا فواتير المبيعات الصادرة لكل جهاز     .
+            تظهر هنا فواتير المبيعات الصادرة لكل جهاز مع سجل التحصيلات والأقساط.
           </p>
         </Card>
       ) : (
@@ -314,153 +496,285 @@ export const MSSInvoicesView: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: Printable Invoice Preview */}
+      {/* MODAL: Printable Invoice Preview & Payment History Section */}
       {/* ========================================================================= */}
-      <Modal
-        isOpen={!!selectedInvoice}
-        onClose={() => setSelectedInvoice(null)}
-        title={`معاينة فاتورة مبيعات جهاز (${selectedInvoice?.invoice_number})`}
-        subtitle="  "
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button variant="outline" size="md" onClick={() => setSelectedInvoice(null)} className="border-slate-300 font-semibold">
-              إغلاق
-            </Button>
-            <div className="flex items-center gap-2">
+      {selectedInvoice && (
+        <Modal
+          isOpen={!!selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          title={`فاتورة جهاز: ${selectedInvoice.brand || ''} ${selectedInvoice.model_name} (${selectedInvoice.invoice_number})`}
+          subtitle={`التاريخ: ${formatDate(selectedInvoice.sale_date)} • الفرع: ${selectedInvoice.selling_branch}`}
+          size="xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
               <Button
                 variant="outline"
                 size="md"
-                onClick={async () => {
-                  if (!selectedInvoice) return;
-                  await documentPrintService.exportToPdf('mss-invoice-print-root', {
-                    title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
-                    format: 'a4',
-                  });
-                }}
-                leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
-                className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+                onClick={() => setSelectedInvoice(null)}
+                className="border-slate-300 font-semibold"
               >
-                حفظ كـ PDF
+                إغلاق
               </Button>
-              <Button
-                variant="primary"
-                size="md"
-                className="font-bold shadow-xs"
-                onClick={async () => {
-                  if (!selectedInvoice) return;
-                  await documentPrintService.printElement('mss-invoice-print-root', {
-                    title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
-                    format: 'a4',
-                  });
-                }}
-                leftIcon={<Printer className="w-4.5 h-4.5" />}
-              >
-                طباعة الفاتورة A4
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={async () => {
+                    await documentPrintService.exportToPdf('mss-invoice-print-root', {
+                      title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
+                      format: 'a4',
+                    });
+                  }}
+                  leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
+                  className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+                >
+                  حفظ كـ PDF
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="font-bold shadow-xs"
+                  onClick={async () => {
+                    await documentPrintService.printElement('mss-invoice-print-root', {
+                      title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
+                      format: 'a4',
+                    });
+                  }}
+                  leftIcon={<Printer className="w-4.5 h-4.5" />}
+                >
+                  طباعة الفاتورة A4
+                </Button>
+              </div>
             </div>
+          }
+        >
+          {/* Modal Header Tabs: Print vs Collection */}
+          <div className="flex border-b border-slate-200 mb-4 pb-1 gap-2">
+            <button
+              type="button"
+              onClick={() => setModalTab('print')}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer ${
+                modalTab === 'print'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              معاينة وطباعة الفاتورة
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalTab('payments')}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
+                modalTab === 'payments'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Wallet className="w-4 h-4 text-emerald-500" />
+              <span>إدارة التحصيل وسجل الدفعات والأقساط ({invoicePayments.length})</span>
+            </button>
           </div>
-        }
-      >
-        {selectedInvoice && (
-          <div id="mss-invoice-print-root" className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
-            {/* Header */}
-            <div className="text-center pb-4 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Compu MSS   </h3>
-              <p className="text-slate-500 text-xs mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
-            </div>
 
-            {/* Status Banner if Returned */}
-            {selectedInvoice.is_returned && (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-center text-sm font-semibold text-rose-700">
-                هذه الفاتورة تم إرجاعها  وإعادة الجهاز إلى المخزون.
+          {modalTab === 'print' ? (
+            <div
+              id="mss-invoice-print-root"
+              className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none"
+            >
+              {/* Header */}
+              <div className="text-center pb-4 border-b border-slate-200">
+                <h3 className="text-lg font-bold text-slate-900">Compu MSS</h3>
+                <p className="text-slate-500 text-xs mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
               </div>
-            )}
 
-            {/* Metadata Grid */}
-            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-300 text-sm">
-              <div>
-                <span className="text-slate-500">رقم الفاتورة: </span>
-                <strong className="font-mono text-slate-900 font-bold tabular-nums">{selectedInvoice.invoice_number}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500">تاريخ البيع: </span>
-                <span className="font-mono font-medium text-slate-800 tabular-nums">{formatDate(selectedInvoice.sale_date)}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">فرع البيع: </span>
-                <strong className="text-slate-900 font-bold">{selectedInvoice.selling_branch}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500">فرع مصدر الجهاز: </span>
-                <strong className="text-slate-900 font-bold">{selectedInvoice.source_branch}</strong>
-              </div>
-              {selectedInvoice.customer_name && (
-                <div>
-                  <span className="text-slate-500">اسم العميل: </span>
-                  <strong className="text-slate-900 font-bold">{selectedInvoice.customer_name}</strong>
+              {/* Status Banner if Returned */}
+              {selectedInvoice.is_returned && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-center text-sm font-semibold text-rose-700">
+                  هذه الفاتورة تم إرجاعها وإعادة الجهاز إلى المخزون.
                 </div>
               )}
-              {selectedInvoice.customer_phone && (
+
+              {/* Metadata Grid */}
+              <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-300 text-sm">
                 <div>
-                  <span className="text-slate-500">رقم الهاتف: </span>
-                  <span className="font-mono font-medium text-slate-800 tabular-nums">{selectedInvoice.customer_phone}</span>
+                  <span className="text-slate-500">رقم الفاتورة: </span>
+                  <strong className="font-mono text-slate-900 font-bold tabular-nums">
+                    {selectedInvoice.invoice_number}
+                  </strong>
                 </div>
-              )}
-            </div>
-
-            {/* Device Info */}
-            <div className="p-4 border border-slate-300 rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-base">
-                  {selectedInvoice.brand} {selectedInvoice.model_name}
-                </span>
-                <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
-                  {selectedInvoice.serial_number}
-                </span>
-              </div>
-              <p className="text-slate-500 font-mono text-xs">
-                {[selectedInvoice.processor, selectedInvoice.gpu, selectedInvoice.ram, selectedInvoice.storage, selectedInvoice.screen_size]
-                  .filter(Boolean)
-                  .join(' • ')}
-              </p>
-            </div>
-
-            {/* Financials Table */}
-            <div className="border border-slate-300 rounded-xl overflow-hidden">
-              <div className="flex justify-between p-3 bg-slate-100/90 font-bold text-slate-800 border-b border-slate-300 text-xs">
-                <span>البيان</span>
-                <span>المبلغ</span>
-              </div>
-              <div className="p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">السعر  :</span>
-                  <span className="font-mono font-medium tabular-nums">{formatCurrency(selectedInvoice.list_price_snapshot)}</span>
+                <div>
+                  <span className="text-slate-500">تاريخ البيع: </span>
+                  <span className="font-mono font-medium text-slate-800 tabular-nums">
+                    {formatDate(selectedInvoice.sale_date)}
+                  </span>
                 </div>
-                {selectedInvoice.discount_amount > 0 && (
-                  <div className="flex justify-between text-rose-600 font-semibold">
-                    <span>الخصم :</span>
-                    <span className="font-mono tabular-nums">-{formatCurrency(selectedInvoice.discount_amount)}</span>
+                <div>
+                  <span className="text-slate-500">فرع البيع: </span>
+                  <strong className="text-slate-900 font-bold">
+                    {selectedInvoice.selling_branch}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-500">فرع مصدر الجهاز: </span>
+                  <strong className="text-slate-900 font-bold">
+                    {selectedInvoice.source_branch}
+                  </strong>
+                </div>
+                {selectedInvoice.customer_name && (
+                  <div>
+                    <span className="text-slate-500">اسم العميل: </span>
+                    <strong className="text-slate-900 font-bold">
+                      {selectedInvoice.customer_name}
+                    </strong>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-200 text-slate-900">
-                  <span>إجمالي المدفوع:</span>
-                  <span className="font-mono text-base tabular-nums">{formatCurrency(selectedInvoice.actual_sale_price)}</span>
+                {selectedInvoice.customer_phone && (
+                  <div>
+                    <span className="text-slate-500">رقم الهاتف: </span>
+                    <span className="font-mono font-medium text-slate-800 tabular-nums">
+                      {selectedInvoice.customer_phone}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-slate-500">نوع السداد: </span>
+                  <strong className="text-slate-900 font-bold">
+                    {selectedInvoice.payment_type === 'DEFERRED' ? 'بيع آجل / أقساط' : 'سداد كامل'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-500">حالة السداد: </span>
+                  <strong
+                    className={`font-bold ${
+                      selectedInvoice.payment_status === 'PAID'
+                        ? 'text-emerald-700'
+                        : selectedInvoice.payment_status === 'OVERDUE'
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                    }`}
+                  >
+                    {selectedInvoice.payment_status === 'PAID'
+                      ? 'مسددة بالكامل'
+                      : selectedInvoice.payment_status === 'PARTIALLY_PAID'
+                        ? 'مسددة جزئياً'
+                        : selectedInvoice.payment_status === 'OVERDUE'
+                          ? 'متأخرة عن الموعد'
+                          : 'غير مسددة'}
+                  </strong>
                 </div>
               </div>
-            </div>
 
-            {/* Warranty & Terms */}
-            <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-1.5">
-              <span className="font-bold text-slate-900 block text-sm">شروط الضمان:</span>
-              <p className="text-slate-700 text-xs leading-relaxed">{selectedInvoice.warranty_period}</p>
-              {selectedInvoice.notes && (
-                <p className="text-slate-500 text-xs pt-2 border-t border-slate-200">ملاحظات: {selectedInvoice.notes}</p>
-              )}
+              {/* Device Info */}
+              <div className="p-4 border border-slate-300 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-base">
+                    {selectedInvoice.brand} {selectedInvoice.model_name}
+                  </span>
+                  <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
+                    {selectedInvoice.serial_number}
+                  </span>
+                </div>
+                <p className="text-slate-500 font-mono text-xs">
+                  {[
+                    selectedInvoice.processor,
+                    selectedInvoice.gpu,
+                    selectedInvoice.ram,
+                    selectedInvoice.storage,
+                    selectedInvoice.screen_size,
+                  ]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </p>
+              </div>
+
+              {/* Financials Table */}
+              <div className="border border-slate-300 rounded-xl overflow-hidden">
+                <div className="flex justify-between p-3 bg-slate-100/90 font-bold text-slate-800 border-b border-slate-300 text-xs">
+                  <span>البيان</span>
+                  <span>المبلغ</span>
+                </div>
+                <div className="p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 font-medium">سعر الجهاز:</span>
+                    <span className="font-mono font-medium tabular-nums">
+                      {formatCurrency(selectedInvoice.list_price_snapshot)}
+                    </span>
+                  </div>
+                  {selectedInvoice.discount_amount > 0 && (
+                    <div className="flex justify-between text-rose-600 font-semibold">
+                      <span>الخصم:</span>
+                      <span className="font-mono tabular-nums">
+                        -{formatCurrency(selectedInvoice.discount_amount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-200 text-slate-900">
+                    <span>إجمالي الفاتورة:</span>
+                    <span className="font-mono text-base tabular-nums">
+                      {formatCurrency(selectedInvoice.actual_sale_price)}
+                    </span>
+                  </div>
+
+                  {selectedInvoice.payment_type === 'DEFERRED' && (
+                    <div className="pt-2 border-t border-dashed border-slate-300 space-y-1.5 text-xs">
+                      <div className="flex justify-between font-bold text-emerald-800">
+                        <span>المسدد:</span>
+                        <span className="font-mono tabular-nums">
+                          {formatCurrency(
+                            selectedInvoice.paid_amount ?? selectedInvoice.actual_sale_price
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-rose-800">
+                        <span>المتبقي الآجل المطلوب:</span>
+                        <span className="font-mono tabular-nums">
+                          {formatCurrency(selectedInvoice.remaining_balance ?? 0)}
+                        </span>
+                      </div>
+                      {selectedInvoice.due_date && (
+                        <div className="flex justify-between text-slate-600 font-medium">
+                          <span>موعد القسط القادم:</span>
+                          <span className="font-mono tabular-nums">{selectedInvoice.due_date}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Warranty & Terms */}
+              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-1.5">
+                <span className="font-bold text-slate-900 block text-sm">شروط الضمان:</span>
+                <p className="text-slate-700 text-xs leading-relaxed">
+                  {selectedInvoice.warranty_period}
+                </p>
+                {selectedInvoice.notes && (
+                  <p className="text-slate-500 text-xs pt-2 border-t border-slate-200">
+                    ملاحظات: {selectedInvoice.notes}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
+          ) : (
+            <PaymentHistorySection
+              invoiceId={selectedInvoice.id}
+              invoiceNumber={selectedInvoice.invoice_number}
+              customerName={selectedInvoice.customer_name}
+              totalAmount={selectedInvoice.actual_sale_price}
+              paidAmount={selectedInvoice.paid_amount ?? selectedInvoice.actual_sale_price}
+              remainingBalance={selectedInvoice.remaining_balance ?? 0}
+              paymentType={selectedInvoice.payment_type || 'FULL'}
+              paymentStatus={selectedInvoice.payment_status || 'PAID'}
+              dueDate={selectedInvoice.due_date}
+              installmentsCount={selectedInvoice.installments_count}
+              payments={invoicePayments}
+              schedule={invoiceSchedule}
+              onRecordPayment={handleRecordPayment}
+              onReversePayment={handleReversePayment}
+              onUpdateSchedule={handleUpdateSchedule}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   );
 };

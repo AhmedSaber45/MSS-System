@@ -402,33 +402,42 @@ export const mssSyncService = {
             remoteDev = localDevs.find((d: any) => d.serial_number === serial);
           }
 
-          if (remoteDev && remoteDev.status === 'SOLD') {
-            // Check if sold by a different invoice
-            let existingInv: any = null;
-            try {
-              const { data } = await supabase
-                .from('mss_invoices')
-                .select('id, invoice_number, selling_branch, sale_date')
-                .eq('serial_number', serial)
-                .maybeSingle();
-              existingInv = data;
-            } catch {
-              // ignore
-            }
+          // Check if sold by a different invoice (remote or local)
+          let existingInv: any = null;
+          try {
+            const { data } = await supabase
+              .from('mss_invoices')
+              .select('id, invoice_number, selling_branch, sale_date')
+              .eq('serial_number', serial)
+              .maybeSingle();
+            existingInv = data;
+          } catch {
+            // ignore
+          }
 
-            if (!existingInv) {
-              const localInvs = getLocalInvoices();
-              existingInv = localInvs.find((inv: any) => inv.serial_number === serial);
-            }
+          if (!existingInv) {
+            const localInvs = getLocalInvoices();
+            existingInv = localInvs.find((inv: any) => inv.serial_number === serial);
+          }
 
-            if (existingInv && existingInv.invoice_number !== op.payload.invoice_number) {
-              // CRITICAL CONFLICT: Both shops sold the same unit while disconnected!
-              detectedConflict = {
-                type: 'DOUBLE_SALE',
-                description: `تعارض بيع مزدوج: تم بيع الجهاز بالسيريال (${serial}) مسبقاً في (${existingInv.selling_branch}) بفاتورة رقم (${existingInv.invoice_number}) أثناء انقطاع الاتصال.`,
-                remoteState: existingInv,
-              };
-            } else if (op.branch) {
+          if (!existingInv) {
+            existingInv = FALLBACK_SEED_INVOICES.find((inv: any) => inv.serial_number === serial);
+          }
+
+          if (existingInv && existingInv.invoice_number !== op.payload.invoice_number) {
+            // CRITICAL CONFLICT: Both shops sold the same unit while disconnected!
+            detectedConflict = {
+              type: 'DOUBLE_SALE',
+              description: `تعارض بيع مزدوج: تم بيع الجهاز بالسيريال (${serial}) مسبقاً في (${existingInv.selling_branch || 'الفرع'}) بفاتورة رقم (${existingInv.invoice_number}) أثناء انقطاع الاتصال.`,
+              remoteState: existingInv,
+            };
+          } else if (remoteDev && remoteDev.status === 'SOLD' && (!existingInv || existingInv.invoice_number !== op.payload.invoice_number)) {
+            detectedConflict = {
+              type: 'DOUBLE_SALE',
+              description: `تعارض بيع مزدوج: الجهاز بالسيريال (${serial}) مسجل كمباع مسبقاً في قاعدة البيانات.`,
+              remoteState: remoteDev,
+            };
+          } else if (op.branch) {
               let remoteDev: any = null;
               try {
                 const { data } = await supabase
@@ -448,7 +457,6 @@ export const mssSyncService = {
                 };
               }
             }
-          }
         } else if (op.type === 'RESERVATION_CREATE') {
           const serial = op.payload.serial_number;
           let remoteDev: any = null;
@@ -566,15 +574,92 @@ export const mssSyncService = {
           op.conflict_id = conflictId;
           conflictCount++;
         } else {
-          // No Conflict: Apply to cloud
-          await supabase.from('mss_sync_log').insert({
-            operation_uuid: op.uuid,
-            operation_type: op.type,
-            branch: op.branch,
-            payload: op.payload,
-            client_timestamp: op.client_timestamp,
-            status: 'SYNCED',
-          });
+          // No Conflict: Apply to cloud tables if applicable
+          if (op.type === 'PAYMENT_RECORD' && op.payload?.payment) {
+            const p = op.payload.payment;
+            try {
+              await supabase.from('mss_payments').insert({
+                id: p.id,
+                invoice_id: p.invoice_id,
+                amount: p.amount,
+                payment_date: p.payment_date,
+                payment_method: p.payment_method,
+                notes: p.notes,
+                recorded_by: p.recorded_by,
+                is_reversal: false,
+              });
+              if (op.payload.balances && op.payload.invoice_id) {
+                await supabase.from('mss_invoices').update({
+                  paid_amount: op.payload.balances.paidAmount,
+                  remaining_balance: op.payload.balances.remainingBalance,
+                  payment_status: op.payload.balances.paymentStatus,
+                }).eq('id', op.payload.invoice_id);
+              }
+            } catch (err) {
+              console.warn('Sync PAYMENT_RECORD to Supabase warning:', err);
+            }
+          } else if (op.type === 'PAYMENT_REVERSE' && op.payload?.reversal) {
+            const r = op.payload.reversal;
+            try {
+              await supabase.from('mss_payments').insert({
+                id: r.id,
+                invoice_id: r.invoice_id,
+                amount: r.amount,
+                payment_date: r.payment_date,
+                payment_method: r.payment_method,
+                notes: r.notes,
+                recorded_by: r.recorded_by,
+                is_reversal: true,
+                reversal_of_id: r.reversal_of_id,
+                reversal_reason: r.reversal_reason,
+              });
+              if (op.payload.balances && op.payload.invoice_id) {
+                await supabase.from('mss_invoices').update({
+                  paid_amount: op.payload.balances.paidAmount,
+                  remaining_balance: op.payload.balances.remainingBalance,
+                  payment_status: op.payload.balances.paymentStatus,
+                }).eq('id', op.payload.invoice_id);
+              }
+            } catch (err) {
+              console.warn('Sync PAYMENT_REVERSE to Supabase warning:', err);
+            }
+          } else if (op.type === 'INSTALLMENT_SCHEDULE_UPDATE' && op.payload?.schedules) {
+            try {
+              await supabase.from('mss_installment_schedules').delete().eq('invoice_id', op.payload.invoice_id);
+              for (const sch of op.payload.schedules) {
+                await supabase.from('mss_installment_schedules').insert({
+                  id: sch.id,
+                  invoice_id: sch.invoice_id,
+                  installment_number: sch.installment_number,
+                  due_date: sch.due_date,
+                  expected_amount: sch.expected_amount,
+                  notes: sch.notes,
+                });
+              }
+              if (op.payload.due_date !== undefined && op.payload.invoice_id) {
+                await supabase.from('mss_invoices').update({
+                  due_date: op.payload.due_date,
+                  installments_count: op.payload.installments_count,
+                }).eq('id', op.payload.invoice_id);
+              }
+            } catch (err) {
+              console.warn('Sync INSTALLMENT_SCHEDULE_UPDATE warning:', err);
+            }
+          }
+
+          // Log to mss_sync_log
+          try {
+            await supabase.from('mss_sync_log').insert({
+              operation_uuid: op.uuid,
+              operation_type: op.type,
+              branch: op.branch,
+              payload: op.payload,
+              client_timestamp: op.client_timestamp,
+              status: 'SYNCED',
+            });
+          } catch {
+            // ignore
+          }
 
           op.status = 'SYNCED';
           op.synced_at = new Date().toISOString();

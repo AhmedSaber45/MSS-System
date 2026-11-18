@@ -313,4 +313,97 @@ export const mssReportsService = {
       };
     });
   },
+
+  /**
+   * Get customer receivables and debt collection summary for Compu MSS
+   */
+  async getMSSReceivablesReport(): Promise<{
+    totalReceivables: number;
+    totalPaidReceivables: number;
+    unpaidCount: number;
+    partiallyPaidCount: number;
+    overdueCount: number;
+    paidCount: number;
+    debtors: {
+      invoiceId: string;
+      invoiceNumber: string;
+      saleDate: string;
+      customerName: string;
+      customerPhone?: string;
+      sellingBranch: string;
+      brand?: string;
+      modelName: string;
+      serialNumber: string;
+      totalAmount: number;
+      paidAmount: number;
+      remainingBalance: number;
+      dueDate?: string;
+      paymentStatus: string;
+      isOverdue: boolean;
+    }[];
+  }> {
+    const invoices = await mssCommerceService.getInvoices({});
+    const today = new Date().toISOString().substring(0, 10);
+
+    let totalReceivables = 0;
+    let totalPaidReceivables = 0;
+    let unpaidCount = 0;
+    let partiallyPaidCount = 0;
+    let overdueCount = 0;
+    let paidCount = 0;
+    const debtors: any[] = [];
+
+    for (const inv of invoices) {
+      if (inv.is_returned) continue;
+
+      const remaining = inv.remaining_balance ?? 0;
+      const paid = inv.paid_amount ?? inv.actual_sale_price;
+      const status = inv.payment_status || (remaining <= 0 ? 'PAID' : 'UNPAID');
+      const isOverdue = status === 'OVERDUE' || (remaining > 0 && !!inv.due_date && inv.due_date < today);
+
+      if (status === 'PAID') {
+        paidCount++;
+      } else if (status === 'PARTIALLY_PAID') {
+        partiallyPaidCount++;
+      } else if (isOverdue) {
+        overdueCount++;
+      } else {
+        unpaidCount++;
+      }
+
+      if (remaining > 0) {
+        totalReceivables = roundMoney(totalReceivables + remaining);
+        totalPaidReceivables = roundMoney(totalPaidReceivables + paid);
+        debtors.push({
+          invoiceId: inv.id,
+          invoiceNumber: inv.invoice_number,
+          saleDate: inv.sale_date,
+          customerName: inv.customer_name || 'عميل نقدي عام',
+          customerPhone: inv.customer_phone,
+          sellingBranch: inv.selling_branch,
+          brand: inv.brand,
+          modelName: inv.model_name,
+          serialNumber: inv.serial_number,
+          totalAmount: inv.actual_sale_price,
+          paidAmount: paid,
+          remainingBalance: remaining,
+          dueDate: inv.due_date,
+          paymentStatus: isOverdue ? 'OVERDUE' : status,
+          isOverdue,
+        });
+      }
+    }
+
+    debtors.sort((a, b) => b.remainingBalance - a.remainingBalance);
+
+    return {
+      totalReceivables,
+      totalPaidReceivables,
+      unpaidCount,
+      partiallyPaidCount,
+      overdueCount,
+      paidCount,
+      debtors,
+    };
+  },
 };

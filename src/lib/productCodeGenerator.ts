@@ -179,7 +179,7 @@ export function generateProductCodePrefix(name: string): string {
   return prefix || 'PRD';
 }
 
-function getFirstLetterOfWord(word: string): string {
+export function getFirstLetterOfWord(word: string): string {
   for (const ch of word) {
     const trans = getTransliteratedChar(ch);
     if (trans) return trans;

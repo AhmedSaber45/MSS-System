@@ -8,15 +8,16 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, FileDown, ShieldCheck, RefreshCw } from 'lucide-react';
+import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, FileDown, ShieldCheck, RefreshCw, Banknote, Tag, Clock, Calendar } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import { documentPrintService } from '@/lib/documentPrintService';
+import { InstallmentScheduleBuilder, PlannedInstallmentItem } from '@/components/common/InstallmentScheduleBuilder';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
-import type { MSSInvoice } from '@/types/mssCommerce';
+import type { MSSInvoice, MSSPaymentType } from '@/types/mssCommerce';
 
 export const MSSSalesView: React.FC = () => {
   const { showNotification } = useNotification();
@@ -33,6 +34,15 @@ export const MSSSalesView: React.FC = () => {
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
+  const [paymentType, setPaymentType] = useState<MSSPaymentType>('FULL');
+  const [initialPayment, setInitialPayment] = useState<number>(0);
+  const [dueDate, setDueDate] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().substring(0, 10);
+  });
+  const [installmentSchedule, setInstallmentSchedule] = useState<PlannedInstallmentItem[]>([]);
+  const [showScheduleBuilder, setShowScheduleBuilder] = useState<boolean>(false);
   const [warrantyPeriod, setWarrantyPeriod] = useState<string>('ضمان شهر كامل من تاريخ الشراء');
   const [notes, setNotes] = useState<string>('حالة ممتازة مع الشاحن الأصلي');
   const [formError, setFormError] = useState<string>('');
@@ -100,6 +110,7 @@ export const MSSSalesView: React.FC = () => {
   const grossProfit = selectedDevice ? actualPrice - costSnapshot : 0;
   const sourceBranch = selectedDevice ? selectedDevice.stock_location : 'محل 1';
   const isCrossBranch = sellingBranch !== sourceBranch;
+  const remainingBalance = paymentType === 'FULL' ? 0 : Math.max(0, actualPrice - initialPayment);
 
   // Submit sale
   const handleConfirmSale = async (e: React.FormEvent) => {
@@ -116,6 +127,17 @@ export const MSSSalesView: React.FC = () => {
       return;
     }
 
+    if (paymentType === 'DEFERRED') {
+      if (initialPayment > actualPrice) {
+        setFormError('الدفعة المقدمة لا يمكن أن تتجاوز سعر بيع الجهاز.');
+        return;
+      }
+      if (initialPayment < 0) {
+        setFormError('الدفعة المقدمة لا يمكن أن تكون سالبة.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setFormError('');
 
@@ -129,6 +151,10 @@ export const MSSSalesView: React.FC = () => {
         customer_phone: customerPhone.trim() || undefined,
         warranty_period: warrantyPeriod.trim() || undefined,
         notes: notes.trim() || undefined,
+        payment_type: paymentType,
+        initial_payment: paymentType === 'DEFERRED' ? initialPayment : Number(actualPrice),
+        due_date: paymentType === 'DEFERRED' ? dueDate || undefined : undefined,
+        installments: paymentType === 'DEFERRED' && installmentSchedule.length > 0 ? installmentSchedule : undefined,
       });
 
       showNotification({
@@ -151,6 +177,10 @@ export const MSSSalesView: React.FC = () => {
     setCompletedInvoice(null);
     setCustomerName('');
     setCustomerPhone('');
+    setPaymentType('FULL');
+    setInitialPayment(0);
+    setInstallmentSchedule([]);
+    setShowScheduleBuilder(false);
     loadDevices();
   };
 
@@ -311,29 +341,157 @@ export const MSSSalesView: React.FC = () => {
             )}
           </Card>
 
-          {/* Card 3: Customer & Warranty Details */}
+          {/* Card 3: Customer & Payment Details */}
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <ShieldCheck className="w-4.5 h-4.5 text-slate-600" />
-              <span>3. بيانات العميل </span>
+              <span>3. بيانات العميل ونوع البيع</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="اسم العميل (اختياري)"
+                label={paymentType === 'DEFERRED' ? 'اسم العميل (مطلوب للآجل) *' : 'اسم العميل (اختياري)'}
                 placeholder="مثال: م. أحمد ..."
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
               />
 
               <Input
-                label="رقم هاتف العميل (اختياري)"
+                label={paymentType === 'DEFERRED' ? 'رقم هاتف العميل (مطلوب للآجل) *' : 'رقم هاتف العميل (اختياري)'}
                 placeholder="مثال: 01012345678..."
                 value={customerPhone}
                 onChange={e => setCustomerPhone(e.target.value)}
                 isMonospace
               />
             </div>
+
+            {/* Payment Type Selection: Full vs Deferred */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">نوع البيع وطريقة التحصيل:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentType('FULL');
+                    setInitialPayment(0);
+                  }}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    paymentType === 'FULL'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Banknote className="w-4 h-4" />
+                  <span>سداد فوري كامل</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentType('DEFERRED');
+                    if (initialPayment === 0 && actualPrice > 0) {
+                      setInitialPayment(Math.round(actualPrice / 2));
+                    }
+                  }}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    paymentType === 'DEFERRED'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Tag className="w-4 h-4" />
+                  <span>بيع آجل / أقساط</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Deferred Settings */}
+            {paymentType === 'DEFERRED' && (
+              <div className="p-3.5 bg-amber-50/70 border border-amber-300 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-amber-700" />
+                    <span>بيانات البيع الآجل والأقساط</span>
+                  </span>
+                  <span className="text-xs font-bold text-slate-700">
+                    المتبقي: <strong className="text-rose-700 font-mono text-sm">{formatCurrency(remainingBalance)}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[11px] font-bold text-slate-700">الدفعة المقدمة (EGP):</label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setInitialPayment(0)}
+                          className="text-[10px] bg-white border border-slate-300 px-1.5 py-0.5 rounded text-slate-700 hover:bg-slate-100 font-bold"
+                        >
+                          0 مقدم
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInitialPayment(Math.round(actualPrice / 2))}
+                          className="text-[10px] bg-white border border-slate-300 px-1.5 py-0.5 rounded text-slate-700 hover:bg-slate-100 font-bold"
+                        >
+                          50%
+                        </button>
+                      </div>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={actualPrice}
+                      value={initialPayment || ''}
+                      placeholder="0"
+                      onChange={e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setInitialPayment(Math.max(0, Math.min(actualPrice, val)));
+                      }}
+                      className="h-8 text-xs font-bold font-mono"
+                      isMonospace
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      تاريخ استحقاق أول قسط:
+                    </label>
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={e => setDueDate(e.target.value)}
+                      className="h-8 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Expandable Schedule Builder */}
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowScheduleBuilder(!showScheduleBuilder)}
+                    className="w-full text-xs font-bold border-amber-300 bg-white hover:bg-amber-100/60 text-amber-900 justify-between"
+                  >
+                    <span>{showScheduleBuilder ? 'إخفاء تفاصيل جدول الأقساط' : 'تحديد وتوزيع جدول الأقساط بالتفصيل'}</span>
+                    <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                  </Button>
+
+                  {showScheduleBuilder && remainingBalance > 0 && (
+                    <div className="mt-2.5">
+                      <InstallmentScheduleBuilder
+                        remainingBalance={remainingBalance}
+                        schedule={installmentSchedule}
+                        onChange={setInstallmentSchedule}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
@@ -422,6 +580,19 @@ export const MSSSalesView: React.FC = () => {
                   <span className="text-slate-900 font-mono text-base tabular-nums">{formatCurrency(actualPrice)}</span>
                 </div>
 
+                {paymentType === 'DEFERRED' && (
+                  <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg space-y-1.5 text-xs">
+                    <div className="flex justify-between font-bold text-amber-950">
+                      <span>المدفوع مقدماً:</span>
+                      <span className="font-mono tabular-nums">{formatCurrency(initialPayment)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-rose-800 border-t border-amber-200 pt-1">
+                      <span>المتبقي الآجل المطلوب:</span>
+                      <span className="font-mono tabular-nums">{formatCurrency(remainingBalance)}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-slate-600 font-medium">
                   <span>تكلفة الجهاز :</span>
                   <span className="font-mono tabular-nums">{formatCurrency(costSnapshot)}</span>
@@ -446,7 +617,11 @@ export const MSSSalesView: React.FC = () => {
                 className="w-full font-bold"
                 leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-5 h-5" />}
               >
-                {isSubmitting ? 'جاري تأكيد البيع...' : `تأكيد بيع الجهاز (${formatCurrency(actualPrice)})`}
+                {isSubmitting
+                  ? 'جاري تأكيد البيع...'
+                  : paymentType === 'DEFERRED'
+                    ? `تأكيد البيع الآجل (المحصل: ${formatCurrency(initialPayment)})`
+                    : `تأكيد بيع الجهاز (${formatCurrency(actualPrice)})`}
               </Button>
             </CardFooter>
           </Card>

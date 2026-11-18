@@ -2,6 +2,49 @@ import type { MSSStockLocation } from './mssInventory';
 
 export type { MSSStockLocation };
 
+export type MSSPaymentType = 'FULL' | 'DEFERRED';
+export type MSSPaymentStatus = 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'OVERDUE';
+
+export interface MSSPayment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes?: string | null;
+  recorded_by?: string | null;
+  is_reversal: boolean;
+  reversal_of_id?: string | null;
+  reversal_reason?: string | null;
+  created_at: string;
+}
+
+export interface MSSInstallmentScheduleItem {
+  id: string;
+  invoice_id: string;
+  installment_number: number;
+  due_date: string;
+  expected_amount: number;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface NewMSSPaymentInput {
+  invoice_id?: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes?: string;
+  recorded_by?: string;
+}
+
+export interface MSSInstallmentPlanInput {
+  installment_number: number;
+  due_date: string;
+  expected_amount: number;
+  notes?: string;
+}
+
 export interface MSSInvoice {
   id: string;
   invoice_number: string;
@@ -24,6 +67,16 @@ export interface MSSInvoice {
   created_at: string;
   updated_at: string;
 
+  // Phase 2: Deferred & Installments Fields
+  payment_type?: MSSPaymentType;
+  payment_status?: MSSPaymentStatus;
+  paid_amount?: number;
+  remaining_balance?: number;
+  due_date?: string | null;
+  installments_count?: number;
+  payments?: MSSPayment[];
+  installment_schedule?: MSSInstallmentScheduleItem[];
+
   // Enriched display fields
   brand?: string;
   model_name?: string;
@@ -44,6 +97,13 @@ export interface NewMSSSaleInput {
   customer_phone?: string;
   warranty_period?: string;
   notes?: string;
+
+  // Phase 2: Deferred & Installments Fields
+  payment_type?: MSSPaymentType;
+  initial_payment?: number;
+  due_date?: string | null;
+  payment_method?: string;
+  installments?: MSSInstallmentPlanInput[];
 }
 
 export type MSSReservationStatus = 'ACTIVE' | 'FULFILLED' | 'CANCELLED' | 'EXPIRED';
@@ -103,10 +163,10 @@ export interface MSSReturn {
 
 export interface NewMSSReturnInput {
   invoice_id: string;
-  refund_amount: number;
   return_reason: string;
   restock_location: MSSStockLocation;
   new_condition?: string;
   new_status?: 'AVAILABLE' | 'MAINTENANCE';
+  refund_amount?: number;
   notes?: string;
 }

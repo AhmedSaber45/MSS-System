@@ -40,17 +40,17 @@ import type {
 } from '@/types/backup.ts';
 
 const INTERVAL_OPTIONS = [
-  { value: 1, label: 'كل 1 دقيقة (اختبار دوري فائق السرعة)' },
+  { value: 1, label: 'كل 1 دقيقة ' },
   { value: 5, label: 'كل 5 دقائق' },
   { value: 10, label: 'كل 10 دقائق' },
   { value: 15, label: 'كل 15 دقيقة' },
   { value: 30, label: 'كل 30 دقيقة' },
   { value: 60, label: 'كل 1 ساعة' },
-  { value: 120, label: 'كل ساعتين (2 ساعة)' },
+  { value: 120, label: 'كل ساعتين ' },
   { value: 180, label: 'كل 3 ساعات' },
-  { value: 360, label: 'كل 6 ساعات (موصى به أثناء العمل)' },
+  { value: 360, label: 'كل 6 ساعات ' },
   { value: 720, label: 'كل 12 ساعة' },
-  { value: 1440, label: 'كل 24 ساعة (يومياً)' },
+  { value: 1440, label: 'كل 24 ساعة ' },
 ];
 
 export const BackupView: React.FC = () => {
@@ -857,8 +857,8 @@ export const BackupView: React.FC = () => {
         <Modal
           isOpen={isSettingsModalOpen}
           onClose={() => setIsSettingsModalOpen(false)}
-          title="إعدادات النسخ الاحتياطي التلقائي والمسارات المتعددة"
-          subtitle="تكوين مسارات الحفظ المتعددة، الجدولة الزمنية، والنسخ الفوري بعد العمليات"
+          title="إعدادات النسخ الاحتياطي التلقائي  "
+          subtitle=""
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -885,10 +885,7 @@ export const BackupView: React.FC = () => {
             {/* Master Toggle */}
             <div className="flex items-center justify-between p-3.5 bg-slate-50/90 rounded-xl border border-slate-300">
               <div>
-                <p className="font-bold text-slate-900">تفعيل النسخ الاحتياطي التلقائي (Master Toggle)</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  تمكين أخذ نسخ احتياطية تلقائياً دون تدخل يدوي وفقاً للجدول أو بعد العمليات الناجحة
-                </p>
+                <p className="font-bold text-slate-900">تفعيل النسخ الاحتياطي التلقائي </p>
               </div>
               <input
                 type="checkbox"
@@ -902,17 +899,17 @@ export const BackupView: React.FC = () => {
 
             {/* Triggers: Time-based vs Event-based */}
             <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 space-y-3">
-              <p className="font-bold text-xs text-slate-800">أنماط تشغيل النسخ التلقائي (Triggers):</p>
+              <p className="font-bold text-xs text-slate-800">أنماط تشغيل النسخ التلقائي :</p>
 
               {/* Event-based toggle */}
               <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
-                    <Zap className="w-4 h-4 text-amber-500" />
-                    <span>نسخ فوري بعد كل عملية ناجحة (Event-Based)</span>
+                    
+                    <span>نسخ فوري بعد كل عملية ناجحة </span>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    إنشاء نسخة احتياطية فورية تلقائياً بعد كل عملية بيع، شراء، إضافة أو تعديل أصناف، أو تسوية جردية ناجحة.
+                    إنشاء نسخة احتياطية فورية تلقائياً بعد كل عملية بيع، شراء، إضافة أو تعديل أصناف    .
                   </p>
                 </div>
                 <input
@@ -931,7 +928,7 @@ export const BackupView: React.FC = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
                       <Clock className="w-4 h-4 text-blue-500" />
-                      <span>نسخ مجدول زمنياً (Time-Based)</span>
+                      <span>نسخ مجدول زمنياً </span>
                     </div>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
                       إنشاء نسخة احتياطية بشكل دوري في الخلفية طالما التطبيق يعمل.
@@ -1032,11 +1029,8 @@ export const BackupView: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-bold text-xs text-slate-800">
-                    مسارات وجهات النسخ المتعددة (Multiple Backup Destinations):
+                    مسارات  النسخ  :
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    سيتم كتابة ملف نسخة احتياطية حقيقي في كل مسار من المسارات أدناه عند كل عملية نسخ.
-                  </p>
                 </div>
                 <span className="text-xs font-mono font-bold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded">
                   {tempConfig.destinations.length} مسارات
@@ -1046,7 +1040,7 @@ export const BackupView: React.FC = () => {
               {/* Configured destinations list */}
               {tempConfig.destinations.length === 0 ? (
                 <div className="p-3 bg-white rounded-lg border border-dashed border-slate-300 text-center text-xs text-slate-500">
-                  لم يتم تخصيص مسارات خارجية. سيتم الحفظ في المسار الافتراضي للبرنامج (AppData).
+                  لم يتم تخصيص مسارات خارجية. سيتم الحفظ في المسار الافتراضي للبرنامج .
                 </div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -1087,7 +1081,7 @@ export const BackupView: React.FC = () => {
               {/* Add New Destination Input with Browse Button */}
               <div className="space-y-1.5 pt-2 border-t border-slate-200">
                 <label className="font-semibold text-slate-700 block text-xs">
-                  إضافة مسار وجهة جديد:
+                  إضافة مسار  جديد:
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1136,7 +1130,7 @@ export const BackupView: React.FC = () => {
             {/* Retention count */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 block text-xs">
-                الحد الأقصى لعدد النسخ المحفوظة (Retention Limit):
+                الحد الأقصى لعدد النسخ المحفوظة :
               </label>
               <select
                 value={tempConfig.retentionCount}
@@ -1164,14 +1158,11 @@ export const BackupView: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Power className="w-4 h-4 text-blue-600" />
-                    <h5 className="font-bold text-xs text-slate-900">Startup with Windows (التشغيل مع بدء تشغيل النظام)</h5>
+                    <h5 className="font-bold text-xs text-slate-900">Startup with Windows </h5>
                     <Badge variant={isStartupEnabled ? 'success' : 'default'} size="sm">
                       {isStartupEnabled ? 'مفعل' : 'معطل'}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    إطلاق تطبيق <strong>Compu MSS</strong> تلقائياً عند إقلاع نظام التشغيل Windows لضمان استمرار النسخ المجدول كل دقيقة ودقة التوقيت.
-                  </p>
                 </div>
                 <input
                   type="checkbox"

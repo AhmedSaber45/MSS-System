@@ -1,11 +1,25 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Invoice, InvoiceItem, NewSaleInput } from '../types/sale.ts';
+import type {
+  Invoice,
+  InvoiceItem,
+  NewSaleInput,
+  PaymentType,
+  PaymentStatus,
+  InvoicePayment,
+  InstallmentScheduleItem,
+  NewPaymentInput,
+  InstallmentPlanInput,
+} from '../types/sale.ts';
 import { productsService } from './productsService.ts';
 import { inventoryService } from './inventoryService.ts';
 import { backupService } from './backupService.ts';
+import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
+import { roundMoney } from '../lib/accounting.ts';
 
 const INVOICES_STORAGE_KEY = 'shop_accessories_invoices_v1';
 const INVOICE_ITEMS_STORAGE_KEY = 'shop_accessories_invoice_items_v1';
+const ACCESSORIES_PAYMENTS_STORAGE_KEY = 'shop_accessories_payments_v1';
+const ACCESSORIES_SCHEDULES_STORAGE_KEY = 'shop_accessories_installment_schedules_v1';
 
 // Initial seed sales for browser / fallback preview
 const INITIAL_SEED_INVOICES: Invoice[] = [
@@ -23,6 +37,11 @@ const INITIAL_SEED_INVOICES: Invoice[] = [
     status: 'COMPLETED',
     items_count: 2,
     created_at: new Date('2024-11-10T16:20:00Z').toISOString(),
+    payment_type: 'FULL',
+    payment_status: 'PAID',
+    paid_amount: 320,
+    remaining_balance: 0,
+    installments_count: 0,
   },
   {
     id: 'inv-seed-002',
@@ -38,6 +57,11 @@ const INITIAL_SEED_INVOICES: Invoice[] = [
     status: 'COMPLETED',
     items_count: 2,
     created_at: new Date('2024-11-12T18:45:00Z').toISOString(),
+    payment_type: 'FULL',
+    payment_status: 'PAID',
+    paid_amount: 550,
+    remaining_balance: 0,
+    installments_count: 0,
   },
 ];
 
@@ -100,7 +124,30 @@ const INITIAL_SEED_INVOICE_ITEMS: InvoiceItem[] = [
   },
 ];
 
-import { getTodayLocalDateString, validateDateRange } from '../lib/dateValidation.ts';
+const INITIAL_SEED_PAYMENTS: InvoicePayment[] = [
+  {
+    id: 'pay-seed-001',
+    invoice_id: 'inv-seed-001',
+    amount: 320,
+    payment_date: '2024-11-10',
+    payment_method: 'نقدي',
+    notes: 'سداد كامل عند إصدار الفاتورة',
+    recorded_by: 'النظام',
+    is_reversal: false,
+    created_at: new Date('2024-11-10T16:20:00Z').toISOString(),
+  },
+  {
+    id: 'pay-seed-002',
+    invoice_id: 'inv-seed-002',
+    amount: 550,
+    payment_date: '2024-11-12',
+    payment_method: 'فيزا',
+    notes: 'سداد كامل عند إصدار الفاتورة',
+    recorded_by: 'النظام',
+    is_reversal: false,
+    created_at: new Date('2024-11-12T18:45:00Z').toISOString(),
+  },
+];
 
 function getLocalInvoices(): Invoice[] {
   try {
@@ -138,6 +185,95 @@ function saveLocalInvoiceItems(items: InvoiceItem[]): void {
   localStorage.setItem(INVOICE_ITEMS_STORAGE_KEY, JSON.stringify(items));
 }
 
+function getLocalPayments(): InvoicePayment[] {
+  try {
+    const raw = localStorage.getItem(ACCESSORIES_PAYMENTS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(ACCESSORIES_PAYMENTS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_PAYMENTS));
+      return INITIAL_SEED_PAYMENTS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PAYMENTS;
+  } catch {
+    return INITIAL_SEED_PAYMENTS;
+  }
+}
+
+function saveLocalPayments(payments: InvoicePayment[]): void {
+  localStorage.setItem(ACCESSORIES_PAYMENTS_STORAGE_KEY, JSON.stringify(payments));
+}
+
+function getLocalSchedules(): InstallmentScheduleItem[] {
+  try {
+    const raw = localStorage.getItem(ACCESSORIES_SCHEDULES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalSchedules(schedules: InstallmentScheduleItem[]): void {
+  localStorage.setItem(ACCESSORIES_SCHEDULES_STORAGE_KEY, JSON.stringify(schedules));
+}
+
+/**
+ * Authoritative financial calculation for an invoice's payment status, total collected, and remaining balance.
+ */
+export function computeInvoicePaymentStatus(
+  totalAmount: number,
+  payments: InvoicePayment[],
+  dueDate?: string | null,
+  schedule: InstallmentScheduleItem[] = []
+): { paidAmount: number; remainingBalance: number; paymentStatus: PaymentStatus } {
+  // Sum up all payments (positive for standard, negative for reversals)
+  const netPaid = roundMoney(
+    payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  );
+  const remainingBalance = Math.max(0, roundMoney(totalAmount - netPaid));
+
+  let paymentStatus: PaymentStatus;
+  const today = getTodayLocalDateString();
+
+  if (remainingBalance <= 0.001) {
+    paymentStatus = 'PAID';
+  } else {
+    // Check for overdue conditions:
+    let isOverdue = false;
+    if (dueDate && dueDate < today) {
+      isOverdue = true;
+    }
+    if (!isOverdue && schedule.length > 0) {
+      const sorted = [...schedule].sort(
+        (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+      );
+      let cumExpected = 0;
+      for (const item of sorted) {
+        cumExpected += item.expected_amount;
+        if (item.due_date < today && roundMoney(netPaid) < roundMoney(cumExpected)) {
+          isOverdue = true;
+          break;
+        }
+      }
+    }
+
+    if (isOverdue) {
+      paymentStatus = 'OVERDUE';
+    } else if (netPaid > 0) {
+      paymentStatus = 'PARTIALLY_PAID';
+    } else {
+      paymentStatus = 'UNPAID';
+    }
+  }
+
+  return {
+    paidAmount: netPaid,
+    remainingBalance,
+    paymentStatus,
+  };
+}
+
 export const salesService = {
   /**
    * Get all invoices, optionally filtered
@@ -147,6 +283,7 @@ export const salesService = {
     startDate?: string;
     endDate?: string;
     paymentMethod?: string;
+    paymentStatus?: string;
   }): Promise<Invoice[]> {
     let invoices: Invoice[];
 
@@ -160,6 +297,34 @@ export const salesService = {
     } else {
       invoices = getLocalInvoices();
     }
+
+    // Enrich each invoice with its payments, schedule, and dynamic payment status
+    const allPayments = getLocalPayments();
+    const allSchedules = getLocalSchedules();
+
+    invoices = invoices.map(inv => {
+      const invPayments = allPayments.filter(p => p.invoice_id === inv.id);
+      const invSchedules = allSchedules.filter(s => s.invoice_id === inv.id);
+
+      // Dynamically compute payment status and balances
+      const metrics = computeInvoicePaymentStatus(
+        inv.total_amount,
+        invPayments,
+        inv.due_date,
+        invSchedules
+      );
+
+      return {
+        ...inv,
+        payment_type: inv.payment_type || 'FULL',
+        payment_status: metrics.paymentStatus,
+        paid_amount: metrics.paidAmount,
+        remaining_balance: metrics.remainingBalance,
+        installments_count: invSchedules.length > 0 ? invSchedules.length : inv.installments_count || 0,
+        payments: invPayments,
+        installment_schedule: invSchedules,
+      };
+    });
 
     if (!filters) return invoices;
 
@@ -194,6 +359,10 @@ export const salesService = {
       result = result.filter(inv => inv.payment_method === filters.paymentMethod);
     }
 
+    if (filters.paymentStatus && filters.paymentStatus !== 'ALL') {
+      result = result.filter(inv => inv.payment_status === filters.paymentStatus);
+    }
+
     return result;
   },
 
@@ -224,6 +393,26 @@ export const salesService = {
   },
 
   /**
+   * Get payments recorded for an invoice
+   */
+  async getPayments(invoiceId: string): Promise<InvoicePayment[]> {
+    const all = getLocalPayments();
+    return all
+      .filter(p => p.invoice_id === invoiceId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  /**
+   * Get installment schedule for an invoice
+   */
+  async getInstallmentSchedule(invoiceId: string): Promise<InstallmentScheduleItem[]> {
+    const all = getLocalSchedules();
+    return all
+      .filter(s => s.invoice_id === invoiceId)
+      .sort((a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date));
+  },
+
+  /**
    * Auto-generate the next sequential invoice number (e.g. INV-2024-003)
    */
   async generateNextInvoiceNumber(): Promise<string> {
@@ -247,12 +436,12 @@ export const salesService = {
 
   /**
    * Create a confirmed sale:
+   * - Supports FULL payment or DEFERRED / INSTALLMENT payments
    * - Validates invoice header and cart items
    * - Ensures available stock for all items BEFORE any modification
-   * - Preserves price snapshots: original_price, discount, actual_price, cost_snapshot
-   * - Atomic stock deduction
-   * - Logs SALE inventory movement
-   * - Prevents duplicate invoice numbers
+   * - Atomically deducts stock & logs movements
+   * - Preserves price snapshots & creates individual payment transactions
+   * - Stores planned installment schedule separately from actual payments
    */
   async createSale(input: NewSaleInput): Promise<Invoice> {
     const invNum = input.invoice_number.trim();
@@ -287,16 +476,6 @@ export const salesService = {
       }
       if ((item.discount || 0) < 0) {
         throw new Error('خصم الصنف لا يمكن أن يكون سالباً');
-      }
-    }
-
-    if (isTauri()) {
-      try {
-        const inv = await invoke<Invoice>('create_accessories_sale', { input });
-        backupService.notifyDataChanged(`إصدار فاتورة مبيعات: ${inv.invoice_number}`);
-        return inv;
-      } catch (err: any) {
-        throw new Error(typeof err === 'string' ? err : err?.message || 'فشل تسجيل فاتورة المبيعات');
       }
     }
 
@@ -390,17 +569,19 @@ export const salesService = {
       }
     }
 
-    if (input.invoice_discount < 0) {
+    const invoiceDiscount = input.invoice_discount ? Number(input.invoice_discount) : 0;
+    if (invoiceDiscount < 0) {
       throw new Error('خصم الفاتورة لا يمكن أن يكون سالباً');
     }
-    if (input.invoice_discount > subtotal) {
+    if (invoiceDiscount > subtotal) {
       throw new Error('خصم الفاتورة الإجمالي لا يمكن أن يتجاوز مجموع الأصناف');
     }
 
-    const finalTotal = subtotal - input.invoice_discount;
+    const finalTotal = roundMoney(subtotal - invoiceDiscount);
     const invoiceId = 'inv-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
     const now = new Date().toISOString();
-    const todayDate = now.substring(0, 10);
+    const todayDate = input.invoice_date || now.substring(0, 10);
+    const safePaymentMethod = input.payment_method?.trim() || 'نقدي';
 
     // Save items, deduct stock, and record inventory movements
     const newItems: InvoiceItem[] = [];
@@ -456,6 +637,93 @@ export const salesService = {
       }
     }
 
+    // Phase 2: Deferred & Installment Calculation
+    const paymentType: PaymentType = input.payment_type || 'FULL';
+    let paidAmount = 0;
+    let remainingBalance = 0;
+    let paymentStatus: PaymentStatus = 'PAID';
+    const initialPaymentsToStore: InvoicePayment[] = [];
+    const schedulesToStore: InstallmentScheduleItem[] = [];
+
+    if (paymentType === 'DEFERRED') {
+      const initialPayment = input.initial_payment !== undefined ? Number(input.initial_payment) : 0;
+      if (isNaN(initialPayment) || initialPayment < 0) {
+        throw new Error('الدفعة المقدمة لا يمكن أن تكون سالبة');
+      }
+      if (roundMoney(initialPayment) > finalTotal) {
+        throw new Error('الدفعة المقدمة لا يمكن أن تتجاوز إجمالي الفاتورة');
+      }
+
+      paidAmount = roundMoney(initialPayment);
+      remainingBalance = roundMoney(finalTotal - paidAmount);
+
+      // Validate and record planned installment schedule
+      if (input.installments && input.installments.length > 0) {
+        for (const inst of input.installments) {
+          if (!inst.due_date) {
+            throw new Error('تاريخ استحقاق القسط مطلوب');
+          }
+          if (inst.expected_amount <= 0) {
+            throw new Error('مبلغ القسط المتوقع يجب أن يكون أكبر من صفر');
+          }
+          schedulesToStore.push({
+            id: 'sch-' + Math.random().toString(36).substring(2, 9),
+            invoice_id: invoiceId,
+            installment_number: inst.installment_number,
+            due_date: inst.due_date,
+            expected_amount: roundMoney(inst.expected_amount),
+            notes: inst.notes || null,
+            created_at: now,
+          });
+        }
+      }
+
+      // Record initial payment transaction if initial payment > 0
+      if (paidAmount > 0) {
+        initialPaymentsToStore.push({
+          id: 'pay-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+          invoice_id: invoiceId,
+          amount: paidAmount,
+          payment_date: todayDate,
+          payment_method: safePaymentMethod,
+          notes: 'دفعة أولى عند البيع بالتقسيط / الأجل',
+          recorded_by: null,
+          is_reversal: false,
+          created_at: now,
+        });
+      }
+
+      // Determine initial payment status
+      const metrics = computeInvoicePaymentStatus(
+        finalTotal,
+        initialPaymentsToStore,
+        input.due_date || (schedulesToStore[0]?.due_date ?? null),
+        schedulesToStore
+      );
+      paymentStatus = metrics.paymentStatus;
+    } else {
+      // FULL Payment
+      paidAmount = finalTotal;
+      remainingBalance = 0;
+      paymentStatus = 'PAID';
+
+      if (finalTotal > 0) {
+        initialPaymentsToStore.push({
+          id: 'pay-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+          invoice_id: invoiceId,
+          amount: finalTotal,
+          payment_date: todayDate,
+          payment_method: safePaymentMethod,
+          notes: 'سداد كامل عند إنشاء الفاتورة',
+          recorded_by: null,
+          is_reversal: false,
+          created_at: now,
+        });
+      }
+    }
+
+    const nextDueDate = input.due_date || (schedulesToStore[0]?.due_date ?? null);
+
     const newInvoice: Invoice = {
       id: invoiceId,
       invoice_number: invNum,
@@ -463,13 +731,21 @@ export const salesService = {
       customer_name: input.customer_name?.trim() || null,
       customer_phone: input.customer_phone?.trim() || null,
       subtotal,
-      discount: input.invoice_discount,
+      discount: invoiceDiscount,
       total_amount: finalTotal,
-      payment_method: input.payment_method.trim() || 'نقدي',
+      payment_method: safePaymentMethod,
       notes: input.notes?.trim() || null,
       status: 'COMPLETED',
       items_count: newItems.length,
       created_at: now,
+      payment_type: paymentType,
+      payment_status: paymentStatus,
+      paid_amount: paidAmount,
+      remaining_balance: remainingBalance,
+      due_date: nextDueDate,
+      installments_count: schedulesToStore.length,
+      payments: initialPaymentsToStore,
+      installment_schedule: schedulesToStore,
     };
 
     const currentInvoices = getLocalInvoices();
@@ -479,8 +755,288 @@ export const salesService = {
     const currentItems = getLocalInvoiceItems();
     saveLocalInvoiceItems([...currentItems, ...newItems]);
 
+    if (initialPaymentsToStore.length > 0) {
+      saveLocalPayments([...getLocalPayments(), ...initialPaymentsToStore]);
+    }
+
+    if (schedulesToStore.length > 0) {
+      saveLocalSchedules([...getLocalSchedules(), ...schedulesToStore]);
+    }
+
     backupService.notifyDataChanged(`إصدار فاتورة مبيعات: ${newInvoice.invoice_number}`);
 
     return newInvoice;
+  },
+
+  /**
+   * Record a new customer payment for an existing deferred invoice:
+   * - Strict financial validation: amount > 0, amount <= remaining balance
+   * - Never overwrites previous payments (append-only ledger)
+   * - Recalculates total paid and remaining balance automatically
+   * - Updates invoice payment status immediately
+   */
+  async recordPayment(invoiceId: string, input: NewPaymentInput): Promise<{ invoice: Invoice; payment: InvoicePayment }> {
+    const amount = roundMoney(Number(input.amount));
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error('قيمة الدفعة المحصلة يجب أن تكون أكبر من صفر');
+    }
+
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة غير موجودة');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const existingPayments = await this.getPayments(invoiceId);
+    const existingSchedules = await this.getInstallmentSchedule(invoiceId);
+
+    const currentMetrics = computeInvoicePaymentStatus(
+      invoice.total_amount,
+      existingPayments,
+      invoice.due_date,
+      existingSchedules
+    );
+
+    if (amount > roundMoney(currentMetrics.remainingBalance)) {
+      throw new Error(
+        `قيمة الدفعة (${amount} EGP) لا يمكن أن تتجاوز الرصيد المتبقي على الفاتورة (${currentMetrics.remainingBalance} EGP)`
+      );
+    }
+
+    const now = new Date().toISOString();
+    const newPayment: InvoicePayment = {
+      id: 'pay-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+      invoice_id: invoiceId,
+      amount,
+      payment_date: input.payment_date || getTodayLocalDateString(),
+      payment_method: input.payment_method || 'نقدي',
+      notes: input.notes?.trim() || null,
+      recorded_by: input.recorded_by || null,
+      is_reversal: false,
+      created_at: now,
+    };
+
+    // Save payment
+    const allPayments = getLocalPayments();
+    allPayments.push(newPayment);
+    saveLocalPayments(allPayments);
+
+    // Recompute invoice metrics
+    const updatedPayments = [...existingPayments, newPayment];
+    const newMetrics = computeInvoicePaymentStatus(
+      invoice.total_amount,
+      updatedPayments,
+      invoice.due_date,
+      existingSchedules
+    );
+
+    // Update next due date from schedule if any
+    let nextDueDate = invoice.due_date;
+    if (newMetrics.remainingBalance <= 0) {
+      nextDueDate = null;
+    } else if (existingSchedules.length > 0) {
+      const sorted = [...existingSchedules].sort(
+        (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+      );
+      let cum = 0;
+      for (const item of sorted) {
+        cum += item.expected_amount;
+        if (roundMoney(newMetrics.paidAmount) < roundMoney(cum)) {
+          nextDueDate = item.due_date;
+          break;
+        }
+      }
+    }
+
+    const updatedInvoice: Invoice = {
+      ...invoice,
+      paid_amount: newMetrics.paidAmount,
+      remaining_balance: newMetrics.remainingBalance,
+      payment_status: newMetrics.paymentStatus,
+      due_date: nextDueDate,
+      payments: updatedPayments,
+      installment_schedule: existingSchedules,
+    };
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveLocalInvoices(allInvoices);
+
+    backupService.notifyDataChanged(`تسجيل دفعة بقيمة ${amount} EGP لفاتورة ${invoice.invoice_number}`);
+
+    return { invoice: updatedInvoice, payment: newPayment };
+  },
+
+  /**
+   * Safely reverse a previously recorded payment without deleting financial history:
+   * - Records a reversal transaction with negative amount and explicit reason
+   * - Recalculates remaining balance and updates invoice status
+   */
+  async reversePayment(
+    paymentId: string,
+    reason: string,
+    recorded_by?: string
+  ): Promise<{ invoice: Invoice; reversalPayment: InvoicePayment }> {
+    const safeReason = (reason || '').trim();
+    if (!safeReason) {
+      throw new Error('سبب إلغاء/عكس الدفعة إلزامي لضمان النزاهة المالية وتوثيق السجل.');
+    }
+
+    const allPayments = getLocalPayments();
+    const payment = allPayments.find(p => p.id === paymentId);
+    if (!payment) {
+      throw new Error('الدفعة المطلوب إلغاؤها غير موجودة.');
+    }
+
+    if (payment.is_reversal) {
+      throw new Error('لا يمكن إلغاء دفعة عكسية مسجلة مسبقاً.');
+    }
+
+    const alreadyReversed = allPayments.some(p => p.reversal_of_id === paymentId);
+    if (alreadyReversed) {
+      throw new Error('تم إلغاء وعكس هذه الدفعة مسبقاً.');
+    }
+
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === payment.invoice_id);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة المرتبطة بالدفعة غير موجودة.');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const now = new Date().toISOString();
+
+    const reversalPayment: InvoicePayment = {
+      id: 'pay-rev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
+      invoice_id: payment.invoice_id,
+      amount: -payment.amount,
+      payment_date: getTodayLocalDateString(),
+      payment_method: payment.payment_method,
+      notes: `إلغاء دفعة: ${safeReason}`,
+      recorded_by: recorded_by || null,
+      is_reversal: true,
+      reversal_of_id: payment.id,
+      reversal_reason: safeReason,
+      created_at: now,
+    };
+
+    allPayments.push(reversalPayment);
+    saveLocalPayments(allPayments);
+
+    const invPayments = allPayments.filter(p => p.invoice_id === invoice.id);
+    const invSchedules = await this.getInstallmentSchedule(invoice.id);
+    const newMetrics = computeInvoicePaymentStatus(
+      invoice.total_amount,
+      invPayments,
+      invoice.due_date,
+      invSchedules
+    );
+
+    const updatedInvoice: Invoice = {
+      ...invoice,
+      paid_amount: newMetrics.paidAmount,
+      remaining_balance: newMetrics.remainingBalance,
+      payment_status: newMetrics.paymentStatus,
+      payments: invPayments,
+      installment_schedule: invSchedules,
+    };
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveLocalInvoices(allInvoices);
+
+    backupService.notifyDataChanged(`عكس دفعة لفاتورة ${invoice.invoice_number}: ${safeReason}`);
+
+    return { invoice: updatedInvoice, reversalPayment };
+  },
+
+  /**
+   * Update the expected installment plan without modifying historical payment records:
+   * - Allows configuring future dates and expected installment amounts
+   * - Recalculates next expected payment date
+   */
+  async updateInstallmentSchedule(
+    invoiceId: string,
+    installments: InstallmentPlanInput[]
+  ): Promise<InstallmentScheduleItem[]> {
+    if (!installments || installments.length === 0) {
+      throw new Error('يجب تحديد قسط واحد على الأقل في الجدول.');
+    }
+
+    for (const inst of installments) {
+      if (!inst.due_date) {
+        throw new Error('تاريخ استحقاق القسط مطلوب');
+      }
+      if (inst.expected_amount <= 0) {
+        throw new Error('مبلغ القسط المتوقع يجب أن يكون أكبر من صفر');
+      }
+    }
+
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
+    if (invIndex < 0) {
+      throw new Error('الفاتورة غير موجودة');
+    }
+
+    const invoice = allInvoices[invIndex];
+    const now = new Date().toISOString();
+
+    const newSchedules: InstallmentScheduleItem[] = installments.map(inst => ({
+      id: 'sch-' + Math.random().toString(36).substring(2, 9),
+      invoice_id: invoiceId,
+      installment_number: inst.installment_number,
+      due_date: inst.due_date,
+      expected_amount: roundMoney(inst.expected_amount),
+      notes: inst.notes || null,
+      created_at: now,
+    }));
+
+    // Replace schedules for this invoice
+    const allSchedules = getLocalSchedules().filter(s => s.invoice_id !== invoiceId);
+    saveLocalSchedules([...allSchedules, ...newSchedules]);
+
+    // Recalculate invoice metrics
+    const invPayments = await this.getPayments(invoiceId);
+    const sorted = [...newSchedules].sort(
+      (a, b) => a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+    );
+
+    let nextDueDate: string | null = null;
+    const paid = roundMoney(invPayments.reduce((s, p) => s + p.amount, 0));
+    let cum = 0;
+    for (const item of sorted) {
+      cum += item.expected_amount;
+      if (paid < roundMoney(cum)) {
+        nextDueDate = item.due_date;
+        break;
+      }
+    }
+    if (!nextDueDate && sorted.length > 0) {
+      nextDueDate = sorted[sorted.length - 1].due_date;
+    }
+
+    const metrics = computeInvoicePaymentStatus(
+      invoice.total_amount,
+      invPayments,
+      nextDueDate,
+      newSchedules
+    );
+
+    const updatedInvoice: Invoice = {
+      ...invoice,
+      due_date: nextDueDate,
+      installments_count: newSchedules.length,
+      payment_status: metrics.paymentStatus,
+      paid_amount: metrics.paidAmount,
+      remaining_balance: metrics.remainingBalance,
+      installment_schedule: newSchedules,
+      payments: invPayments,
+    };
+
+    allInvoices[invIndex] = updatedInvoice;
+    saveLocalInvoices(allInvoices);
+
+    backupService.notifyDataChanged(`تحديث جدول أقساط فاتورة ${invoice.invoice_number}`);
+
+    return newSchedules;
   },
 };

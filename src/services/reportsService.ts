@@ -302,4 +302,87 @@ export const reportsService = {
       potentialProfit: totalRetailValue - totalCostValue,
     };
   },
+
+  /**
+   * Get customer receivables and debt collection summary for Accessories
+   */
+  async getReceivablesReport(): Promise<{
+    totalReceivables: number;
+    totalPaidReceivables: number;
+    unpaidCount: number;
+    partiallyPaidCount: number;
+    overdueCount: number;
+    paidCount: number;
+    debtors: {
+      invoiceId: string;
+      invoiceNumber: string;
+      invoiceDate: string;
+      customerName: string;
+      customerPhone?: string;
+      totalAmount: number;
+      paidAmount: number;
+      remainingBalance: number;
+      dueDate?: string;
+      paymentStatus: string;
+      isOverdue: boolean;
+    }[];
+  }> {
+    const invoices = await salesService.getInvoices({});
+    const today = new Date().toISOString().substring(0, 10);
+
+    let totalReceivables = 0;
+    let totalPaidReceivables = 0;
+    let unpaidCount = 0;
+    let partiallyPaidCount = 0;
+    let overdueCount = 0;
+    let paidCount = 0;
+    const debtors: any[] = [];
+
+    for (const inv of invoices) {
+      const remaining = inv.remaining_balance ?? 0;
+      const paid = inv.paid_amount ?? inv.total_amount;
+      const status = inv.payment_status || (remaining <= 0 ? 'PAID' : 'UNPAID');
+      const isOverdue = status === 'OVERDUE' || (remaining > 0 && !!inv.due_date && inv.due_date < today);
+
+      if (status === 'PAID') {
+        paidCount++;
+      } else if (status === 'PARTIALLY_PAID') {
+        partiallyPaidCount++;
+      } else if (isOverdue) {
+        overdueCount++;
+      } else {
+        unpaidCount++;
+      }
+
+      if (remaining > 0) {
+        totalReceivables = roundMoney(totalReceivables + remaining);
+        totalPaidReceivables = roundMoney(totalPaidReceivables + paid);
+        debtors.push({
+          invoiceId: inv.id,
+          invoiceNumber: inv.invoice_number,
+          invoiceDate: inv.invoice_date,
+          customerName: inv.customer_name || 'عميل نقدي عام',
+          customerPhone: inv.customer_phone,
+          totalAmount: inv.total_amount,
+          paidAmount: paid,
+          remainingBalance: remaining,
+          dueDate: inv.due_date,
+          paymentStatus: isOverdue ? 'OVERDUE' : status,
+          isOverdue,
+        });
+      }
+    }
+
+    debtors.sort((a, b) => b.remainingBalance - a.remainingBalance);
+
+    return {
+      totalReceivables,
+      totalPaidReceivables,
+      unpaidCount,
+      partiallyPaidCount,
+      overdueCount,
+      paidCount,
+      debtors,
+    };
+  },
 };

@@ -16,8 +16,12 @@ import {
   RefreshCw,
   Monitor,
   RotateCcw,
+  Wallet,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssReportsService } from '@/services/mssReportsService.ts';
 import type {
@@ -48,6 +52,15 @@ export const MSSReportsView: React.FC = () => {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [dailySummaries, setDailySummaries] = useState<DailyMSSSummary[]>([]);
   const [dateLabel, setDateLabel] = useState<string>('');
+  const [receivables, setReceivables] = useState<{
+    totalReceivables: number;
+    totalPaidReceivables: number;
+    unpaidCount: number;
+    partiallyPaidCount: number;
+    overdueCount: number;
+    paidCount: number;
+    debtors: any[];
+  } | null>(null);
 
   const loadReportData = useCallback(async () => {
     setIsLoading(true);
@@ -56,12 +69,13 @@ export const MSSReportsView: React.FC = () => {
       setDateLabel(dateFilter.label);
       const { startDate, endDate } = dateFilter;
 
-      const [sum, bSales, sVal, catBreak, daily] = await Promise.all([
+      const [sum, bSales, sVal, catBreak, daily, rec] = await Promise.all([
         mssReportsService.getMSSFinancialSummary(startDate, endDate),
         mssReportsService.getBranchOperationalBreakdown(startDate, endDate),
         mssReportsService.getInventoryValuationByLocation(),
         mssReportsService.getCategoryBreakdown(startDate, endDate),
         mssReportsService.getDailyMSSSummaries(14),
+        mssReportsService.getMSSReceivablesReport(),
       ]);
 
       setSummary(sum);
@@ -69,6 +83,7 @@ export const MSSReportsView: React.FC = () => {
       setStockValuation(sVal);
       setCategoryBreakdown(catBreak);
       setDailySummaries(daily);
+      setReceivables(rec);
     } catch (err) {
       console.warn('Failed to load MSS report data:', err);
     } finally {
@@ -383,6 +398,145 @@ export const MSSReportsView: React.FC = () => {
               </table>
             </div>
           </Card>
+
+          {/* Compu MSS Customer Receivables & Debt Collection Section */}
+          {receivables && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <Wallet className="w-5 h-5 text-amber-700" />
+                <h3 className="text-base font-bold text-slate-900">
+                  تقرير مديونيات وأقساط عملاء أجهزة Compu MSS (Customer Receivables)
+                </h3>
+              </div>
+
+              {/* Receivables KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    إجمالي الديون المعلقة
+                  </span>
+                  <span className="font-mono text-xl font-bold text-rose-700 tabular-nums">
+                    {formatCurrency(receivables.totalReceivables)}
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    فواتير متأخرة عن موعدها
+                  </span>
+                  <span className="font-mono text-xl font-bold text-rose-600 tabular-nums">
+                    {receivables.overdueCount} فواتير
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    فواتير مسددة جزئياً
+                  </span>
+                  <span className="font-mono text-xl font-bold text-amber-600 tabular-nums">
+                    {receivables.partiallyPaidCount} فواتير
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    فواتير غير مسددة بالكامل
+                  </span>
+                  <span className="font-mono text-xl font-bold text-slate-800 tabular-nums">
+                    {receivables.unpaidCount} فواتير
+                  </span>
+                </div>
+              </div>
+
+              {/* Debtors Table */}
+              <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-slate-50/90 border-b border-slate-300">
+                  <CardTitle className="text-sm font-bold text-slate-900">
+                    قائمة عملاء الأجهزة أصحاب الأرصدة والديون المعلقة ({receivables.debtors.length})
+                  </CardTitle>
+                </CardHeader>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-right">
+                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">رقم الفاتورة</th>
+                        <th className="py-2.5 px-3">تاريخ البيع</th>
+                        <th className="py-2.5 px-3">اسم العميل</th>
+                        <th className="py-2.5 px-3">الهاتف</th>
+                        <th className="py-2.5 px-3">الجهاز والسيريال</th>
+                        <th className="py-2.5 px-3">الفرع</th>
+                        <th className="py-2.5 px-3 text-left">إجمالي الفاتورة</th>
+                        <th className="py-2.5 px-3 text-left">المدفوع</th>
+                        <th className="py-2.5 px-3 text-left">المتبقي المطلوب</th>
+                        <th className="py-2.5 px-3">تاريخ الاستحقاق</th>
+                        <th className="py-2.5 px-3 text-center">حالة السداد</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {receivables.debtors.length === 0 ? (
+                        <tr>
+                          <td colSpan={11} className="py-8 text-center text-slate-500">
+                            لا توجد أي ديون أو مبالغ آجلة معلقة على أجهزة Compu MSS!
+                          </td>
+                        </tr>
+                      ) : (
+                        receivables.debtors.map(d => (
+                          <tr key={d.invoiceId} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                              {d.invoiceNumber}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-slate-600">
+                              {formatDate(d.saleDate)}
+                            </td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{d.customerName}</td>
+                            <td className="py-2.5 px-3 font-mono text-slate-500">{d.customerPhone || '—'}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="font-bold block">{d.brand} {d.modelName}</span>
+                              <span className="font-mono text-[10px] text-slate-500">{d.serialNumber}</span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <Badge variant={d.sellingBranch === 'محل 1' ? 'primary' : 'default'} size="sm">
+                                {d.sellingBranch}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 px-3 text-left font-mono font-bold text-slate-800">
+                              {formatCurrency(d.totalAmount)}
+                            </td>
+                            <td className="py-2.5 px-3 text-left font-mono font-bold text-emerald-700">
+                              {formatCurrency(d.paidAmount)}
+                            </td>
+                            <td className="py-2.5 px-3 text-left font-mono font-bold text-rose-700">
+                              {formatCurrency(d.remainingBalance)}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-slate-700">
+                              {d.dueDate ? formatDate(d.dueDate) : '—'}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                  d.isOverdue
+                                    ? 'bg-rose-100 text-rose-900'
+                                    : d.paymentStatus === 'PARTIALLY_PAID'
+                                      ? 'bg-amber-100 text-amber-900'
+                                      : 'bg-slate-100 text-slate-800'
+                                }`}
+                              >
+                                {d.isOverdue
+                                  ? 'متأخر'
+                                  : d.paymentStatus === 'PARTIALLY_PAID'
+                                    ? 'مسدد جزئياً'
+                                    : 'غير مسدد'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* Hidden Pristine Compu MSS Report Template for Print & PDF */}
           <div className="hidden" aria-hidden="true">

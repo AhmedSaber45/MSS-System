@@ -192,7 +192,7 @@ export const mssInventoryService = {
         .order('created_at', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        devices = data.map((row: any) => ({
+        const cloudDevices = data.map((row: any) => ({
           id: row.id,
           serial_number: row.serial_number,
           model_id: row.model_id,
@@ -206,6 +206,22 @@ export const mssInventoryService = {
           created_at: row.created_at,
           updated_at: row.updated_at,
         }));
+        const localCached = getCachedDevices();
+        const mergedMap = new Map<string, MSSDevice>();
+        for (const cd of cloudDevices) {
+          mergedMap.set(cd.serial_number, cd);
+        }
+        for (const ld of localCached) {
+          if (!mergedMap.has(ld.serial_number)) {
+            mergedMap.set(ld.serial_number, ld);
+          }
+        }
+        for (const sd of INITIAL_SEED_DEVICES) {
+          if (!mergedMap.has(sd.serial_number)) {
+            mergedMap.set(sd.serial_number, sd);
+          }
+        }
+        devices = Array.from(mergedMap.values());
         saveCachedDevices(devices);
         isCloudFetched = true;
       }
@@ -621,7 +637,7 @@ export const mssInventoryService = {
         .order('movement_date', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        movements = data.map((row: any) => ({
+        const cloudMovements = data.map((row: any) => ({
           id: row.id,
           device_id: row.device_id,
           serial_number: row.serial_number,
@@ -632,6 +648,22 @@ export const mssInventoryService = {
           notes: row.notes,
           created_at: row.created_at,
         }));
+        const localCached = getCachedMovements();
+        const mergedMap = new Map<string, MSSDeviceMovement>();
+        for (const cm of cloudMovements) {
+          mergedMap.set(cm.id, cm);
+        }
+        for (const lm of localCached) {
+          if (!mergedMap.has(lm.id)) {
+            mergedMap.set(lm.id, lm);
+          }
+        }
+        for (const sm of INITIAL_SEED_MOVEMENTS) {
+          if (!mergedMap.has(sm.id)) {
+            mergedMap.set(sm.id, sm);
+          }
+        }
+        movements = Array.from(mergedMap.values());
         saveCachedMovements(movements);
         isCloudFetched = true;
       }

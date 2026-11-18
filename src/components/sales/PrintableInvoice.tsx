@@ -182,7 +182,34 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                 <p className="font-semibold text-slate-900 text-sm">
                   طريقة الدفع: <span className="text-slate-800">{invoice.payment_method}</span>
                 </p>
-                <p className="text-slate-500 text-xs font-medium">حالة الفاتورة: مكتملة ومسددة</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-slate-600">نوع العملية:</span>
+                  <span className="font-bold text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                    {invoice.payment_type === 'DEFERRED' ? 'بيع آجل / أقساط' : 'سداد كامل'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600">حالة السداد:</span>
+                  <span className={`font-bold text-xs px-2 py-0.5 rounded ${
+                    invoice.payment_status === 'PAID'
+                      ? 'bg-emerald-50 text-emerald-850 border border-emerald-300'
+                      : invoice.payment_status === 'PARTIALLY_PAID'
+                        ? 'bg-amber-100 text-amber-900'
+                        : invoice.payment_status === 'OVERDUE'
+                          ? 'bg-rose-100 text-rose-900'
+                          : 'bg-slate-100 text-slate-800'
+                  }`}>
+                    {invoice.payment_status === 'PAID'
+                      ? 'مسددة بالكامل'
+                      : invoice.payment_status === 'PARTIALLY_PAID'
+                        ? 'مسددة جزئياً'
+                        : invoice.payment_status === 'OVERDUE'
+                          ? 'مستحقة متأخرة'
+                          : invoice.payment_status === 'UNPAID'
+                            ? 'غير مسددة'
+                            : 'مكتملة ومسددة'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -305,11 +332,34 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
                 )}
 
                 <div className="border-t-2 border-slate-900 pt-3 flex justify-between text-base font-bold text-slate-950">
-                  <span>الصافي النهائي المستحق:</span>
+                  <span>إجمالي الفاتورة:</span>
                   <span className="font-mono text-lg tabular-nums">
                     {formatCurrency(invoice.total_amount)}
                   </span>
                 </div>
+
+                {invoice.payment_type === 'DEFERRED' && (
+                  <div className="pt-2 border-t border-dashed border-slate-300 space-y-1.5 text-xs">
+                    <div className="flex justify-between font-bold text-emerald-800">
+                      <span>المسدد:</span>
+                      <span className="font-mono tabular-nums">
+                        {formatCurrency(invoice.paid_amount ?? invoice.total_amount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-bold text-rose-800">
+                      <span>المتبقي الآجل:</span>
+                      <span className="font-mono tabular-nums">
+                        {formatCurrency(invoice.remaining_balance ?? 0)}
+                      </span>
+                    </div>
+                    {invoice.due_date && (
+                      <div className="flex justify-between text-slate-600 font-medium">
+                        <span>موعد القسط القادم:</span>
+                        <span className="font-mono tabular-nums">{invoice.due_date}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -419,9 +469,28 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
               )}
 
               <div className="flex justify-between text-xs font-bold text-slate-950 border-t-2 border-slate-900 pt-1.5 mt-1">
-                <span>الصافي المدفوع:</span>
+                <span>إجمالي الفاتورة:</span>
                 <span className="font-mono text-sm tabular-nums">{formatCurrency(invoice.total_amount)}</span>
               </div>
+
+              {invoice.payment_type === 'DEFERRED' && (
+                <div className="pt-1 border-t border-dashed border-slate-300 space-y-0.5 text-[10px]">
+                  <div className="flex justify-between font-bold text-emerald-800">
+                    <span>المسدد:</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(invoice.paid_amount ?? invoice.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-rose-800">
+                    <span>المتبقي الآجل:</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(invoice.remaining_balance ?? 0)}</span>
+                  </div>
+                  {invoice.due_date && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>الاستحقاق:</span>
+                      <span className="font-mono tabular-nums">{invoice.due_date}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Thermal Footer */}

@@ -10,6 +10,24 @@ import type {
 
 const MSS_MODELS_CACHE_KEY = 'shop_mss_models_cache_v1';
 const MSS_DEVICES_CACHE_KEY = 'shop_mss_devices_cache_v1';
+const MSS_DELETED_MODELS_CACHE_KEY = 'shop_mss_deleted_models_cache_v1';
+
+function getDeletedModelIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(MSS_DELETED_MODELS_CACHE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedModelId(id: string): void {
+  const current = getDeletedModelIds();
+  current.add(id);
+  localStorage.setItem(MSS_DELETED_MODELS_CACHE_KEY, JSON.stringify(Array.from(current)));
+}
 
 // Seed models for offline preview and initial synchronization
 const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
@@ -132,7 +150,7 @@ export const mssCatalogService = {
         .order('created_at', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        models = data.map((row: any) => ({
+        const cloudModels = data.map((row: any) => ({
           id: row.id,
           brand: row.brand,
           model_name: row.model_name,
@@ -147,6 +165,23 @@ export const mssCatalogService = {
           created_at: row.created_at,
           updated_at: row.updated_at,
         }));
+        const localCached = getCachedModels();
+        const mergedMap = new Map<string, MSSCatalogModel>();
+        for (const cm of cloudModels) {
+          mergedMap.set(cm.id, cm);
+        }
+        for (const lm of localCached) {
+          if (!mergedMap.has(lm.id)) {
+            mergedMap.set(lm.id, lm);
+          }
+        }
+        for (const seed of INITIAL_SEED_MODELS) {
+          if (!mergedMap.has(seed.id) && !Array.from(mergedMap.values()).some(m => m.model_name === seed.model_name)) {
+            mergedMap.set(seed.id, seed);
+          }
+        }
+        const deletedIds = getDeletedModelIds();
+        models = Array.from(mergedMap.values()).filter(m => !deletedIds.has(m.id));
         saveCachedModels(models);
         isCloudFetched = true;
       }
@@ -155,7 +190,8 @@ export const mssCatalogService = {
     }
 
     if (!isCloudFetched) {
-      models = getCachedModels();
+      const deletedIds = getDeletedModelIds();
+      models = getCachedModels().filter(m => !deletedIds.has(m.id));
     }
 
     if (query && query.trim()) {
@@ -315,6 +351,7 @@ export const mssCatalogService = {
    * Delete model from catalog
    */
   async deleteModel(id: string): Promise<void> {
+    addDeletedModelId(id);
     try {
       await supabase.from('mss_models').delete().eq('id', id);
     } catch (err) {
