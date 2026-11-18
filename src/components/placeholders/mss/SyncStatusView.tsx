@@ -245,14 +245,14 @@ export const SyncStatusView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="المزامنة السحابية وطابور العمليات"
-        subtitle="متابعة طابور العمليات المعلقة وضمان استمرارية العمل بدون إنترنت مع الكشف التلقائي للتعارضات"
+        title="المزامنة السحابية  "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
               size="md"
-              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث حالة المزامنة وطابور العمليات...')}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث حالة المزامنة  ...')}
               disabled={isRefreshing || isLoading}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="border-slate-300 font-semibold"
@@ -273,12 +273,6 @@ export const SyncStatusView: React.FC = () => {
         }
       />
 
-      {/* Limitation Notice Banner (Rule 10 & 25) */}
-      <Alert
-        type="info"
-        title="توضيح هندسي هام لقاعدة العمل في وضع عدم الاتصال (Rule 10 & Rule 25)"
-        message="لا يمكن لأي نظامين منفصلين تماماً عن الإنترنت منع بيع نفس الجهاز مرتين إذا تم البيع في نفس اللحظة بكلا المحلين بدون اتصال. يوفر النظام كشفاً تلقائياً لهذه التعارضات فور عودة الاتصال مع الحفاظ التام على سجل كلا العمليتين وتوفير نافذة مراجعة وتصفية يدوية آمنة دون أي فقدان للبيانات."
-      />
 
       {/* 4 Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -290,7 +284,7 @@ export const SyncStatusView: React.FC = () => {
                 summary?.is_online ? 'text-emerald-700' : 'text-amber-700'
               }`}
             >
-              {summary?.is_online ? 'متصل ونشط' : 'وضع عدم الاتصال'}
+              {summary?.is_online ? 'متصل ' : 'وضع عدم الاتصال'}
             </span>
             <Cloud
               className={`w-5 h-5 ${
@@ -299,26 +293,24 @@ export const SyncStatusView: React.FC = () => {
             />
           </div>
           <span className="text-xs text-slate-500 mt-1 block">
-            {summary?.is_online ? 'سيرفر Supabase متاح' : 'يتم الحفظ في الطابور المحلي'}
+            {summary?.is_online ? '  متاح' : 'يتم الحفظ   محليا'}
           </span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">العمليات المعلقة بالطابور</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">العمليات المعلقة </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{summary?.pending_count || 0}</span>
             <Clock className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">في انتظار الرفع الآلي</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">العمليات المكتملة المتزامنة</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">العمليات المكتملة </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{summary?.synced_count || 0}</span>
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">تم تأكيدها في سحابة Supabase</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -338,7 +330,7 @@ export const SyncStatusView: React.FC = () => {
             />
           </div>
           <span className="text-xs text-slate-500 mt-1 block">
-            {(summary?.conflict_count || 0) > 0 ? 'تتطلب مراجعة وتسوية' : 'لا توجد تعارضات معلقة'}
+            {(summary?.conflict_count || 0) > 0 ? 'تتطلب مزامنة ' : 'لا توجد تعارضات معلقة'}
           </span>
         </Card>
       </div>
@@ -352,7 +344,7 @@ export const SyncStatusView: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-amber-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                تعارضات غير متصلة تم رصدها بحاجة لمراجعة وتسوية (Rule 10 & Rule 25)
+                تعارضات   تم رصدها بحاجة  لمزامنة 
               </h3>
             </div>
             <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-300">
@@ -389,7 +381,7 @@ export const SyncStatusView: React.FC = () => {
                     className="shrink-0 font-bold"
                     leftIcon={<ArrowRightLeft className="w-4 h-4" />}
                   >
-                    مراجعة وتسوية التعارض
+                    مراجعة ومزامنة التعارض
                   </Button>
                 </div>
               ))}
@@ -405,7 +397,7 @@ export const SyncStatusView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-slate-600" />
             <h3 className="text-sm font-bold text-slate-900">
-              طابور العمليات الصادرة والمزامنة (Outbox Audit Log)
+               العمليات الصادرة  
             </h3>
           </div>
           <span className="text-xs text-slate-600 font-mono font-bold tabular-nums">
@@ -416,7 +408,7 @@ export const SyncStatusView: React.FC = () => {
         {isLoading ? (
           <div className="p-12 text-center text-sm font-medium text-slate-600">
             <Spinner size="lg" className="mx-auto mb-3" />
-            جاري تحميل سجلات الطابور...
+            جاري تحميل السجلات ...
           </div>
         ) : (
           <div className="overflow-hidden">
@@ -435,7 +427,7 @@ export const SyncStatusView: React.FC = () => {
       <Modal
         isOpen={!!selectedConflict}
         onClose={() => !isResolving && setSelectedConflict(null)}
-        title="مراجعة وتسوية التعارض الناتج عن وضع عدم الاتصال"
+        title="مراجعة ومزامنة التعارض الناتج عن وضع عدم الاتصال"
         subtitle={`تسوية تعارض السيريال (${selectedConflict?.serial_number}) المسجل بفرع (${selectedConflict?.branch})`}
         size="lg"
         footer={
@@ -456,18 +448,14 @@ export const SyncStatusView: React.FC = () => {
               className="font-bold"
               leftIcon={isResolving ? <Spinner size="sm" /> : <CheckCircle2 className="w-4.5 h-4.5" />}
             >
-              {isResolving ? 'جاري التسوية...' : 'اعتماد التسوية اليدوية'}
+              {isResolving ? 'جاري المزامنة...' : 'اعتماد المزامنة اليدوية'}
             </Button>
           </div>
         }
       >
         {selectedConflict && (
           <div className="space-y-4 text-sm font-sans">
-            <Alert
-              type="danger"
-              title="طبيعة التعارض"
-              message={selectedConflict.conflict_description}
-            />
+
 
             {/* Side-by-side comparison */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -484,7 +472,7 @@ export const SyncStatusView: React.FC = () => {
               {/* Remote conflicting state */}
               <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2">
                 <span className="font-bold text-slate-900 text-sm block border-b border-slate-200 pb-1.5">
-                  2. السجل السحابي المتعارض:
+                  2. السجل  المتعارض:
                 </span>
                 <pre className="font-mono text-xs bg-white p-3 rounded-lg border border-slate-300 overflow-x-auto text-slate-900">
                   {JSON.stringify(selectedConflict.remote_state || 'لا توجد بيانات سحابية إضافية', null, 2)}
@@ -495,7 +483,7 @@ export const SyncStatusView: React.FC = () => {
             {/* Resolution Notes Input */}
             <div>
               <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                بيان التسوية والإجراء المتخذ (Audit Notes) <span className="text-rose-500">*</span>
+                بيان المزامنة والإجراء المتخذ  <span className="text-rose-500">*</span>
               </label>
               <textarea
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900 transition-colors"

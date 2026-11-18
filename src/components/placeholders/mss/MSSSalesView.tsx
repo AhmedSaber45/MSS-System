@@ -157,13 +157,13 @@ export const MSSSalesView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="نقطة بيع أجهزة Compu MSS"
-        subtitle="توثيق بيع الأجهزة بالسيريال الفردي مع تثبيت فرع البيع ومصدر المخزون وحساب الربح الفعلي الدقيق"
+        title=" بيع أجهزة Compu MSS"
+        subtitle=""
         actions={
           <Button
             variant="outline"
             size="md"
-            onClick={() => triggerRefresh(loadDevices, 'جارٍ تحديث الأجهزة المتاحة للبيع...')}
+            onClick={() => triggerRefresh(loadDevices, 'جارٍ تحديث الأجهزة  ...')}
             disabled={isRefreshing || isLoadingDevices}
             leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             className="border-slate-300 font-semibold"
@@ -173,12 +173,7 @@ export const MSSSalesView: React.FC = () => {
         }
       />
 
-      {/* Attribution & Stock Source Alert (Rule 9 & 16) */}
-      <Alert
-        type="info"
-        title="قاعدة إسناد البيع ومصدر المخزون (Rule 9 & Rule 16)"
-        message="يمكن لمحل 1 بيع جهاز متواجد فعلياً في مخزن محل 2 مباشرة دون الحاجة لنقل مادي مسبق. يسجل البيع لصالح فرع البيع، ويخصم الجهاز تلقائياً من مخزون المحل المتواجد به."
-      />
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column: Device selection & Branches */}
@@ -187,7 +182,7 @@ export const MSSSalesView: React.FC = () => {
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Laptop className="w-4.5 h-4.5 text-slate-600" />
-              <span>1. اختيار الجهاز بالسيريال نمبر الفريد</span>
+              <span>1. اختيار الجهاز بالسيريال نمبر </span>
             </h3>
 
             <div className="flex gap-2.5">
@@ -245,15 +240,15 @@ export const MSSSalesView: React.FC = () => {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-slate-700">
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">سعر العرض:</span>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">السعر :</span>
                     <strong className="text-slate-900 text-sm font-mono font-bold tabular-nums">{formatCurrency(selectedDevice.list_price)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">التكلفة المسجلة:</span>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">التكلفة :</span>
                     <strong className="font-mono text-slate-700 text-sm font-semibold tabular-nums">{formatCurrency(selectedDevice.purchase_cost)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الحالة الظاهرية:</span>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الحالة :</span>
                     <strong className="text-slate-800 text-sm font-medium">{selectedDevice.physical_condition}</strong>
                   </div>
                   <div>
@@ -271,13 +266,13 @@ export const MSSSalesView: React.FC = () => {
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Store className="w-4.5 h-4.5 text-slate-600" />
-              <span>2. تحديد فروع العملية (البيع والمخزون)</span>
+              <span>2. تحديد فروع  (البيع والمخزون)</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  فرع البيع (المحل القائم بالبيع للعميل) <span className="text-rose-500">*</span>
+                  فرع البيع  <span className="text-rose-500">*</span>
                 </label>
                 <Select
                   value={sellingBranch}
@@ -287,12 +282,12 @@ export const MSSSalesView: React.FC = () => {
                     { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
                   ]}
                 />
-                <p className="text-xs text-slate-500 mt-1">تُنسب الفاتورة والأداء التشغيلي لهذا الفرع</p>
+                <p className="text-xs text-slate-500 mt-1">تُنسب الفاتورة  لهذا الفرع</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  فرع مصدر المخزون (الموقع الفعلي للتخزين)
+                    الموقع الفعلي للتخزين
                 </label>
                 <div className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 font-semibold flex items-center justify-between">
                   <span>{sourceBranch}</span>
@@ -300,7 +295,7 @@ export const MSSSalesView: React.FC = () => {
                     موقع الجهاز الفعلي
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">يُخصم الجهاز مباشرة من مخزون هذا المحل</p>
+                <p className="text-xs text-slate-500 mt-1">يُخصم الجهاز  من مخزون هذا المحل</p>
               </div>
             </div>
 
@@ -309,8 +304,8 @@ export const MSSSalesView: React.FC = () => {
               <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 text-sm text-slate-700 flex items-center gap-2.5">
                 <ArrowRightLeft className="w-4.5 h-4.5 text-slate-600 shrink-0" />
                 <span>
-                  <strong className="text-slate-900 font-bold">تنبيه عملية بيع مشتركة بين الفروع:</strong> الجهاز مسحوب ومخصوم من مخزون{' '}
-                  <strong className="text-slate-900 font-bold">({sourceBranch})</strong> وبيعه منسوب تشغيلياً إلى <strong className="text-slate-900 font-bold">({sellingBranch})</strong>.
+                  <strong className="text-slate-900 font-bold">تنبيه عملية بيع مشتركة بين الفروع:</strong> الجهاز مسحوب  من مخزون{' '}
+                  <strong className="text-slate-900 font-bold">({sourceBranch})</strong> وبيعه   إلى <strong className="text-slate-900 font-bold">({sellingBranch})</strong>.
                 </span>
               </div>
             )}
@@ -320,13 +315,13 @@ export const MSSSalesView: React.FC = () => {
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <ShieldCheck className="w-4.5 h-4.5 text-slate-600" />
-              <span>3. بيانات العميل والضمان</span>
+              <span>3. بيانات العميل </span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="اسم العميل (اختياري)"
-                placeholder="مثال: م. أحمد كمال..."
+                placeholder="مثال: م. أحمد ..."
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
               />
@@ -348,7 +343,7 @@ export const MSSSalesView: React.FC = () => {
               />
 
               <Input
-                label="ملاحظات الفاتورة والملحقات"
+                label="ملاحظات الفاتورة "
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="الشاحن، كابل العرض، الحقيبة..."
@@ -372,7 +367,7 @@ export const MSSSalesView: React.FC = () => {
               {/* Actual Selling Price Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  سعر البيع الفعلي المتفق عليه (EGP) <span className="text-rose-500">*</span>
+                  سعر البيع الفعلي   (EGP) <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   type="number"
@@ -387,9 +382,7 @@ export const MSSSalesView: React.FC = () => {
                   className="font-bold text-lg text-slate-900 font-mono"
                   required
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  يمكن التفاوض وتعديل السعر الفعلي لكل عملية
-                </p>
+   
               </div>
 
               {/* Discount Input */}
@@ -430,21 +423,18 @@ export const MSSSalesView: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>تكلفة الجهاز المحفوظة:</span>
+                  <span>تكلفة الجهاز :</span>
                   <span className="font-mono tabular-nums">{formatCurrency(costSnapshot)}</span>
                 </div>
 
                 <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-300">
-                  <span className="text-slate-900">مجمل الربح الفعلي:</span>
+                  <span className="text-slate-900">مجمل الربح :</span>
                   <span className={`font-mono text-base tabular-nums ${grossProfit >= 0 ? 'text-emerald-800' : 'text-rose-700'}`}>
                     {grossProfit >= 0 ? `+${formatCurrency(grossProfit)}` : formatCurrency(grossProfit)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 leading-relaxed">
-                ملاحظة: يتم حفظ لقطات الأسعار والتكلفة بشكل دائم، ولا تتأثر الفاتورة مستقبلاً بأي تعديل في أسعار الكتالوج.
-              </p>
             </CardContent>
 
             <CardFooter className="bg-slate-50/90 p-4 border-t border-slate-300">
@@ -470,7 +460,7 @@ export const MSSSalesView: React.FC = () => {
         isOpen={!!completedInvoice}
         onClose={handleStartNewSale}
         title={`تمت عملية البيع بنجاح - فاتورة رقم ${completedInvoice?.invoice_number}`}
-        subtitle="فاتورة بيع جهاز Compu MSS رسمية مع السيريال والضمان ولقطات الأسعار"
+        subtitle=""
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -516,8 +506,7 @@ export const MSSSalesView: React.FC = () => {
           <div id="mss-sale-print-root" className="p-5 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
             {/* Header */}
             <div className="text-center pb-3.5 border-b border-slate-300">
-              <h3 className="text-lg font-bold text-slate-900">Compu MSS للحلول التقنية واللابتوب</h3>
-              <p className="text-slate-500 text-xs mt-1">فاتورة بيع وضمان أجهزة رسمية</p>
+              <h3 className="text-lg font-bold text-slate-900">Compu MSS   </h3>
             </div>
 
             {/* Metadata Grid */}
@@ -577,7 +566,7 @@ export const MSSSalesView: React.FC = () => {
               </div>
               <div className="p-3.5 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">سعر العرض الأصلي:</span>
+                  <span className="text-slate-600 font-medium">السعر  :</span>
                   <span className="font-mono font-semibold tabular-nums">{formatCurrency(completedInvoice.list_price_snapshot)}</span>
                 </div>
                 {completedInvoice.discount_amount > 0 && (

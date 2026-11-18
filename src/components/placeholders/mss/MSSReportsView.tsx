@@ -107,8 +107,8 @@ export const MSSReportsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="تقارير Compu MSS والأرباح"
-        subtitle="تقرير الإيرادات المشتركة وتكاليف شراء الأجهزة ومجمل الأرباح وإحصائيات مبيعات الفروع المعتمدة"
+        title="تقارير Compu MSS "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -195,13 +195,6 @@ export const MSSReportsView: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Rule 16 Explicit Callout Alert */}
-      <Alert
-        type="info"
-        title="محددات أرباح Compu MSS المشتركة (Rule 16)"
-        message="أرباح Compu MSS تُحسب حصراً على مستوى النشاط ككل كشراكة موحدة (إجمالي سعر البيع الفعلي ناقص تكلفة شراء الأجهزة المحفوظة تاريخياً). تقارير مبيعات الفروع تمثل الأداء التشغيلي والتحصيل فقط، ولا يجوز اعتبارها أو توزيعها كأرباح فردية منفصلة للفرع البائع."
-      />
-
       {isLoading || !summary ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
@@ -212,27 +205,27 @@ export const MSSReportsView: React.FC = () => {
           {/* Financial KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="إجمالي المبيعات (Gross Sales)"
+              title="إجمالي المبيعات"
               value={formatCurrency(summary.totalRevenue)}
               subtitle={`قبل المرتجعات (${summary.soldDevicesCount} جهاز)`}
               icon={DollarSign}
             />
             <StatsCard
-              title="إجمالي المرتجعات (Returns)"
+              title="إجمالي المرتجعات "
               value={formatCurrency(summary.totalRefunds)}
               subtitle={`${summary.returnedDevicesCount} جهاز مسترد`}
               icon={RotateCcw}
             />
             <StatsCard
-              title="صافي المبيعات (Net Sales)"
+              title="صافي المبيعات "
               value={formatCurrency(summary.netSales)}
               subtitle="الإيراد الفعلي بعد خصم المرتجعات"
               icon={Laptop}
             />
             <StatsCard
-              title="مجمل الربح المشترك (Gross Profit)"
+              title="مجمل الربح  "
               value={formatCurrency(summary.grossProfit)}
-              subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}% على مستوى النشاط`}
+              subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}% `}
               icon={TrendingUp}
             />
           </div>
@@ -244,11 +237,8 @@ export const MSSReportsView: React.FC = () => {
               <CardHeader className="py-3.5 px-5 bg-slate-100/90 border-b border-slate-300 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Store className="w-4.5 h-4.5 text-slate-600" />
-                  <span>المبيعات التشغيلية حسب فرع التنفيذ</span>
+                  <span>المبيعات  حسب كل فرع </span>
                 </CardTitle>
-                <Badge variant="default" size="sm">
-                  تشغيلي وتحصيل
-                </Badge>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
                 {branchSales.map((b, idx) => (
@@ -269,7 +259,7 @@ export const MSSReportsView: React.FC = () => {
 
                     <div className="flex justify-between text-slate-500 text-xs border-t border-slate-200 pt-2">
                       <span>الخصومات الممنوحة بالفرع: {formatCurrency(b.discounts)}</span>
-                      <span>مبيعات عبر الفروع: {b.crossBranchSalesCount} عملية</span>
+                      <span>عدد عمليات البيع  : {b.crossBranchSalesCount} عملية</span>
                     </div>
                   </div>
                 ))}
@@ -281,7 +271,7 @@ export const MSSReportsView: React.FC = () => {
               <CardHeader className="py-3.5 px-5 bg-slate-100/90 border-b border-slate-300">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Laptop className="w-4.5 h-4.5 text-slate-600" />
-                  <span>قيمة المخزون الفعلي الحالي حسب الموقع</span>
+                  <span>قيمة المخزون   حسب كل فرع </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -290,7 +280,7 @@ export const MSSReportsView: React.FC = () => {
                   .map((loc, idx) => (
                     <div key={idx} className="p-3.5 bg-slate-50 rounded-xl space-y-2 text-sm border border-slate-300">
                       <div className="flex justify-between items-center font-bold text-slate-900">
-                        <span>المخزن الفيزيائي: {loc.location}</span>
+                        <span>  {loc.location}:</span>
                         <span className="font-mono tabular-nums text-base">
                           {loc.availableUnits} جهاز متوفر
                         </span>
@@ -318,7 +308,7 @@ export const MSSReportsView: React.FC = () => {
             <CardHeader className="py-3.5 px-5 bg-slate-100/90 border-b border-slate-300">
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Monitor className="w-4.5 h-4.5 text-slate-600" />
-                <span>تحليل المبيعات حسب فئة الأجهزة (لابتوبات مقابل شاشات)</span>
+                <span>تحليل المبيعات حسب فئة الأجهزة </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -340,7 +330,7 @@ export const MSSReportsView: React.FC = () => {
                       <span className="font-bold text-slate-900 font-mono tabular-nums">{formatCurrency(cat.cogs)}</span>
                     </div>
                     <div className="flex justify-between text-slate-900 font-bold border-t border-slate-200 pt-2">
-                      <span>مجمل الربح المحقق:</span>
+                      <span>مجمل الربح :</span>
                       <span className="text-emerald-700 font-mono text-base tabular-nums">{formatCurrency(cat.grossProfit)}</span>
                     </div>
                   </div>
@@ -353,7 +343,7 @@ export const MSSReportsView: React.FC = () => {
           <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
             <CardHeader className="py-3.5 px-5 bg-slate-100/90 border-b border-slate-300">
               <CardTitle className="text-sm font-bold text-slate-900">
-                حركة مبيعات وأرباح أجهزة Compu MSS اليومية (آخر 14 يوماً)
+                حركة مبيعات   Compu MSS اليومية (آخر 14 يوماً)
               </CardTitle>
             </CardHeader>
             <div className="overflow-x-auto">
@@ -400,8 +390,8 @@ export const MSSReportsView: React.FC = () => {
               {/* Report Header */}
               <div className="border-b-2 border-slate-900 pb-5 flex justify-between items-start">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-950 tracking-tight">Compu MSS للحلول التقنية واللابتوب</h1>
-                  <p className="text-sm font-semibold text-slate-700 mt-1">تقرير الأداء المالي والأرباح المشتركة للأجهزة</p>
+                  <h1 className="text-2xl font-bold text-slate-950 tracking-tight">Compu MSS   </h1>
+                  <p className="text-sm font-semibold text-slate-700 mt-1">تقرير الأداء المالي والأرباح  </p>
                   <p className="text-xs text-slate-500 mt-1">
                     فترة التقرير: <span className="font-bold text-slate-900">{dateLabel || 'كافة الفترات'}</span>
                   </p>
@@ -444,9 +434,9 @@ export const MSSReportsView: React.FC = () => {
                       <td className="py-2 px-3.5 text-xs text-slate-600">تكلفة شراء الأجهزة المحفوظة تاريخياً</td>
                     </tr>
                     <tr className="bg-slate-50 font-bold">
-                      <td className="py-3 px-3.5 text-base text-emerald-900">مجمل الربح المشترك (Gross Profit)</td>
+                      <td className="py-3 px-3.5 text-base text-emerald-900">مجمل الربح المشترك </td>
                       <td className="py-3 px-3.5 font-mono text-base font-bold text-left text-emerald-800 tabular-nums">{formatCurrency(summary.grossProfit)}</td>
-                      <td className="py-3 px-3.5 text-xs text-emerald-900 font-semibold">هامش ربح {summary.profitMarginPercent.toFixed(1)}% على مستوى النشاط المشترك</td>
+                      <td className="py-3 px-3.5 text-xs text-emerald-900 font-semibold">هامش ربح {summary.profitMarginPercent.toFixed(1)}% </td>
                     </tr>
                   </tbody>
                 </table>
@@ -454,15 +444,15 @@ export const MSSReportsView: React.FC = () => {
 
               {/* Branch Operational Sales Breakdown */}
               <div className="space-y-2 pt-2">
-                <h3 className="text-sm font-bold text-slate-900">أداء فروع البيع والتحصيل التشغيلي:</h3>
+                <h3 className="text-sm font-bold text-slate-900">أداء  البيع حسب كل فرع  :</h3>
                 <div className="border border-slate-300 rounded-lg overflow-hidden">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
                       <tr>
-                        <th className="py-2 px-3 text-right">الفرع البائع</th>
+                        <th className="py-2 px-3 text-right">الفرع </th>
                         <th className="py-2 px-3 text-center">عدد الأجهزة</th>
                         <th className="py-2 px-3 text-left">إجمالي المبيعات</th>
-                        <th className="py-2 px-3 text-left">نسبة المشاركة</th>
+                        <th className="py-2 px-3 text-left">نسبة البيع</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -486,9 +476,9 @@ export const MSSReportsView: React.FC = () => {
                   <table className="w-full text-xs">
                     <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
                       <tr>
-                        <th className="py-2 px-3 text-right">الموقع الفيزيائي</th>
+                        <th className="py-2 px-3 text-right">الموقع </th>
                         <th className="py-2 px-3 text-center">الأجهزة المتاحة</th>
-                        <th className="py-2 px-3 text-left">قيمة الشراء المخزني</th>
+                        <th className="py-2 px-3 text-left">قيمة الشراء </th>
                         <th className="py-2 px-3 text-left">القيمة البيعية المتوقعة</th>
                       </tr>
                     </thead>

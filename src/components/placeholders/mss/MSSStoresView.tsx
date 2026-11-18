@@ -427,8 +427,8 @@ export const MSSStoresView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="إدارة الفروع والمخازن (Stores & Warehouses)"
-        subtitle="إدارة مقرات العمل التشغيلية والمخازن المشتركة لـ Compu MSS وتعيين الشركاء ودمج الفروع بأمان"
+        title="إدارة الفروع والمخازن "
+        subtitle=" "
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -438,7 +438,7 @@ export const MSSStoresView: React.FC = () => {
               leftIcon={<GitMerge className="w-4.5 h-4.5 text-blue-700" />}
               className="border-blue-200 text-blue-800 hover:bg-blue-50 font-bold"
             >
-              معالج دمج الفروع
+               دمج الفروع
             </Button>
             <Button
               variant="outline"
@@ -447,7 +447,7 @@ export const MSSStoresView: React.FC = () => {
               disabled={isRefreshing || loading}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="primary"
@@ -517,7 +517,7 @@ export const MSSStoresView: React.FC = () => {
               options={[
                 { value: 'all', label: 'كافة الأنواع' },
                 { value: 'store', label: 'فروع بيع وتوزيع' },
-                { value: 'warehouse', label: 'مخازن ومستودعات' },
+                { value: 'warehouse', label: 'مخازن ' },
                 { value: 'combined', label: 'فرع ومخزن مدمج' },
               ]}
               className="text-xs"
@@ -691,7 +691,7 @@ export const MSSStoresView: React.FC = () => {
             setIsEditModalOpen(false);
           }}
           title={isEditModalOpen ? `تعديل الفرع: ${selectedStore?.name}` : 'إضافة فرع أو مخزن جديد'}
-          subtitle="سجل بيانات الموقع التشغيلي الجديد مع الحفاظ على عزل الحسابات والمخزون"
+          subtitle=" "
           size="md"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -723,7 +723,7 @@ export const MSSStoresView: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
-                  رمز الفرع (Code)<span className="text-rose-500">*</span>
+                  رمز الفرع <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   value={formCode}
@@ -741,9 +741,9 @@ export const MSSStoresView: React.FC = () => {
                   value={formType}
                   onChange={e => setFormType(e.target.value as StoreType)}
                   options={[
-                    { value: 'store', label: 'فرع بيع وتوزيع (Store)' },
-                    { value: 'warehouse', label: 'مخزن بضاعة ومستودع (Warehouse)' },
-                    { value: 'combined', label: 'فرع ومخزن مدمج (Combined)' },
+                    { value: 'store', label: 'فرع بيع وتوزيع ' },
+                    { value: 'warehouse', label: 'مخزن  ' },
+                    { value: 'combined', label: 'فرع ومخزن ' },
                   ]}
                 />
               </div>
@@ -762,7 +762,7 @@ export const MSSStoresView: React.FC = () => {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-1">العنوان والموقع الجغرافي</label>
+              <label className="font-bold text-slate-700 block mb-1">العنوان  </label>
               <Input
                 value={formAddress}
                 onChange={e => setFormAddress(e.target.value)}
@@ -797,7 +797,7 @@ export const MSSStoresView: React.FC = () => {
         <Modal
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
-          title={`تفاصيل الموقع: ${selectedStore.name}`}
+          title={`تفاصيل : ${selectedStore.name}`}
           subtitle={`الرمز: ${selectedStore.code} | النوع: ${selectedStore.type}`}
           size="lg"
           footer={
@@ -825,16 +825,6 @@ export const MSSStoresView: React.FC = () => {
               </div>
             </div>
 
-            {/* Rule Notice */}
-            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-blue-900 leading-relaxed">
-              <div className="flex items-center gap-2 font-bold mb-1">
-                <ShieldCheck className="w-4 h-4 text-blue-600" />
-                <span>قاعدة عزل الحسابات عن المخزون (Rule A & B):</span>
-              </div>
-              <p className="text-[11px] text-blue-800">
-                الموظفون والشركاء هم هويات دخول للنظام، بينما المخازن والفروع هي مواقع مادية للأجهزة. لا يرتبط المخزون إطلاقاً بحساب موظف، وتغيير التعيينات لا يغير ملكية أو مواقع الأجهزة.
-              </p>
-            </div>
 
             {/* Memberships Table */}
             <div>
@@ -928,8 +918,8 @@ export const MSSStoresView: React.FC = () => {
         <Modal
           isOpen={isMergeModalOpen}
           onClose={() => !isMerging && setIsMergeModalOpen(false)}
-          title="معالج دمج الفروع والمخازن (Store Merge Wizard)"
-          subtitle="دمج ذري للفروع والمخازن مع الحفاظ التام على المخزون والفواتير السابقة دون المساس بها"
+          title=" دمج الفروع والمخازن "
+          subtitle=""
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -956,7 +946,7 @@ export const MSSStoresView: React.FC = () => {
                       showNotification({
                         type: 'warning',
                         title: 'تحديد الفروع',
-                        message: 'يجب اختيار فرع أو مخزن واحد على الأقل للدمج.',
+                        message: 'يجب اختيار فرع أو مخزن واحد على الأقل .',
                       });
                       return;
                     }
@@ -1002,7 +992,7 @@ export const MSSStoresView: React.FC = () => {
                   leftIcon={isMerging ? <Spinner size="sm" /> : <GitMerge className="w-4 h-4" />}
                   className="font-bold"
                 >
-                  {isMerging ? 'جارٍ تنفيذ الدمج...' : 'تأكيد وتنفيذ الدمج الذري'}
+                  {isMerging ? 'جارٍ تنفيذ الدمج...' : 'تأكيد وتنفيذ الدمج '}
                 </Button>
               )}
 
@@ -1058,9 +1048,6 @@ export const MSSStoresView: React.FC = () => {
             {/* Step 1: Select Source Stores */}
             {mergeStep === 1 && (
               <div className="space-y-3">
-                <Alert variant="info" title="الخطوة 1: حدد الفروع أو المخازن المراد دمجها وأرشفتها">
-                  اختر المقرات التي سيتم دمجها. سيتم أرشفة هذه المقرات تلقائياً وإعادة تعيين موظفيها للفرع الوجهة، بينما يظل المخزون التاريخي والفواتير منسوبة لها بأمان.
-                </Alert>
                 <div className="border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-slate-100">
                   {stores
                     .filter(s => !s.isArchived)
@@ -1100,9 +1087,6 @@ export const MSSStoresView: React.FC = () => {
             {/* Step 2: Select Destination Store */}
             {mergeStep === 2 && (
               <div className="space-y-3">
-                <Alert variant="info" title="الخطوة 2: اختر الفرع الوجهة المستقر">
-                  حدد الفرع النشط الذي سيستقبل الشركاء والموظفين ويكون الكيان الموحد بعد الدمج.
-                </Alert>
                 <div className="space-y-2">
                   <label className="font-bold text-slate-700 block">اختر الفرع الوجهة النشط:</label>
                   <Select
@@ -1125,21 +1109,19 @@ export const MSSStoresView: React.FC = () => {
             {/* Step 3: Impact Preview */}
             {mergeStep === 3 && mergePreview && (
               <div className="space-y-3">
-                <Alert variant="warning" title="معاينة التأثير وقواعد الأمان:">
-                  {mergePreview.historicalRecordsNotice}
-                </Alert>
+
 
                 <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2">
                   <span className="font-bold text-slate-900 block">المقرات المتأثرة بالدمج:</span>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="p-2 bg-white rounded-lg border border-slate-200">
-                      <span className="text-slate-400 block">الفروع المصدر المؤرشفة:</span>
+                      <span className="text-slate-400 block">الفروع المصدر :</span>
                       <span className="font-bold text-slate-800">
                         {mergePreview.sourceStores.map(s => s.name).join('، ')}
                       </span>
                     </div>
                     <div className="p-2 bg-white rounded-lg border border-slate-200">
-                      <span className="text-slate-400 block">الفرع الوجهة الموحد:</span>
+                      <span className="text-slate-400 block">الفرع الوجهة :</span>
                       <span className="font-bold text-emerald-800">
                         {mergePreview.destinationStore?.name}
                       </span>
@@ -1165,9 +1147,6 @@ export const MSSStoresView: React.FC = () => {
             {/* Step 4: Notes and Final Confirmation */}
             {mergeStep === 4 && (
               <div className="space-y-3">
-                <Alert variant="error" title="تأكيد نهائي لعملية الدمج:">
-                  الدمج سيقوم بأرشفة الفروع المصدر وإعادة ربط الموظفين والشركاء بالفرع الوجهة. هذه العملية لا تنقل المخزون الفعلي لضمان نزاهة الحسابات والأرباح التاريخية.
-                </Alert>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
                     ملاحظات وأسباب الدمج (اختياري لتوثيق سجل التدقيق):

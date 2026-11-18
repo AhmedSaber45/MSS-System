@@ -178,41 +178,39 @@ export const MSSInvoicesView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="فواتير مبيعات أجهزة Compu MSS"
-        subtitle="سجل فواتير مبيعات اللابتوب والشاشات موثقة بالسيريال ولقطات الأسعار مع إسناد فرع البيع ومصدر المخزون"
+        title="فواتير مبيعات  Compu MSS"
+        subtitle=""
       />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الفواتير الصادرة</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الفواتير </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{totalInvoices}</span>
             <FileText className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">عملية بيع موثقة بالسيريال</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الإيراد الفعلي (Revenue)</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي الإيراد الفعلي </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
               {formatCurrency(totalRevenue)}
             </span>
             <DollarSign className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">للفواتير السارية</span>
+    
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي مجمل الربح المشترك</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">إجمالي مجمل الربح </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-700 font-mono tabular-nums">
               {formatCurrency(totalProfit)}
             </span>
             <TrendingUp className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">أرباح Compu MSS المشتركة</span>
         </Card>
       </div>
 
@@ -232,7 +230,7 @@ export const MSSInvoicesView: React.FC = () => {
           <Button
             variant="outline"
             size="md"
-            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير مبيعات أجهزة Compu MSS...')}
+            onClick={() => triggerRefresh(loadData, 'جارٍ تحديث فواتير   Compu MSS...')}
             disabled={isRefreshing || isLoading}
             title="إعادة تحميل البيانات"
             className="font-semibold"
@@ -302,7 +300,7 @@ export const MSSInvoicesView: React.FC = () => {
           <FileText className="w-12 h-12 mx-auto text-slate-400" />
           <h3 className="text-base font-bold text-slate-800">لا توجد فواتير مطابقة</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            تظهر هنا فواتير المبيعات الصادرة لكل جهاز بالسيريال وتفاصيل فروع البيع والتخزين.
+            تظهر هنا فواتير المبيعات الصادرة لكل جهاز     .
           </p>
         </Card>
       ) : (
@@ -322,7 +320,7 @@ export const MSSInvoicesView: React.FC = () => {
         isOpen={!!selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
         title={`معاينة فاتورة مبيعات جهاز (${selectedInvoice?.invoice_number})`}
-        subtitle="فاتورة بيع وضمان رسمية تتضمن السيريال والشروط وتفاصيل العملية"
+        subtitle="  "
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -368,14 +366,14 @@ export const MSSInvoicesView: React.FC = () => {
           <div id="mss-invoice-print-root" className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
             {/* Header */}
             <div className="text-center pb-4 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Compu MSS للحلول التقنية واللابتوب</h3>
+              <h3 className="text-lg font-bold text-slate-900">Compu MSS   </h3>
               <p className="text-slate-500 text-xs mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
             </div>
 
             {/* Status Banner if Returned */}
             {selectedInvoice.is_returned && (
               <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-center text-sm font-semibold text-rose-700">
-                هذه الفاتورة تم إرجاعها وعكس أثرها المالي وإعادة الجهاز إلى المخزون.
+                هذه الفاتورة تم إرجاعها  وإعادة الجهاز إلى المخزون.
               </div>
             )}
 
@@ -436,12 +434,12 @@ export const MSSInvoicesView: React.FC = () => {
               </div>
               <div className="p-4 space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">سعر العرض الأصلي:</span>
+                  <span className="text-slate-600 font-medium">السعر  :</span>
                   <span className="font-mono font-medium tabular-nums">{formatCurrency(selectedInvoice.list_price_snapshot)}</span>
                 </div>
                 {selectedInvoice.discount_amount > 0 && (
                   <div className="flex justify-between text-rose-600 font-semibold">
-                    <span>الخصم الممنوح:</span>
+                    <span>الخصم :</span>
                     <span className="font-mono tabular-nums">-{formatCurrency(selectedInvoice.discount_amount)}</span>
                   </div>
                 )}

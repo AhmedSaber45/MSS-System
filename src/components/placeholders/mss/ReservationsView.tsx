@@ -399,7 +399,7 @@ export const ReservationsView: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="حجوزات أجهزة Compu MSS"
-        subtitle="حجز أجهزة محددة بالسيريال للعملاء مع تحديد العربون وتاريخ الانتهاء وتحديث حالة الجهاز في كلا المحلين فورياً"
+        subtitle=""
         actions={
           <Button
             variant="primary"
@@ -408,7 +408,7 @@ export const ReservationsView: React.FC = () => {
             className="font-bold"
             leftIcon={<Plus className="w-4.5 h-4.5" />}
           >
-            إنشاء حجز جديد بالسيريال
+            إنشاء حجز جديد 
           </Button>
         }
       />
@@ -421,18 +421,17 @@ export const ReservationsView: React.FC = () => {
             <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{reservations.length}</span>
             <BookmarkCheck className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">سجل الحجوزات الكلي</span>
+
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-sm text-slate-600 font-semibold mb-1">الحجوزات السارية حالياً</p>
+          <p className="text-sm text-slate-600 font-semibold mb-1">الحجوزات الحالية </p>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-700 font-mono tabular-nums">
               {reservations.filter(r => r.status === 'ACTIVE').length}
             </span>
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">محجوزة وتمنع البيع للغير</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -447,7 +446,6 @@ export const ReservationsView: React.FC = () => {
             </span>
             <Calendar className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">عربون الحجوزات السارية</span>
         </Card>
       </div>
 
@@ -565,7 +563,7 @@ export const ReservationsView: React.FC = () => {
           <BookmarkCheck className="w-12 h-12 mx-auto text-slate-400" />
           <h3 className="text-base font-bold text-slate-800">لا توجد حجوزات مطابقة</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            يمكنك إنشاء حجز جديد بالسيريال لأي جهاز متاح في المخزون لمنع بيعه للغير وتثبيت العربون.
+            يمكنك إنشاء حجز جديد  لأي جهاز متاح في المخزون     .
           </p>
           <Button
             variant="outline"
@@ -593,8 +591,8 @@ export const ReservationsView: React.FC = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="إنشاء حجز جهاز جديد بالسيريال"
-        subtitle="حجز جهاز متاح لعميل مع تحديد العربون وتاريخ الانتهاء"
+        title="إنشاء حجز جهاز جديد "
+        subtitle=""
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -642,7 +640,7 @@ export const ReservationsView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="اسم العميل *"
-              placeholder="مثال: أحمد محمود..."
+              placeholder="مثال: أحمد ..."
               value={customerName}
               onChange={e => setCustomerName(e.target.value)}
               required
@@ -688,7 +686,7 @@ export const ReservationsView: React.FC = () => {
 
           <div>
             <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-              فرع توثيق الحجز <span className="text-rose-500">*</span>
+              فرع  الحجز <span className="text-rose-500">*</span>
             </label>
             <Select
               value={branch}
@@ -811,7 +809,7 @@ export const ReservationsView: React.FC = () => {
               className="font-bold"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <XCircle className="w-4.5 h-4.5" />}
             >
-              {isSubmitting ? 'جاري الإلغاء...' : 'تأكيد الإلغاء والإفراج'}
+              {isSubmitting ? 'جاري الإلغاء...' : 'تأكيد الإلغاء '}
             </Button>
           </div>
         }

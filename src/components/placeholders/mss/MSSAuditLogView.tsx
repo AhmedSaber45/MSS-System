@@ -121,8 +121,8 @@ export const MSSAuditLogView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="سجل النشاط والتدقيق الإداري (Activity & Audit Trail)"
-        subtitle="سجل تدقيق مركزي غير قابل للتعديل لتوثيق كافة الحركات الإدارية والعمليات الحساسة لنظام Compu MSS"
+        title="سجل النشاط  الإداري "
+        subtitle=" "
         actions={
           <Button
             variant="outline"
@@ -131,28 +131,11 @@ export const MSSAuditLogView: React.FC = () => {
             disabled={isRefreshing || loading}
             leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
           >
-            تحديث السجل
+            Refresh 
           </Button>
         }
       />
 
-      {/* Immutability Notice Banner */}
-      <Card className="p-3.5 bg-slate-900 border border-slate-800 text-slate-200 shadow-xs flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
-            <Lock className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="font-bold text-white text-xs">سجل موثق سحابياً محمي ضد التعديل (Append-Only Audit Log)</h4>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              كل حركة إدارية تسجل بصمة المسؤول والتوقيت ولقطة البيانات التفصيلية. الحذف أو التعديل محظور بموجب سياسات RLS لقاعدة البيانات.
-            </p>
-          </div>
-        </div>
-        <Badge variant="success" size="sm" className="hidden sm:inline-flex">
-          محمي وموثق
-        </Badge>
-      </Card>
 
       {/* Filter Bar */}
       <Card className="p-3 bg-white border border-slate-200 shadow-xs">
@@ -172,7 +155,7 @@ export const MSSAuditLogView: React.FC = () => {
               value={targetFilter}
               onChange={e => setTargetFilter(e.target.value as any)}
               options={[
-                { value: 'all', label: 'كافة أنواع الكيانات' },
+                { value: 'all', label: 'الكل  ' },
                 { value: 'user', label: 'المستخدمون والموظفون' },
                 { value: 'store', label: 'الفروع والمخازن' },
                 { value: 'inventory', label: 'المخزون والتحويلات' },
@@ -205,9 +188,9 @@ export const MSSAuditLogView: React.FC = () => {
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-3.5">المنفذ (Actor)</th>
+                  <th className="py-3 px-3.5">المنفذ </th>
                   <th className="py-3 px-3.5">نوع العملية</th>
-                  <th className="py-3 px-3.5">الكيان المستهدف</th>
+                  <th className="py-3 px-3.5"> الهدف من العملية</th>
                   <th className="py-3 px-3.5">التوقيت</th>
                   <th className="py-3 px-3.5 text-center">التفاصيل والبيانات</th>
                 </tr>
@@ -276,7 +259,7 @@ export const MSSAuditLogView: React.FC = () => {
         <Modal
           isOpen={!!selectedLog}
           onClose={() => setSelectedLog(null)}
-          title={`تفاصيل حركة التدقيق: ${selectedLog.eventType}`}
+          title={`تفاصيل الحركة : ${selectedLog.eventType}`}
           subtitle={`المنفذ: ${selectedLog.actorUsername} | التوقيت: ${formatDate(selectedLog.createdAt)}`}
           size="md"
           footer={
@@ -302,7 +285,7 @@ export const MSSAuditLogView: React.FC = () => {
             </div>
 
             <div>
-              <span className="font-bold text-slate-800 block mb-1">لقطة البيانات الموثقة (Metadata Snapshot):</span>
+              <span className="font-bold text-slate-800 block mb-1">لقطة البيانات الموثقة :</span>
               <pre
                 className="p-3 bg-slate-900 text-slate-100 rounded-xl font-mono text-[11px] overflow-x-auto max-h-60 leading-relaxed"
                 dir="ltr"

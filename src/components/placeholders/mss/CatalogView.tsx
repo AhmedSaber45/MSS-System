@@ -396,7 +396,7 @@ export const CatalogView: React.FC = () => {
                 <tr>
                   <th className="py-3 px-3.5"> الموديل</th>
                   <th className="py-3 px-3.5">النوع</th>
-                  <th className="py-3 px-3.5">المعالج والرام</th>
+                  <th className="py-3 px-3.5">CPU,GPU&RAM</th>
                   <th className="py-3 px-3.5">الهارد والشاشة</th>
                   <th className="py-3 px-3.5 text-left">السعر </th>
                   <th className="py-3 px-3.5 text-center">  (محل 1 / محل 2)</th>

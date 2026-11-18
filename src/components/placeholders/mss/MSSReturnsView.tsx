@@ -240,8 +240,8 @@ export const MSSReturnsView: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="مرتجعات أجهزة Compu MSS وعكس العمليات"
-        subtitle="توثيق استرجاع الأجهزة المباعة وعكس الأرباح وإعادة السيريال إلى المخزون المادي المعتمد"
+        title="مرتجعات أجهزة Compu MSS  "
+        subtitle=""
         actions={
           <Button
             variant="outline"
@@ -256,12 +256,6 @@ export const MSSReturnsView: React.FC = () => {
         }
       />
 
-      {/* Rules Banner (Rule 8 & 19) */}
-      <Alert
-        type="info"
-        title="توضيح لقاعدة الإرجاع وعكس العمليات (Rule 8 & 19)"
-        message="لا يتم حذف فواتير المبيعات الصادرة نهائياً من النظام، وإنما يتم تسجيل عملية إرجاع منفصلة وموثقة لعكس الأثر المالي للأرباح وإعادة الجهاز بالسيريال إلى الموقع المادي المختار."
-      />
 
       {/* Return Lookup & Form Card */}
       <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
@@ -331,7 +325,7 @@ export const MSSReturnsView: React.FC = () => {
                       <strong className="text-slate-900 text-sm">{foundInvoice.selling_branch}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-xs font-semibold">سعر البيع الفعلي:</span>
+                      <span className="text-slate-500 block text-xs font-semibold">سعر البيع :</span>
                       <strong className="text-slate-900 font-mono text-sm tabular-nums">{formatCurrency(foundInvoice.actual_sale_price)}</strong>
                     </div>
                   </div>
@@ -410,7 +404,7 @@ export const MSSReturnsView: React.FC = () => {
                     className="font-bold"
                     leftIcon={isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-4.5 h-4.5" />}
                   >
-                    {isSubmitting ? 'جاري توثيق الإرجاع...' : `تأكيد إرجاع الجهاز (${formatCurrency(refundAmount)})`}
+                    {isSubmitting ? 'جاري  الإرجاع...' : `تأكيد إرجاع الجهاز (${formatCurrency(refundAmount)})`}
                   </Button>
                 </div>
               </form>
@@ -424,7 +418,7 @@ export const MSSReturnsView: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <History className="w-5 h-5 text-slate-600" />
-            <h4 className="text-sm font-bold text-slate-900">سجل عمليات الإرجاع السابقة</h4>
+            <h4 className="text-sm font-bold text-slate-900">سجل عمليات الإرجاع </h4>
           </div>
 
           <div className="w-full md:w-80">

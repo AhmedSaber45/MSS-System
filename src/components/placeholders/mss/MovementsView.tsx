@@ -314,8 +314,8 @@ export const MovementsView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="تحويلات وحركات المخزون (Inventory Transfers & Movements)"
-        subtitle="مسار إرشادي ذري لنقل الأجهزة المسلسلة بين الفروع والمخازن مع الحفاظ المطلق على أسعار الشراء وقواعد المحاسبة"
+        title="تحويلات وحركات المخزون "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -325,7 +325,7 @@ export const MovementsView: React.FC = () => {
               disabled={isRefreshing || isLoading}
               leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
-              تحديث
+              Refresh
             </Button>
             <Button
               variant="primary"
@@ -340,12 +340,6 @@ export const MovementsView: React.FC = () => {
         }
       />
 
-      {/* Rules Banner (Rule 9 & Section 16 & Rule C/D) */}
-      <Alert
-        type="info"
-        title="قانون حفظ المخزون وعدم توليد أرباح وهمية (Rule C & D):"
-        message="التحويلات تنقل الموقع التشغيلي للأجهزة فقط، ولا تولد إيرادات أو أرباحاً أو فواتير مبيعات، وتحافظ بدقة متناهية على أسعار وتكاليف الشراء الأصلية لكافة الأجهزة المسلسلة."
-      />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
@@ -375,7 +369,7 @@ export const MovementsView: React.FC = () => {
 
         <Card className="p-4 bg-white border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">القيمة التقديرية المنقولة</span>
+            <span className="text-xs font-semibold text-slate-500">القيمة التقديرية للمنقولات</span>
             <ShieldCheck className="w-4 h-4 text-slate-600" />
           </div>
           <p className="text-xl font-bold font-mono text-slate-900 mt-2">
@@ -395,7 +389,7 @@ export const MovementsView: React.FC = () => {
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>سجل دفعات التحويل ({transfers.length})</span>
+          <span>سجل  التحويل ({transfers.length})</span>
         </button>
 
         <button
@@ -619,7 +613,7 @@ export const MovementsView: React.FC = () => {
                 <span className="font-mono font-bold text-slate-900">{selectedTransfer.itemCount} جهاز</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px]">قيمة التكلفة المحفوظة:</span>
+                <span className="text-slate-400 block text-[10px]">قيمة التكلفة :</span>
                 <span className="font-mono font-bold text-slate-900">{formatCurrency(selectedTransfer.totalCost)}</span>
               </div>
               <div>
@@ -638,7 +632,7 @@ export const MovementsView: React.FC = () => {
 
             {/* Devices Items Table */}
             <div>
-              <h4 className="font-bold text-slate-800 mb-2">الأجهزة المسلسلة المنقولة بالعملية:</h4>
+              <h4 className="font-bold text-slate-800 mb-2">الأجهزة  المنقولة بالعملية:</h4>
               {selectedTransfer.items && selectedTransfer.items.length > 0 ? (
                 <div className="border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
                   <table className="w-full text-right text-xs">
@@ -682,7 +676,7 @@ export const MovementsView: React.FC = () => {
           isOpen={isWizardOpen}
           onClose={() => !isExecuting && setIsWizardOpen(false)}
           title="معالج تحويل المخزون الإرشادي (Guided Transfer Wizard)"
-          subtitle="مسار إرشادي ذري للنقل المادي للأجهزة مع فحص الأهلية ومنع التعارضات وحفظ التكاليف"
+          subtitle=""
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -767,7 +761,7 @@ export const MovementsView: React.FC = () => {
                   leftIcon={isExecuting ? <Spinner size="sm" /> : <ArrowLeftRight className="w-4 h-4" />}
                   className="font-bold"
                 >
-                  {isExecuting ? 'جارٍ التحويل الذري...' : 'تأكيد وتنفيذ النقل الذري'}
+                  {isExecuting ? 'جارٍ التحويل ...' : 'تأكيد وتنفيذ النقل '}
                 </Button>
               )}
 
@@ -778,7 +772,7 @@ export const MovementsView: React.FC = () => {
                   onClick={() => setIsWizardOpen(false)}
                   className="font-bold"
                 >
-                  إغلاق المعالج
+                  إغلاق 
                 </Button>
               )}
             </div>
@@ -926,7 +920,7 @@ export const MovementsView: React.FC = () => {
                             }}
                             className="text-blue-700 hover:underline font-bold text-[11px]"
                           >
-                            تحديد كل المتاح الظاهر
+                            تحديد كل المتاح 
                           </button>
                           <span>•</span>
                           <button
@@ -1022,7 +1016,7 @@ export const MovementsView: React.FC = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px]">إجمالي تكلفة الشراء المنقولة:</span>
+                    <span className="text-slate-400 block text-[10px]">إجمالي تكلفة الشراء للمنقولات:</span>
                     <span className="font-mono font-bold text-slate-900 text-base">
                       {formatCurrency(wizardPreview.totalEligibleCost)}
                     </span>
@@ -1033,7 +1027,7 @@ export const MovementsView: React.FC = () => {
                 {wizardPreview.ineligibleDevices.length > 0 && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
                     <span className="font-bold text-rose-800 block">
-                      أجهزة مستبعدة تلقائياً لعدم أهليتها ({wizardPreview.ineligibleDevices.length}):
+                      أجهزة مستبعدة تلقائياً   ({wizardPreview.ineligibleDevices.length}):
                     </span>
                     <div className="max-h-28 overflow-y-auto text-[11px] divide-y divide-rose-100">
                       {wizardPreview.ineligibleDevices.map(idv => (
@@ -1062,27 +1056,8 @@ export const MovementsView: React.FC = () => {
             {/* Step 4: Safety & Accounting Rules */}
             {wizardStep === 4 && (
               <div className="space-y-3">
-                <Alert variant="info" title="إقرار السلامة المحاسبية والتحويل الذري:">
-                  وفقاً للقاعدة المحاسبية الصارمة (Rule 8 & 9): عملية النقل هذه لا تغير أي ربح أو تكلفة، وتُثبت أسعار الشراء التاريخية بدقة.
-                </Alert>
 
-                <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="font-bold text-slate-800 block">الضمانات الفنية المنفذة:</span>
-                  <div className="space-y-1.5 text-slate-700 text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>النقل ذري بنسبة 100% (تنجح كل القطع المؤهلة أو تفشل العملية كاملة).</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>حماية التكرار (Idempotency) لمنع تكرار التحويل في حال انقطاع الشبكة.</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>توثيق الرقم المرجعي وتوقيت التحويل في سجل التدقيق السحابي.</span>
-                    </div>
-                  </div>
-                </div>
+
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">

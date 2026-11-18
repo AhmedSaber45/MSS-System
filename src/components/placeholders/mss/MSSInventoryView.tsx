@@ -399,7 +399,7 @@ export const MSSInventoryView: React.FC = () => {
     setSelectedDevice(dev);
     // Suggest the other shop
     setTransferTargetLocation(dev.stock_location === 'محل 1' ? 'محل 2' : 'محل 1');
-    setTransferNotes('نقل فعلي لتلبية طلبات الفرع');
+    setTransferNotes('لتعويض النقص فى المخزون الأخر');
     setTransferError('');
     setIsTransferModalOpen(true);
   };
@@ -694,8 +694,8 @@ export const MSSInventoryView: React.FC = () => {
     <div className="space-y-5">
       {/* Page Header */}
       <PageHeader
-        title="المخزون الفعلي ومتابعة السيريالات"
-        subtitle="تتبع دقيق لكل قطعة هاردوير بسيريالها الفريد، وحركتها وتكلفتها وحالتها في مختلف الفروع والمخازن"
+        title="المخزون   "
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             {selectedDeviceIds.length > 0 && (
@@ -727,7 +727,7 @@ export const MSSInventoryView: React.FC = () => {
               leftIcon={<Plus className="w-4.5 h-4.5" />}
               className="font-bold"
             >
-              إضافة جهاز جديد بالسيريال
+              إضافة جهاز جديد
             </Button>
           </div>
         }
@@ -741,7 +741,6 @@ export const MSSInventoryView: React.FC = () => {
             <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.total_units || 0}</span>
             <Layers className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">سيريالات مسجلة</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -750,7 +749,7 @@ export const MSSInventoryView: React.FC = () => {
             <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.available_shop1 || 0}</span>
             <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">جاهز للبيع الفوري</span>
+
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -759,7 +758,7 @@ export const MSSInventoryView: React.FC = () => {
             <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.available_shop2 || 0}</span>
             <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">جاهز للبيع الفوري</span>
+
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -768,7 +767,6 @@ export const MSSInventoryView: React.FC = () => {
             <span className="text-xl font-bold text-emerald-800 font-mono tabular-nums">{summary?.available_total || 0}</span>
             <Check className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">بالمحلين معاً</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -777,7 +775,6 @@ export const MSSInventoryView: React.FC = () => {
             <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.reserved_total || 0}</span>
             <Calendar className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">حجز مؤقت</span>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
@@ -788,7 +785,6 @@ export const MSSInventoryView: React.FC = () => {
             </span>
             <AlertTriangle className="w-5 h-5 text-slate-500" />
           </div>
-          <span className="text-xs text-slate-500 mt-0.5 block">غير جاهز للبيع</span>
         </Card>
       </div>
 
@@ -809,7 +805,7 @@ export const MSSInventoryView: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث المخزون الفعلي وأجهزة السيريال...')}
+              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث المخزون   ...')}
               disabled={isRefreshing || isLoading}
               title="إعادة تحميل البيانات"
               leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
@@ -824,15 +820,14 @@ export const MSSInventoryView: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-sm">
           {/* Location Filter */}
           <div className="flex items-center gap-2.5">
-            <span className="font-bold text-slate-700 text-xs">الموقع / الفرع:</span>
+            <span className="font-bold text-slate-700 text-xs">الموقع :</span>
             <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
               <button
                 onClick={() => setLocationFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  locationFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === 'ALL'
+                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 الكل ({devices.length})
               </button>
@@ -840,11 +835,10 @@ export const MSSInventoryView: React.FC = () => {
                 <button
                   key={loc}
                   onClick={() => setLocationFilter(loc)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    locationFilter === loc
-                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === loc
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {loc} ({devices.filter(d => d.stock_location === loc).length})
                 </button>
@@ -864,11 +858,10 @@ export const MSSInventoryView: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => setCategoryFilter(cat.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    categoryFilter === cat.id
-                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${categoryFilter === cat.id
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {cat.label}
                 </button>
@@ -893,11 +886,10 @@ export const MSSInventoryView: React.FC = () => {
                 <button
                   key={st.id}
                   onClick={() => setStatusFilter(st.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    statusFilter === st.id
-                      ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${statusFilter === st.id
+                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {st.label}
                 </button>
@@ -914,7 +906,7 @@ export const MSSInventoryView: React.FC = () => {
             <div className="flex items-center gap-2 text-emerald-900 font-bold">
               <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
               <span>
-                تم تحديد <strong className="font-mono text-sm underline">{selectedDeviceIds.length}</strong> جهاز جاهز للتحويل الجماعي بين الفروع
+                تم تحديد <strong className="font-mono text-sm underline">{selectedDeviceIds.length}</strong> جهاز  للتحويل  بين الفروع
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -955,7 +947,7 @@ export const MSSInventoryView: React.FC = () => {
                 }}
                 className="text-blue-600 hover:underline font-semibold"
               >
-                تحديد جميع الأجهزة المتاحة الظاهرة ({filteredDevices.filter(d => d.status === 'AVAILABLE').length})
+                تحديد جميع الأجهزة المتاحة  ({filteredDevices.filter(d => d.status === 'AVAILABLE').length})
               </button>
             </>
           )}
@@ -975,15 +967,12 @@ export const MSSInventoryView: React.FC = () => {
       {isLoading ? (
         <Card className="p-16 text-center bg-white border-slate-300">
           <Spinner size="lg" className="mx-auto mb-3" />
-          <p className="text-sm font-medium text-slate-600">جاري تحميل بيانات الأجهزة والمخزون السحابي...</p>
+          <p className="text-sm font-medium text-slate-600">جاري تحميل بيانات الأجهزة والمخزون ...</p>
         </Card>
       ) : filteredDevices.length === 0 ? (
         <Card className="p-16 text-center space-y-3 bg-white border-slate-300">
           <Box className="w-10 h-10 mx-auto text-slate-400" />
-          <h3 className="text-base font-bold text-slate-800">لا توجد أجهزة مطابقة للبحث أو التصفية</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            يمكنك مسح كود السيريال بالماسح الضوئي مباشرة أو إضافة جهاز جديد وربطه بموديل من الكتالوج.
-          </p>
+          <h3 className="text-base font-bold text-slate-800">لا توجد أجهزة مطابقة للبحث  </h3>
           <Button
             variant="outline"
             size="md"
@@ -1010,8 +999,8 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="تسجيل جهاز لابتوب / شاشة جديد بالسيريال"
-        subtitle="إدخال قطعة فعلية جديدة وتخصيص سيريال فريد وموقع تخزين مادي محدد"
+        title="تسجيل جهاز   جديد "
+        subtitle=""
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1043,14 +1032,14 @@ export const MSSInventoryView: React.FC = () => {
           {/* Serial Number */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              السيريال نمبر الفريد <span className="text-rose-500">*</span>
+              السيريال نمبر  <span className="text-rose-500">*</span>
             </label>
             <Input
               placeholder="اكتب السيريال (مثال: PF1K892-LEN)..."
               value={formSerial}
               onChange={e => setFormSerial(e.target.value.toUpperCase())}
               required
-              helperText="السيريال فريد لكل جهاز ولا يمكن تكراره نهائياً في النظام"
+              helperText=""
             />
           </div>
 
@@ -1058,14 +1047,14 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الموديل المرتبط من الكتالوج <span className="text-rose-500">*</span>
+                الموديل    <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={formModelId}
                 onChange={e => handleModelChange(e.target.value)}
                 options={catalogModels.map(m => ({
                   value: m.id,
-                  label: `${m.brand} ${m.model_name} (${m.category}) - سعر العرض: ${m.default_list_price} EGP`,
+                  label: `${m.brand} ${m.model_name} (${m.category}) `,
                 }))}
                 required
               />
@@ -1073,7 +1062,7 @@ export const MSSInventoryView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                المحل الفعلي للتخزين <span className="text-rose-500">*</span>
+                مكان التخزين <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={formLocation}
@@ -1105,7 +1094,7 @@ export const MSSInventoryView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر العرض الاسترشادي (EGP) <span className="text-rose-500">*</span>
+                سعر العرض  (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -1134,17 +1123,15 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الحالة الظاهرية والفنية
+                الحالة
               </label>
               <Select
                 value={formCondition}
                 onChange={e => setFormCondition(e.target.value)}
                 options={[
-                  { value: 'فرز أول ممتاز', label: 'فرز أول ممتاز (نظيف جداً بدون خدوش)' },
-                  { value: 'كالجديد كرتونة كاملة', label: 'كالجديد بكرتونته وشواحنه الأصلية' },
-                  { value: 'فرز أول', label: 'فرز أول (حالة ممتازة)' },
-                  { value: 'فرز ثانٍ', label: 'فرز ثانٍ (خدوش سطحية طفيفة)' },
-                  { value: 'يحتاج صيانة طفيفة', label: 'يحتاج صيانة طفيفة / مراجعة' },
+                  { value: 'فرز أول ممتاز', label: 'فرز أول ممتاز ' },
+                  { value: 'فرز ثانٍ', label: 'فرز ثانٍ ' },
+                  { value: 'يحتاج صيانة ', label: 'يحتاج صيانة  / مراجعة' },
                 ]}
               />
             </div>
@@ -1157,9 +1144,9 @@ export const MSSInventoryView: React.FC = () => {
                 value={formStatus}
                 onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
                 options={[
-                  { value: 'AVAILABLE', label: 'متاح للبيع الفوري (Available)' },
-                  { value: 'RESERVED', label: 'محجوز لعميل (Reserved)' },
-                  { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص (Under Maintenance)' },
+                  { value: 'AVAILABLE', label: 'متاح   ' },
+                  { value: 'RESERVED', label: 'محجوز  ' },
+                  { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص ' },
                 ]}
               />
             </div>
@@ -1188,7 +1175,7 @@ export const MSSInventoryView: React.FC = () => {
         isOpen={isEditModalOpen}
         onClose={() => !isSubmitting && setIsEditModalOpen(false)}
         title={`تعديل بيانات الجهاز (${selectedDevice?.serial_number})`}
-        subtitle="تعديل السعر، الحالة الظاهرية، أو الملاحظات الخاصة بهذا الجهاز"
+        subtitle=""
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1231,7 +1218,7 @@ export const MSSInventoryView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                موقع التخزين الفعلي
+                موقع التخزين
               </label>
               <Select
                 value={formLocation}
@@ -1285,7 +1272,7 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الحالة الظاهرية
+                الحالة
               </label>
               <Input
                 value={formCondition}
@@ -1301,11 +1288,11 @@ export const MSSInventoryView: React.FC = () => {
                 value={formStatus}
                 onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
                 options={[
-                  { value: 'AVAILABLE', label: 'متاح للبيع (Available)' },
-                  { value: 'RESERVED', label: 'محجوز لعميل (Reserved)' },
-                  { value: 'SOLD', label: 'تم البيع (Sold)' },
-                  { value: 'MAINTENANCE', label: 'تحت الصيانة (Under Maintenance)' },
-                  { value: 'RETURNED', label: 'مرتجع (Returned)' },
+                  { value: 'AVAILABLE', label: 'متاح  ' },
+                  { value: 'RESERVED', label: 'محجوز  ' },
+                  { value: 'SOLD', label: 'تم البيع ' },
+                  { value: 'MAINTENANCE', label: 'تحت الصيانة ' },
+                  { value: 'RETURNED', label: 'مرتجع ' },
                 ]}
               />
             </div>
@@ -1331,8 +1318,8 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isTransferModalOpen}
         onClose={() => !isSubmitting && setIsTransferModalOpen(false)}
-        title="تحويل جهاز فعلياً بين المحلين"
-        subtitle="توثيق النقل الحقيقي لجهاز من موقع تخزينه الحالي إلى المحل الآخر"
+        title="نقل جهاز من مخزون لأخر"
+        subtitle=""
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1351,7 +1338,7 @@ export const MSSInventoryView: React.FC = () => {
               disabled={isSubmitting}
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <ArrowLeftRight className="w-4 h-4" />}
             >
-              {isSubmitting ? 'جاري توثيق النقل...' : 'تأكيد النقل الفعلي'}
+              {isSubmitting ? 'جاري  النقل...' : 'تأكيد النقل '}
             </Button>
           </div>
         }
@@ -1387,7 +1374,7 @@ export const MSSInventoryView: React.FC = () => {
 
               <div className="flex flex-col items-center px-4">
                 <ArrowLeftRight className="w-4 h-4 text-slate-500" />
-                <span className="text-[10px] text-slate-500 mt-1">تحويل فعلي</span>
+                <span className="text-[10px] text-slate-500 mt-1">نقل </span>
               </div>
 
               <div className="text-center">
@@ -1401,12 +1388,12 @@ export const MSSInventoryView: React.FC = () => {
 
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              سبب إذن النقل والبيان <span className="text-rose-500">*</span>
+              سبب  النقل  <span className="text-rose-500">*</span>
             </label>
             <textarea
               className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
-              placeholder="مثال: نقل للعرض في واجهة محل 1، أو تلبية طلب محجوز لعميل..."
+              placeholder=""
               value={transferNotes}
               onChange={e => setTransferNotes(e.target.value)}
               required
@@ -1425,8 +1412,8 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
-        title={`بطاقة الجهاز وسجل التنقلات (${selectedDevice?.serial_number})`}
-        subtitle="كافة المواصفات وسجل الحركة المادية الفعلي بين مقرات العمل"
+        title={`بيانات وتفاصيل الجهاز    (${selectedDevice?.serial_number})`}
+        subtitle=""
         size="lg"
         footer={
           <Button variant="outline" size="sm" onClick={() => setIsDetailsModalOpen(false)}>
@@ -1446,7 +1433,7 @@ export const MSSInventoryView: React.FC = () => {
                   <p className="text-[11px] text-slate-400 mt-0.5">{selectedDevice.category}</p>
                 </div>
                 <div className="text-left font-mono">
-                  <span className="text-[10px] text-slate-400 block">السيريال الفريد:</span>
+                  <span className="text-[10px] text-slate-400 block">السيريال نمبر:</span>
                   <span className="font-semibold text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded border border-slate-200">
                     {selectedDevice.serial_number}
                   </span>
@@ -1480,7 +1467,7 @@ export const MSSInventoryView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px] mb-0.5">الموقع الحالي:</span>
+                  <span className="text-slate-400 block text-[10px] mb-0.5">الموقع :</span>
                   <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}>
                     {selectedDevice.stock_location}
                   </Badge>
@@ -1492,7 +1479,7 @@ export const MSSInventoryView: React.FC = () => {
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] mb-0.5">الحالة الظاهرية:</span>
+                  <span className="text-slate-400 block text-[10px] mb-0.5">الحالة :</span>
                   <span className="text-slate-700 font-medium">{selectedDevice.physical_condition}</span>
                 </div>
               </div>
@@ -1557,7 +1544,7 @@ export const MSSInventoryView: React.FC = () => {
         isOpen={isDeleteModalOpen}
         onClose={() => !isSubmitting && setIsDeleteModalOpen(false)}
         title="تأكيد حذف الجهاز من المخزون"
-        subtitle="تحذير: هذا الإجراء يحذف سجل الجهاز وسيرياله نهائياً من النظام"
+        subtitle=""
         size="sm"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1576,14 +1563,14 @@ export const MSSInventoryView: React.FC = () => {
               disabled={isSubmitting}
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Trash2 className="w-4 h-4" />}
             >
-              {isSubmitting ? 'جاري الحذف...' : 'حذف الجهاز نهائياً'}
+              {isSubmitting ? 'جاري الحذف...' : 'حذف الجهاز '}
             </Button>
           </div>
         }
       >
         <div className="space-y-3 text-xs">
           <p className="text-slate-700">
-            هل أنت متأكد من رغبتك في حذف هذا الجهاز بسيرياله الخاص:
+            هل أنت متأكد من رغبتك في حذف هذا الجهاز  :
           </p>
           <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-xs space-y-1">
             <p className="font-medium text-slate-900">
@@ -1601,8 +1588,8 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isMultiTransferWizardOpen}
         onClose={() => !isExecutingTransfer && setIsMultiTransferWizardOpen(false)}
-        title="معالج تحويل الأجهزة الجماعي بين الفروع والمخازن"
-        subtitle={`نقل ${selectedDeviceIds.length} جهاز محدد بطريقة ذرية موثوقة`}
+        title=" نقل الأجهزة بين المخازن  "
+        subtitle=""
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1621,7 +1608,7 @@ export const MSSInventoryView: React.FC = () => {
                   onClick={handlePreviewBulkTransfer}
                   leftIcon={<ArrowLeft className="w-4 h-4" />}
                 >
-                  معاينة وتدقيق التحويل
+                  معاينة
                 </Button>
               </>
             )}
@@ -1650,7 +1637,7 @@ export const MSSInventoryView: React.FC = () => {
                   }
                   className="bg-emerald-600 hover:bg-emerald-700 font-bold"
                 >
-                  {isExecutingTransfer ? 'جارٍ التحويل الذري...' : 'تأكيد وتنفيذ التحويل الآن'}
+                  {isExecutingTransfer ? 'جارٍ التحويل ...' : 'تأكيد وتنفيذ التحويل الآن'}
                 </Button>
               </>
             )}
@@ -1663,7 +1650,7 @@ export const MSSInventoryView: React.FC = () => {
                   onClick={() => setIsMultiTransferWizardOpen(false)}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  تم، إغلاق المعالج
+                  إغلاق
                 </Button>
               </div>
             )}
@@ -1680,22 +1667,20 @@ export const MSSInventoryView: React.FC = () => {
             ].map(st => (
               <div
                 key={st.s}
-                className={`p-2 rounded-lg text-center font-bold text-xs flex items-center justify-center gap-1.5 ${
-                  wizardStep === st.s
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : wizardStep > st.s
+                className={`p-2 rounded-lg text-center font-bold text-xs flex items-center justify-center gap-1.5 ${wizardStep === st.s
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : wizardStep > st.s
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : 'bg-slate-50 text-slate-400 border border-slate-200'
-                }`}
+                  }`}
               >
                 <span
-                  className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] ${
-                    wizardStep === st.s
-                      ? 'bg-blue-600 text-white'
-                      : wizardStep > st.s
+                  className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] ${wizardStep === st.s
+                    ? 'bg-blue-600 text-white'
+                    : wizardStep > st.s
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-300 text-slate-700'
-                  }`}
+                    }`}
                 >
                   {st.s}
                 </span>
@@ -1707,14 +1692,12 @@ export const MSSInventoryView: React.FC = () => {
           {/* STEP 1 */}
           {wizardStep === 1 && (
             <div className="space-y-3">
-              <Alert variant="info" title="تأكيد مواقع النقل">
-                سيتم نقل الأجهزة المحددة ({selectedDeviceIds.length} جهاز) من موقعها الحالي إلى الموقع المستلم.
-              </Alert>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
-                    موقع المصدر (الموقع الحالي):
+                    الموقع الحالي:
                   </label>
                   <Select
                     value={wizardSource}
@@ -1725,7 +1708,7 @@ export const MSSInventoryView: React.FC = () => {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
-                    موقع الوجهة (المستلم):
+                    المستلم:
                   </label>
                   <Select
                     value={wizardDest}
@@ -1772,7 +1755,7 @@ export const MSSInventoryView: React.FC = () => {
             <div className="space-y-3">
               {wizardPreview.canTransfer ? (
                 <Alert variant="success" title="جاهز للتحويل">
-                  تم فحص وتدقيق كافة الأجهزة بنجاح. الأجهزة مطابقة وجاهزة للتحويل الذري الفوري.
+
                 </Alert>
               ) : (
                 <Alert variant="danger" title="تعذر التحويل">
@@ -1795,7 +1778,7 @@ export const MSSInventoryView: React.FC = () => {
                   <strong className="text-blue-700">{wizardDest}</strong>
                 </div>
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                  <span className="text-slate-500 block text-[11px]">الأجهزة المؤهلة</span>
+                  <span className="text-slate-500 block text-[11px]">الأجهزة </span>
                   <strong className="text-emerald-700 font-mono text-sm">
                     {wizardPreview.eligibleDevices.length} جهاز
                   </strong>
@@ -1804,14 +1787,11 @@ export const MSSInventoryView: React.FC = () => {
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <div className="flex justify-between text-slate-700 font-medium">
-                  <span>إجمالي تكلفة الأجهزة المنقولة:</span>
+                  <span>إجمالي تكلفة الأجهزة :</span>
                   <span className="font-mono font-bold text-slate-900">
                     {formatCurrency(wizardPreview.totalEligibleCost)}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  * التحويل لا يؤثر على تكلفة الشراء أو الأرباح التاريخية للأجهزة طبقاً لقواعد النظام (Rules C & D).
-                </p>
               </div>
             </div>
           )}
