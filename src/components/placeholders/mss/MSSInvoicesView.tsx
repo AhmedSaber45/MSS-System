@@ -183,7 +183,7 @@ export const MSSInvoicesView: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const matchNum = inv.invoice_number.toLowerCase().includes(q);
-      const matchSerial = inv.serial_number.toLowerCase().includes(q);
+      const matchSerial = Boolean(inv.serial_number?.toLowerCase().includes(q));
       const matchModel = inv.model_name?.toLowerCase().includes(q);
       const matchBrand = inv.brand?.toLowerCase().includes(q);
       const matchCustomer = inv.customer_name?.toLowerCase().includes(q);
@@ -230,9 +230,15 @@ export const MSSInvoicesView: React.FC = () => {
             {item.brand ? `${item.brand} ` : ''}
             {item.model_name}
           </span>
-          <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-            {item.serial_number}
-          </span>
+          {item.serial_number ? (
+            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+              {item.serial_number}
+            </span>
+          ) : (
+            <Badge variant="outline" size="sm" className="text-[10px] text-slate-500">
+              بدون سيريال
+            </Badge>
+          )}
         </div>
       ),
     },
@@ -669,9 +675,15 @@ export const MSSInvoicesView: React.FC = () => {
                   <span className="font-bold text-slate-900 text-base">
                     {selectedInvoice.brand} {selectedInvoice.model_name}
                   </span>
-                  <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
-                    {selectedInvoice.serial_number}
-                  </span>
+                  {selectedInvoice.serial_number ? (
+                    <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
+                      {selectedInvoice.serial_number}
+                    </span>
+                  ) : (
+                    <Badge variant="outline" size="sm" className="text-[10px] text-slate-500">
+                      بدون سيريال
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-slate-500 font-mono text-xs">
                   {[

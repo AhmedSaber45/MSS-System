@@ -12,6 +12,9 @@ import type {
   MSSInventorySummary,
   MSSStockLocation,
   MSSDeviceStatus,
+  NewMSSBulkStockInput,
+  AssignSerialsInput,
+  MSSModelInventorySummary,
 } from '../types/mssInventory.ts';
 
 const MSS_DEVICES_CACHE_KEY = 'shop_mss_devices_cache_v1';
@@ -149,6 +152,41 @@ function saveCachedDevices(devices: MSSDevice[]): void {
   localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(devices));
 }
 
+const MSS_DELETED_DEVICES_KEY = 'shop_mss_deleted_devices_v1';
+
+function getDeletedDeviceIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(MSS_DELETED_DEVICES_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedDeviceId(id: string): void {
+  try {
+    const set = getDeletedDeviceIds();
+    set.add(id);
+    localStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+function removeDeletedDeviceId(id: string): void {
+  try {
+    const set = getDeletedDeviceIds();
+    if (set.has(id)) {
+      set.delete(id);
+      localStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function getCachedMovements(): MSSDeviceMovement[] {
   try {
     const raw = localStorage.getItem(MSS_MOVEMENTS_CACHE_KEY);
@@ -194,7 +232,9 @@ export const mssInventoryService = {
       if (!error && Array.isArray(data) && data.length > 0) {
         const cloudDevices = data.map((row: any) => ({
           id: row.id,
-          serial_number: row.serial_number,
+          serial_number: row.serial_number || null,
+          is_serialized: row.is_serialized !== undefined ? Boolean(row.is_serialized) : Boolean(row.serial_number),
+          quantity: Number(row.quantity) || 1,
           model_id: row.model_id,
           purchase_cost: Number(row.purchase_cost) || 0,
           list_price: Number(row.list_price) || 0,
@@ -206,19 +246,26 @@ export const mssInventoryService = {
           created_at: row.created_at,
           updated_at: row.updated_at,
         }));
+        const deletedIds = getDeletedDeviceIds();
         const localCached = getCachedDevices();
         const mergedMap = new Map<string, MSSDevice>();
         for (const cd of cloudDevices) {
-          mergedMap.set(cd.serial_number, cd);
+          if (deletedIds.has(cd.id)) continue;
+          const key = cd.id || (cd.serial_number ? `sn-${cd.serial_number}` : `id-${Math.random()}`);
+          mergedMap.set(key, cd);
         }
         for (const ld of localCached) {
-          if (!mergedMap.has(ld.serial_number)) {
-            mergedMap.set(ld.serial_number, ld);
+          if (deletedIds.has(ld.id)) continue;
+          const key = ld.id || (ld.serial_number ? `sn-${ld.serial_number}` : `id-${Math.random()}`);
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, ld);
           }
         }
         for (const sd of INITIAL_SEED_DEVICES) {
-          if (!mergedMap.has(sd.serial_number)) {
-            mergedMap.set(sd.serial_number, sd);
+          if (deletedIds.has(sd.id)) continue;
+          const key = sd.id || (sd.serial_number ? `sn-${sd.serial_number}` : `id-${Math.random()}`);
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, sd);
           }
         }
         devices = Array.from(mergedMap.values());
@@ -262,7 +309,7 @@ export const mssInventoryService = {
       const q = filters.query.trim().toLowerCase();
       devices = devices.filter(
         d =>
-          d.serial_number.toLowerCase().includes(q) ||
+          (d.serial_number && d.serial_number.toLowerCase().includes(q)) ||
           d.model_name?.toLowerCase().includes(q) ||
           d.brand?.toLowerCase().includes(q) ||
           d.physical_condition.toLowerCase().includes(q) ||
@@ -285,19 +332,19 @@ export const mssInventoryService = {
    * Get device by Serial Number (Exact match, case-insensitive)
    */
   async getDeviceBySerial(serial: string): Promise<MSSDevice | null> {
+    if (!serial || !serial.trim()) return null;
     const s = serial.trim().toUpperCase();
     const devices = await this.getDevices();
-    return devices.find(d => d.serial_number.toUpperCase() === s) || null;
+    return devices.find(d => d.serial_number && d.serial_number.toUpperCase() === s) || null;
   },
 
   /**
-   * Register a new individual physical device unit
+   * Register a new individual physical device unit (with or without serial number)
    */
   async createDevice(input: NewMSSDeviceInput): Promise<MSSDevice> {
-    const serial = input.serial_number.trim().toUpperCase();
-    if (!serial) {
-      throw new Error('السيريال نمبر الفريد للجهاز مطلوب');
-    }
+    const rawSerial = typeof input.serial_number === 'string' ? input.serial_number.trim() : null;
+    const serial = rawSerial && rawSerial.length > 0 ? rawSerial.toUpperCase() : null;
+    const isSerialized = Boolean(serial);
 
     if (!input.model_id) {
       throw new Error('يجب اختيار الموديل المرتبط من الكتالوج');
@@ -315,11 +362,16 @@ export const mssInventoryService = {
       throw new Error('موقع التخزين غير صالح. يجب اختيار "محل 1" أو "محل 2"');
     }
 
-    // Check duplicate serial number locally first
     const cached = getCachedDevices();
-    const isDuplicate = cached.some(d => d.serial_number.toUpperCase() === serial);
-    if (isDuplicate) {
-      throw new Error(`السيريال نمبر (${serial}) مسجل مسبقاً في النظام. يمنع تكرار السيريالات.`);
+
+    // Check duplicate serial number locally if serialized
+    if (isSerialized && serial) {
+      const isDuplicate = cached.some(
+        d => d.serial_number && d.serial_number.toUpperCase() === serial
+      );
+      if (isDuplicate) {
+        throw new Error(`السيريال نمبر (${serial}) مسجل مسبقاً في النظام. يمنع تكرار السيريالات.`);
+      }
     }
 
     // Verify model exists in catalog
@@ -340,6 +392,8 @@ export const mssInventoryService = {
     const newDevice: MSSDevice = {
       id: newId,
       serial_number: serial,
+      is_serialized: isSerialized,
+      quantity: input.quantity && input.quantity > 0 ? Math.floor(input.quantity) : 1,
       model_id: input.model_id,
       purchase_cost: input.purchase_cost,
       list_price: input.list_price || model.default_list_price,
@@ -361,6 +415,7 @@ export const mssInventoryService = {
       const { data, error } = await supabase
         .from('mss_devices')
         .insert({
+          id: newDevice.id,
           serial_number: newDevice.serial_number,
           model_id: newDevice.model_id,
           purchase_cost: newDevice.purchase_cost,
@@ -378,7 +433,7 @@ export const mssInventoryService = {
         newDevice.id = data.id;
         newDevice.created_at = data.created_at;
         newDevice.updated_at = data.updated_at;
-      } else if (error && error.code === '23505') {
+      } else if (error && error.code === '23505' && serial) {
         throw new Error(`السيريال نمبر (${serial}) موجود مسبقاً في قاعدة البيانات السحابية.`);
       }
     } catch (err: any) {
@@ -396,14 +451,261 @@ export const mssInventoryService = {
       .queueOperation(
         'DEVICE_ADD',
         newDevice,
-        `تسجيل جهاز جديد بالسيريال (${newDevice.serial_number}) بمخزون (${newDevice.stock_location})`,
+        newDevice.serial_number
+          ? `تسجيل جهاز جديد بالسيريال (${newDevice.serial_number}) بمخزون (${newDevice.stock_location})`
+          : `تسجيل جهاز بدون سيريال (${model.model_name}) بمخزون (${newDevice.stock_location})`,
         newDevice.stock_location
       )
       .catch(console.warn);
 
-    backupService.notifyDataChanged(`تسجيل جهاز MSS: ${newDevice.serial_number}`);
+    backupService.notifyDataChanged(
+      newDevice.serial_number
+        ? `تسجيل جهاز MSS: ${newDevice.serial_number}`
+        : `تسجيل جهاز MSS بدون سيريال: ${model.model_name}`
+    );
 
     return newDevice;
+  },
+
+  /**
+   * Register bulk non-serialized inventory by model and quantity
+   */
+  async createBulkStock(input: NewMSSBulkStockInput): Promise<MSSDevice> {
+    const qty = Math.floor(input.quantity);
+    if (!qty || qty <= 0) {
+      throw new Error('كمية المخزون غير المسلسل يجب أن تكون عدداً صحيحاً أكبر من صفر');
+    }
+    if (!input.model_id) {
+      throw new Error('يجب اختيار الموديل المرتبط من الكتالوج');
+    }
+    if (input.purchase_cost < 0) {
+      throw new Error('سعر التكلفة لا يمكن أن يكون سالباً');
+    }
+    if (input.list_price < 0) {
+      throw new Error('سعر العرض لا يمكن أن يكون سالباً');
+    }
+    if (!['محل 1', 'محل 2'].includes(input.stock_location)) {
+      throw new Error('موقع التخزين غير صالح. يجب اختيار "محل 1" أو "محل 2"');
+    }
+
+    const model = await mssCatalogService.getModelById(input.model_id);
+    if (!model) {
+      throw new Error('الموديل المحدد غير موجود في كتالوج MSS');
+    }
+
+    const today = getTodayLocalDateString();
+    const purchaseDate = input.purchase_date || today;
+    if (purchaseDate > today) {
+      throw new Error(`تاريخ الشراء (${purchaseDate}) لا يمكن أن يكون في المستقبل.`);
+    }
+
+    const newId = 'dev-bulk-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const now = new Date().toISOString();
+
+    const bulkDevice: MSSDevice = {
+      id: newId,
+      serial_number: null,
+      is_serialized: false,
+      quantity: qty,
+      model_id: input.model_id,
+      purchase_cost: input.purchase_cost,
+      list_price: input.list_price || model.default_list_price,
+      purchase_date: purchaseDate,
+      physical_condition: input.physical_condition?.trim() || 'فرز أول ممتاز',
+      stock_location: input.stock_location,
+      status: 'AVAILABLE',
+      notes: input.notes?.trim() || null,
+      created_at: now,
+      updated_at: now,
+      model,
+      model_name: model.model_name,
+      brand: model.brand,
+      category: model.category,
+    };
+
+    const cached = getCachedDevices();
+    cached.unshift(bulkDevice);
+    saveCachedDevices(cached);
+
+    // Try remote insert to Supabase
+    try {
+      await supabase.from('mss_devices').insert({
+        id: bulkDevice.id,
+        serial_number: null,
+        model_id: bulkDevice.model_id,
+        purchase_cost: bulkDevice.purchase_cost,
+        list_price: bulkDevice.list_price,
+        purchase_date: bulkDevice.purchase_date,
+        physical_condition: bulkDevice.physical_condition,
+        stock_location: bulkDevice.stock_location,
+        status: bulkDevice.status,
+        notes: bulkDevice.notes,
+      });
+    } catch (err) {
+      console.warn('Supabase bulk stock insert failed, cached locally:', err);
+    }
+
+    // Queue in Outbox
+    mssSyncService
+      .queueOperation(
+        'DEVICE_ADD',
+        bulkDevice,
+        `إضافة دفعة مخزون مجمعة غير مسلسلة (${bulkDevice.quantity} وحدة) للموديل ${model.brand} ${model.model_name} بموقع (${bulkDevice.stock_location})`,
+        bulkDevice.stock_location
+      )
+      .catch(console.warn);
+
+    backupService.notifyDataChanged(`إضافة مخزون MSS غير مسلسل: ${model.model_name} (${qty} جهاز)`);
+
+    return bulkDevice;
+  },
+
+  /**
+   * Assign serial numbers to previously non-serialized stock (Partial or full conversion)
+   */
+  async assignSerialsToBulkStock(input: AssignSerialsInput): Promise<{
+    convertedDevices: MSSDevice[];
+    remainingStock: MSSDevice | null;
+  }> {
+    const cached = getCachedDevices();
+    const stockIndex = cached.findIndex(d => d.id === input.stock_id);
+    if (stockIndex < 0) {
+      throw new Error('دفعة المخزون غير المسلسل غير موجودة');
+    }
+
+    const stock = cached[stockIndex];
+    if (stock.status !== 'AVAILABLE') {
+      throw new Error(`لا يمكن تحويل مخزون بحالة (${stock.status})، يجب أن يكون متاحاً للبيع.`);
+    }
+
+    const currentQty = stock.quantity && stock.quantity > 0 ? stock.quantity : 1;
+
+    // Clean and validate serial numbers list
+    if (!Array.isArray(input.serial_numbers) || input.serial_numbers.length === 0) {
+      throw new Error('يرجى إدخال رقم سيريال واحد على الأقل للتعيين');
+    }
+
+    const cleanedSerials = input.serial_numbers
+      .map(s => (typeof s === 'string' ? s.trim().toUpperCase() : ''))
+      .filter(Boolean);
+
+    if (cleanedSerials.length === 0) {
+      throw new Error('يرجى إدخال أرقام سيريال صحيحة وغير فارغة');
+    }
+
+    const count = cleanedSerials.length;
+    if (count > currentQty) {
+      throw new Error(
+        `عدد أرقام السيريال المدخلة (${count}) يتجاوز الكمية المتاحة في هذه الدفعة (${currentQty})`
+      );
+    }
+
+    // Check duplicate within the input array
+    const uniqueInput = new Set(cleanedSerials);
+    if (uniqueInput.size !== cleanedSerials.length) {
+      throw new Error('يوجد تكرار في أرقام السيريال المدخلة في نفس العملية');
+    }
+
+    // Check duplicate against existing serialized devices
+    for (const s of cleanedSerials) {
+      const exists = cached.some(
+        d => d.serial_number && d.serial_number.toUpperCase() === s
+      );
+      if (exists) {
+        throw new Error(`السيريال نمبر (${s}) مسجل مسبقاً في النظام. يرجى إدخال سيريال فريد.`);
+      }
+    }
+
+    // Prepare converted devices
+    const now = new Date().toISOString();
+    const convertedDevices: MSSDevice[] = [];
+
+    for (const s of cleanedSerials) {
+      const devId = 'dev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+      const newDev: MSSDevice = {
+        id: devId,
+        serial_number: s,
+        is_serialized: true,
+        quantity: 1,
+        model_id: stock.model_id,
+        purchase_cost: stock.purchase_cost,
+        list_price: stock.list_price,
+        purchase_date: stock.purchase_date,
+        physical_condition: stock.physical_condition,
+        stock_location: stock.stock_location,
+        status: 'AVAILABLE',
+        notes: `تم التعيين والتحويل من مخزون غير مسلسل (الدفعة: ${stock.id})${input.notes ? ' - ' + input.notes : ''}`,
+        created_at: now,
+        updated_at: now,
+        model: stock.model,
+        model_name: stock.model_name,
+        brand: stock.brand,
+        category: stock.category,
+      };
+      convertedDevices.push(newDev);
+    }
+
+    // Adjust remaining non-serialized quantity
+    const remainingQty = currentQty - count;
+    let remainingStock: MSSDevice | null = null;
+
+    if (remainingQty > 0) {
+      stock.quantity = remainingQty;
+      stock.updated_at = now;
+      cached[stockIndex] = stock;
+      remainingStock = stock;
+    } else {
+      // All units in this batch were converted
+      cached.splice(stockIndex, 1);
+      addDeletedDeviceId(stock.id);
+      remainingStock = null;
+    }
+
+    // Insert newly serialized units
+    cached.unshift(...convertedDevices);
+    saveCachedDevices(cached);
+
+    // Supabase sync & logging
+    try {
+      for (const d of convertedDevices) {
+        await supabase.from('mss_devices').insert({
+          id: d.id,
+          serial_number: d.serial_number,
+          model_id: d.model_id,
+          purchase_cost: d.purchase_cost,
+          list_price: d.list_price,
+          purchase_date: d.purchase_date,
+          physical_condition: d.physical_condition,
+          stock_location: d.stock_location,
+          status: d.status,
+          notes: d.notes,
+        });
+      }
+      if (remainingQty === 0) {
+        await supabase.from('mss_devices').delete().eq('id', stock.id);
+      }
+    } catch (err) {
+      console.warn('Supabase assign serials failed, cached locally:', err);
+    }
+
+    // Outbox operation
+    mssSyncService
+      .queueOperation(
+        'DEVICE_ADD',
+        {
+          convertedCount: count,
+          remainingQty,
+          serials: cleanedSerials,
+          stockLocation: stock.stock_location,
+        },
+        `تعيين سيريالات لـ (${count}) أجهزة من مخزون غير مسلسل بموقع (${stock.stock_location})`,
+        stock.stock_location
+      )
+      .catch(console.warn);
+
+    backupService.notifyDataChanged(`تعيين سيريالات MSS: ${count} أجهزة`);
+
+    return { convertedDevices, remainingStock };
   },
 
   /**
@@ -419,14 +721,21 @@ export const mssInventoryService = {
     const current = cached[index];
 
     // Check serial uniqueness if changing serial
-    if (input.serial_number) {
-      const newSerial = input.serial_number.trim().toUpperCase();
-      if (newSerial !== current.serial_number.toUpperCase()) {
-        const isDuplicate = cached.some(d => d.id !== id && d.serial_number.toUpperCase() === newSerial);
+    let updatedSerial = current.serial_number;
+    let updatedIsSerialized = current.is_serialized;
+    if (input.serial_number !== undefined) {
+      const raw = input.serial_number?.trim();
+      const newSerial = raw && raw.length > 0 ? raw.toUpperCase() : null;
+      if (newSerial && (!current.serial_number || newSerial !== current.serial_number.toUpperCase())) {
+        const isDuplicate = cached.some(
+          d => d.id !== id && d.serial_number && d.serial_number.toUpperCase() === newSerial
+        );
         if (isDuplicate) {
           throw new Error(`السيريال نمبر (${newSerial}) مستخدم بالفعل لجهاز آخر.`);
         }
       }
+      updatedSerial = newSerial;
+      updatedIsSerialized = Boolean(newSerial);
     }
 
     if (input.purchase_cost !== undefined && input.purchase_cost < 0) {
@@ -450,7 +759,9 @@ export const mssInventoryService = {
 
     const updated: MSSDevice = {
       ...current,
-      serial_number: input.serial_number ? input.serial_number.trim().toUpperCase() : current.serial_number,
+      serial_number: updatedSerial,
+      is_serialized: updatedIsSerialized,
+      quantity: input.quantity !== undefined ? input.quantity : current.quantity,
       model_id: input.model_id || current.model_id,
       purchase_cost: input.purchase_cost !== undefined ? input.purchase_cost : current.purchase_cost,
       list_price: input.list_price !== undefined ? input.list_price : current.list_price,
@@ -511,6 +822,7 @@ export const mssInventoryService = {
     }
 
     const filtered = cached.filter(d => d.id !== id);
+    addDeletedDeviceId(id);
     saveCachedDevices(filtered);
     backupService.notifyDataChanged(`حذف جهاز MSS: ${device.serial_number}`);
   },
@@ -700,7 +1012,7 @@ export const mssInventoryService = {
       const q = filters.query.trim().toLowerCase();
       movements = movements.filter(
         m =>
-          m.serial_number.toLowerCase().includes(q) ||
+          (m.serial_number && m.serial_number.toLowerCase().includes(q)) ||
           m.id.toLowerCase().includes(q) ||
           (m.model_name && m.model_name.toLowerCase().includes(q)) ||
           (m.notes && m.notes.toLowerCase().includes(q))
@@ -726,38 +1038,53 @@ export const mssInventoryService = {
     let available_shop1 = 0;
     let available_shop2 = 0;
     let available_total = 0;
+    let available_serialized_total = 0;
+    let available_non_serialized_total = 0;
     let reserved_total = 0;
     let sold_total = 0;
     let maintenance_total = 0;
     let returned_total = 0;
     let total_cost_value = 0;
     let total_retail_value = 0;
+    let total_units = 0;
 
     devices.forEach(d => {
+      const qty = d.quantity && d.quantity > 0 ? d.quantity : 1;
+      const isSer = Boolean(d.serial_number && d.is_serialized !== false);
+
+      total_units += qty;
+
       if (d.status === 'AVAILABLE') {
-        available_total++;
-        if (d.stock_location === 'محل 1') available_shop1++;
-        if (d.stock_location === 'محل 2') available_shop2++;
+        available_total += qty;
+        if (isSer) {
+          available_serialized_total += qty;
+        } else {
+          available_non_serialized_total += qty;
+        }
+        if (d.stock_location === 'محل 1') available_shop1 += qty;
+        if (d.stock_location === 'محل 2') available_shop2 += qty;
       } else if (d.status === 'RESERVED') {
-        reserved_total++;
+        reserved_total += qty;
       } else if (d.status === 'SOLD') {
-        sold_total++;
+        sold_total += qty;
       } else if (d.status === 'MAINTENANCE') {
-        maintenance_total++;
+        maintenance_total += qty;
       } else if (d.status === 'RETURNED') {
-        returned_total++;
+        returned_total += qty;
       }
 
       // Cost and retail value for active physical devices (not sold)
       if (d.status !== 'SOLD') {
-        total_cost_value += d.purchase_cost;
-        total_retail_value += d.list_price;
+        total_cost_value += d.purchase_cost * qty;
+        total_retail_value += d.list_price * qty;
       }
     });
 
     return {
-      total_units: devices.length,
+      total_units,
       available_total,
+      available_serialized_total,
+      available_non_serialized_total,
       available_shop1,
       available_shop2,
       reserved_total,
@@ -767,5 +1094,93 @@ export const mssInventoryService = {
       total_cost_value,
       total_retail_value,
     };
+  },
+
+  /**
+   * Model-based inventory summary grouped by model and branch context
+   */
+  async getModelInventorySummary(filters?: {
+    branch?: string;
+    search?: string;
+  }): Promise<MSSModelInventorySummary[]> {
+    const [devices, models] = await Promise.all([
+      this.getDevices(),
+      mssCatalogService.getModels(),
+    ]);
+
+    const modelMap = new Map(models.map(m => [m.id, m]));
+
+    const groupMap = new Map<string, MSSModelInventorySummary>();
+
+    for (const d of devices) {
+      const model = modelMap.get(d.model_id);
+      const branch = d.stock_location || 'محل 1';
+      const key = `${d.model_id}:::${branch}`;
+
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          model_id: d.model_id,
+          model_name: model?.model_name || d.model_name || 'غير محدد',
+          brand: model?.brand || d.brand || '',
+          model_code: (model as any)?.model_code || '',
+          category: model?.category || d.category || 'أخرى',
+          branch,
+          available_serialized: 0,
+          available_non_serialized: 0,
+          total_available: 0,
+          total_units: 0,
+          reserved_count: 0,
+          sold_count: 0,
+          maintenance_count: 0,
+          devices: [],
+        });
+      }
+
+      const acc = groupMap.get(key)!;
+      const qty = d.quantity && d.quantity > 0 ? d.quantity : 1;
+      const isSer = Boolean(d.serial_number && d.is_serialized !== false);
+
+      acc.total_units += qty;
+      acc.devices.push(d);
+
+      if (d.status === 'AVAILABLE') {
+        acc.total_available += qty;
+        if (isSer) {
+          acc.available_serialized += qty;
+        } else {
+          acc.available_non_serialized += qty;
+        }
+      } else if (d.status === 'RESERVED') {
+        acc.reserved_count += qty;
+      } else if (d.status === 'SOLD') {
+        acc.sold_count += qty;
+      } else if (d.status === 'MAINTENANCE') {
+        acc.maintenance_count += qty;
+      }
+    }
+
+    let summaries = Array.from(groupMap.values());
+
+    // Apply branch filter
+    if (filters?.branch && filters.branch !== 'ALL') {
+      summaries = summaries.filter(s => s.branch === filters.branch);
+    }
+
+    // Apply search filter (model_name, brand, model_code, category)
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      summaries = summaries.filter(
+        s =>
+          s.model_name.toLowerCase().includes(q) ||
+          s.brand.toLowerCase().includes(q) ||
+          s.model_code.toLowerCase().includes(q) ||
+          s.category.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort by brand then model_name
+    summaries.sort((a, b) => a.brand.localeCompare(b.brand) || a.model_name.localeCompare(b.model_name));
+
+    return summaries;
   },
 };

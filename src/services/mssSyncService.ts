@@ -384,142 +384,148 @@ export const mssSyncService = {
 
         if (op.type === 'SALE_CREATE') {
           const serial = op.payload.serial_number;
-          // Check remote device state in Supabase
-          let remoteDev: any = null;
-          try {
-            const { data } = await supabase
-              .from('mss_devices')
-              .select('*')
-              .eq('serial_number', serial)
-              .maybeSingle();
-            remoteDev = data;
-          } catch {
-            // ignore
-          }
+          if (serial) {
+            // Check remote device state in Supabase
+            let remoteDev: any = null;
+            try {
+              const { data } = await supabase
+                .from('mss_devices')
+                .select('*')
+                .eq('serial_number', serial)
+                .maybeSingle();
+              remoteDev = data;
+            } catch {
+              // ignore
+            }
 
-          if (!remoteDev) {
-            const localDevs = getLocalDevices();
-            remoteDev = localDevs.find((d: any) => d.serial_number === serial);
-          }
+            if (!remoteDev) {
+              const localDevs = getLocalDevices();
+              remoteDev = localDevs.find((d: any) => d.serial_number === serial);
+            }
 
-          // Check if sold by a different invoice (remote or local)
-          let existingInv: any = null;
-          try {
-            const { data } = await supabase
-              .from('mss_invoices')
-              .select('id, invoice_number, selling_branch, sale_date')
-              .eq('serial_number', serial)
-              .maybeSingle();
-            existingInv = data;
-          } catch {
-            // ignore
-          }
+            // Check if sold by a different invoice (remote or local)
+            let existingInv: any = null;
+            try {
+              const { data } = await supabase
+                .from('mss_invoices')
+                .select('id, invoice_number, selling_branch, sale_date')
+                .eq('serial_number', serial)
+                .maybeSingle();
+              existingInv = data;
+            } catch {
+              // ignore
+            }
 
-          if (!existingInv) {
-            const localInvs = getLocalInvoices();
-            existingInv = localInvs.find((inv: any) => inv.serial_number === serial);
-          }
+            if (!existingInv) {
+              const localInvs = getLocalInvoices();
+              existingInv = localInvs.find((inv: any) => inv.serial_number === serial);
+            }
 
-          if (!existingInv) {
-            existingInv = FALLBACK_SEED_INVOICES.find((inv: any) => inv.serial_number === serial);
-          }
+            if (!existingInv) {
+              existingInv = FALLBACK_SEED_INVOICES.find((inv: any) => inv.serial_number === serial);
+            }
 
-          if (existingInv && existingInv.invoice_number !== op.payload.invoice_number) {
-            // CRITICAL CONFLICT: Both shops sold the same unit while disconnected!
-            detectedConflict = {
-              type: 'DOUBLE_SALE',
-              description: `تعارض بيع مزدوج: تم بيع الجهاز بالسيريال (${serial}) مسبقاً في (${existingInv.selling_branch || 'الفرع'}) بفاتورة رقم (${existingInv.invoice_number}) أثناء انقطاع الاتصال.`,
-              remoteState: existingInv,
-            };
-          } else if (remoteDev && remoteDev.status === 'SOLD' && (!existingInv || existingInv.invoice_number !== op.payload.invoice_number)) {
-            detectedConflict = {
-              type: 'DOUBLE_SALE',
-              description: `تعارض بيع مزدوج: الجهاز بالسيريال (${serial}) مسجل كمباع مسبقاً في قاعدة البيانات.`,
-              remoteState: remoteDev,
-            };
-          } else if (op.branch) {
-              let remoteDev: any = null;
+            if (existingInv && existingInv.invoice_number !== op.payload.invoice_number) {
+              // CRITICAL CONFLICT: Both shops sold the same unit while disconnected!
+              detectedConflict = {
+                type: 'DOUBLE_SALE',
+                description: `تعارض بيع مزدوج: تم بيع الجهاز بالسيريال (${serial}) مسبقاً في (${existingInv.selling_branch || 'الفرع'}) بفاتورة رقم (${existingInv.invoice_number}) أثناء انقطاع الاتصال.`,
+                remoteState: existingInv,
+              };
+            } else if (remoteDev && remoteDev.status === 'SOLD' && (!existingInv || existingInv.invoice_number !== op.payload.invoice_number)) {
+              detectedConflict = {
+                type: 'DOUBLE_SALE',
+                description: `تعارض بيع مزدوج: الجهاز بالسيريال (${serial}) مسجل كمباع مسبقاً في قاعدة البيانات.`,
+                remoteState: remoteDev,
+              };
+            } else if (op.branch) {
+              let branchDev: any = null;
               try {
                 const { data } = await supabase
                   .from('mss_devices')
                   .select('id, stock_location, status')
                   .eq('serial_number', serial)
                   .maybeSingle();
-                remoteDev = data;
+                branchDev = data;
               } catch {
                 // ignore
               }
-              if (remoteDev && remoteDev.stock_location !== op.branch) {
+              if (branchDev && branchDev.stock_location !== op.branch) {
                 detectedConflict = {
                   type: 'STALE_STOCK_TRANSFER',
-                  description: `تعارض بيع لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى موقع (${remoteDev.stock_location}) بينما تمت محاولة بيعه من (${op.branch}) أوفلاين.`,
-                  remoteState: remoteDev,
+                  description: `تعارض بيع لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى موقع (${branchDev.stock_location}) بينما تمت محاولة بيعه من (${op.branch}) أوفلاين.`,
+                  remoteState: branchDev,
                 };
               }
             }
+          }
         } else if (op.type === 'RESERVATION_CREATE') {
           const serial = op.payload.serial_number;
-          let remoteDev: any = null;
-          try {
-            const { data } = await supabase
-              .from('mss_devices')
-              .select('*')
-              .eq('serial_number', serial)
-              .maybeSingle();
-            remoteDev = data;
-          } catch {
-            // ignore
-          }
+          if (serial) {
+            let remoteDev: any = null;
+            try {
+              const { data } = await supabase
+                .from('mss_devices')
+                .select('*')
+                .eq('serial_number', serial)
+                .maybeSingle();
+              remoteDev = data;
+            } catch {
+              // ignore
+            }
 
-          if (!remoteDev) {
-            const localDevs = getLocalDevices();
-            remoteDev = localDevs.find((d: any) => d.serial_number === serial);
-          }
+            if (!remoteDev) {
+              const localDevs = getLocalDevices();
+              remoteDev = localDevs.find((d: any) => d.serial_number === serial);
+            }
 
-          if (remoteDev && (remoteDev.status === 'SOLD' || remoteDev.status === 'RESERVED')) {
-            detectedConflict = {
-              type: 'DOUBLE_RESERVATION',
-              description: `تعارض حجز: الجهاز بالسيريال (${serial}) محجوز أو مباع بالفعل في السحابة بحالة (${remoteDev.status}).`,
-              remoteState: remoteDev,
-            };
-          } else if (remoteDev && op.branch && remoteDev.stock_location !== op.branch) {
-            detectedConflict = {
-              type: 'STALE_STOCK_TRANSFER',
-              description: `تعارض حجز لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى (${remoteDev.stock_location}) بينما تمت محاولة حجزه من (${op.branch}).`,
-              remoteState: remoteDev,
-            };
+            if (remoteDev && (remoteDev.status === 'SOLD' || remoteDev.status === 'RESERVED')) {
+              detectedConflict = {
+                type: 'DOUBLE_RESERVATION',
+                description: `تعارض حجز: الجهاز بالسيريال (${serial}) محجوز أو مباع بالفعل في السحابة بحالة (${remoteDev.status}).`,
+                remoteState: remoteDev,
+              };
+            } else if (remoteDev && op.branch && remoteDev.stock_location !== op.branch) {
+              detectedConflict = {
+                type: 'STALE_STOCK_TRANSFER',
+                description: `تعارض حجز لجهاز تم نقله: الجهاز بالسيريال (${serial}) تم نقله إدارياً إلى (${remoteDev.stock_location}) بينما تمت محاولة حجزه من (${op.branch}).`,
+                remoteState: remoteDev,
+              };
+            }
           }
         } else if (op.type === 'DEVICE_TRANSFER') {
           const serial = op.payload.serial_number;
-          let remoteDev: any = null;
-          try {
-            const { data } = await supabase
-              .from('mss_devices')
-              .select('*')
-              .eq('serial_number', serial)
-              .maybeSingle();
-            remoteDev = data;
-          } catch {
-            // ignore
-          }
+          if (serial) {
+            let remoteDev: any = null;
+            try {
+              const { data } = await supabase
+                .from('mss_devices')
+                .select('*')
+                .eq('serial_number', serial)
+                .maybeSingle();
+              remoteDev = data;
+            } catch {
+              // ignore
+            }
 
-          if (!remoteDev) {
-            const localDevs = getLocalDevices();
-            remoteDev = localDevs.find((d: any) => d.serial_number === serial);
-          }
+            if (!remoteDev) {
+              const localDevs = getLocalDevices();
+              remoteDev = localDevs.find((d: any) => d.serial_number === serial);
+            }
 
-          if (remoteDev && remoteDev.status === 'SOLD') {
-            detectedConflict = {
-              type: 'STALE_STOCK_TRANSFER',
-              description: `تعارض نقل مخزون قديم: الجهاز بالسيريال (${serial}) تم بيعه بالفعل في الفرع الآخر ولا يمكن نقله.`,
-              remoteState: remoteDev,
-            };
-          } else if (remoteDev && op.payload.from_location && remoteDev.stock_location !== op.payload.from_location) {
-            detectedConflict = {
-              type: 'STALE_STOCK_TRANSFER',
-              description: `تعارض نقل مخزون: موقع الجهاز بالسيريال (${serial}) في السحابة هو (${remoteDev.stock_location}) وليس (${op.payload.from_location}).`,
-              remoteState: remoteDev,
-            };
+            if (remoteDev && remoteDev.status === 'SOLD') {
+              detectedConflict = {
+                type: 'STALE_STOCK_TRANSFER',
+                description: `تعارض نقل مخزون قديم: الجهاز بالسيريال (${serial}) تم بيعه بالفعل في الفرع الآخر ولا يمكن نقله.`,
+                remoteState: remoteDev,
+              };
+            } else if (remoteDev && op.payload.from_location && remoteDev.stock_location !== op.payload.from_location) {
+              detectedConflict = {
+                type: 'STALE_STOCK_TRANSFER',
+                description: `تعارض نقل مخزون: موقع الجهاز بالسيريال (${serial}) في السحابة هو (${remoteDev.stock_location}) وليس (${op.payload.from_location}).`,
+                remoteState: remoteDev,
+              };
+            }
           }
         }
 

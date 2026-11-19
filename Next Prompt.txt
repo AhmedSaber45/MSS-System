@@ -1,812 +1,119 @@
-# COMPU MSS — LAPTOP GPU SPECIFICATION & ADMIN OPERATIONS MIGRATION
+# COMPU MSS — QUICK MODEL CREATION & INVENTORY ACTIONS
 
-## MISSION
+Implement the following improvements exclusively within the Compu MSS module.
 
-Implement two major improvements to the existing Compu MSS desktop application:
+## 1. Add New Model Directly From the Add Device Modal
 
-1. Add Graphics Card (GPU) information to laptop specifications throughout the Compu MSS catalog and related workflows.
-2. Migrate the operational management capabilities currently available in the separate Admin Dashboard into the Compu MSS desktop application.
+Inside the existing Add New Device modal, add a clearly visible **Add New Model** button next to or near the model selection field.
 
-The goal is to make Compu MSS the primary interface for daily operational management while preserving the existing centralized security, database architecture, and business logic.
+### Required behavior
+- When clicking Add New Model, open the Add Model modal above the currently open Add Device modal.
+- The Add Model modal must appear as a secondary overlay/modal without closing, resetting, or replacing the Add Device modal.
+- Preserve all data already entered in Add Device, including:
+  - Selected warehouse/branch.
+  - Selected model, if any.
+  - Device information.
+  - Serial number.
+  - Price and cost fields.
+  - Any other entered values or selections.
+- Follow the same modal layering and behavior already implemented in the Accessories module for creating a model while adding a product.
+- Reuse the existing implementation or modal pattern from Accessories where applicable, but adapt it properly to Compu MSS architecture and data flow.
+- After successfully creating the new model:
+  - Close only the Add Model modal.
+  - Keep the Add Device modal open.
+  - Refresh the model selection list immediately.
+  - Automatically select the newly created model in the Add Device modal.
+  - Allow the user to continue completing and saving the device without re-entering any previously typed data.
 
-**IMPORTANT: This is a feature migration, NOT a page-copying exercise.**
+### Important
+Do not navigate away from the Add Device modal.
 
-Do not blindly copy Admin Dashboard pages into the desktop application.
+Do not reload the page.
 
-Instead:
+Do not reset the parent modal state.
 
-- If a feature already exists in Compu MSS, preserve it and add only the missing capabilities.
-- If a feature partially exists, extend the existing implementation with the missing functionality.
-- Only create a new desktop page when the corresponding functionality does not exist anywhere in Compu MSS.
-- If a completely new page is required, implement it natively using the desktop application's existing design system and interaction patterns.
-- After successful migration and verification, remove the relocated operational pages from Admin Dashboard.
+Do not create duplicate model records.
 
-Execute the task completely. Do not stop after the audit.
-
----
-
-# PHASE 1 — PRE-IMPLEMENTATION AUDIT
-
-Before changing anything:
-
-- Read `AGENTS.md`, `rules.md`, `goals.md`, and all relevant documentation.
-- Inspect the current Git status and preserve all valid uncommitted changes.
-- Inspect the complete Compu MSS desktop module.
-- Inspect the separate `admin-dashboard/` project.
-- Understand the current Supabase schema, RLS policies, Edge Functions, authentication, permissions, SQLite integration, Outbox, and synchronization architecture.
-- Inspect existing MSS pages, navigation, reusable components, hooks, services, and data models.
-- Identify the current implementation of every Admin Dashboard section involved in this migration.
-- Identify existing functionality in the desktop application that overlaps with the Admin Dashboard.
-
-## 1.1 Mandatory Feature-by-Feature Comparison
-
-Before implementation, create a detailed internal feature mapping for every relevant Admin Dashboard page.
-
-For each page and its individual features, identify:
-
-- Current Admin Dashboard page and file paths.
-- Current desktop equivalent, if any.
-- Features already implemented in Compu MSS.
-- Features available only in Admin Dashboard.
-- Features that exist in both but behave differently.
-- Current database source and server-side operations.
-- Required missing functionality.
-- Existing components and services that can be reused.
-- Security and permission requirements.
-- Offline and synchronization requirements.
-- Final destination inside Compu MSS.
-
-Do not compare pages based on their names alone. Compare their actual functionality, workflows, actions, data, permissions, and business rules.
-
-## 1.2 Mandatory Integration Decision Rules
-
-Apply these rules to EVERY affected section.
-
-### Case A — The entire functionality already exists in Compu MSS
-
-- Keep the existing desktop implementation.
-- Do not create another page.
-- Do not duplicate existing features.
-- Compare both implementations and identify any meaningful differences.
-- Add only genuinely missing capabilities, if any.
-- Preserve the existing desktop workflows and business logic.
-
-### Case B — Compu MSS already has a page, but it is missing some Admin Dashboard features
-
-This is the most important integration scenario.
-
-- Use the existing Compu MSS page as the primary destination.
-- Preserve all existing functionality, components, workflows, and valid business logic.
-- Identify the exact features that are missing.
-- Implement only those missing features inside the existing page.
-- Extend existing components, forms, tables, filters, actions, and services where appropriate.
-- Do not copy the Admin Dashboard page.
-- Do not create a second page with overlapping functionality.
-- Do not replace the existing desktop page with the Admin Dashboard implementation.
-- Do not remove existing functionality just because the Admin Dashboard implementation handles something differently.
-
-The final desktop page must combine the existing Compu MSS capabilities with the missing Admin Dashboard capabilities into one coherent experience.
-
-### Case C — The corresponding functionality does not exist anywhere in Compu MSS
-
-Only in this case:
-
-- Create a new native desktop page or section.
-- Migrate the required operational capabilities from the Admin Dashboard.
-- Reimplement the functionality using the desktop application's architecture, components, navigation, and design system.
-- Reuse existing services and authoritative server-side operations wherever possible.
-- Do not embed the Admin Dashboard webpage or copy its layout as-is.
-- Make the new section feel like a natural part of Compu MSS.
-
-### Case D — A feature exists in both applications but has different behavior
-
-- Investigate why the implementations differ.
-- Identify which behavior is authoritative and consistent with the existing database and business rules.
-- Preserve valid desktop behavior.
-- Integrate missing capabilities without silently changing existing workflows.
-- If the two implementations conflict, resolve the conflict based on the authoritative server-side logic and document the decision.
-- Never create competing implementations of the same business operation.
-
-## 1.3 Integration Principle
-
-**The objective is to migrate capabilities, not pages.**
-
-A page should only be created when no equivalent destination exists in Compu MSS.
-
-A page should only be removed from Admin Dashboard after all of its required capabilities have been successfully integrated into Compu MSS and verified.
-
-Do not make assumptions about table relationships or rewrite existing database structures without understanding their dependencies.
+Ensure the new model is saved using the existing Compu MSS model creation logic and appears correctly in all relevant model lists.
 
 ---
 
-# PHASE 2 — ADD GPU TO LAPTOP SPECIFICATIONS
-
-## 2.1 Catalog & Product Specifications
-
-Add a Graphics Card (GPU) field to laptop specifications in Compu MSS.
-
-Currently, laptop specifications already include information such as:
-
-- Processor.
-- RAM.
-- Storage / SSD / HDD.
-- Display / Screen.
-- Other existing hardware specifications.
-
-GPU must become a first-class specification alongside these fields.
-
-Inspect the current product model and specification structure before choosing where to add it.
-
-### GPU Information
-
-Support useful GPU information such as:
-
-- GPU manufacturer / brand.
-- GPU model.
-- GPU type, where applicable (Integrated or Dedicated).
-- VRAM, when applicable and known.
-
-Do not force unnecessary fields if the existing product specification design is simpler.
-
-The GPU information must be optional because some devices may have unknown or unspecified graphics hardware.
-
-Do not insert fake GPU values when information is missing.
-
-## 2.2 All Relevant Workflows
-
-Update every relevant part of Compu MSS where laptop specifications are created, edited, displayed, or used.
-
-Inspect and update:
-
-- Catalog product creation.
-- Catalog product editing.
-- Laptop specification forms.
-- Product details.
-- Product information views.
-- Inventory device details, where specifications are displayed.
-- Search and filtering, if specification-based search is supported.
-- Relevant reports or exports, if they display laptop specifications.
-
-Ensure the GPU field appears naturally alongside the existing CPU, RAM, storage, and display information.
-
-Do not display GPU fields for unrelated product categories unless the existing specification architecture explicitly supports that behavior.
-
-## 2.3 Database & Data Compatibility
-
-If the existing schema needs modification:
-
-- Preserve all existing product records.
-- Make the GPU field nullable/optional.
-- Preserve compatibility with existing devices that have no GPU information.
-- Update TypeScript types, validation, database mapping, and serialization consistently.
-- Preserve offline SQLite behavior and Supabase synchronization.
-- Ensure old records continue to load correctly.
-- Ensure records without GPU information do not cause validation or rendering errors.
-
-If SQL changes are required:
-
-Create ONE complete, consolidated, safe SQL migration file ready for Supabase SQL Editor.
-
-- Include the exact file path.
-- Verify the migration against the current schema.
-- Preserve existing data and constraints.
-- Do not execute the migration.
-- Do not claim database changes have been applied.
-
----
-
-# PHASE 3 — MIGRATE OPERATIONAL MANAGEMENT INTO COMPU MSS
-
-The following operational capabilities currently exist in the separate Admin Dashboard and must become available inside the Compu MSS desktop application:
-
-1. Stores & Warehouses.
-2. Inventory Management.
-3. Inventory Transfers.
-4. Activity & Audit Log.
-
-**Before creating any new desktop page, apply the integration decision rules from Phase 1.**
-
-For every section:
-
-- If an equivalent desktop page exists, extend it.
-- If only some capabilities exist, add only the missing capabilities.
-- If no equivalent functionality exists, create a new native desktop page.
-- Never create duplicate pages or competing workflows.
-
-## 3.1 Stores & Warehouses
-
-Migrate the Stores & Warehouses management capabilities into Compu MSS.
-
-The desktop application must support the existing administrative capabilities, including:
-
-- View all stores and warehouses.
-- Create a new store or warehouse.
-- Edit existing details.
-- Activate and deactivate locations.
-- Archive locations where supported.
-- Manage users assigned to locations.
-- View warehouse memberships.
-- Handle partner join/leave operations.
-- Manage existing warehouse relationships.
-- Perform supported warehouse merge workflows.
-
-Preserve the distinction between users and warehouses.
-
-A user is a login identity. A warehouse/store is an inventory location.
-
-Do not link inventory ownership directly to a human user.
-
-Preserve historical relationships and transaction records when users or partners change.
-
-### Existing Location Management
-
-If Compu MSS already has branch, store, or location management:
-
-- Extend the existing implementation.
-- Integrate the missing administrative operations into the existing interface.
-- Preserve current location IDs and relationships.
-- Preserve current inventory assignment behavior.
-- Do not create a second location management system.
-- Do not replace the existing branch-specific inventory model.
-
-If no equivalent location management functionality exists, create a new native Stores & Warehouses section.
-
-## 3.2 Inventory Management
-
-Migrate the Admin Dashboard inventory management capabilities into Compu MSS.
-
-Integrate them with the existing MSS inventory system.
-
-The desktop interface should allow authorized users to:
-
-- View inventory across available warehouses.
-- Filter inventory by warehouse.
-- Filter by product or device.
-- Inspect serialized devices.
-- View serial numbers and device status.
-- View available, reserved, sold, damaged, or other supported statuses.
-- View stock quantities and warehouse balances.
-- Inspect relevant inventory history.
-
-### Existing Inventory Integration
-
-If the Compu MSS inventory page already provides some of these capabilities:
-
-- Keep the existing inventory page.
-- Preserve its current workflows and operations.
-- Add only the missing warehouse-level management and inspection capabilities.
-- Extend existing filters, tables, detail views, and actions.
-- Avoid creating another inventory page.
-
-Where existing MSS inventory pages already provide these capabilities, extend those pages instead of creating duplicates.
-
-The existing branch-specific inventory model must remain intact.
-
-Do not replace the current inventory system with a simplified global stock counter.
-
-## 3.3 Inventory Transfers
-
-Migrate the inventory transfer functionality from the Admin Dashboard into Compu MSS.
-
-Integrate it with existing inventory movements and transfer-related workflows.
-
-Support the existing transfer capabilities:
-
-- Transfer an individual serialized device.
-- Transfer multiple selected devices.
-- Transfer eligible inventory for a product.
-- Transfer all eligible inventory from a source warehouse to a destination warehouse, where supported.
-- Preview the transfer before confirmation.
-- Display the source and destination locations.
-- Display affected devices and quantities.
-- Show the final transfer result.
-- Display transfer history and status.
-
-### Existing Movements Integration
-
-Before creating a new Inventory Transfers page:
-
-- Inspect the existing Movements section.
-- Determine whether it already supports transfers or transfer-related operations.
-- If it does, extend that section to support the complete required transfer workflow.
-- Integrate transfer history into the existing movement history where appropriate.
-- Do not create a second transfer mechanism or duplicate transfer history.
-- If no suitable existing section exists, create a dedicated native Inventory Transfers page.
-
-### Transfer Safety
-
-Preserve all existing transfer safety rules:
-
-- Transfers must be atomic.
-- Transfers must be idempotent.
-- Prevent duplicate device/location assignments.
-- Recheck device eligibility before executing a transfer.
-- Exclude sold, reserved, damaged, pending, or otherwise ineligible items unless an explicitly supported workflow allows them.
-- Preserve serial numbers, original device IDs, purchase costs, purchase dates, reservations, and historical records.
-- Do not create fake sales, purchases, revenue, or profit.
-- Do not silently overwrite concurrent inventory changes.
-
-Preserve the current synchronization and conflict-resolution behavior.
-
-Do not implement a separate desktop-only transfer mechanism that bypasses the existing authoritative transfer logic.
-
-The desktop application should call the appropriate secure existing server-side operations.
-
-## 3.4 Activity & Audit Log
-
-Migrate the Activity & Audit Log functionality into Compu MSS.
-
-The desktop application must provide an appropriate interface for reviewing administrative and operational events.
-
-Include relevant events such as:
-
-- User creation and modification.
-- User activation and deactivation.
-- Access-code changes.
-- Permission changes.
-- Warehouse creation and modification.
-- Warehouse membership changes.
-- Warehouse merges.
-- Inventory movements.
-- Inventory transfers.
-- Other important administrative operations.
-
-Display available information such as:
-
-- Actor.
-- Action.
-- Target entity.
-- Timestamp.
-- Relevant metadata.
-- Result/status, where available.
-
-Add useful filtering and search capabilities where supported.
-
-### Existing History Integration
-
-Before creating a new Activity & Audit Log page:
-
-- Inspect the existing History section and any other operational activity views.
-- Determine whether the existing page can accommodate the required events.
-- If it can, extend it and introduce clear filtering or categorization for operational versus administrative/security events.
-- If its data model or purpose is fundamentally different, keep the existing History functionality intact and create a separate Audit Log section only when necessary.
-- Avoid duplicate event listings and competing history systems.
-
-### Audit Integrity
-
-- Preserve the existing audit log data.
-- Do not recreate historical records.
-- Do not change historical actor identities.
-- Do not expose access codes, tokens, or other secrets.
-- Do not allow ordinary users to edit or delete audit records.
-- Preserve the existing database-side audit generation and security controls.
-
-Clearly distinguish operational history from security/admin audit events when their data models serve different purposes.
-
----
-
-# PHASE 4 — DESKTOP NAVIGATION & UX INTEGRATION
-
-The migrated functionality must feel native to the existing Compu MSS desktop application.
-
-## 4.1 Navigation
-
-Inspect the current MSS sidebar and navigation structure.
-
-Add the necessary entries for genuinely new capabilities, using the existing navigation patterns.
-
-Suggested organization:
-
-- MSS Dashboard.
-- Catalog.
-- Inventory.
-- Movements.
-- Sales.
-- Reservations.
-- Invoices.
-- Returns.
-- Reports.
-- Stores & Warehouses.
-- Inventory Transfers.
-- Activity & Audit Log.
-- Sync Status.
-
-This is a suggested structure, NOT an instruction to create duplicate pages.
-
-### Navigation Integration Rules
-
-- Reuse existing navigation entries whenever the functionality already exists.
-- If Inventory already exists, do not add another Inventory entry.
-- If Movements can accommodate transfers, integrate transfers into Movements rather than creating an unnecessary duplicate entry.
-- If History can accommodate the new audit capabilities, extend the existing History entry.
-- Add new navigation entries only for functionality that genuinely needs a separate destination.
-- Keep the sidebar organized and avoid redundant entries.
-
-Keep Accessories and Compu MSS completely separate.
-
-Do not move Compu MSS operations into the Accessories module.
-
-## 4.2 UI/UX
-
-- Follow the existing desktop application's design system.
-- Reuse shared components.
-- Preserve existing typography, spacing, colors, buttons, modals, tables, and navigation patterns.
-- Avoid unnecessary redesign of unrelated pages.
-- Maintain consistency with the recent Unslop improvements.
-- Ensure the new and extended pages work properly at the application's supported window sizes.
-- Include proper loading, error, empty, and success states.
-- Keep interactions consistent with the rest of the desktop application.
-
-If a new page is necessary, build it using the desktop application's native components and visual language.
-
-Do not embed an Admin Dashboard webpage or copy its visual structure directly.
-
-The result should look and behave like a natural extension of the existing desktop application.
-
----
-
-# PHASE 5 — PERMISSIONS & ADMIN DASHBOARD RESPONSIBILITIES
-
-Moving operational capabilities does not mean removing the security architecture established previously.
-
-The Admin Dashboard remains a separate administrative application.
-
-Its remaining responsibilities should include functionality that is not being moved, such as:
-
-- Admin account and access management.
-- Desktop user creation and management.
-- Access-code management.
-- Module permissions.
-- Other system-level settings that are intentionally admin-only.
-
-## 5.1 Authorization
-
-Review the existing permission model before implementing navigation and operations.
-
-Ensure:
-
-- Only authorized users can access sensitive management actions.
-- Users cannot grant themselves permissions.
-- Warehouse membership restrictions are enforced.
-- Inventory transfers are authorized server-side.
-- Audit log access follows the appropriate permissions.
-- Hiding a sidebar item is never treated as sufficient security.
-- Existing module permissions remain enforced.
-- Existing admin-only operations remain protected.
-- The desktop app uses the same authoritative authorization rules as the Admin Dashboard.
-
-If the current permission model does not distinguish read and write operations for these features, document the limitation and implement the safest compatible approach without introducing an inconsistent permission system.
-
-Do not weaken Supabase RLS or Edge Function authorization to make the desktop UI work.
-
-## 5.2 Shared Security Architecture
-
-The migration must not create a second security or authorization system.
-
-- Reuse existing authentication and authorization mechanisms.
-- Preserve existing user identities.
-- Preserve server-side validation.
-- Preserve existing Edge Functions and database security controls.
-- Do not expose Supabase service-role credentials in the frontend or Tauri application.
-- Do not move privileged database operations into client-side code.
-- Do not make sensitive operations directly writable by ordinary desktop clients.
-- Preserve existing audit generation and access restrictions.
-
----
-
-# PHASE 6 — ADMIN DASHBOARD CLEANUP AFTER SUCCESSFUL MIGRATION
-
-This phase is mandatory, but it must happen ONLY after the corresponding desktop implementation has been completed and verified.
-
-The objective is to remove the relocated operational pages from Admin Dashboard without breaking the shared backend or remaining administrative features.
-
-## 6.1 Remove Relocated Operational Pages
-
-After confirming that the corresponding Compu MSS implementation supports all required capabilities:
-
-- Remove the relocated Stores & Warehouses page from Admin Dashboard navigation.
-- Remove the relocated Inventory Management page from Admin Dashboard navigation.
-- Remove the relocated Inventory Transfers page from Admin Dashboard navigation.
-- Remove the relocated Activity & Audit Log page from Admin Dashboard navigation.
-
-If a capability was integrated into an existing desktop page rather than a new page, remove its old Admin Dashboard page only after verifying that the capability is fully available in Compu MSS.
-
-Do not leave broken routes, dead navigation links, or misleading links to removed pages.
-
-## 6.2 Remove Unused Frontend Code
-
-After navigation and routes are updated:
-
-- Identify operational UI components that are genuinely unused.
-- Remove only components and frontend code that are no longer required.
-- Remove obsolete page-specific hooks, styles, and imports only after verifying they have no remaining consumers.
-- Preserve shared components.
-- Preserve components used by remaining Admin Dashboard pages.
-- Preserve services and client functions required by Compu MSS.
-- Preserve shared types and validation logic when still needed.
-
-Do not delete code simply because its original page has been removed.
-
-## 6.3 Preserve Backend and Database Infrastructure
-
-**Removing an Admin Dashboard page does NOT authorize removing its backend infrastructure.**
-
-Do not delete:
-
-- Database tables.
-- Historical records.
-- Supabase functions.
-- Edge Functions.
-- RLS policies.
-- Database triggers.
-- Shared API contracts.
-- Server-side authorization.
-- Audit generation.
-- Transfer transaction logic.
-- Any backend functionality still used by Compu MSS or another part of the system.
-
-The Admin Dashboard and Compu MSS must continue using the same authoritative data and business rules.
-
-## 6.4 Final Admin Dashboard Responsibilities
-
-After migration, verify that Admin Dashboard still provides:
-
-- Admin account and access management.
-- Desktop user creation and management.
-- Access-code management.
-- Module permissions.
-- System-level administrative settings.
-- Any other functionality intentionally retained as admin-only.
-
-Do not remove these responsibilities.
-
----
-
-# PHASE 7 — OFFLINE SUPPORT & SYNCHRONIZATION
-
-This is critical because Compu MSS already uses an offline-first architecture.
-
-Inspect the current SQLite, Outbox, synchronization, and conflict-resolution implementation.
-
-For every new or extended workflow, determine whether it can safely operate offline.
-
-Requirements:
-
-- Preserve pending Outbox operations.
-- Preserve existing offline functionality.
-- Do not silently discard unsynchronized data.
-- Do not duplicate operations after reconnection.
-- Do not allow operations to synchronize under another user's identity.
-- Handle stale warehouse data safely.
-- Handle transfer conflicts safely.
-- Refresh authoritative cloud data after reconnection.
-- Keep local data consistent with confirmed server-side changes.
-- Preserve existing synchronization identifiers and idempotency behavior.
-
-For operations that require an online server-side transaction:
-
-- Clearly communicate that requirement in the UI.
-- Disable or prevent unsafe execution while offline.
-- Do not pretend that the operation succeeded offline.
-- Do not create a local success record that falsely represents a confirmed server-side transaction.
-- Refresh the local state only after the authoritative operation is confirmed.
-
-Do not invent an offline transfer success state when the authoritative server operation has not completed.
-
----
-
-# PHASE 8 — TESTING & REGRESSION VERIFICATION
-
-Test the complete implementation.
-
-## 8.1 GPU Tests
-
-- Create a laptop with GPU information.
-- Edit its GPU information.
-- Save and reload it.
-- Display it in product details.
-- Handle missing GPU information.
-- Verify older laptop records still work.
-- Verify unrelated product categories are unaffected.
-- Verify offline and online synchronization.
-
-## 8.2 Stores & Warehouses Tests
-
-- View locations.
-- Create and edit a location.
-- Activate/deactivate a location.
-- Manage user memberships.
-- Verify existing history remains intact.
-- Test supported merge behavior.
-- Verify inventory remains associated with the correct location.
-- Verify unauthorized operations are rejected.
-
-## 8.3 Inventory Tests
-
-- View inventory by warehouse.
-- Filter inventory.
-- Inspect serialized devices.
-- Verify quantities and statuses.
-- Verify existing inventory operations still work.
-- Verify inventory ownership and location relationships remain correct.
-
-## 8.4 Transfer Tests
-
-- Transfer one eligible device.
-- Transfer multiple eligible devices.
-- Transfer eligible quantities where supported.
-- Reject ineligible items.
-- Prevent duplicate transfers.
-- Test duplicate requests and concurrency.
-- Verify valuation and historical records remain correct.
-- Verify source and destination balances.
-- Verify unauthorized transfers are rejected.
-- Verify failures do not leave partial transfers.
-
-## 8.5 Audit Tests
-
-- Verify administrative actions generate audit records.
-- Verify operational actions generate their appropriate history records.
-- Verify records display correctly in Compu MSS.
-- Verify actor identities remain correct.
-- Verify unauthorized users cannot access or modify protected audit data.
-- Verify secrets are never displayed.
-
-## 8.6 Migration & Duplicate-Feature Tests
-
-This is mandatory.
-
-For every affected Admin Dashboard page:
-
-- Verify whether the equivalent Compu MSS page existed before implementation.
-- Verify existing desktop functionality was preserved.
-- Verify all missing capabilities were integrated.
-- Verify no duplicate desktop pages were created.
-- Verify no duplicate navigation entries were created.
-- Verify new pages were created only when no suitable desktop equivalent existed.
-- Verify relocated Admin Dashboard pages were removed only after successful desktop verification.
-- Verify the remaining Admin Dashboard routes and pages still work.
-- Verify shared backend services and functions remain operational.
-
-## 8.7 Regression Tests
+## 2. Add New Device & Add New Model Buttons to Both Pages
+
+Both the **Inventory** page and the **Devices** page must provide access to the following two actions:
+
+- Add New Device.
+- Add New Model.
+
+### Inventory Page
+Ensure both buttons are available and accessible:
+- Add New Device.
+- Add New Model.
+
+### Devices Page
+Ensure both buttons are available and accessible:
+- Add New Device.
+- Add New Model.
+
+The buttons should use the existing Compu MSS creation workflows and must not introduce duplicate forms or separate creation logic.
+
+### Behavior
+- Add New Device opens the existing Add Device modal.
+- Add New Model opens the existing Add Model modal.
+- Both actions should be available without requiring navigation to another page.
+- Maintain the current page context and existing filters/search state whenever the modal is closed.
+- After successfully creating a model, refresh the relevant model lists so the new model becomes immediately available throughout Compu MSS.
+
+## 3. UI & UX Requirements
+
+- Follow the existing Compu MSS design system, spacing, colors, button styles, and modal behavior.
+- Keep the actions clearly distinguishable without cluttering the page header.
+- Use the existing reusable modal and button components.
+- Ensure modal stacking works correctly when Add Model is opened from inside Add Device.
+- The secondary modal must appear above the primary modal and handle backdrop/close interactions correctly.
+- Avoid duplicate buttons if the page already has a working equivalent; reposition or reuse existing actions where necessary.
+- Ensure the layout remains responsive and works correctly at different desktop window sizes.
+
+## 4. Implementation Rules
+
+Before coding:
+- Read AGENTS.md and applicable project rules.
+- Inspect the existing Compu MSS Add Device, Add Model, Inventory, and Devices implementations.
+- Inspect the Accessories implementation for the nested Add Model modal pattern.
+- Focus only on the files and dependencies relevant to this feature.
+- Implement directly without lengthy audits or repeated exploration.
+
+Preserve:
+- Existing inventory logic.
+- Model/device relationships.
+- Branch and warehouse selection.
+- Serialized and non-serialized inventory behavior.
+- Offline storage and synchronization.
+- Existing validation and permissions.
+- All unrelated functionality.
+
+Do not modify the Accessories module. Use it only as a reference for the modal behavior.
+
+## 5. Verification
 
 Verify:
+- Opening Add New Model from Add Device keeps the parent modal open.
+- Parent form values remain intact after closing the child modal.
+- Creating a model automatically selects it in the parent form.
+- The model list updates immediately.
+- Add New Device is accessible from both Inventory and Devices pages.
+- Add New Model is accessible from both Inventory and Devices pages.
+- No duplicate creation logic or duplicate buttons are introduced.
+- Existing device/model creation still works normally.
 
-- Existing MSS sales still work.
-- Reservations still work.
-- Invoices still work.
-- Returns still work.
-- Reports still work.
-- Existing inventory movements still work.
-- Accessories remains completely unaffected.
-- Existing authentication and module permissions remain functional.
-- Offline synchronization remains functional.
+Run the relevant typecheck, lint, tests, and build.
 
-Run:
+## 6. Completion
 
-- TypeScript typecheck.
-- ESLint.
-- Relevant automated tests.
-- Production desktop build.
-- Admin Dashboard build if its code was modified.
+At completion, provide a concise report:
+1. What changed.
+2. Files modified.
+3. Tests and verification results.
+4. Any remaining issues.
 
-Do not remove or weaken tests to obtain a passing result.
-
-If a test cannot be run because of missing configuration or environment dependencies, report that clearly. Never report an unexecuted test as passing.
-
----
-
-# PHASE 9 — DATABASE MIGRATION & FINAL REPORT
-
-## 9.1 Database Migration
-
-If database changes are necessary:
-
-Create ONE complete, consolidated, safe SQL migration file ready for execution in Supabase SQL Editor.
-
-Requirements:
-
-- Exact repository path.
-- Preserve existing data.
-- Preserve foreign keys and relationships.
-- Preserve RLS and security constraints.
-- Include required indexes, constraints, triggers, or functions only when needed.
-- Verify compatibility with the current schema.
-- Include validation queries.
-- Do not execute the migration.
-- Do not claim that database changes have already been applied.
-
-Avoid unnecessary schema changes.
-
-If multiple database changes are needed for this task, consolidate them into one coherent migration file rather than scattering partial SQL instructions across multiple files.
-
-If no SQL changes are required, explicitly state that.
-
-## 9.2 Documentation
-
-Update relevant documentation to reflect:
-
-- The new GPU specification.
-- The new location of operational management features.
-- Updated desktop navigation.
-- Admin Dashboard responsibilities after migration.
-- Any permission or offline behavior changes.
-- Any required manual SQL migration steps.
-
-Do not leave documentation describing removed Admin Dashboard pages as the primary location for operational management.
-
-## 9.3 Final Report
-
-Provide a detailed final report containing:
-
-1. GPU fields added and all affected file paths.
-2. Stores & Warehouses functionality integrated.
-3. Inventory functionality integrated.
-4. Inventory Transfers functionality integrated.
-5. Activity & Audit Log functionality integrated.
-6. For each affected section, identify:
-   - Whether an existing desktop page was reused.
-   - Which features already existed.
-   - Which missing features were added.
-   - Which components or workflows were extended.
-   - Whether a new page was necessary.
-7. Admin Dashboard pages and routes removed.
-8. Admin Dashboard functionality intentionally retained.
-9. Shared backend services and functions preserved.
-10. Permission and security changes.
-11. Offline and synchronization behavior.
-12. Database migration path, if required.
-13. Tests executed and their actual results.
-14. Build results.
-15. Remaining manual steps or blockers.
-
-Include exact file paths wherever applicable.
-
-Clearly distinguish:
-
-- Fully implemented and verified changes.
-- Implemented changes awaiting SQL migration execution.
-- Changes blocked by missing configuration or external dependencies.
-- Any remaining work.
-
----
-
-# EXECUTION RULES — STRICT
-
-1. Execute the task. Do not stop after the audit.
-2. Read the project instructions and inspect the architecture before implementation.
-3. Preserve all existing business logic and valid uncommitted work.
-4. Migrate features, not entire pages.
-5. If an existing desktop page has some of the required features, extend it with ONLY the missing features.
-6. If the complete functionality is absent from Compu MSS, create a new native desktop page using the existing application design system.
-7. Never create duplicate pages, duplicate operations, or competing business logic.
-8. Never replace a working desktop implementation with a copied Admin Dashboard implementation.
-9. Never remove existing desktop features during integration.
-10. Remove relocated Admin Dashboard frontend pages only after successful implementation and verification in Compu MSS.
-11. Preserve shared backend services, database tables, Edge Functions, RLS, security policies, and historical records.
-12. Do not weaken authentication, authorization, RLS, or server-side validation.
-13. Do not migrate Accessories into Compu MSS.
-14. Do not delete historical records.
-15. Do not execute production database migrations without approval.
-16. Do not deploy anything without approval.
-17. Do not redesign unrelated parts of the desktop application.
-18. Do not claim that a feature, test, migration, or build succeeded unless it was actually verified.
-
-## FINAL ACCEPTANCE CRITERIA
-
-The task is complete only when:
-
-- GPU information is fully integrated into laptop specifications and related workflows.
-- All four operational management areas are available in Compu MSS.
-- Existing desktop pages have been extended wherever equivalent functionality already existed.
-- New desktop pages have been created only where no suitable existing page existed.
-- All original desktop features remain intact.
-- No duplicate operational pages or competing implementations remain.
-- The relocated operational pages have been removed from Admin Dashboard after successful verification.
-- Remaining Admin Dashboard administrative responsibilities still work.
-- Shared backend and security infrastructure remain intact.
-- Offline and synchronization behavior remains safe.
-- Relevant tests and production builds have been executed and reported accurately.
-- Any required SQL migration is prepared as one consolidated file and remains unapplied.
-
-After completing the implementation and verification, provide the final report and stop for my review. Do not proceed with deployment or production SQL execution.
+Implement this feature completely, then STOP and wait for my approval before proceeding to anything else.

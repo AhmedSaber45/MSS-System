@@ -16,6 +16,7 @@ import { mssInventoryService } from '@/services/mssInventoryService';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getTodayLocalDateString, useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
+import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
 import type { MSSReservation, MSSStockLocation, MSSReservationStatus } from '@/types/mssCommerce';
 import type { MSSDevice } from '@/types/mssInventory';
 import {
@@ -164,7 +165,7 @@ export const ReservationsView: React.FC = () => {
       showNotification({
         type: 'success',
         title: 'تم إنشاء الحجز بنجاح',
-        message: `تم حجز الجهاز بالسيريال (${res.serial_number}) للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
+        message: `تم حجز الجهاز ${res.serial_number ? `بالسيريال (${res.serial_number}) ` : ''}للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
       });
 
       setIsAddModalOpen(false);
@@ -186,7 +187,7 @@ export const ReservationsView: React.FC = () => {
       showNotification({
         type: 'info',
         title: 'تم إلغاء الحجز',
-        message: `تم إلغاء الحجز (${activeReservation.reservation_number}) وإعادة الجهاز (${activeReservation.serial_number}) إلى المخزون المتاح للبيع.`,
+        message: `تم إلغاء الحجز (${activeReservation.reservation_number}) وإعادة الجهاز ${activeReservation.serial_number ? `(${activeReservation.serial_number}) ` : ''}إلى المخزون المتاح للبيع.`,
       });
       setIsCancelModalOpen(false);
       await loadData();
@@ -244,7 +245,7 @@ export const ReservationsView: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const matchNum = r.reservation_number.toLowerCase().includes(q);
-      const matchSerial = r.serial_number.toLowerCase().includes(q);
+      const matchSerial = Boolean(r.serial_number?.toLowerCase().includes(q));
       const matchCust = r.customer_name.toLowerCase().includes(q);
       const matchPhone = r.customer_phone.includes(q);
       const matchModel = r.model_name?.toLowerCase().includes(q);
@@ -270,9 +271,15 @@ export const ReservationsView: React.FC = () => {
       key: 'serial_number',
       header: 'السيريال المحجوز',
       render: (item: MSSReservation) => (
-        <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-          {item.serial_number}
-        </span>
+        item.serial_number ? (
+          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+            {item.serial_number}
+          </span>
+        ) : (
+          <Badge variant="outline" size="sm">
+            بدون سيريال
+          </Badge>
+        )
       ),
     },
     {
@@ -626,14 +633,43 @@ export const ReservationsView: React.FC = () => {
             <label className="block text-sm font-semibold text-slate-800 mb-1.5">
               الجهاز المراد حجزه (الأجهزة المتاحة فقط) <span className="text-rose-500">*</span>
             </label>
-            <Select
-              value={selectedDeviceId}
-              onChange={e => handleDeviceChange(e.target.value)}
-              options={availableDevices.map(d => ({
-                value: d.id,
-                label: `[${d.serial_number}] - ${d.brand} ${d.model_name} (الموقع: ${d.stock_location}) - ${formatCurrency(d.list_price)}`,
-              }))}
-              required
+            <SearchableItemSelect<MSSDevice>
+              items={availableDevices}
+              selectedId={selectedDeviceId}
+              onSelect={d => handleDeviceChange(d.id)}
+              getKey={d => d.id}
+              getSearchableText={d =>
+                `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.stock_location}`
+              }
+              placeholder="ابحث بالاسم، الموديل، الماركة أو السيريال..."
+              emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
+              maxHeight="max-h-52"
+              renderItem={d => (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="font-bold text-slate-900">
+                      {d.brand} {d.model_name}
+                    </span>
+                    {d.serial_number ? (
+                      <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
+                        {d.serial_number}
+                      </span>
+                    ) : (
+                      <Badge variant="outline" size="sm" className="text-[10px]">
+                        بدون سيريال
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="default" size="sm">
+                      {d.stock_location}
+                    </Badge>
+                    <span className="font-mono text-xs font-bold text-slate-900">
+                      {formatCurrency(d.list_price)}
+                    </span>
+                  </div>
+                </div>
+              )}
             />
           </div>
 
@@ -757,7 +793,9 @@ export const ReservationsView: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600 font-medium">السيريال:</span>
-                <strong className="font-mono text-slate-900 font-bold tabular-nums">{activeReservation.serial_number}</strong>
+                <strong className="font-mono text-slate-900 font-bold tabular-nums">
+                  {activeReservation.serial_number || 'بدون سيريال'}
+                </strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600 font-medium">السعر المتفق عليه:</span>
@@ -822,7 +860,7 @@ export const ReservationsView: React.FC = () => {
             <p className="font-bold text-slate-900">
               {activeReservation?.brand} {activeReservation?.model_name}
             </p>
-            <p className="font-mono font-medium text-slate-700">السيريال: {activeReservation?.serial_number}</p>
+            <p className="font-mono font-medium text-slate-700">السيريال: {activeReservation?.serial_number || 'بدون سيريال'}</p>
             <p className="text-slate-600">العميل: {activeReservation?.customer_name}</p>
           </div>
 

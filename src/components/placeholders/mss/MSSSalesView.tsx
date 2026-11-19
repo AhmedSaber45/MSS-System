@@ -16,6 +16,7 @@ import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import { documentPrintService } from '@/lib/documentPrintService';
 import { InstallmentScheduleBuilder, PlannedInstallmentItem } from '@/components/common/InstallmentScheduleBuilder';
+import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
 import type { MSSInvoice, MSSPaymentType } from '@/types/mssCommerce';
 
@@ -74,7 +75,7 @@ export const MSSSalesView: React.FC = () => {
   // Handle selecting a device
   const handleSelectDevice = (device: MSSDevice) => {
     setSelectedDevice(device);
-    setSearchSerialQuery(device.serial_number);
+    setSearchSerialQuery(device.serial_number || '');
     setActualPrice(device.list_price);
     setDiscountAmount(0);
     setFormError('');
@@ -86,7 +87,7 @@ export const MSSSalesView: React.FC = () => {
     if (!serial.trim()) return;
 
     const match = availableDevices.find(
-      d => d.serial_number.toUpperCase() === serial.trim().toUpperCase()
+      d => d.serial_number && d.serial_number.toUpperCase() === serial.trim().toUpperCase()
     );
 
     if (match) {
@@ -215,37 +216,54 @@ export const MSSSalesView: React.FC = () => {
               <span>1. اختيار الجهاز بالسيريال نمبر </span>
             </h3>
 
-            <div className="flex gap-2.5">
-              <div className="flex-1">
-                <Input
-                  placeholder="ابحث أو اكتب السيريال نمبر..."
-                  value={searchSerialQuery}
-                  onChange={e => handleSearchSerial(e.target.value)}
-                  leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-                />
-              </div>
-            </div>
-
-            {/* Quick dropdown for available devices */}
+            {/* Searchable selector for available devices */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                أو اختر من قائمة الأجهزة المتاحة حالياً ({availableDevices.length} جهاز):
+                اختر الجهاز المراد بيعه ({availableDevices.length} جهاز متوفر):
               </label>
-              <Select
-                value={selectedDevice?.id || ''}
-                onChange={e => {
-                  const dev = availableDevices.find(d => d.id === e.target.value);
-                  if (dev) handleSelectDevice(dev);
-                }}
-                disabled={isLoadingDevices || availableDevices.length === 0}
-                options={
-                  availableDevices.length === 0
-                    ? [{ value: '', label: 'لا توجد أجهزة متوفرة للبيع حالياً' }]
-                    : availableDevices.map(d => ({
-                        value: d.id,
-                        label: `[${d.serial_number}] - ${d.brand} ${d.model_name} (موقع التخزين: ${d.stock_location}) - ${formatCurrency(d.list_price)}`,
-                      }))
+              <SearchableItemSelect<MSSDevice>
+                items={availableDevices}
+                selectedId={selectedDevice?.id || null}
+                onSelect={handleSelectDevice}
+                getKey={d => d.id}
+                getSearchableText={d =>
+                  `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.model?.processor || ''} ${d.model?.gpu || ''} ${d.stock_location}`
                 }
+                placeholder="ابحث بالاسم، الموديل، الماركة، المعالج أو السيريال..."
+                emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
+                maxHeight="max-h-56"
+                renderItem={d => (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 truncate">
+                          {d.brand} {d.model_name}
+                        </span>
+                        {d.serial_number ? (
+                          <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
+                            {d.serial_number}
+                          </span>
+                        ) : (
+                          <Badge variant="outline" size="sm" className="text-[10px]">
+                            بدون سيريال {d.quantity && d.quantity > 1 ? `(${d.quantity} وحدات)` : ''}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {[d.model?.processor, d.model?.gpu, d.model?.ram].filter(Boolean).join(' • ') || d.physical_condition}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 text-left">
+                      <Badge variant="default" size="sm">
+                        {d.stock_location}
+                      </Badge>
+                      <strong className="text-slate-900 font-mono text-xs font-bold">
+                        {formatCurrency(d.list_price)}
+                      </strong>
+                    </div>
+                  </div>
+                )}
               />
             </div>
 
@@ -263,9 +281,15 @@ export const MSSSalesView: React.FC = () => {
                         .join(' • ')}
                     </p>
                   </div>
-                  <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-                    {selectedDevice.serial_number}
-                  </span>
+                  {selectedDevice.serial_number ? (
+                    <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+                      {selectedDevice.serial_number}
+                    </span>
+                  ) : (
+                    <Badge variant="outline">
+                      بدون سيريال {selectedDevice.quantity && selectedDevice.quantity > 1 ? `(كمية: ${selectedDevice.quantity})` : ''}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-slate-700">

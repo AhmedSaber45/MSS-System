@@ -395,7 +395,7 @@ export const mssCommerceService = {
       invoices = invoices.filter(
         inv =>
           inv.invoice_number.toLowerCase().includes(q) ||
-          inv.serial_number.toLowerCase().includes(q) ||
+          (inv.serial_number && inv.serial_number.toLowerCase().includes(q)) ||
           inv.model_name?.toLowerCase().includes(q) ||
           inv.brand?.toLowerCase().includes(q) ||
           (inv.customer_name && inv.customer_name.toLowerCase().includes(q)) ||
@@ -460,19 +460,29 @@ export const mssCommerceService = {
     }
 
     if (device.status === 'SOLD') {
-      throw new Error(`الجهاز بالسيريال (${device.serial_number}) مباع مسبقاً ولا يمكن بيعه مجدداً.`);
+      const serialDisplay = device.serial_number ? `بالسيريال (${device.serial_number})` : '';
+      throw new Error(`الجهاز ${serialDisplay} مباع مسبقاً ولا يمكن بيعه مجدداً.`);
     }
 
-    // Check if device is reserved by someone else
-    const reservations = await this.getReservations();
-    const activeRes = reservations.find(r => r.device_id === device.id && r.status === 'ACTIVE');
-    if (activeRes) {
-      // If customer name matches reservation customer, allow fulfillment; otherwise require releasing/cancelling first
-      const saleCustomer = input.customer_name?.trim() || '';
-      if (!saleCustomer || !activeRes.customer_name.includes(saleCustomer)) {
-        throw new Error(
-          `الجهاز محجوز حالياً للعميل (${activeRes.customer_name}) بحجز رقم ${activeRes.reservation_number}. يجب إتمام البيع عبر الحجز أو إلغاء الحجز أولاً.`
-        );
+    let activeRes: MSSReservation | undefined = undefined;
+    if (device.status === 'RESERVED') {
+      // Check if device is reserved by someone else
+      const reservations = await this.getReservations();
+      activeRes = reservations.find(
+        r =>
+          (r.device_id === device.id || (Boolean(device.serial_number) && r.serial_number === device.serial_number)) &&
+          r.status === 'ACTIVE'
+      );
+      if (activeRes) {
+        // If customer name matches reservation customer, allow fulfillment; otherwise require releasing/cancelling first
+        const saleCustomer = input.customer_name?.trim() || '';
+        if (!saleCustomer || !activeRes.customer_name.includes(saleCustomer)) {
+          throw new Error(
+            `الجهاز محجوز حالياً للعميل (${activeRes.customer_name}) بحجز رقم ${activeRes.reservation_number}. يجب إتمام البيع عبر الحجز أو إلغاء الحجز أولاً.`
+          );
+        }
+      } else {
+        throw new Error('الجهاز محجوز حالياً ولا يمكن بيعه مباشرة');
       }
     }
 
@@ -657,10 +667,16 @@ export const mssCommerceService = {
       console.warn('Supabase insert invoice failed, cached locally:', err);
     }
 
-    // 2. Atomically update device status in inventory to 'SOLD'
-    await mssInventoryService.updateDevice(device.id, {
-      status: 'SOLD',
-    });
+    // 2. Atomically update device status in inventory
+    if (device.quantity && device.quantity > 1) {
+      await mssInventoryService.updateDevice(device.id, {
+        quantity: device.quantity - 1,
+      });
+    } else {
+      await mssInventoryService.updateDevice(device.id, {
+        status: 'SOLD',
+      });
+    }
 
     // 3. If there was an active reservation for this device, mark it FULFILLED
     if (activeRes) {
@@ -685,7 +701,9 @@ export const mssCommerceService = {
       .queueOperation(
         'SALE_CREATE',
         newInvoice,
-        `بيع جهاز ${newInvoice.brand || ''} ${newInvoice.model_name || ''} بالسيريال (${newInvoice.serial_number}) بفاتورة رقم ${newInvoice.invoice_number}`,
+        newInvoice.serial_number
+          ? `بيع جهاز ${newInvoice.brand || ''} ${newInvoice.model_name || ''} بالسيريال (${newInvoice.serial_number}) بفاتورة رقم ${newInvoice.invoice_number}`
+          : `بيع جهاز بدون سيريال ${newInvoice.brand || ''} ${newInvoice.model_name || ''} بفاتورة رقم ${newInvoice.invoice_number}`,
         newInvoice.selling_branch
       )
       .catch(console.warn);
@@ -1110,7 +1128,7 @@ export const mssCommerceService = {
         .order('created_at', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        reservations = data.map((row: any) => ({
+        const cloudReservations = data.map((row: any) => ({
           id: row.id,
           reservation_number: row.reservation_number,
           device_id: row.device_id,
@@ -1126,6 +1144,17 @@ export const mssCommerceService = {
           created_at: row.created_at,
           updated_at: row.updated_at,
         }));
+        const localCached = getCachedReservations();
+        const mergedMap = new Map<string, MSSReservation>();
+        for (const cr of cloudReservations) {
+          mergedMap.set(cr.id, cr);
+        }
+        for (const lr of localCached) {
+          if (!mergedMap.has(lr.id)) {
+            mergedMap.set(lr.id, lr);
+          }
+        }
+        reservations = Array.from(mergedMap.values());
         saveCachedReservations(reservations);
         isCloudFetched = true;
       }
@@ -1161,7 +1190,7 @@ export const mssCommerceService = {
       reservations = reservations.filter(
         r =>
           r.reservation_number.toLowerCase().includes(q) ||
-          r.serial_number.toLowerCase().includes(q) ||
+          (r.serial_number && r.serial_number.toLowerCase().includes(q)) ||
           r.customer_name.toLowerCase().includes(q) ||
           r.customer_phone.includes(q) ||
           (r.model_name && r.model_name.toLowerCase().includes(q))
@@ -1210,11 +1239,13 @@ export const mssCommerceService = {
     if (!device) throw new Error('الجهاز غير موجود في المخزون');
 
     if (device.status === 'SOLD') {
-      throw new Error(`لا يمكن حجز جهاز مباع بالفعل (${device.serial_number})`);
+      const sDesc = device.serial_number ? `(${device.serial_number})` : '';
+      throw new Error(`لا يمكن حجز جهاز مباع بالفعل ${sDesc}`);
     }
 
     if (device.status === 'RESERVED') {
-      throw new Error(`الجهاز بالسيريال (${device.serial_number}) محجوز مسبقاً لعميل آخر.`);
+      const sDesc = device.serial_number ? `(${device.serial_number})` : '';
+      throw new Error(`الجهاز ${sDesc} محجوز مسبقاً لعميل آخر.`);
     }
 
     const resNumber = await this.getNextReservationNumber();
@@ -1267,10 +1298,16 @@ export const mssCommerceService = {
       console.warn('Supabase insert reservation failed, cached locally:', err);
     }
 
-    // Atomically set device status to 'RESERVED'
-    await mssInventoryService.updateDevice(device.id, {
-      status: 'RESERVED',
-    });
+    // Atomically set device status to 'RESERVED' or decrement bulk quantity
+    if (device.quantity && device.quantity > 1) {
+      await mssInventoryService.updateDevice(device.id, {
+        quantity: device.quantity - 1,
+      });
+    } else {
+      await mssInventoryService.updateDevice(device.id, {
+        status: 'RESERVED',
+      });
+    }
 
     const cached = getCachedReservations();
     cached.unshift(newReservation);
@@ -1281,7 +1318,9 @@ export const mssCommerceService = {
       .queueOperation(
         'RESERVATION_CREATE',
         newReservation,
-        `حجز جهاز بالسيريال (${newReservation.serial_number}) للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`,
+        newReservation.serial_number
+          ? `حجز جهاز بالسيريال (${newReservation.serial_number}) للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`
+          : `حجز جهاز بدون سيريال للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`,
         newReservation.branch
       )
       .catch(console.warn);
@@ -1432,7 +1471,7 @@ export const mssCommerceService = {
         r =>
           r.return_number.toLowerCase().includes(q) ||
           r.invoice_number.toLowerCase().includes(q) ||
-          r.serial_number.toLowerCase().includes(q) ||
+          (r.serial_number && r.serial_number.toLowerCase().includes(q)) ||
           (r.model_name && r.model_name.toLowerCase().includes(q)) ||
           r.return_reason.toLowerCase().includes(q)
       );

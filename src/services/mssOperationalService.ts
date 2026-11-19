@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase.ts';
 import type {
   SystemStore,
   StoreType,
@@ -17,8 +17,8 @@ import type {
   ExecuteTransferRequest,
   ExecuteTransferResult,
 } from '../types/mssOperational';
-import { mssInventoryService } from './mssInventoryService';
-import { mssCatalogService } from './mssCatalogService';
+import { mssInventoryService } from './mssInventoryService.ts';
+import { mssCatalogService } from './mssCatalogService.ts';
 
 const STORES_CACHE_KEY = 'shop_mss_stores_cache_v1';
 const AUDIT_CACHE_KEY = 'shop_mss_audit_cache_v1';
@@ -222,6 +222,11 @@ export const mssOperationalService = {
 
     if (!code) throw new Error('رمز الفرع/المخزن مطلوب (Code)');
     if (!name) throw new Error('اسم الفرع/المخزن مطلوب (Name)');
+
+    const cachedCheck = getCachedStores();
+    if (cachedCheck.some(s => s.code.toUpperCase() === code)) {
+      throw new Error(`رمز الفرع/المخزن (${code}) مسجل مسبقاً في النظام. يرجى اختيار رمز فريد.`);
+    }
 
     const newStore: SystemStore = {
       id: `store-${Date.now()}`,
@@ -580,12 +585,12 @@ export const mssOperationalService = {
         validationErrors.push('يجب تحديد جهاز واحد على الأقل للنقل');
       }
       for (const reqId of requestedIds) {
-        const found = allDevices.find(d => d.id === reqId || d.serial_number === reqId);
+        const found = allDevices.find(d => d.id === reqId || (d.serial_number && d.serial_number === reqId));
         if (!found) {
           validationErrors.push(`الجهاز بالمعرف أو السيريال (${reqId}) غير موجود في النظام`);
         } else if (found.stock_location !== cleanSource) {
           validationErrors.push(
-            `الجهاز بالسيريال (${found.serial_number}) متواجد في (${found.stock_location}) وليس في موقع المصدر المحدد (${cleanSource})`
+            `الجهاز (${found.serial_number || found.id}) متواجد في (${found.stock_location}) وليس في موقع المصدر المحدد (${cleanSource})`
           );
         } else {
           candidates.push(found);
@@ -644,7 +649,7 @@ export const mssOperationalService = {
       ineligibleDevices.length > 0
     ) {
       validationErrors.push(
-        `لا يمكن تنفيذ النقل لأن بعض الأجهزة المحددة (${ineligibleDevices.map(d => d.serial_number).join(', ')}) غير متاحة للتحويل`
+        `لا يمكن تنفيذ النقل لأن بعض الأجهزة المحددة (${ineligibleDevices.map(d => d.serial_number || d.id).join(', ')}) غير متاحة للتحويل`
       );
     }
 

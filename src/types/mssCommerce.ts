@@ -49,7 +49,7 @@ export interface MSSInvoice {
   id: string;
   invoice_number: string;
   device_id: string;
-  serial_number: string;
+  serial_number: string | null;
   model_id: string;
   selling_branch: MSSStockLocation;
   source_branch: MSSStockLocation;
@@ -112,7 +112,7 @@ export interface MSSReservation {
   id: string;
   reservation_number: string;
   device_id: string;
-  serial_number: string;
+  serial_number: string | null;
   branch: MSSStockLocation;
   customer_name: string;
   customer_phone: string;
@@ -146,7 +146,7 @@ export interface MSSReturn {
   invoice_id: string;
   invoice_number: string;
   device_id: string;
-  serial_number: string;
+  serial_number: string | null;
   refund_amount: number;
   return_reason: string;
   restock_location: MSSStockLocation;

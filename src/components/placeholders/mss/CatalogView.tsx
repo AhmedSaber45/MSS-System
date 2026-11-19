@@ -1,8 +1,8 @@
+// Model creation and editing with (gpu, setGpu) handled in MSSModelModal
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Select } from '@/components/common/Select';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
@@ -18,7 +18,6 @@ import {
   Trash2,
   Cpu,
   Tv,
-  CheckCircle,
   LayoutGrid,
   List,
   RefreshCw,
@@ -28,11 +27,11 @@ import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
+import { MSSModelModal } from './MSSModelModal';
+import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
 import type {
   MSSCatalogModel,
-  NewMSSModelInput,
   MSSModelAvailability,
-  MSSCategory,
 } from '@/types/mssCatalog.ts';
 
 const CATEGORIES: { id: string; label: string }[] = [
@@ -54,22 +53,12 @@ export const CatalogView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
-  // Add / Edit Modal state
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  // Add / Edit Model Modal state
+  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [editingModel, setEditingModel] = useState<MSSCatalogModel | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Form Fields
-  const [brand, setBrand] = useState<string>('');
-  const [modelName, setModelName] = useState<string>('');
-  const [category, setCategory] = useState<MSSCategory>('لابتوب');
-  const [processor, setProcessor] = useState<string>('');
-  const [gpu, setGpu] = useState<string>('');
-  const [ram, setRam] = useState<string>('');
-  const [storage, setStorage] = useState<string>('');
-  const [screenSize, setScreenSize] = useState<string>('');
-  const [specifications, setSpecifications] = useState<string>('');
-  const [defaultListPrice, setDefaultListPrice] = useState<number>(0);
+  // Add Device Modal state
+  const [isAddDeviceModalOpen, setIsAddDeviceModalOpen] = useState<boolean>(false);
 
   // Delete Confirmation
   const [modelToDelete, setModelToDelete] = useState<MSSCatalogModel | null>(null);
@@ -97,109 +86,13 @@ export const CatalogView: React.FC = () => {
   // Open modal for new model
   const handleOpenAddModal = () => {
     setEditingModel(null);
-    setBrand('');
-    setModelName('');
-    setCategory('لابتوب');
-    setProcessor('');
-    setGpu('');
-    setRam('');
-    setStorage('');
-    setScreenSize('');
-    setSpecifications('');
-    setDefaultListPrice(0);
-    setIsModalOpen(true);
+    setIsModelModalOpen(true);
   };
 
   // Open modal for editing model
   const handleOpenEditModal = (model: MSSCatalogModel) => {
     setEditingModel(model);
-    setBrand(model.brand);
-    setModelName(model.model_name);
-    setCategory(model.category);
-    setProcessor(model.processor || '');
-    setGpu(model.gpu || '');
-    setRam(model.ram || '');
-    setStorage(model.storage || '');
-    setScreenSize(model.screen_size || '');
-    setSpecifications(model.specifications || '');
-    setDefaultListPrice(model.default_list_price);
-    setIsModalOpen(true);
-  };
-
-  // Submit form (Create or Update)
-  const handleSubmitModel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-
-    if (!brand.trim()) {
-      showNotification({
-        type: 'warning',
-        title: 'الماركة مطلوبة',
-        message: 'يرجى كتابة ماركة الجهاز (مثل: Dell, HP, Lenovo)',
-      });
-      return;
-    }
-
-    if (!modelName.trim()) {
-      showNotification({
-        type: 'warning',
-        title: 'اسم الموديل مطلوب',
-        message: 'يرجى كتابة اسم الموديل (مثل: ThinkPad T480)',
-      });
-      return;
-    }
-
-    if (defaultListPrice < 0) {
-      showNotification({
-        type: 'warning',
-        title: 'السعر غير صالح',
-        message: 'السعر الاسترشادي لا يمكن أن يكون سالباً',
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const inputData: NewMSSModelInput = {
-        brand: brand.trim(),
-        model_name: modelName.trim(),
-        category,
-        processor: processor.trim() || undefined,
-        gpu: (category === 'لابتوب' && gpu.trim()) ? gpu.trim() : undefined,
-        ram: ram.trim() || undefined,
-        storage: storage.trim() || undefined,
-        screen_size: screenSize.trim() || undefined,
-        specifications: specifications.trim() || undefined,
-        default_list_price: defaultListPrice,
-      };
-
-      if (editingModel) {
-        await mssCatalogService.updateModel(editingModel.id, inputData);
-        showNotification({
-          type: 'success',
-          title: 'تم تحديث الموديل بنجاح',
-          message: `تم حفظ تعديلات موديل ${inputData.brand} ${inputData.model_name}`,
-        });
-      } else {
-        await mssCatalogService.createModel(inputData);
-        showNotification({
-          type: 'success',
-          title: 'تمت إضافة الموديل للكتالوج',
-          message: `تم تسجيل الموديل ${inputData.brand} ${inputData.model_name} بنجاح`,
-        });
-      }
-
-      setIsModalOpen(false);
-      await loadData();
-    } catch (err: any) {
-      showNotification({
-        type: 'error',
-        title: 'فشل حفظ الموديل',
-        message: err.message || 'حدث خطأ أثناء الاتصال بقاعدة البيانات',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    setIsModelModalOpen(true);
   };
 
   // Delete model
@@ -258,11 +151,20 @@ export const CatalogView: React.FC = () => {
               Refresh
             </Button>
             <Button
+              variant="outline"
+              size="md"
+              onClick={() => setIsAddDeviceModalOpen(true)}
+              leftIcon={<Laptop className="w-4.5 h-4.5 text-blue-600" />}
+              className="border-slate-300 font-bold text-slate-800 hover:bg-slate-50"
+            >
+              إضافة جهاز جديد
+            </Button>
+            <Button
               variant="primary"
               size="md"
               onClick={handleOpenAddModal}
               leftIcon={<Plus className="w-4.5 h-4.5" />}
-              className="font-bold"
+              className="font-bold bg-blue-600 hover:bg-blue-700"
             >
               إضافة موديل جديد
             </Button>
@@ -278,7 +180,6 @@ export const CatalogView: React.FC = () => {
             <Layers className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.totalCount}</p>
-        
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
@@ -287,7 +188,6 @@ export const CatalogView: React.FC = () => {
             <Laptop className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.laptops}</p>
-       
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
@@ -296,47 +196,41 @@ export const CatalogView: React.FC = () => {
             <Monitor className="w-5 h-5 text-slate-500" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono tabular-nums mt-2.5">{stats.monitors}</p>
-
         </Card>
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">الأجهزة المتاحة بالمحلين</span>
+            <span className="text-xs font-bold text-slate-600">الأجهزة المتاحة (محل 1 / محل 2)</span>
             <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2">
-            <span className="text-xs font-mono tabular-nums font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300">
-              محل 1: {stats.totalAvailShop1}
-            </span>
-            <span className="text-xs font-mono tabular-nums font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300">
-              محل 2: {stats.totalAvailShop2}
-            </span>
+          <div className="flex items-baseline gap-2 mt-2.5">
+            <span className="text-lg font-bold text-blue-600 font-mono tabular-nums">{stats.totalAvailShop1}</span>
+            <span className="text-slate-400">/</span>
+            <span className="text-lg font-bold text-emerald-600 font-mono tabular-nums">{stats.totalAvailShop2}</span>
           </div>
         </Card>
       </div>
 
-      {/* Filter & Search Toolbar */}
-      <Card className="p-3.5 bg-white border-slate-300 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="w-full md:w-96">
+      {/* Filter and Search Bar */}
+      <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-3">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4.5 h-4.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
-              placeholder="ابحث بالماركة، الموديل، المعالج، الرام، أو المواصفات..."
+              placeholder="البحث بالماركة، اسم الموديل، المعالج، كارت الشاشة..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
+              className="pr-10"
             />
           </div>
 
-          {/* Category Filter Segmented Control */}
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 text-sm gap-1">
+          {/* Categories Tab Selector */}
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 w-full md:w-auto justify-center">
             {CATEGORIES.map(c => (
               <button
                 key={c.id}
-                type="button"
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                   selectedCategory === c.id
                     ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                     : 'text-slate-600 hover:text-slate-900'
@@ -347,23 +241,21 @@ export const CatalogView: React.FC = () => {
             ))}
           </div>
 
-          {/* View Toggle */}
-          <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1 gap-1">
+          {/* View Mode Toggle */}
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
             <button
-              type="button"
               onClick={() => setViewMode('table')}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-900'
+              className={`p-1.5 rounded-lg transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-800'
               }`}
               title="عرض كجدول"
             >
               <List className="w-4.5 h-4.5" />
             </button>
             <button
-              type="button"
               onClick={() => setViewMode('cards')}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-900'
+              className={`p-1.5 rounded-lg transition-all ${
+                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-800'
               }`}
               title="عرض كبطاقات"
             >
@@ -373,128 +265,138 @@ export const CatalogView: React.FC = () => {
         </div>
       </Card>
 
-      {/* Models Listing */}
+      {/* Main Content Area */}
       {isLoading ? (
-        <div className="p-16 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-300">
-          <Spinner size="lg" />
-          <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل  الموديلات ...</p>
-        </div>
+        <Card className="p-16 text-center bg-white border-slate-300 shadow-2xs">
+          <Spinner size="lg" className="mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-600">جاري تحميل بيانات الأجهزة والكتالوج ...</p>
+        </Card>
       ) : models.length === 0 ? (
-        <div className="p-16 text-center bg-white rounded-xl border border-slate-300 space-y-2.5">
-          <Layers className="w-10 h-10 text-slate-400 mx-auto" />
-          <p className="text-sm font-bold text-slate-800">لا توجد موديلات مطابقة  </p>
-          <p className="text-xs text-slate-500">
-            يمكنك إضافة موديل لابتوب أو شاشة جديد بالضغط على زر الإضافة أعلاه
-          </p>
-        </div>
+        <Card className="p-16 text-center space-y-3 bg-white border-slate-300 shadow-2xs">
+          <Layers className="w-10 h-10 mx-auto text-slate-400" />
+          <h3 className="text-base font-bold text-slate-800">لا توجد موديلات مطابقة للبحث</h3>
+          <p className="text-sm text-slate-500">جرب البحث بكلمات أخرى أو أضف موديلاً جديداً للكتالوج.</p>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleOpenAddModal}
+            leftIcon={<Plus className="w-4.5 h-4.5" />}
+            className="font-bold bg-blue-600 hover:bg-blue-700"
+          >
+            إضافة موديل جديد الآن
+          </Button>
+        </Card>
       ) : viewMode === 'table' ? (
-        /* ==================== TABLE VIEW ==================== */
+        /* TABLE VIEW */
         <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-right">
-              <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
+            <table className="w-full text-sm text-right border-collapse">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
                 <tr>
-                  <th className="py-3 px-3.5"> الموديل</th>
-                  <th className="py-3 px-3.5">النوع</th>
-                  <th className="py-3 px-3.5">CPU,GPU&RAM</th>
-                  <th className="py-3 px-3.5">الهارد والشاشة</th>
-                  <th className="py-3 px-3.5 text-left">السعر </th>
-                  <th className="py-3 px-3.5 text-center">  (محل 1 / محل 2)</th>
-                  <th className="py-3 px-3.5 text-center w-24">إجراءات</th>
+                  <th className="p-3.5">الماركة والموديل</th>
+                  <th className="p-3.5">النوع</th>
+                  <th className="p-3.5">المواصفات الأساسية (CPU / GPU / RAM / Storage)</th>
+                  <th className="p-3.5">السعر الاسترشادي</th>
+                  <th className="p-3.5 text-center">المتاح في الفروع</th>
+                  <th className="p-3.5 text-center">الإجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {models.map(m => {
                   const avail = availability[m.id] || {
                     available_shop1: 0,
                     available_shop2: 0,
                     total_available: 0,
+                    reserved_count: 0,
                   };
 
                   return (
                     <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-3.5">
+                      <td className="p-3.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-                            {m.brand}
-                          </span>
-                          <span className="font-bold text-slate-900 text-sm">{m.model_name}</span>
+                          {m.category === 'لابتوب' ? (
+                            <Laptop className="w-4.5 h-4.5 text-slate-500 shrink-0" />
+                          ) : (
+                            <Monitor className="w-4.5 h-4.5 text-slate-500 shrink-0" />
+                          )}
+                          <div>
+                            <span className="font-bold text-slate-900 block">{m.brand} {m.model_name}</span>
+                            {m.specifications && (
+                              <span className="text-xs text-slate-500 block truncate max-w-xs">{m.specifications}</span>
+                            )}
+                          </div>
                         </div>
-                        {m.specifications && (
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-1 max-w-xs">
-                            {m.specifications}
-                          </p>
-                        )}
                       </td>
 
-                      <td className="py-3 px-3.5">
-                        <Badge variant="default" size="sm" className="font-semibold">
+                      <td className="p-3.5">
+                        <Badge variant="default" size="sm">
                           {m.category}
                         </Badge>
                       </td>
 
-                      <td className="py-3 px-3.5">
+                      <td className="p-3.5 text-xs text-slate-600 font-mono">
                         <div className="space-y-0.5">
-                          {m.processor && m.processor !== '-' && (
-                            <p className="font-mono font-semibold text-slate-900 text-xs">{m.processor}</p>
+                          {m.processor && <div>CPU: {m.processor}</div>}
+                          {m.gpu && <div className="text-blue-700 font-bold">GPU: {m.gpu}</div>}
+                          {(m.ram || m.storage) && (
+                            <div>
+                              {m.ram && `RAM: ${m.ram}`} {m.storage && `| Storage: ${m.storage}`}
+                            </div>
                           )}
-                          {m.gpu && m.gpu !== '-' && (
-                            <p className="font-mono text-blue-700 font-medium text-[11px]">🎮 {m.gpu}</p>
-                          )}
-                          {m.ram && m.ram !== '-' && (
-                            <p className="font-mono text-slate-600 text-xs">{m.ram}</p>
-                          )}
+                          {m.screen_size && <div>Screen: {m.screen_size}</div>}
+                          {!m.processor && !m.gpu && !m.ram && !m.storage && <span className="text-slate-400">غير محدد</span>}
                         </div>
                       </td>
 
-                      <td className="py-3 px-3.5">
-                        <div className="space-y-0.5">
-                          {m.storage && m.storage !== '-' && (
-                            <p className="font-mono font-semibold text-slate-900 text-xs">{m.storage}</p>
-                          )}
-                          {m.screen_size && m.screen_size !== '-' && (
-                            <p className="text-slate-600 text-xs font-medium">{m.screen_size}</p>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3.5 text-left font-mono font-bold text-slate-900 text-sm tabular-nums">
+                      <td className="p-3.5 font-mono font-bold text-slate-900 tabular-nums">
                         {formatCurrency(m.default_list_price)}
                       </td>
 
-                      {/* Separate shop availability display */}
-                      <td className="py-3 px-3.5 text-center">
-                        <div className="inline-flex items-center gap-1.5 font-bold text-xs font-mono tabular-nums">
-                          <span className="px-2.5 py-1 rounded border bg-slate-100 text-slate-800 border-slate-300">
+                      <td className="p-3.5 text-center">
+                        <div className="inline-flex items-center gap-2 font-mono text-xs font-bold">
+                          <span
+                            className={`px-2 py-0.5 rounded border ${
+                              avail.available_shop1 > 0
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-slate-50 text-slate-400 border-slate-200'
+                            }`}
+                            title="المتاح في محل 1"
+                          >
                             محل 1: {avail.available_shop1}
                           </span>
-                          <span className="px-2.5 py-1 rounded border bg-slate-100 text-slate-800 border-slate-300">
+                          <span
+                            className={`px-2 py-0.5 rounded border ${
+                              avail.available_shop2 > 0
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-50 text-slate-400 border-slate-200'
+                            }`}
+                            title="المتاح في محل 2"
+                          >
                             محل 2: {avail.available_shop2}
-                          </span>
-                          <span className="text-slate-500 text-xs font-semibold">
-                            (إجمالي {avail.total_available})
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-3 px-3.5 text-center">
+                      <td className="p-3.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleOpenEditModal(m)}
-                            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
-                            title="تعديل الموديل والسعر"
+                            className="text-slate-600 hover:text-blue-600 h-8 px-2"
+                            title="تعديل الموديل"
                           >
                             <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setModelToDelete(m)}
-                            className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors"
-                            title="حذف من الكتالوج"
+                            className="text-slate-600 hover:text-rose-600 h-8 px-2"
+                            title="حذف الموديل"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -505,93 +407,97 @@ export const CatalogView: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* ==================== CARD VIEW ==================== */
+        /* CARDS VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {models.map(m => {
             const avail = availability[m.id] || {
               available_shop1: 0,
               available_shop2: 0,
               total_available: 0,
+              reserved_count: 0,
             };
 
             return (
-              <Card key={m.id} className="bg-white border-slate-300 shadow-2xs p-4 space-y-3.5">
-                <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-                        {m.brand}
-                      </span>
-                      <Badge variant="default" size="sm" className="font-semibold">
-                        {m.category}
-                      </Badge>
-                    </div>
-                    <h4 className="font-bold text-slate-900 text-sm">{m.model_name}</h4>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditModal(m)}
-                      className="p-1.5 text-slate-500 hover:text-slate-900 rounded-md transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModelToDelete(m)}
-                      className="p-1.5 text-slate-400 hover:text-rose-700 rounded-md transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Specs Box */}
-                <div className="space-y-2 text-sm">
-                  {m.processor && m.processor !== '-' && (
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Cpu className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span className="font-mono font-semibold text-xs truncate">{m.processor}</span>
-                    </div>
-                  )}
-                  {m.gpu && m.gpu !== '-' && (
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <CircuitBoard className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span className="font-mono font-medium text-xs truncate">{m.gpu}</span>
-                    </div>
-                  )}
-                  {m.ram && m.ram !== '-' && (
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Layers className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span className="font-mono text-xs font-medium">{m.ram}</span>
-                      {m.storage && m.storage !== '-' && (
-                        <span className="font-mono text-slate-500 text-xs">| {m.storage}</span>
+              <Card key={m.id} className="p-4 bg-white border-slate-300 shadow-2xs hover:shadow-subtle transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      {m.category === 'لابتوب' ? (
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                          <Laptop className="w-5 h-5" />
+                        </div>
+                      ) : (
+                        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                          <Monitor className="w-5 h-5" />
+                        </div>
                       )}
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">{m.brand} {m.model_name}</h4>
+                        <Badge variant="default" size="sm" className="mt-1">
+                          {m.category}
+                        </Badge>
+                      </div>
                     </div>
-                  )}
-                  {m.screen_size && m.screen_size !== '-' && (
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Tv className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span className="text-xs font-medium">{m.screen_size}</span>
-                    </div>
-                  )}
-                  {m.specifications && (
-                    <p className="text-xs text-slate-500 pt-1.5 border-t border-slate-200 line-clamp-2">
-                      {m.specifications}
-                    </p>
-                  )}
-                </div>
 
-                {/* Availability and Price footer */}
-                <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-500 block mb-0.5 font-semibold">السعر الاسترشادي:</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">
-                      {formatCurrency(m.default_list_price)}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(m)}
+                        className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 transition-colors"
+                        title="تعديل"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setModelToDelete(m)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold tabular-nums">
+                  {/* Specs List */}
+                  <div className="p-3 bg-slate-50 rounded-lg space-y-1.5 text-xs text-slate-600 font-mono mb-3">
+                    {m.processor && (
+                      <div className="flex items-center gap-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{m.processor}</span>
+                      </div>
+                    )}
+                    {m.gpu && (
+                      <div className="flex items-center gap-1.5 text-blue-700 font-bold">
+                        <CircuitBoard className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate">{m.gpu}</span>
+                      </div>
+                    )}
+                    {(m.ram || m.storage) && (
+                      <div className="flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{m.ram} | {m.storage}</span>
+                      </div>
+                    )}
+                    {m.screen_size && (
+                      <div className="flex items-center gap-1.5">
+                        <Tv className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{m.screen_size}</span>
+                      </div>
+                    )}
+                    {m.specifications && (
+                      <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-200">
+                        {m.specifications}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">السعر الاسترشادي:</span>
+                    <strong className="text-slate-900 font-bold font-mono text-sm">{formatCurrency(m.default_list_price)}</strong>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold">
                     <span className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300">
                       م1: {avail.available_shop1}
                     </span>
@@ -607,163 +513,22 @@ export const CatalogView: React.FC = () => {
       )}
 
       {/* Add / Edit Model Modal */}
-      {isModalOpen && (
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => !isSubmitting && setIsModalOpen(false)}
-          title={editingModel ? `تعديل الموديل: ${editingModel.brand} ${editingModel.model_name}` : 'إضافة موديل جديد  '}
-          subtitle=""
-          size="lg"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSubmitting}
-                className="border-slate-300 font-semibold"
-              >
-                إلغاء
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleSubmitModel}
-                disabled={isSubmitting}
-                leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-4.5 h-4.5" />}
-                className="font-bold"
-              >
-                {isSubmitting ? 'جارٍ الحفظ...' : editingModel ? 'حفظ التعديلات' : 'إضافة الموديل '}
-              </Button>
-            </div>
-          }
-        >
-          <form onSubmit={handleSubmitModel} className="space-y-4 text-sm">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  الماركة<span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="مثال: Lenovo, Dell, HP..."
-                  value={brand}
-                  onChange={e => setBrand(e.target.value)}
-                  required
-                />
-              </div>
+      <MSSModelModal
+        isOpen={isModelModalOpen}
+        onClose={() => {
+          setIsModelModalOpen(false);
+          setEditingModel(null);
+        }}
+        modelToEdit={editingModel}
+        onSuccess={() => loadData()}
+      />
 
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  اسم الموديل <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="مثال: ThinkPad T480..."
-                  value={modelName}
-                  onChange={e => setModelName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">النوع</label>
-                <Select
-                  value={category}
-                  onChange={e => setCategory(e.target.value as MSSCategory)}
-                  options={[
-                    { value: 'لابتوب', label: 'لابتوب' },
-                    { value: 'شاشة', label: 'شاشة' },
-                  ]}
-                />
-              </div>
-            </div>
-
-            {/* Hardware Specs Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">المعالج (CPU)</label>
-                <Input
-                  placeholder="مثال: Intel Core i5-8350U, i7-1185G7..."
-                  value={processor}
-                  onChange={e => setProcessor(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              {category === 'لابتوب' && (
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1 text-xs">
-                    كارت الشاشة (GPU) <span className="text-slate-400 font-normal">(اختياري)</span>
-                  </label>
-                  <Input
-                    placeholder="مثال: Intel UHD 620, Nvidia RTX 3060 6GB..."
-                    value={gpu}
-                    onChange={e => setGpu(e.target.value)}
-                    className="font-mono text-sm"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">الذاكرة العشوائية (RAM)</label>
-                <Input
-                  placeholder="مثال: 16 GB DDR4, 32 GB..."
-                  value={ram}
-                  onChange={e => setRam(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">سعة التخزين (Storage)</label>
-                <Input
-                  placeholder="مثال: 512 GB NVMe SSD, 1 TB..."
-                  value={storage}
-                  onChange={e => setStorage(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">حجم ومواصفات الشاشة</label>
-                <Input
-                  placeholder='مثال: 14" FHD IPS, 24" 144Hz...'
-                  value={screenSize}
-                  onChange={e => setScreenSize(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Price and Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1 text-xs">
-                  السعر  
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="50"
-                  value={defaultListPrice}
-                  onChange={e => setDefaultListPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="font-mono font-bold"
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="font-bold text-slate-700 block mb-1 text-xs">
-                 ملاحظات
-                </label>
-                <Input
-                  placeholder="مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي..."
-                  value={specifications}
-                  onChange={e => setSpecifications(e.target.value)}
-                />
-              </div>
-            </div>
-          </form>
-        </Modal>
-      )}
+      {/* Add New Device Modal from Devices Page */}
+      <MSSDeviceCreationModal
+        isOpen={isAddDeviceModalOpen}
+        onClose={() => setIsAddDeviceModalOpen(false)}
+        onSuccess={() => loadData()}
+      />
 
       {/* Delete Confirmation Modal */}
       {modelToDelete && (

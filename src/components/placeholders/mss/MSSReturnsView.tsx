@@ -79,7 +79,7 @@ export const MSSReturnsView: React.FC = () => {
       const match = allInvoices.find(
         inv =>
           inv.invoice_number.toUpperCase() === q ||
-          inv.serial_number.toUpperCase() === q
+          (inv.serial_number && inv.serial_number.toUpperCase() === q)
       );
 
       if (!match) {
@@ -128,7 +128,7 @@ export const MSSReturnsView: React.FC = () => {
       showNotification({
         type: 'success',
         title: 'تم إتمام عملية الإرجاع بنجاح',
-        message: `تم توثيق الإرجاع برقم (${ret.return_number}) وإعادة الجهاز بالسيريال (${foundInvoice.serial_number}) إلى مخزون (${restockLocation}).`,
+        message: `تم توثيق الإرجاع برقم (${ret.return_number}) وإعادة الجهاز (${foundInvoice.serial_number || 'بدون سيريال'}) إلى مخزون (${restockLocation}).`,
       });
 
       setFoundInvoice(null);
@@ -147,7 +147,7 @@ export const MSSReturnsView: React.FC = () => {
       const q = searchQuery.trim().toLowerCase();
       const matchNum = r.return_number.toLowerCase().includes(q);
       const matchInv = r.invoice_number.toLowerCase().includes(q);
-      const matchSerial = r.serial_number.toLowerCase().includes(q);
+      const matchSerial = Boolean(r.serial_number?.toLowerCase().includes(q));
       const matchModel = r.model_name?.toLowerCase().includes(q);
       const matchReason = r.return_reason.toLowerCase().includes(q);
       if (!matchNum && !matchInv && !matchSerial && !matchModel && !matchReason) {
@@ -181,9 +181,13 @@ export const MSSReturnsView: React.FC = () => {
       key: 'serial_number',
       header: 'سيريال الجهاز',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-          {item.serial_number}
-        </span>
+        item.serial_number ? (
+          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+            {item.serial_number}
+          </span>
+        ) : (
+          <span className="text-slate-400 font-medium text-xs">بدون سيريال</span>
+        )
       ),
     },
     {
@@ -306,9 +310,13 @@ export const MSSReturnsView: React.FC = () => {
                     <span className="font-bold text-slate-900 text-base">
                       {foundInvoice.brand} {foundInvoice.model_name}
                     </span>
-                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
-                      {foundInvoice.serial_number}
-                    </span>
+                    {foundInvoice.serial_number ? (
+                      <span className="font-mono text-xs font-bold bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
+                        {foundInvoice.serial_number}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-medium text-xs">بدون سيريال</span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-600">

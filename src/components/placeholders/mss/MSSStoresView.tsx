@@ -12,6 +12,7 @@ import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useAuth } from '@/context/AuthContext';
 import { mssOperationalService } from '@/services/mssOperationalService';
+import { generateBranchCode } from '@/lib/branchCodeGenerator';
 import { formatDate } from '@/lib/utils';
 import type {
   SystemStore,
@@ -65,6 +66,7 @@ export const MSSStoresView: React.FC = () => {
   // Form states (Add / Edit)
   const [formCode, setFormCode] = useState<string>('');
   const [formName, setFormName] = useState<string>('');
+  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState<boolean>(false);
   const [formType, setFormType] = useState<StoreType>('store');
   const [formDescription, setFormDescription] = useState<string>('');
   const [formAddress, setFormAddress] = useState<string>('');
@@ -119,13 +121,36 @@ export const MSSStoresView: React.FC = () => {
 
   // Open Add Modal
   const handleOpenAdd = () => {
-    setFormCode(`LOC${stores.length + 1}`);
+    setFormCode('');
+    setIsCodeManuallyEdited(false);
     setFormName('');
     setFormType('store');
     setFormDescription('');
     setFormAddress('');
     setFormPhone('');
     setIsAddModalOpen(true);
+  };
+
+  // Name change in Add modal with automatic code generation
+  const handleNameChange = (name: string) => {
+    setFormName(name);
+    if (!isCodeManuallyEdited) {
+      const generated = generateBranchCode(name, stores.map(s => s.code));
+      setFormCode(generated);
+    }
+  };
+
+  // Custom manual code input
+  const handleCodeChange = (code: string) => {
+    setFormCode(code.toUpperCase());
+    setIsCodeManuallyEdited(true);
+  };
+
+  // Force re-generate code from name
+  const handleRegenerateCode = () => {
+    const generated = generateBranchCode(formName, stores.map(s => s.code));
+    setFormCode(generated);
+    setIsCodeManuallyEdited(false);
   };
 
   // Open Edit Modal
@@ -155,11 +180,22 @@ export const MSSStoresView: React.FC = () => {
   // Submit Add Store
   const handleSubmitAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCode.trim() || !formName.trim()) {
+    const cleanCode = formCode.trim().toUpperCase();
+    const cleanName = formName.trim();
+    if (!cleanCode || !cleanName) {
       showNotification({
         type: 'warning',
         title: 'بيانات غير مكتملة',
-        message: 'يرجى إدخال رمز واسم الفرع/المخزن',
+        message: 'يرجى إدخال اسم ورمز الفرع/المخزن',
+      });
+      return;
+    }
+
+    if (stores.some(s => s.code.toUpperCase() === cleanCode)) {
+      showNotification({
+        type: 'warning',
+        title: 'رمز الفرع مكرر',
+        message: `رمز الفرع (${cleanCode}) مسجل مسبقاً. يرجى اختيار رمز فريد.`,
       });
       return;
     }
@@ -168,8 +204,8 @@ export const MSSStoresView: React.FC = () => {
     try {
       await mssOperationalService.createStore(
         {
-          code: formCode.trim(),
-          name: formName.trim(),
+          code: cleanCode,
+          name: cleanName,
           type: formType,
           description: formDescription.trim() || undefined,
           address: formAddress.trim() || undefined,
@@ -720,19 +756,53 @@ export const MSSStoresView: React.FC = () => {
           }
         >
           <form onSubmit={isEditModalOpen ? handleSubmitEdit : handleSubmitAdd} className="space-y-3.5 text-xs">
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                اسم الفرع أو المخزن <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                value={formName}
+                onChange={e => (isEditModalOpen ? setFormName(e.target.value) : handleNameChange(e.target.value))}
+                placeholder="مثال: Cairo, Nasr City, New Cairo Branch, مخزن المعادي..."
+                required
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">
-                  رمز الفرع <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700 block">
+                    رمز الفرع / المخزن <span className="text-rose-500">*</span>
+                  </label>
+                  {!isEditModalOpen && isCodeManuallyEdited && (
+                    <button
+                      type="button"
+                      onClick={handleRegenerateCode}
+                      className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5"
+                      title="استعادة الرمز المولّد تلقائياً من الاسم"
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" />
+                      توليد تلقائي
+                    </button>
+                  )}
+                </div>
                 <Input
                   value={formCode}
-                  onChange={e => setFormCode(e.target.value.toUpperCase())}
+                  onChange={e => handleCodeChange(e.target.value)}
                   disabled={isEditModalOpen}
-                  placeholder="مثال: SH01, WH02..."
-                  className="font-mono"
+                  placeholder="مثال: CA, NC, NCB, NCF..."
+                  className="font-mono uppercase font-bold"
                   required
                 />
+                {!isEditModalOpen && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {isCodeManuallyEdited ? (
+                      <span className="text-amber-600">تم التعديل يدوياً (لن يُستبدل أثناء الكتابة)</span>
+                    ) : (
+                      <span className="text-emerald-600">يتم توليد الرمز تلقائياً حسب قواعد التسمية</span>
+                    )}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -747,18 +817,6 @@ export const MSSStoresView: React.FC = () => {
                   ]}
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">
-                اسم الفرع أو المخزن<span className="text-rose-500">*</span>
-              </label>
-              <Input
-                value={formName}
-                onChange={e => setFormName(e.target.value)}
-                placeholder="مثال: محل 1 - الفرع الرئيسي، مخزن التحرير..."
-                required
-              />
             </div>
 
             <div>

@@ -101,23 +101,20 @@ describe('Phase 07 — MSS Individual Inventory & Serial Numbers Verification', 
     );
   });
 
-  test('4. Input validation: reject missing serial, negative costs, or invalid location', async () => {
+  test('4. Input validation: allow optional serial, reject negative costs or invalid location', async () => {
     const models = await mssCatalogService.getModels();
     const model = models.find(m => m.id === 'a0000000-0000-0000-0000-000000000001') || models[models.length - 1];
 
-    // Empty serial
-    await assert.rejects(
-      async () => {
-        await mssInventoryService.createDevice({
-          serial_number: '   ',
-          model_id: model.id,
-          purchase_cost: 5000,
-          list_price: 8000,
-          stock_location: 'محل 1',
-        });
-      },
-      /السيريال نمبر الفريد.*مطلوب/
-    );
+    // Empty serial should succeed and be stored as non-serialized (Phase UX improvements)
+    const nonSerDev = await mssInventoryService.createDevice({
+      serial_number: '   ',
+      model_id: model.id,
+      purchase_cost: 5000,
+      list_price: 8000,
+      stock_location: 'محل 1',
+    });
+    assert.strictEqual(nonSerDev.serial_number, null, 'Empty serial should normalize to null');
+    assert.strictEqual(nonSerDev.is_serialized, false, 'Should be marked as non-serialized');
 
     // Negative cost
     await assert.rejects(

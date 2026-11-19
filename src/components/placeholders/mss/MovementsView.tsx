@@ -270,7 +270,7 @@ export const MovementsView: React.FC = () => {
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         return (
-          m.serial_number.toLowerCase().includes(q) ||
+          (m.serial_number && m.serial_number.toLowerCase().includes(q)) ||
           (m.model_name && m.model_name.toLowerCase().includes(q)) ||
           (m.brand && m.brand.toLowerCase().includes(q)) ||
           (m.notes && m.notes.toLowerCase().includes(q))
@@ -290,7 +290,7 @@ export const MovementsView: React.FC = () => {
     const q = wizardDeviceSearch.trim().toLowerCase();
     return wizardSourceDevices.filter(
       d =>
-        d.serial_number.toLowerCase().includes(q) ||
+        (d.serial_number && d.serial_number.toLowerCase().includes(q)) ||
         (d.model_name && d.model_name.toLowerCase().includes(q)) ||
         (d.brand && d.brand.toLowerCase().includes(q))
     );
@@ -560,7 +560,7 @@ export const MovementsView: React.FC = () => {
                   {filteredMovements.map(m => (
                     <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-3.5">
-                        <span className="font-mono font-bold text-slate-900 block">{m.serial_number}</span>
+                        <span className="font-mono font-bold text-slate-900 block">{m.serial_number || 'بدون سيريال'}</span>
                         {m.model_name && <span className="text-[11px] text-slate-500">{m.brand} {m.model_name}</span>}
                       </td>
 
@@ -972,7 +972,7 @@ export const MovementsView: React.FC = () => {
                                   className="rounded border-slate-300 text-blue-600"
                                 />
                                 <div>
-                                  <span className="font-mono font-bold text-slate-900 block">{d.serial_number}</span>
+                                  <span className="font-mono font-bold text-slate-900 block">{d.serial_number || 'بدون سيريال'}</span>
                                   <span className="text-[11px] text-slate-500">{d.brand} {d.model_name}</span>
                                 </div>
                               </div>
@@ -1032,7 +1032,7 @@ export const MovementsView: React.FC = () => {
                     <div className="max-h-28 overflow-y-auto text-[11px] divide-y divide-rose-100">
                       {wizardPreview.ineligibleDevices.map(idv => (
                         <div key={idv.id} className="py-1 flex items-center justify-between text-rose-900">
-                          <span className="font-mono font-bold">{idv.serial_number}</span>
+                          <span className="font-mono font-bold">{idv.serial_number || 'بدون سيريال'}</span>
                           <span>السبب: {idv.reason} ({idv.status})</span>
                         </div>
                       ))}

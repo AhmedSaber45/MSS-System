@@ -21,11 +21,15 @@ import type {
   MSSStockLocation,
   MSSInventorySummary,
   MSSDeviceMovement,
+  NewMSSBulkStockInput,
+  AssignSerialsInput,
+  MSSModelInventorySummary,
 } from '@/types/mssInventory';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { mssOperationalService } from '@/services/mssOperationalService';
 import type { SystemStore, TransferPreviewResponse, ExecuteTransferResult } from '@/types/mssOperational';
 import { useAuth } from '@/context/AuthContext';
+import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
 import {
   Plus,
   Search,
@@ -50,6 +54,10 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Barcode,
+  Tag,
 } from 'lucide-react';
 
 export const MSSInventoryView: React.FC = () => {
@@ -107,6 +115,24 @@ export const MSSInventoryView: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // View Switcher (Units vs Model Summary)
+  const [inventoryTab, setInventoryTab] = useState<'UNITS' | 'MODELS'>('UNITS');
+  const [modelSummaries, setModelSummaries] = useState<MSSModelInventorySummary[]>([]);
+  const [modelSearchQuery, setModelSearchQuery] = useState<string>('');
+  const [expandedModelKey, setExpandedModelKey] = useState<string | null>(null);
+
+  // Add Stock Modal Mode (Individual vs Bulk)
+  const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>('INDIVIDUAL');
+  const [formQuantity, setFormQuantity] = useState<number>(1);
+
+  // Assign Serials to Bulk Stock Modal
+  const [isAssignSerialsModalOpen, setIsAssignSerialsModalOpen] = useState<boolean>(false);
+  const [assignStockTarget, setAssignStockTarget] = useState<MSSDevice | null>(null);
+  const [assignSerialsInputText, setAssignSerialsInputText] = useState<string>('');
+  const [assignSerialsNotes, setAssignSerialsNotes] = useState<string>('');
+  const [assignSerialsError, setAssignSerialsError] = useState<string>('');
+  const [isAssigningSerials, setIsAssigningSerials] = useState<boolean>(false);
+
   // Transfer Form State
   const [transferTargetLocation, setTransferTargetLocation] = useState<MSSStockLocation>('محل 2');
   const [transferNotes, setTransferNotes] = useState<string>('');
@@ -123,16 +149,18 @@ export const MSSInventoryView: React.FC = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [devList, modelsList, sum, stores] = await Promise.all([
+      const [devList, modelsList, sum, stores, modSummaries] = await Promise.all([
         mssInventoryService.getDevices(),
         mssCatalogService.getModels(),
         mssInventoryService.getInventorySummary(),
         mssOperationalService.getStores({ includeArchived: false }),
+        mssInventoryService.getModelInventorySummary(),
       ]);
       setDevices(devList);
       setCatalogModels(modelsList);
       setSummary(sum);
       setSystemStores(stores);
+      setModelSummaries(modSummaries);
     } catch (err: any) {
       console.error('Failed to load inventory data:', err);
       showNotification({
@@ -248,8 +276,10 @@ export const MSSInventoryView: React.FC = () => {
   };
 
   // Open Add Modal
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (defaultMode: 'INDIVIDUAL' | 'BULK' = 'INDIVIDUAL') => {
+    setStockRegistrationMode(defaultMode);
     setFormSerial('');
+    setFormQuantity(1);
     const defaultModel = catalogModels[0];
     setFormModelId(defaultModel ? defaultModel.id : '');
     setFormCost(0);
@@ -272,15 +302,11 @@ export const MSSInventoryView: React.FC = () => {
     }
   };
 
-  // Submit Add Device
+  // Submit Add Device / Bulk Stock
   const handleSaveAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!formSerial.trim()) {
-      setFormError('يرجى إدخال أو مسح السيريال نمبر الفريد للجهاز');
-      return;
-    }
     if (!formModelId) {
       setFormError('يرجى اختيار الموديل المرتبط من الكتالوج');
       return;
@@ -297,28 +323,57 @@ export const MSSInventoryView: React.FC = () => {
     setIsSubmitting(true);
     setFormError('');
     try {
-      await mssInventoryService.createDevice({
-        serial_number: formSerial.trim(),
-        model_id: formModelId,
-        purchase_cost: Number(formCost) || 0,
-        list_price: Number(formListPrice) || 0,
-        purchase_date: formPurchaseDate,
-        physical_condition: formCondition.trim() || 'فرز أول',
-        stock_location: formLocation,
-        status: formStatus,
-        notes: formNotes.trim() || undefined,
-      });
+      if (stockRegistrationMode === 'BULK') {
+        const qty = Math.floor(formQuantity);
+        if (qty <= 0) {
+          setFormError('يرجى إدخال كمية صحيحة أكبر من صفر');
+          setIsSubmitting(false);
+          return;
+        }
 
-      showNotification({
-        type: 'success',
-        title: 'تم تسجيل الجهاز بنجاح',
-        message: `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation}`,
-      });
+        await mssInventoryService.createBulkStock({
+          model_id: formModelId,
+          quantity: qty,
+          purchase_cost: Number(formCost) || 0,
+          list_price: Number(formListPrice) || 0,
+          purchase_date: formPurchaseDate,
+          physical_condition: formCondition.trim() || 'فرز أول ممتاز',
+          stock_location: formLocation,
+          notes: formNotes.trim() || undefined,
+        });
+
+        showNotification({
+          type: 'success',
+          title: 'تم تسجيل المخزون المجمع بنجاح',
+          message: `تم إضافة (${qty}) وحدات غير مسلسلة في (${formLocation}).`,
+        });
+      } else {
+        // Individual device (serial optional)
+        await mssInventoryService.createDevice({
+          serial_number: formSerial.trim() || null,
+          model_id: formModelId,
+          purchase_cost: Number(formCost) || 0,
+          list_price: Number(formListPrice) || 0,
+          purchase_date: formPurchaseDate,
+          physical_condition: formCondition.trim() || 'فرز أول ممتاز',
+          stock_location: formLocation,
+          status: formStatus,
+          notes: formNotes.trim() || undefined,
+        });
+
+        showNotification({
+          type: 'success',
+          title: 'تم تسجيل الجهاز بنجاح',
+          message: formSerial.trim()
+            ? `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation}`
+            : `تم إضافة جهاز (بدون سيريال) إلى مخزون ${formLocation}`,
+        });
+      }
 
       setIsAddModalOpen(false);
       await loadData();
     } catch (err: any) {
-      setFormError(err.message || 'فشلت عملية حفظ الجهاز');
+      setFormError(err.message || 'فشلت عملية حفظ الجهاز في المخزون');
     } finally {
       setIsSubmitting(false);
     }
@@ -327,7 +382,7 @@ export const MSSInventoryView: React.FC = () => {
   // Open Edit Modal
   const handleOpenEdit = (device: MSSDevice) => {
     setSelectedDevice(device);
-    setFormSerial(device.serial_number);
+    setFormSerial(device.serial_number || '');
     setFormModelId(device.model_id);
     setFormCost(device.purchase_cost);
     setFormListPrice(device.list_price);
@@ -345,10 +400,6 @@ export const MSSInventoryView: React.FC = () => {
     e.preventDefault();
     if (!selectedDevice || isSubmitting) return;
 
-    if (!formSerial.trim()) {
-      setFormError('السيريال نمبر مطلوب');
-      return;
-    }
     if (formCost < 0 || formListPrice < 0) {
       setFormError('الأسعار لا يمكن أن تكون سالبة');
       return;
@@ -358,7 +409,7 @@ export const MSSInventoryView: React.FC = () => {
     setFormError('');
     try {
       await mssInventoryService.updateDevice(selectedDevice.id, {
-        serial_number: formSerial.trim(),
+        serial_number: formSerial.trim() || null,
         model_id: formModelId,
         purchase_cost: Number(formCost) || 0,
         list_price: Number(formListPrice) || 0,
@@ -372,7 +423,7 @@ export const MSSInventoryView: React.FC = () => {
       showNotification({
         type: 'success',
         title: 'تم التحديث',
-        message: `تم تحديث بيانات الجهاز (${selectedDevice.serial_number}) بنجاح`,
+        message: `تم تحديث بيانات الجهاز (${formSerial.trim() || selectedDevice.model_name || 'بدون سيريال'}) بنجاح`,
       });
 
       setIsEditModalOpen(false);
@@ -381,6 +432,63 @@ export const MSSInventoryView: React.FC = () => {
       setFormError(err.message || 'فشلت عملية تعديل الجهاز');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Open Assign Serials Modal
+  const handleOpenAssignSerials = (stock: MSSDevice) => {
+    setAssignStockTarget(stock);
+    setAssignSerialsInputText('');
+    setAssignSerialsNotes('');
+    setAssignSerialsError('');
+    setIsAssignSerialsModalOpen(true);
+  };
+
+  // Submit Assign Serials
+  const handleSaveAssignSerials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignStockTarget || isAssigningSerials) return;
+
+    const rawSerials = assignSerialsInputText
+      .split(/[\n,;]+/)
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (rawSerials.length === 0) {
+      setAssignSerialsError('يرجى إدخال رقم سيريال واحد على الأقل للتعيين');
+      return;
+    }
+
+    const availableQty = assignStockTarget.quantity && assignStockTarget.quantity > 0 ? assignStockTarget.quantity : 1;
+    if (rawSerials.length > availableQty) {
+      setAssignSerialsError(
+        `عدد أرقام السيريال المدخلة (${rawSerials.length}) يتجاوز الكمية المتاحة غير المسلسلة (${availableQty})`
+      );
+      return;
+    }
+
+    setIsAssigningSerials(true);
+    setAssignSerialsError('');
+    try {
+      const res = await mssInventoryService.assignSerialsToBulkStock({
+        stock_id: assignStockTarget.id,
+        serial_numbers: rawSerials,
+        notes: assignSerialsNotes.trim() || undefined,
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'تم تعيين أرقام السيريال بنجاح',
+        message: `تم تحويل (${res.convertedDevices.length}) أجهزة إلى أجهزة فردية مسلسلة. المتبقي بدون سيريال: (${res.remainingStock?.quantity || 0}) وحدات.`,
+      });
+
+      setIsAssignSerialsModalOpen(false);
+      setAssignStockTarget(null);
+      await loadData();
+    } catch (err: any) {
+      setAssignSerialsError(err.message || 'فشل تعيين أرقام السيريال');
+    } finally {
+      setIsAssigningSerials(false);
     }
   };
 
@@ -492,10 +600,10 @@ export const MSSInventoryView: React.FC = () => {
     if (categoryFilter !== 'ALL' && d.category !== categoryFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      const matchSerial = d.serial_number.toLowerCase().includes(q);
+      const matchSerial = Boolean(d.serial_number?.toLowerCase().includes(q));
       const matchModel = d.model_name?.toLowerCase().includes(q);
       const matchBrand = d.brand?.toLowerCase().includes(q);
-      const matchCondition = d.physical_condition.toLowerCase().includes(q);
+      const matchCondition = d.physical_condition?.toLowerCase().includes(q);
       const matchNotes = d.notes?.toLowerCase().includes(q);
       if (!matchSerial && !matchModel && !matchBrand && !matchCondition && !matchNotes) {
         return false;
@@ -503,6 +611,25 @@ export const MSSInventoryView: React.FC = () => {
     }
     return true;
   });
+
+  // Filtered model summaries
+  const filteredModelSummaries = useMemo(() => {
+    return modelSummaries.filter(m => {
+      if (locationFilter !== 'ALL' && m.branch !== locationFilter) return false;
+      if (categoryFilter !== 'ALL' && m.category !== categoryFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matchName = m.model_name?.toLowerCase().includes(q);
+        const matchBrand = m.brand?.toLowerCase().includes(q);
+        const matchCode = m.model_code?.toLowerCase().includes(q);
+        const matchCategory = m.category?.toLowerCase().includes(q);
+        if (!matchName && !matchBrand && !matchCode && !matchCategory) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [modelSummaries, locationFilter, categoryFilter, searchQuery]);
 
   // Table Columns
   const columns: Column<MSSDevice>[] = [
@@ -534,22 +661,40 @@ export const MSSInventoryView: React.FC = () => {
       key: 'serial_number',
       header: 'السيريال نمبر',
       render: (item: MSSDevice) => (
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tracking-wide select-all tabular-nums">
-            {item.serial_number}
-          </span>
-          <button
-            onClick={() => handleCopySerial(item.serial_number)}
-            title="نسخ السيريال"
-            className="text-slate-400 hover:text-slate-800 p-1 rounded hover:bg-slate-200 transition-colors"
-          >
-            {copiedSerial === item.serial_number ? (
-              <Check className="w-4 h-4 text-emerald-600" />
-            ) : (
-              <Copy className="w-4 h-4" />
+        item.serial_number ? (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tracking-wide select-all tabular-nums">
+              {item.serial_number}
+            </span>
+            <button
+              onClick={() => handleCopySerial(item.serial_number!)}
+              title="نسخ السيريال"
+              className="text-slate-400 hover:text-slate-800 p-1 rounded hover:bg-slate-200 transition-colors"
+            >
+              {copiedSerial === item.serial_number ? (
+                <Check className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="outline" size="sm" className="font-semibold text-slate-600 bg-slate-50 border-dashed">
+              بدون سيريال {item.quantity && item.quantity > 1 ? `(${item.quantity} وحدات)` : ''}
+            </Badge>
+            {item.status === 'AVAILABLE' && (
+              <button
+                type="button"
+                onClick={() => handleOpenAssignSerials(item)}
+                className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 transition-colors"
+                title="تعيين أرقام سيريال لهذه الوحدات غير المسلسلة"
+              >
+                تعيين سيريال
+              </button>
             )}
-          </button>
-        </div>
+          </div>
+        )
       ),
     },
     {
@@ -723,7 +868,7 @@ export const MSSInventoryView: React.FC = () => {
             <Button
               variant="primary"
               size="md"
-              onClick={handleOpenAdd}
+              onClick={() => handleOpenAdd()}
               leftIcon={<Plus className="w-4.5 h-4.5" />}
               className="font-bold"
             >
@@ -788,219 +933,551 @@ export const MSSInventoryView: React.FC = () => {
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <Card className="p-3.5 bg-white border-slate-300 shadow-2xs space-y-3.5">
-        <div className="flex flex-col md:flex-row items-center gap-3">
-          <div className="flex-1 w-full">
-            <Input
-              placeholder="ابحث بالسيريال، الموديل، الماركة، الحالة..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery('')}
-              leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <Button
-              variant="outline"
-              size="md"
-              onClick={() => triggerRefresh(loadData, 'جارٍ تحديث المخزون   ...')}
-              disabled={isRefreshing || isLoading}
-              title="إعادة تحميل البيانات"
-              leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
-              className="border-slate-300 font-semibold"
-            >
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-sm">
-          {/* Location Filter */}
-          <div className="flex items-center gap-2.5">
-            <span className="font-bold text-slate-700 text-xs">الموقع :</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
-              <button
-                onClick={() => setLocationFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-                  }`}
-              >
-                الكل ({devices.length})
-              </button>
-              {locationOptions.map(loc => (
-                <button
-                  key={loc}
-                  onClick={() => setLocationFilter(loc)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === loc
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                >
-                  {loc} ({devices.filter(d => d.stock_location === loc).length})
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Category Filter */}
-          <div className="flex items-center gap-2.5">
-            <span className="font-bold text-slate-700 text-xs">التصنيف:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
-              {[
-                { id: 'ALL', label: 'الكل' },
-                { id: 'لابتوب', label: 'لابتوب' },
-                { id: 'شاشة', label: 'شاشة' },
-              ].map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${categoryFilter === cat.id
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div className="flex items-center gap-2.5">
-            <span className="font-bold text-slate-700 text-xs">الحالة:</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
-              {(
-                [
-                  { id: 'ALL', label: 'الكل' },
-                  { id: 'AVAILABLE', label: 'متاح للبيع' },
-                  { id: 'RESERVED', label: 'محجوز' },
-                  { id: 'SOLD', label: 'تم البيع' },
-                  { id: 'MAINTENANCE', label: 'صيانة' },
-                  { id: 'RETURNED', label: 'مرتجع' },
-                ] as const
-              ).map(st => (
-                <button
-                  key={st.id}
-                  onClick={() => setStatusFilter(st.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${statusFilter === st.id
-                    ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                    : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                >
-                  {st.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Bulk Selection Actions Banner */}
-      {selectedDeviceIds.length > 0 && (
-        <Card className="p-3.5 bg-emerald-50 border-emerald-300 text-xs shadow-2xs">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 text-emerald-900 font-bold">
-              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
-              <span>
-                تم تحديد <strong className="font-mono text-sm underline">{selectedDeviceIds.length}</strong> جهاز  للتحويل  بين الفروع
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedDeviceIds([])}
-                className="text-slate-600 hover:text-slate-900 text-xs"
-              >
-                إلغاء التحديد
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleOpenBulkTransfer}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
-                leftIcon={<ArrowLeftRight className="w-3.5 h-3.5" />}
-              >
-                بدء تحويل الأجهزة المحددة ({selectedDeviceIds.length})
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Selection Helpers */}
-      <div className="flex items-center justify-between px-1 text-xs text-slate-600">
-        <div className="flex items-center gap-2">
-          <span>إجمالي المعروض: <strong>{filteredDevices.length}</strong></span>
-          {filteredDevices.some(d => d.status === 'AVAILABLE') && (
-            <>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const avail = filteredDevices.filter(d => d.status === 'AVAILABLE').map(d => d.id);
-                  setSelectedDeviceIds(Array.from(new Set([...selectedDeviceIds, ...avail])));
-                }}
-                className="text-blue-600 hover:underline font-semibold"
-              >
-                تحديد جميع الأجهزة المتاحة  ({filteredDevices.filter(d => d.status === 'AVAILABLE').length})
-              </button>
-            </>
-          )}
-        </div>
-        {selectedDeviceIds.length > 0 && (
+      {/* View Switcher: Units vs Model Summary */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
           <button
             type="button"
-            onClick={() => setSelectedDeviceIds([])}
-            className="text-rose-600 hover:underline font-semibold"
+            onClick={() => setInventoryTab('UNITS')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+              inventoryTab === 'UNITS'
+                ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            إلغاء تحديد الكل ({selectedDeviceIds.length})
+            <Laptop className="w-4 h-4" />
+            <span>الأجهزة الفردية والدفعات ({devices.length})</span>
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => setInventoryTab('MODELS')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+              inventoryTab === 'MODELS'
+                ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>ملخص المخزون حسب الموديل ({modelSummaries.length})</span>
+          </button>
+        </div>
+
+        <div className="text-xs text-slate-600 font-medium">
+          {summary && (
+            <span>
+              إجمالي المتوفر: <strong className="text-emerald-700 font-bold">{summary.available_total}</strong> (مسلسل: {summary.available_serialized_total || 0} • غير مسلسل: {summary.available_non_serialized_total || 0})
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Main Table */}
-      {isLoading ? (
-        <Card className="p-16 text-center bg-white border-slate-300">
-          <Spinner size="lg" className="mx-auto mb-3" />
-          <p className="text-sm font-medium text-slate-600">جاري تحميل بيانات الأجهزة والمخزون ...</p>
-        </Card>
-      ) : filteredDevices.length === 0 ? (
-        <Card className="p-16 text-center space-y-3 bg-white border-slate-300">
-          <Box className="w-10 h-10 mx-auto text-slate-400" />
-          <h3 className="text-base font-bold text-slate-800">لا توجد أجهزة مطابقة للبحث  </h3>
-          <Button
-            variant="outline"
-            size="md"
-            onClick={handleOpenAdd}
-            leftIcon={<Plus className="w-4.5 h-4.5" />}
-            className="border-slate-300 font-semibold"
-          >
-            تسجيل جهاز جديد الآن
-          </Button>
-        </Card>
+      {/* Render Active View Tab */}
+      {inventoryTab === 'MODELS' ? (
+        <div className="space-y-4">
+          {/* Model Summary Search & Branch Filter Bar */}
+          <Card className="p-3.5 bg-white border-slate-300 shadow-2xs space-y-3">
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              <div className="flex-1 w-full">
+                <Input
+                  placeholder="ابحث باسم الموديل، الماركة، كود الموديل أو التصنيف..."
+                  value={modelSearchQuery}
+                  onChange={e => setModelSearchQuery(e.target.value)}
+                  onClear={() => setModelSearchQuery('')}
+                  leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
+                />
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-slate-700 text-xs">الفرع:</span>
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
+                  <button
+                    onClick={() => setLocationFilter('ALL')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      locationFilter === 'ALL'
+                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    كافة الفروع
+                  </button>
+                  {locationOptions.map(loc => (
+                    <button
+                      key={loc}
+                      onClick={() => setLocationFilter(loc)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        locationFilter === loc
+                          ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {loc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Model Summaries Table */}
+          {isLoading ? (
+            <Card className="p-12 text-center bg-white border-slate-300">
+              <Spinner size="lg" className="mx-auto mb-3" />
+              <p className="text-xs font-medium text-slate-600">جاري تجميع وحساب ملخص المخزون حسب الموديل...</p>
+            </Card>
+          ) : filteredModelSummaries.length === 0 ? (
+            <Card className="p-12 text-center space-y-3 bg-white border-slate-300">
+              <Layers className="w-10 h-10 mx-auto text-slate-400" />
+              <h3 className="text-base font-bold text-slate-800">لا توجد موديلات مطابقة للبحث</h3>
+              <p className="text-xs text-slate-500">جرب البحث بكلمات أخرى أو اختر فرعاً مختلفاً.</p>
+            </Card>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-right border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                    <tr>
+                      <th className="p-3">الموديل والماركة</th>
+                      <th className="p-3">الفرع / الموقع</th>
+                      <th className="p-3 text-center">أجهزة مسلسلة</th>
+                      <th className="p-3 text-center">كميات غير مسلسلة</th>
+                      <th className="p-3 text-center">إجمالي المتاح</th>
+                      <th className="p-3 text-center">إجمالي الوحدات</th>
+                      <th className="p-3 text-center">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredModelSummaries.map(m => {
+                      const rowKey = `${m.model_id}:::${m.branch}`;
+                      const isExpanded = expandedModelKey === rowKey;
+                      const hasNonSerialized = m.available_non_serialized > 0;
+                      const firstNonSerialized = m.devices.find(
+                        d => (!d.serial_number || d.is_serialized === false) && d.status === 'AVAILABLE'
+                      );
+
+                      return (
+                        <React.Fragment key={rowKey}>
+                          <tr className={`hover:bg-slate-50/80 transition-colors ${isExpanded ? 'bg-blue-50/30' : ''}`}>
+                            <td className="p-3 font-medium">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm">
+                                  {m.brand} {m.model_name}
+                                </span>
+                                {m.model_code && (
+                                  <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
+                                    {m.model_code}
+                                  </span>
+                                )}
+                                <Badge variant="default" size="sm">
+                                  {m.category}
+                                </Badge>
+                              </div>
+                            </td>
+
+                            <td className="p-3">
+                              <Badge variant={m.branch === 'محل 1' ? 'primary' : 'default'} size="sm">
+                                {m.branch}
+                              </Badge>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                                {m.available_serialized}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className={`font-mono font-bold px-2.5 py-0.5 rounded border ${
+                                m.available_non_serialized > 0
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200'
+                              }`}>
+                                {m.available_non_serialized}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-full ${
+                                m.total_available > 0
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {m.total_available}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center font-mono text-slate-600">
+                              {m.total_units}
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setExpandedModelKey(isExpanded ? null : rowKey)}
+                                  className="text-xs h-7 px-2"
+                                  leftIcon={isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                >
+                                  {isExpanded ? 'إخفاء' : `الوحدات (${m.devices.length})`}
+                                </Button>
+
+                                {hasNonSerialized && firstNonSerialized && (
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => handleOpenAssignSerials(firstNonSerialized)}
+                                    className="text-xs h-7 px-2 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                    leftIcon={<Barcode className="w-3.5 h-3.5" />}
+                                  >
+                                    تعيين سيريال
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Units Details Sub-Row */}
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={7} className="p-4 bg-slate-50/90 border-y border-slate-200">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                      <Laptop className="w-4 h-4 text-slate-500" />
+                                      <span>قائمة الوحدات المسجلة لهذا الموديل في ({m.branch})</span>
+                                    </h5>
+                                    <span className="text-[11px] text-slate-500">
+                                      إجمالي الوحدات في الموقع: {m.devices.length}
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                    <table className="w-full text-[11px] text-right">
+                                      <thead className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-bold">
+                                        <tr>
+                                          <th className="p-2">السيريال نمبر</th>
+                                          <th className="p-2">الحالة الفنية</th>
+                                          <th className="p-2">حالة المخزون</th>
+                                          <th className="p-2">سعر التكلفة</th>
+                                          <th className="p-2">سعر العرض</th>
+                                          <th className="p-2">الملاحظات</th>
+                                          <th className="p-2 text-center">إجراء</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {m.devices.map(dev => (
+                                          <tr key={dev.id} className="hover:bg-slate-50">
+                                            <td className="p-2">
+                                              {dev.serial_number ? (
+                                                <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
+                                                  {dev.serial_number}
+                                                </span>
+                                              ) : (
+                                                <Badge variant="outline" size="sm" className="text-[10px]">
+                                                  بدون سيريال {dev.quantity && dev.quantity > 1 ? `(${dev.quantity} وحدات)` : ''}
+                                                </Badge>
+                                              )}
+                                            </td>
+                                            <td className="p-2 text-slate-700">{dev.physical_condition}</td>
+                                            <td className="p-2">
+                                              <Badge
+                                                variant={
+                                                  dev.status === 'AVAILABLE'
+                                                    ? 'success'
+                                                    : dev.status === 'RESERVED'
+                                                    ? 'warning'
+                                                    : dev.status === 'SOLD'
+                                                    ? 'default'
+                                                    : 'danger'
+                                                }
+                                                size="sm"
+                                              >
+                                                {dev.status === 'AVAILABLE'
+                                                  ? 'متاح'
+                                                  : dev.status === 'RESERVED'
+                                                  ? 'محجوز'
+                                                  : dev.status === 'SOLD'
+                                                  ? 'مباع'
+                                                  : dev.status}
+                                              </Badge>
+                                            </td>
+                                            <td className="p-2 font-mono text-slate-600">{formatCurrency(dev.purchase_cost)}</td>
+                                            <td className="p-2 font-mono font-bold text-slate-900">{formatCurrency(dev.list_price)}</td>
+                                            <td className="p-2 text-slate-500 truncate max-w-xs">{dev.notes || '-'}</td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenDetails(dev)}
+                                                  className="p-1 text-slate-500 hover:text-blue-600 rounded"
+                                                  title="عرض التفاصيل"
+                                                >
+                                                  <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenEdit(dev)}
+                                                  className="p-1 text-slate-500 hover:text-blue-600 rounded"
+                                                  title="تعديل"
+                                                >
+                                                  <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                {!dev.serial_number && dev.status === 'AVAILABLE' && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenAssignSerials(dev)}
+                                                    className="text-[10px] text-amber-700 hover:underline font-bold bg-amber-50 px-1 py-0.5 rounded border border-amber-200"
+                                                    title="تعيين سيريال"
+                                                  >
+                                                    تعيين
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
-          <Table
-            columns={columns}
-            data={filteredDevices}
-            keyExtractor={(item: MSSDevice) => item.id}
-          />
+        /* Units & Batches View - Main Table & Filters */
+        <div className="space-y-4">
+          {/* Search and Filters */}
+          <Card className="p-3.5 bg-white border-slate-300 shadow-2xs space-y-3.5">
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              <div className="flex-1 w-full">
+                <Input
+                  placeholder="ابحث بالسيريال، الموديل، الماركة، الحالة..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery('')}
+                  leftIcon={<Search className="w-4.5 h-4.5 text-slate-500" />}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => triggerRefresh(loadData, 'جارٍ تحديث المخزون   ...')}
+                  disabled={isRefreshing || isLoading}
+                  title="إعادة تحميل البيانات"
+                  leftIcon={<RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+                  className="border-slate-300 font-semibold"
+                >
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 text-sm">
+              {/* Location Filter */}
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-slate-700 text-xs">الموقع :</span>
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
+                  <button
+                    onClick={() => setLocationFilter('ALL')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                      locationFilter === 'ALL'
+                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    الكل ({devices.length})
+                  </button>
+                  {locationOptions.map(loc => (
+                    <button
+                      key={loc}
+                      onClick={() => setLocationFilter(loc)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        locationFilter === loc
+                          ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {loc} ({devices.filter(d => d.stock_location === loc).length})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Filter */}
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-slate-700 text-xs">التصنيف:</span>
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+                  {[
+                    { id: 'ALL', label: 'الكل' },
+                    { id: 'لابتوب', label: 'لابتوب' },
+                    { id: 'شاشة', label: 'شاشة' },
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setCategoryFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        categoryFilter === cat.id
+                          ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-slate-700 text-xs">الحالة:</span>
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+                  {(
+                    [
+                      { id: 'ALL', label: 'الكل' },
+                      { id: 'AVAILABLE', label: 'متاح للبيع' },
+                      { id: 'RESERVED', label: 'محجوز' },
+                      { id: 'SOLD', label: 'تم البيع' },
+                      { id: 'MAINTENANCE', label: 'صيانة' },
+                      { id: 'RETURNED', label: 'مرتجع' },
+                    ] as const
+                  ).map(st => (
+                    <button
+                      key={st.id}
+                      onClick={() => setStatusFilter(st.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        statusFilter === st.id
+                          ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Bulk Selection Actions Banner */}
+          {selectedDeviceIds.length > 0 && (
+            <Card className="p-3.5 bg-emerald-50 border-emerald-300 text-xs shadow-2xs">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+                  <span>
+                    تم تحديد <strong className="font-mono text-sm underline">{selectedDeviceIds.length}</strong> جهاز للتحويل بين الفروع
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedDeviceIds([])}
+                    className="text-slate-600 hover:text-slate-900 text-xs"
+                  >
+                    إلغاء التحديد
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleOpenBulkTransfer}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                    leftIcon={<ArrowLeftRight className="w-3.5 h-3.5" />}
+                  >
+                    بدء تحويل الأجهزة المحددة ({selectedDeviceIds.length})
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Selection Helpers */}
+          <div className="flex items-center justify-between px-1 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span>إجمالي المعروض: <strong>{filteredDevices.length}</strong></span>
+              {filteredDevices.some(d => d.status === 'AVAILABLE') && (
+                <>
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const avail = filteredDevices.filter(d => d.status === 'AVAILABLE').map(d => d.id);
+                      setSelectedDeviceIds(Array.from(new Set([...selectedDeviceIds, ...avail])));
+                    }}
+                    className="text-blue-600 hover:underline font-semibold"
+                  >
+                    تحديد جميع الأجهزة المتاحة ({filteredDevices.filter(d => d.status === 'AVAILABLE').length})
+                  </button>
+                </>
+              )}
+            </div>
+            {selectedDeviceIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedDeviceIds([])}
+                className="text-rose-600 hover:underline font-semibold"
+              >
+                إلغاء تحديد الكل ({selectedDeviceIds.length})
+              </button>
+            )}
+          </div>
+
+          {/* Main Table */}
+          {isLoading ? (
+            <Card className="p-16 text-center bg-white border-slate-300">
+              <Spinner size="lg" className="mx-auto mb-3" />
+              <p className="text-sm font-medium text-slate-600">جاري تحميل بيانات الأجهزة والمخزون ...</p>
+            </Card>
+          ) : filteredDevices.length === 0 ? (
+            <Card className="p-16 text-center space-y-3 bg-white border-slate-300">
+              <Box className="w-10 h-10 mx-auto text-slate-400" />
+              <h3 className="text-base font-bold text-slate-800">لا توجد أجهزة مطابقة للبحث</h3>
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => handleOpenAdd()}
+                leftIcon={<Plus className="w-4.5 h-4.5" />}
+                className="border-slate-300 font-semibold"
+              >
+                تسجيل جهاز جديد الآن
+              </Button>
+            </Card>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
+              <Table
+                columns={columns}
+                data={filteredDevices}
+                keyExtractor={(item: MSSDevice) => item.id}
+              />
+            </div>
+          )}
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 1: Add New Device */}
+      {/* MODAL 1: Add New Device or Bulk Stock */}
       {/* ========================================================================= */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="تسجيل جهاز   جديد "
-        subtitle=""
+        title={stockRegistrationMode === 'BULK' ? 'إضافة مخزون مجمع بدون سيريال' : 'تسجيل جهاز جديد في المخزون'}
+        subtitle={
+          stockRegistrationMode === 'BULK'
+            ? 'تسجيل دفعة أجهزة بالكمية والموديل مباشرة بدون سيريالات'
+            : 'تسجيل جهاز فردي مع إمكانية إدخال السيريال أو تركه فارغاً'
+        }
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1019,7 +1496,11 @@ export const MSSInventoryView: React.FC = () => {
               disabled={isSubmitting}
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
             >
-              {isSubmitting ? 'جاري الحفظ...' : 'تسجيل الجهاز'}
+              {isSubmitting
+                ? 'جاري الحفظ...'
+                : stockRegistrationMode === 'BULK'
+                ? `تسجيل الدفعة (${formQuantity} أجهزة)`
+                : 'تسجيل الجهاز'}
             </Button>
           </div>
         }
@@ -1029,58 +1510,123 @@ export const MSSInventoryView: React.FC = () => {
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
-          {/* Serial Number */}
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-300">
+            <button
+              type="button"
+              onClick={() => setStockRegistrationMode('INDIVIDUAL')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                stockRegistrationMode === 'INDIVIDUAL'
+                  ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Laptop className="w-4 h-4" />
+              <span>جهاز فردي (سيريال اختياري)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStockRegistrationMode('BULK')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                stockRegistrationMode === 'BULK'
+                  ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Box className="w-4 h-4" />
+              <span>كمية مجمعة بدون سيريال (بالعدد)</span>
+            </button>
+          </div>
+
+          {/* Model Selection via SearchableItemSelect */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              السيريال نمبر  <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              اختيار الموديل من الكتالوج <span className="text-rose-500">*</span>
             </label>
-            <Input
-              placeholder="اكتب السيريال (مثال: PF1K892-LEN)..."
-              value={formSerial}
-              onChange={e => setFormSerial(e.target.value.toUpperCase())}
-              required
-              helperText=""
+            <SearchableItemSelect<MSSCatalogModel>
+              items={catalogModels}
+              selectedId={formModelId}
+              onSelect={m => handleModelChange(m.id)}
+              getKey={m => m.id}
+              getSearchableText={m =>
+                `${m.brand} ${m.model_name} ${(m as any).model_code || ''} ${m.category} ${m.processor || ''} ${m.gpu || ''}`
+              }
+              placeholder="ابحث بالماركة، اسم الموديل، كود الموديل أو المواصفات..."
+              emptyMessage="لا توجد موديلات مطابقة في الكتالوج"
+              maxHeight="max-h-40"
+              renderItem={m => (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate">
+                    <span className="font-bold text-slate-900">{m.brand} {m.model_name}</span>
+                    {(m as any).model_code && (
+                      <span className="font-mono text-[10px] text-slate-500 ml-1.5 bg-slate-100 px-1 rounded border border-slate-200">
+                        {(m as any).model_code}
+                      </span>
+                    )}
+                    <p className="text-[10px] text-slate-500 truncate">
+                      {[m.processor, m.gpu, m.ram, m.storage].filter(Boolean).join(' • ')}
+                    </p>
+                  </div>
+                  <Badge variant="default" size="sm">{m.category}</Badge>
+                </div>
+              )}
             />
           </div>
 
-          {/* Linked Model Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Serial Number (Individual Mode) or Quantity (Bulk Mode) */}
+          {stockRegistrationMode === 'INDIVIDUAL' ? (
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الموديل    <span className="text-rose-500">*</span>
+                السيريال نمبر <span className="text-slate-400 font-normal">(اختياري)</span>
               </label>
-              <Select
-                value={formModelId}
-                onChange={e => handleModelChange(e.target.value)}
-                options={catalogModels.map(m => ({
-                  value: m.id,
-                  label: `${m.brand} ${m.model_name} (${m.category}) `,
-                }))}
-                required
+              <Input
+                placeholder="اكتب السيريال (مثال: PF1K892-LEN) أو اتركه فارغاً..."
+                value={formSerial}
+                onChange={e => setFormSerial(e.target.value.toUpperCase())}
+                helperText="يمكنك حفظ الجهاز بدون سيريال الآن وتعيين السيريال لاحقاً"
               />
             </div>
+          ) : (
+            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 space-y-1.5">
+              <label className="block text-xs font-bold text-amber-900 mb-1">
+                الكمية الإجمالية للدفعة (عدد الأجهزة) <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={formQuantity}
+                onChange={e => setFormQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                placeholder="مثال: 8 وحدات..."
+                required
+              />
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                سيتم حفظ هذه الكمية في المخزون المتاح بدون سيريالات، ويمكن تحويل أي عدد منها إلى أجهزة مسلسلة لاحقاً بزر &quot;تعيين سيريال&quot;.
+              </p>
+            </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                مكان التخزين <span className="text-rose-500">*</span>
-              </label>
-              <Select
-                value={formLocation}
-                onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
-                options={[
-                  { value: 'محل 1', label: 'محل 1 (الفرع الأول)' },
-                  { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
-                ]}
-                required
-              />
-            </div>
+          {/* Stock Location */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              مكان التخزين / الفرع <span className="text-rose-500">*</span>
+            </label>
+            <Select
+              value={formLocation}
+              onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
+              options={locationOptions.map(loc => ({
+                value: loc,
+                label: loc,
+              }))}
+              required
+            />
           </div>
 
           {/* Financials & Purchase Date */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر التكلفة (EGP) <span className="text-rose-500">*</span>
+                سعر التكلفة للوحدة (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -1094,7 +1640,7 @@ export const MSSInventoryView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر العرض  (EGP) <span className="text-rose-500">*</span>
+                سعر العرض للوحدة (EGP) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -1123,7 +1669,7 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الحالة
+                الحالة الفنية
               </label>
               <Select
                 value={formCondition}
@@ -1131,36 +1677,38 @@ export const MSSInventoryView: React.FC = () => {
                 options={[
                   { value: 'فرز أول ممتاز', label: 'فرز أول ممتاز ' },
                   { value: 'فرز ثانٍ', label: 'فرز ثانٍ ' },
-                  { value: 'يحتاج صيانة ', label: 'يحتاج صيانة  / مراجعة' },
+                  { value: 'يحتاج صيانة ', label: 'يحتاج صيانة / مراجعة' },
                 ]}
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                حالة الجهاز في المخزون
-              </label>
-              <Select
-                value={formStatus}
-                onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
-                options={[
-                  { value: 'AVAILABLE', label: 'متاح   ' },
-                  { value: 'RESERVED', label: 'محجوز  ' },
-                  { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص ' },
-                ]}
-              />
-            </div>
+            {stockRegistrationMode === 'INDIVIDUAL' && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  حالة الجهاز في المخزون
+                </label>
+                <Select
+                  value={formStatus}
+                  onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
+                  options={[
+                    { value: 'AVAILABLE', label: 'متاح للبيع' },
+                    { value: 'RESERVED', label: 'محجوز' },
+                    { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص' },
+                  ]}
+                />
+              </div>
+            )}
           </div>
 
           {/* Notes */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              ملاحظات إضافية على هذا الجهاز
+              ملاحظات إضافية
             </label>
             <textarea
               className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
-              placeholder="مثال: صحة البطارية 96%، كيبورد مضيئة، شاحن أصلي 65W..."
+              placeholder="مثال: صحة البطارية 96%، كيبورد مضيئة، شاحن أصلي..."
               value={formNotes}
               onChange={e => setFormNotes(e.target.value)}
             />
@@ -1174,7 +1722,11 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => !isSubmitting && setIsEditModalOpen(false)}
-        title={`تعديل بيانات الجهاز (${selectedDevice?.serial_number})`}
+        title={
+          selectedDevice?.serial_number
+            ? `تعديل بيانات الجهاز (${selectedDevice.serial_number})`
+            : `تعديل بيانات الجهاز (${selectedDevice?.model_name || 'بدون سيريال'})`
+        }
         subtitle=""
         size="lg"
         footer={
@@ -1207,12 +1759,12 @@ export const MSSInventoryView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                السيريال نمبر <span className="text-rose-500">*</span>
+                السيريال نمبر <span className="text-slate-400 font-normal">(اختياري)</span>
               </label>
               <Input
                 value={formSerial}
                 onChange={e => setFormSerial(e.target.value.toUpperCase())}
-                required
+                placeholder="اتركه فارغاً للأجهزة بدون سيريال..."
               />
             </div>
 
@@ -1223,10 +1775,10 @@ export const MSSInventoryView: React.FC = () => {
               <Select
                 value={formLocation}
                 onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
-                options={[
-                  { value: 'محل 1', label: 'محل 1' },
-                  { value: 'محل 2', label: 'محل 2' },
-                ]}
+                options={locationOptions.map(loc => ({
+                  value: loc,
+                  label: loc,
+                }))}
               />
             </div>
           </div>
@@ -1412,7 +1964,7 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
-        title={`بيانات وتفاصيل الجهاز    (${selectedDevice?.serial_number})`}
+        title={`بيانات وتفاصيل الجهاز (${selectedDevice?.serial_number || 'بدون سيريال'})`}
         subtitle=""
         size="lg"
         footer={
@@ -1435,7 +1987,7 @@ export const MSSInventoryView: React.FC = () => {
                 <div className="text-left font-mono">
                   <span className="text-[10px] text-slate-400 block">السيريال نمبر:</span>
                   <span className="font-semibold text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded border border-slate-200">
-                    {selectedDevice.serial_number}
+                    {selectedDevice.serial_number || 'بدون سيريال'}
                   </span>
                 </div>
               </div>
@@ -1830,6 +2382,145 @@ export const MSSInventoryView: React.FC = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* 7. Assign Serials to Bulk Stock Modal */}
+      <Modal
+        isOpen={isAssignSerialsModalOpen}
+        onClose={() => {
+          if (!isAssigningSerials) {
+            setIsAssignSerialsModalOpen(false);
+            setAssignStockTarget(null);
+          }
+        }}
+        title="تعيين أرقام سيريال للمخزون غير المسلسل"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsAssignSerialsModalOpen(false);
+                setAssignStockTarget(null);
+              }}
+              disabled={isAssigningSerials}
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSaveAssignSerials}
+              isLoading={isAssigningSerials}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+            >
+              تأكيد وتعيين السيريالات
+            </Button>
+          </div>
+        }
+      >
+        {assignStockTarget && (
+          <form onSubmit={handleSaveAssignSerials} className="space-y-4 text-xs">
+            {assignSerialsError && (
+              <Alert type="error" className="text-xs">
+                {assignSerialsError}
+              </Alert>
+            )}
+
+            {/* Target Bulk Details */}
+            <div className="p-3 bg-purple-50/60 border border-purple-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-slate-800 text-sm block">
+                    {assignStockTarget.model_name || assignStockTarget.brand || 'موديل غير محدد'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    {assignStockTarget.brand} • {(assignStockTarget as any).model_code || 'بدون كود'}
+                  </span>
+                </div>
+                <div className="text-left">
+                  <span className="text-[11px] text-slate-500 block">الموقع</span>
+                  <Badge variant={assignStockTarget.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+                    {assignStockTarget.stock_location}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-200/60 text-center">
+                <div className="p-1.5 bg-white rounded-lg border border-purple-100">
+                  <span className="text-slate-400 block text-[10px]">الكمية المتاحة</span>
+                  <strong className="text-purple-700 text-sm font-mono font-bold">
+                    {assignStockTarget.quantity || 1} وحدة
+                  </strong>
+                </div>
+                <div className="p-1.5 bg-white rounded-lg border border-purple-100">
+                  <span className="text-slate-400 block text-[10px]">تكلفة الوحدة</span>
+                  <strong className="text-slate-800 font-mono">
+                    {formatCurrency(assignStockTarget.purchase_cost || 0)}
+                  </strong>
+                </div>
+                <div className="p-1.5 bg-white rounded-lg border border-purple-100">
+                  <span className="text-slate-400 block text-[10px]">سعر البيع</span>
+                  <strong className="text-emerald-700 font-mono">
+                    {formatCurrency(assignStockTarget.list_price || 0)}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Serial Numbers Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-bold text-slate-700">
+                  أرقام السيريال المراد تعيينها:
+                </label>
+                {(() => {
+                  const enteredCount = assignSerialsInputText
+                    .split(/[\n,;]+/)
+                    .map(s => s.trim())
+                    .filter(Boolean).length;
+                  const availableQty = assignStockTarget.quantity || 1;
+                  const isOver = enteredCount > availableQty;
+                  return (
+                    <span
+                      className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded ${
+                        isOver
+                          ? 'bg-rose-100 text-rose-700'
+                          : enteredCount > 0
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {enteredCount} / {availableQty} سيريال
+                    </span>
+                  );
+                })()}
+              </div>
+              <textarea
+                value={assignSerialsInputText}
+                onChange={e => setAssignSerialsInputText(e.target.value)}
+                placeholder="أدخل كل سيريال في سطر منفصل، أو افصل بينها بفواصل (مثال: SN1001, SN1002)..."
+                rows={5}
+                className="w-full p-2.5 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                dir="ltr"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                * يمكنك تعيين سيريالات لبعض أو كل الكمية. سيتم خصم الكمية المسلسلة وإنشاء أجهزة فردية مستقلة بنفس بيانات الشراء والموقع.
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">ملاحظات العملية (اختياري):</label>
+              <Input
+                value={assignSerialsNotes}
+                onChange={e => setAssignSerialsNotes(e.target.value)}
+                placeholder="سبب أو تفاصيل تعيين السيريالات..."
+              />
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
