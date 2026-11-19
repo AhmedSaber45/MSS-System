@@ -106,120 +106,149 @@ export const MSSSalesView: React.FC = () => {
     try {
       const devices = await mssInventoryService.getDevices({ status: 'AVAILABLE' });
       setAvailableDevices(devices);
-      if (devices.length > 0 && !selectedDevice) {
-        handlePickDevice(devices[0]);
-      }
     } catch (err: any) {
       console.error('Failed to load available devices:', err);
     } finally {
       setIsLoadingDevices(false);
     }
-  }, [selectedDevice]);
+  }, []);
 
   useEffect(() => {
     loadDevices();
   }, [loadDevices]);
 
-  // Handle picking a device in the selector
-  const handlePickDevice = (device: MSSDevice) => {
-    setSelectedDevice(device);
-    setPendingQuantity(1);
-    setPendingUnitPrice(device.list_price);
-    setPendingDiscount(0);
-    setItemError('');
-  };
+  // Handle toggling device selection via checkboxes (Multi-Device Selection)
+  const handleToggleDevice = (device: MSSDevice, isSelected: boolean) => {
+    if (isSelected) {
+      const isSerialized = Boolean(device.is_serialized && device.serial_number);
+      const availableStock = device.quantity && device.quantity > 0 ? device.quantity : 1;
 
-  // Add selected device to cart
-  const handleAddToCart = () => {
-    if (!selectedDevice) {
-      setItemError('يرجى اختيار جهاز أولاً لإضافته للفاتورة');
-      return;
-    }
-
-    const isSerialized = Boolean(selectedDevice.is_serialized && selectedDevice.serial_number);
-    const availableStock =
-      selectedDevice.quantity && selectedDevice.quantity > 0 ? selectedDevice.quantity : 1;
-
-    // 1. Prevent duplicate serialized device
-    if (isSerialized) {
-      const alreadyInCart = cartItems.some(item => item.device_id === selectedDevice.id);
-      if (alreadyInCart) {
-        setItemError(`الجهاز بالسيريال (${selectedDevice.serial_number}) مضاف بالفعل في الفاتورة.`);
+      // Prevent duplicate serialized device selection
+      if (isSerialized && cartItems.some(it => it.device_id === device.id)) {
         return;
       }
-    }
 
-    // 2. Validate quantity for non-serialized
-    const qtyToAdd = isSerialized ? 1 : Math.max(1, Math.floor(pendingQuantity));
-    const existingInCart = cartItems.find(item => item.device_id === selectedDevice.id);
-    const currentQtyInCart = existingInCart ? existingInCart.quantity : 0;
+      // If already in cart, do nothing
+      if (cartItems.some(it => it.device_id === device.id)) {
+        return;
+      }
 
-    if (currentQtyInCart + qtyToAdd > availableStock) {
-      setItemError(
-        `الكمية المطلوبة (${currentQtyInCart + qtyToAdd}) تتجاوز المخزون المتاح (${availableStock}) لهذا الموديل.`
-      );
-      return;
-    }
-
-    if (pendingUnitPrice < 0) {
-      setItemError('سعر بيع الوحدة لا يمكن أن يكون سالباً');
-      return;
-    }
-
-    if (existingInCart && !isSerialized) {
-      // Update quantity of existing bulk item
-      setCartItems(prev =>
-        prev.map(item =>
-          item.device_id === selectedDevice.id
-            ? {
-                ...item,
-                quantity: item.quantity + qtyToAdd,
-                unit_price: pendingUnitPrice,
-                discount: pendingDiscount,
-                line_total: (item.quantity + qtyToAdd) * pendingUnitPrice,
-              }
-            : item
-        )
-      );
-    } else {
-      // Add as new cart item
       const newItem: SaleCartItem = {
         id: `cart-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        device_id: selectedDevice.id,
-        device: selectedDevice,
+        device_id: device.id,
+        device,
         is_serialized: isSerialized,
-        serial_number: selectedDevice.serial_number,
-        model_name: selectedDevice.model_name,
-        brand: selectedDevice.brand,
-        category: selectedDevice.category,
-        processor: selectedDevice.model?.processor,
-        gpu: selectedDevice.model?.gpu,
-        ram: selectedDevice.model?.ram,
-        storage: selectedDevice.model?.storage,
-        screen_size: selectedDevice.model?.screen_size,
-        physical_condition: selectedDevice.physical_condition,
-        source_branch: selectedDevice.stock_location,
+        serial_number: device.serial_number,
+        model_name: device.model_name,
+        brand: device.brand,
+        category: device.category,
+        processor: device.model?.processor,
+        gpu: device.model?.gpu,
+        ram: device.model?.ram,
+        storage: device.model?.storage,
+        screen_size: device.model?.screen_size,
+        physical_condition: device.physical_condition,
+        source_branch: device.stock_location,
         available_stock: availableStock,
-        quantity: qtyToAdd,
-        unit_cost: selectedDevice.purchase_cost,
-        unit_list_price: selectedDevice.list_price,
-        unit_price: pendingUnitPrice,
-        discount: pendingDiscount,
-        line_total: qtyToAdd * pendingUnitPrice,
+        quantity: 1,
+        unit_cost: device.purchase_cost,
+        unit_list_price: device.list_price,
+        unit_price: device.list_price,
+        discount: 0,
+        line_total: device.list_price,
       };
 
       setCartItems(prev => [...prev, newItem]);
+      setItemError('');
+    } else {
+      setCartItems(prev => prev.filter(it => it.device_id !== device.id));
+      setItemError('');
+    }
+  };
+
+  // Update quantity for bulk/non-serialized stock
+  const handleUpdateItemQuantity = (deviceId: string, rawVal: string, maxAvailable: number) => {
+    if (rawVal === '') {
+      setItemError('يرجى إدخال كمية صحيحة');
+      setCartItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: ('' as any), line_total: 0 } : it))
+      );
+      return;
     }
 
-    // Reset pending error
+    const val = Number(rawVal);
+    if (isNaN(val) || val <= 0) {
+      setItemError('الكمية يجب أن تكون عدداً صحيحاً موجباً أكبر من الصفر');
+      setCartItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: (val as any), line_total: 0 } : it))
+      );
+      return;
+    }
+
+    if (!Number.isInteger(val)) {
+      setItemError('الكمية لا يمكن أن تحتوي على كسور عشرية');
+      setCartItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: (val as any), line_total: 0 } : it))
+      );
+      return;
+    }
+
+    if (val > maxAvailable) {
+      setItemError(`الكمية المطلوبة (${val}) تتجاوز المخزون المتاح (${maxAvailable})`);
+      setCartItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: val, line_total: val * it.unit_price } : it))
+      );
+      return;
+    }
+
     setItemError('');
-    showNotification({
-      type: 'success',
-      title: 'تمت إضافة الجهاز للفاتورة',
-      message: `${selectedDevice.brand} ${selectedDevice.model_name} ${
-        selectedDevice.serial_number ? `(${selectedDevice.serial_number})` : `(كمية: ${qtyToAdd})`
-      }`,
-    });
+    setCartItems(prev =>
+      prev.map(it =>
+        it.device_id === deviceId
+          ? {
+              ...it,
+              quantity: val,
+              line_total: val * it.unit_price,
+            }
+          : it
+      )
+    );
+  };
+
+  // Update unit price for a cart item
+  const handleUpdateItemPrice = (deviceId: string, rawPrice: string | number) => {
+    const p = Math.max(0, Number(rawPrice) || 0);
+    setCartItems(prev =>
+      prev.map(it => {
+        if (it.device_id !== deviceId) return it;
+        const discount = Math.max(0, it.unit_list_price - p);
+        const qty = Number(it.quantity) || 1;
+        return {
+          ...it,
+          unit_price: p,
+          discount,
+          line_total: qty * p,
+        };
+      })
+    );
+  };
+
+  // Update discount for a cart item
+  const handleUpdateItemDiscount = (deviceId: string, rawDiscount: string | number) => {
+    const d = Math.max(0, Number(rawDiscount) || 0);
+    setCartItems(prev =>
+      prev.map(it => {
+        if (it.device_id !== deviceId) return it;
+        const price = Math.max(0, it.unit_list_price - d);
+        const qty = Number(it.quantity) || 1;
+        return {
+          ...it,
+          unit_price: price,
+          discount: d,
+          line_total: qty * price,
+        };
+      })
+    );
   };
 
   // Remove an item from the cart
@@ -384,210 +413,107 @@ export const MSSSalesView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Columns (2 cols): Device Selection, Cart List, Customer Info */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Card 1: Select & Add Device */}
+          {/* Card 1: Select Devices & Quantities (Checkboxes & Multi-Select) */}
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Laptop className="w-4.5 h-4.5 text-slate-600" />
-                <span>1. اختيار الأجهزة وإضافتها إلى الفاتورة</span>
+                <span>1. اختيار الأجهزة وإضافتها إلى الفاتورة (تحديد متعدد عبر مربعات الاختيار)</span>
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                الأجهزة المتاحة: {availableDevices.length} جهاز
+                المتاح: {availableDevices.length} جهاز/موديل
               </span>
             </h3>
 
-            {/* Searchable selector for available devices */}
+            {/* Searchable multi-select with Checkboxes */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                اختر الجهاز أو الموديل المراد إضافته:
+                اختر الأجهزة والموديلات المراد إدراجها في الفاتورة (حدد المربع بجانب كل جهاز):
               </label>
               <SearchableItemSelect<MSSDevice>
                 items={availableDevices}
-                selectedId={selectedDevice?.id || null}
-                onSelect={handlePickDevice}
+                isMulti={true}
+                selectedIds={cartItems.map(i => i.device_id)}
+                onItemToggle={handleToggleDevice}
                 getKey={d => d.id}
                 getSearchableText={d =>
                   `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.model?.processor || ''} ${d.model?.gpu || ''} ${d.stock_location}`
                 }
                 placeholder="ابحث بالاسم، الموديل، الماركة، المعالج أو السيريال..."
                 emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
-                maxHeight="max-h-56"
-                renderItem={d => (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 truncate">
-                          {d.brand} {d.model_name}
-                        </span>
-                        {d.serial_number ? (
-                          <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
-                            {d.serial_number}
-                          </span>
-                        ) : (
-                          <Badge variant="outline" size="sm" className="text-[10px]">
-                            بدون سيريال {d.quantity && d.quantity > 1 ? `(${d.quantity} وحدات)` : ''}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {[d.model?.processor, d.model?.gpu, d.model?.ram].filter(Boolean).join(' • ') ||
-                          d.physical_condition}
-                      </p>
-                    </div>
+                maxHeight="max-h-72"
+                renderItem={(d, isSelected) => {
+                  const isSerialized = Boolean(d.is_serialized && d.serial_number);
+                  const maxStock = d.quantity && d.quantity > 0 ? d.quantity : 1;
+                  const cartItem = cartItems.find(i => i.device_id === d.id);
 
-                    <div className="flex items-center gap-2 shrink-0 text-left">
-                      <Badge variant="default" size="sm">
-                        {d.stock_location}
-                      </Badge>
-                      <strong className="text-slate-900 font-mono text-xs font-bold">
-                        {formatCurrency(d.list_price)}
-                      </strong>
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-0.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {d.brand} {d.model_name}
+                          </span>
+                          {isSerialized ? (
+                            <span className="font-mono text-[11px] bg-slate-100 text-slate-900 font-bold px-1.5 py-0.5 rounded border border-slate-300">
+                              {d.serial_number}
+                            </span>
+                          ) : (
+                            <Badge variant="outline" size="sm" className="text-[10px] font-semibold">
+                              مخزون مجمع ({maxStock} متاح)
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5 font-mono">
+                          {[d.model?.processor, d.model?.gpu, d.model?.ram].filter(Boolean).join(' • ') ||
+                            d.physical_condition}
+                        </p>
+                      </div>
+
+                      {/* Right controls: Quantity input for bulk + Branch & Price */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {!isSerialized && isSelected && (
+                          <div
+                            className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg border border-blue-200"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <label className="text-[11px] font-bold text-blue-900 whitespace-nowrap">
+                              الكمية:
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max={maxStock}
+                              value={cartItem?.quantity ?? 1}
+                              onChange={e => handleUpdateItemQuantity(d.id, e.target.value, maxStock)}
+                              className="w-16 h-7 text-center font-mono font-bold text-xs bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              title={`أدخل كمية بين 1 و ${maxStock}`}
+                            />
+                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                              / {maxStock}
+                            </span>
+                          </div>
+                        )}
+
+                        <Badge variant={d.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+                          {d.stock_location}
+                        </Badge>
+                        <strong className="text-slate-900 font-mono text-xs font-bold tabular-nums">
+                          {formatCurrency(d.list_price)}
+                        </strong>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                }}
               />
             </div>
 
-            {/* Selected Device Preview & Config before Add */}
-            {selectedDevice && (
-              <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-300 text-sm space-y-3">
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">
-                      {selectedDevice.brand} {selectedDevice.model_name}
-                    </h4>
-                    <p className="text-slate-500 font-mono font-medium text-xs mt-0.5">
-                      {[
-                        selectedDevice.model?.processor,
-                        selectedDevice.model?.gpu,
-                        selectedDevice.model?.ram,
-                        selectedDevice.model?.storage,
-                      ]
-                        .filter(Boolean)
-                        .join(' • ')}
-                    </p>
-                  </div>
-                  {selectedDevice.serial_number ? (
-                    <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-                      {selectedDevice.serial_number}
-                    </span>
-                  ) : (
-                    <Badge variant="outline">
-                      بدون سيريال (المتاح: {selectedDevice.quantity || 1} وحدة)
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-slate-700">
-                  <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">سعر العرض:</span>
-                    <strong className="text-slate-900 text-sm font-mono font-bold tabular-nums">
-                      {formatCurrency(selectedDevice.list_price)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">التكلفة:</span>
-                    <strong className="font-mono text-slate-700 text-sm font-semibold tabular-nums">
-                      {formatCurrency(selectedDevice.purchase_cost)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الحالة:</span>
-                    <strong className="text-slate-800 text-sm font-medium">
-                      {selectedDevice.physical_condition || 'ممتازة'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الموقع الفعلي:</span>
-                    <Badge
-                      variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}
-                      size="sm"
-                      className="font-semibold"
-                    >
-                      {selectedDevice.stock_location}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Pricing and Quantity Inputs for adding item */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200">
-                  {!selectedDevice.is_serialized && (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        الكمية المطلوبة (المتاح: {selectedDevice.quantity || 1})
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max={selectedDevice.quantity || 1}
-                        value={pendingQuantity}
-                        onChange={e => {
-                          const val = parseInt(e.target.value, 10) || 1;
-                          setPendingQuantity(Math.max(1, Math.min(selectedDevice.quantity || 1, val)));
-                        }}
-                        className="h-9 font-mono font-bold"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      سعر بيع الوحدة (EGP)
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={pendingUnitPrice}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setPendingUnitPrice(val);
-                        setPendingDiscount(Math.max(0, selectedDevice.list_price - val));
-                      }}
-                      className="h-9 font-mono font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      خصم الوحدة (EGP)
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={pendingDiscount}
-                      onChange={e => {
-                        const d = parseFloat(e.target.value) || 0;
-                        setPendingDiscount(d);
-                        setPendingUnitPrice(Math.max(0, selectedDevice.list_price - d));
-                      }}
-                      className="h-9 font-mono font-semibold"
-                    />
-                  </div>
-                </div>
-
-                {itemError && (
-                  <Alert type="danger" title="تنبيه" message={itemError} className="py-2" />
-                )}
-
-                <div className="flex justify-end pt-2">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="md"
-                    onClick={handleAddToCart}
-                    leftIcon={<Plus className="w-4 h-4" />}
-                    className="font-bold shadow-xs"
-                  >
-                    إضافة الجهاز إلى الفاتورة
-                  </Button>
-                </div>
-              </div>
+            {itemError && (
+              <Alert type="danger" title="تنبيه بالكميات" message={itemError} className="py-2" />
             )}
           </Card>
 
-          {/* Card 2: Items in Cart */}
+          {/* Card 2: Items in Cart (Invoice Line Items Table) */}
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -613,9 +539,9 @@ export const MSSSalesView: React.FC = () => {
             {cartItems.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-2">
                 <Laptop className="w-10 h-10 text-slate-400 mx-auto" />
-                <p className="text-sm font-semibold text-slate-700">لم يتم إضافة أجهزة للفاتورة بعد</p>
+                <p className="text-sm font-semibold text-slate-700">لم يتم اختيار أي جهاز للفاتورة بعد</p>
                 <p className="text-xs text-slate-500">
-                  اختر جهازاً من القائمة أعلاه واضغط (إضافة الجهاز إلى الفاتورة) لدعم البيع الفردي أو المتعدد.
+                  قم بتحديد الأجهزة المراد بيعها عبر وضع علامة (✓) في مربعات الاختيار أعلاه. يمكنك تحديد أكثر من جهاز وإدخال كمية للمخزون غير المسلسل.
                 </p>
               </div>
             ) : (
@@ -626,8 +552,9 @@ export const MSSSalesView: React.FC = () => {
                       <tr>
                         <th className="p-2.5">#</th>
                         <th className="p-2.5">الجهاز والمواصفات</th>
-                        <th className="p-2.5">السيريال / الكمية</th>
+                        <th className="p-2.5">السيريال / الحالة</th>
                         <th className="p-2.5">الفرع المصدر</th>
+                        <th className="p-2.5 text-center">الكمية</th>
                         <th className="p-2.5">سعر الوحدة</th>
                         <th className="p-2.5">الخصم</th>
                         <th className="p-2.5">الإجمالي</th>
@@ -655,7 +582,7 @@ export const MSSSalesView: React.FC = () => {
                               </span>
                             ) : (
                               <Badge variant="outline" size="sm">
-                                بدون سيريال ({item.quantity} وحدات)
+                                بدون سيريال (مخزون مجمع)
                               </Badge>
                             )}
                           </td>
@@ -667,11 +594,78 @@ export const MSSSalesView: React.FC = () => {
                               {item.source_branch}
                             </Badge>
                           </td>
-                          <td className="p-2.5 font-mono font-bold tabular-nums text-slate-900">
-                            {formatCurrency(item.unit_price)}
+                          <td className="p-2.5 text-center">
+                            {item.is_serialized ? (
+                              <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                                1 وحدة
+                              </span>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateItemQuantity(
+                                        item.device_id,
+                                        String(Math.max(1, (Number(item.quantity) || 1) - 1)),
+                                        item.available_stock
+                                      )
+                                    }
+                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                    disabled={Number(item.quantity) <= 1}
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={item.available_stock}
+                                    value={item.quantity}
+                                    onChange={e =>
+                                      handleUpdateItemQuantity(item.device_id, e.target.value, item.available_stock)
+                                    }
+                                    className="w-14 h-7 text-center font-mono font-bold text-xs rounded border border-slate-300 bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateItemQuantity(
+                                        item.device_id,
+                                        String(Math.min(item.available_stock, (Number(item.quantity) || 1) + 1)),
+                                        item.available_stock
+                                      )
+                                    }
+                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                    disabled={Number(item.quantity) >= item.available_stock}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  من أصل {item.available_stock}
+                                </span>
+                              </div>
+                            )}
                           </td>
-                          <td className="p-2.5 font-mono text-rose-700 tabular-nums">
-                            {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '—'}
+                          <td className="p-2.5">
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              value={item.unit_price}
+                              onChange={e => handleUpdateItemPrice(item.device_id, e.target.value)}
+                              className="w-24 h-7 text-center font-mono font-bold text-xs rounded border border-slate-300 bg-white"
+                            />
+                          </td>
+                          <td className="p-2.5">
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              value={item.discount}
+                              onChange={e => handleUpdateItemDiscount(item.device_id, e.target.value)}
+                              className="w-20 h-7 text-center font-mono text-rose-600 font-bold text-xs rounded border border-slate-300 bg-white"
+                            />
                           </td>
                           <td className="p-2.5 font-mono font-bold text-slate-900 tabular-nums text-sm">
                             {formatCurrency(item.line_total)}
@@ -1041,7 +1035,7 @@ export const MSSSalesView: React.FC = () => {
           subtitle={`تحتوي الفاتورة على (${completedInvoice.items_count || completedInvoice.items?.length || 1}) جهاز/بند`}
           size="2xl"
           footer={
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="md"

@@ -26,6 +26,7 @@ export type MSSRoute =
   | 'stores'
   | 'audit'
   | 'reports'
+  | 'device-reports'
   | 'sync';
 
 export type ActiveRoute = AccessoriesRoute | MSSRoute;

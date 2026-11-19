@@ -535,7 +535,7 @@ export const MSSInvoicesView: React.FC = () => {
           subtitle={`التاريخ: ${formatDate(selectedInvoice.sale_date)} • الفرع: ${selectedInvoice.selling_branch}`}
           size="2xl"
           footer={
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="md"

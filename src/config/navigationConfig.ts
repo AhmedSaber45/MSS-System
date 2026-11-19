@@ -17,6 +17,7 @@ import {
   Cloud,
   Store,
   ShieldCheck,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export const accessoriesNavItems: NavItemConfig[] = [
@@ -145,9 +146,15 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'reports',
-    label: 'التقارير  ',
-    description: 'الإيرادات وتكلفة الشراء وصافي أرباح MSS',
+    label: 'تقارير المبيعات',
+    description: 'الإيرادات وتكلفة الشراء وصافي أرباح المبيعات والمستحقات',
     icon: BarChart3,
+  },
+  {
+    id: 'device-reports',
+    label: 'تقارير الأجهزة',
+    description: 'ملخص كميات الموديلات، الأجهزة المباعة، وتصدير مخزون الجملة',
+    icon: FileSpreadsheet,
   },
   {
     id: 'sync',

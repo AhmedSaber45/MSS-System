@@ -20,7 +20,9 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { useNavigation } from '@/context/NavigationContext';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssReportsService } from '@/services/mssReportsService.ts';
@@ -36,9 +38,11 @@ import type { ReportPeriod } from '@/types/unifiedDashboard.ts';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useNotification } from '@/context/NotificationContext';
+import { formatArabicExportFilename } from '@/services/mssWholesaleExportService';
 import { documentPrintService } from '@/lib/documentPrintService';
 
 export const MSSReportsView: React.FC = () => {
+  const { setRoute } = useNavigation();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
   const [period, setPeriod] = useState<ReportPeriod>('month');
@@ -103,7 +107,7 @@ export const MSSReportsView: React.FC = () => {
   const handlePrint = async () => {
     if (!summary) return;
     await documentPrintService.printElement('mss-report-document-root', {
-      title: `تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`,
+      title: formatArabicExportFilename(`تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`),
       format: 'report',
       orientation: 'portrait',
     });
@@ -112,7 +116,7 @@ export const MSSReportsView: React.FC = () => {
   const handlePrintSoldLaptopsReport = async () => {
     if (!soldLaptopsReport) return;
     await documentPrintService.printElement('mss-sold-laptops-report-print', {
-      title: `تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`,
+      title: formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`),
       format: 'report',
       orientation: 'portrait',
     });
@@ -136,7 +140,7 @@ export const MSSReportsView: React.FC = () => {
       message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند المالي الرسمي.',
     });
     await documentPrintService.exportToPdf('mss-report-document-root', {
-      title: `تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`,
+      title: formatArabicExportFilename(`تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`, 'pdf'),
       format: 'report',
       orientation: 'portrait',
     });
@@ -146,8 +150,8 @@ export const MSSReportsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="تقارير Compu MSS "
-        subtitle=""
+        title="تقارير المبيعات والأرباح — Compu MSS"
+        subtitle="مؤشرات الأرباح الصافية، الإيرادات، وتوزيع المبيعات بين الفروع ومستحقات العملاء"
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -184,6 +188,29 @@ export const MSSReportsView: React.FC = () => {
           </div>
         }
       />
+
+      {/* Banner Shortcut to Device Reports */}
+      <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-bold text-slate-900 block">
+              تقارير الأجهزة ومخزون الجملة (Excel Export)
+            </span>
+            <span className="text-slate-600">
+              تم تخصيص صفحة مستقلة لتقارير كميات الموديلات، الأجهزة المباعة، وتصدير قوائم المخزون المتاح للجملة بصيغة Excel.
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setRoute('device-reports')}
+          className="font-bold border-emerald-300 hover:bg-emerald-100 text-emerald-900 shrink-0"
+        >
+          الانتقال إلى تقارير الأجهزة →
+        </Button>
+      </div>
 
       {/* Date Filter Bar */}
       <Card className="bg-white border-slate-300 shadow-2xs">

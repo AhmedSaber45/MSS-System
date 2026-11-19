@@ -9,7 +9,9 @@ export interface SearchableItemSelectProps<T> {
   selectedIds?: string[];
   onSelect?: (item: T) => void;
   onMultiSelectChange?: (selectedIds: string[]) => void;
+  onItemToggle?: (item: T, isSelected: boolean) => void;
   isMulti?: boolean;
+  checkboxPosition?: 'start' | 'end';
   placeholder?: string;
   emptyMessage?: string;
   getKey: (item: T) => string;
@@ -25,7 +27,9 @@ export function SearchableItemSelect<T>({
   selectedIds = [],
   onSelect,
   onMultiSelectChange,
+  onItemToggle,
   isMulti = false,
+  checkboxPosition = 'start',
   placeholder = 'بحث في القائمة بالاسم، الموديل، السيريال...',
   emptyMessage = 'لا توجد عناصر مطابقة للبحث',
   getKey,
@@ -45,12 +49,17 @@ export function SearchableItemSelect<T>({
     });
   }, [items, searchQuery, getSearchableText]);
 
-  const handleToggleMulti = (id: string) => {
-    if (!onMultiSelectChange) return;
-    if (selectedIds.includes(id)) {
-      onMultiSelectChange(selectedIds.filter(x => x !== id));
-    } else {
-      onMultiSelectChange([...selectedIds, id]);
+  const handleToggleMulti = (id: string, item: T) => {
+    const isCurrentlySelected = selectedIds.includes(id);
+    const nextSelected = isCurrentlySelected
+      ? selectedIds.filter(x => x !== id)
+      : [...selectedIds, id];
+
+    if (onMultiSelectChange) {
+      onMultiSelectChange(nextSelected);
+    }
+    if (onItemToggle) {
+      onItemToggle(item, !isCurrentlySelected);
     }
   };
 
@@ -59,12 +68,28 @@ export function SearchableItemSelect<T>({
     const filteredKeys = filteredItems.map(getKey);
     const combined = Array.from(new Set([...selectedIds, ...filteredKeys]));
     onMultiSelectChange(combined);
+    if (onItemToggle) {
+      for (const it of filteredItems) {
+        const k = getKey(it);
+        if (!selectedIds.includes(k)) {
+          onItemToggle(it, true);
+        }
+      }
+    }
   };
 
   const handleDeselectAllFiltered = () => {
     if (!onMultiSelectChange) return;
     const filteredKeys = new Set(filteredItems.map(getKey));
     onMultiSelectChange(selectedIds.filter(id => !filteredKeys.has(id)));
+    if (onItemToggle) {
+      for (const it of filteredItems) {
+        const k = getKey(it);
+        if (selectedIds.includes(k)) {
+          onItemToggle(it, false);
+        }
+      }
+    }
   };
 
   return (
@@ -129,12 +154,44 @@ export function SearchableItemSelect<T>({
             const key = getKey(item);
             const isSelected = isMulti ? selectedIds.includes(key) : selectedId === key;
 
+            const checkboxEl = (
+              <div
+                className="shrink-0 flex items-center"
+                onClick={e => {
+                  e.stopPropagation();
+                  if (isMulti) {
+                    handleToggleMulti(key, item);
+                  } else if (onSelect) {
+                    onSelect(item);
+                  }
+                }}
+              >
+                {isMulti ? (
+                  <button
+                    type="button"
+                    aria-label={isSelected ? 'إلغاء التحديد' : 'تحديد'}
+                    className="p-0.5 rounded hover:bg-slate-200/50 cursor-pointer focus:outline-none flex items-center justify-center"
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="w-5 h-5 text-blue-600 stroke-[2.2]" />
+                    ) : (
+                      <Square className="w-5 h-5 text-slate-300 hover:text-slate-500" />
+                    )}
+                  </button>
+                ) : isSelected ? (
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </span>
+                ) : null}
+              </div>
+            );
+
             return (
               <div
                 key={key}
                 onClick={() => {
                   if (isMulti) {
-                    handleToggleMulti(key);
+                    handleToggleMulti(key, item);
                   } else if (onSelect) {
                     onSelect(item);
                   }
@@ -145,23 +202,13 @@ export function SearchableItemSelect<T>({
                     : 'hover:bg-slate-50 text-slate-700'
                 }`}
               >
+                {checkboxPosition === 'start' && checkboxEl}
+
                 <div className="flex-1 min-w-0">
                   {renderItem(item, isSelected)}
                 </div>
 
-                <div className="shrink-0">
-                  {isMulti ? (
-                    isSelected ? (
-                      <CheckSquare className="w-4.5 h-4.5 text-blue-600" />
-                    ) : (
-                      <Square className="w-4.5 h-4.5 text-slate-300" />
-                    )
-                  ) : isSelected ? (
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </span>
-                  ) : null}
-                </div>
+                {checkboxPosition === 'end' && checkboxEl}
               </div>
             );
           })

@@ -5,6 +5,7 @@ import { Button } from '@/components/common/Button';
 import { Printer, FileText, Receipt, FileDown, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { documentPrintService } from '@/lib/documentPrintService';
 import { useNotification } from '@/context/NotificationContext';
+import { formatArabicExportFilename } from '@/services/mssWholesaleExportService';
 
 export interface MSSPrintableInvoiceProps {
   invoice: MSSInvoice;
@@ -71,7 +72,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
   const handlePrint = async () => {
     const elementId = format === 'a4' ? 'mss-printable-invoice-a4' : 'mss-printable-invoice-thermal';
     await documentPrintService.printElement(elementId, {
-      title: `فاتورة_Compu_MSS_${invoice.invoice_number}`,
+      title: formatArabicExportFilename(`فاتورة_${invoice.invoice_number}`),
       format,
     });
   };
@@ -85,15 +86,15 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
       message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ الفاتورة بدقة عالية.',
     });
     await documentPrintService.exportToPdf(elementId, {
-      title: `فاتورة_Compu_MSS_${invoice.invoice_number}`,
+      title: formatArabicExportFilename(`فاتورة_${invoice.invoice_number}`, 'pdf'),
       format,
     });
   };
 
   return (
     <div className="space-y-4">
-      {/* Controls Bar: A4, Thermal, Save as PDF, Print Now */}
-      <div className="no-print flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs">
+      {/* Controls Bar: A4, Thermal, Save as PDF, Print Now (Sticky for seamless scrolling) */}
+      <div className="no-print sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-xs p-3.5 sm:p-4 rounded-xl border border-slate-300 shadow-xs">
         {/* Format Selector & Zoom Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
@@ -154,7 +155,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               <div className="flex items-center gap-0.5 border-r border-slate-300 pr-1 mr-0.5">
                 <button
                   type="button"
-                  onClick={() => setZoomScale(prev => Math.max(65, prev - 10))}
+                  onClick={() => setZoomScale(prev => Math.max(50, prev - 10))}
                   className="p-1 hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
                   title="تصغير المعاينة"
                 >
@@ -165,7 +166,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setZoomScale(prev => Math.min(130, prev + 10))}
+                  onClick={() => setZoomScale(prev => Math.min(140, prev + 10))}
                   className="p-1 hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
                   title="تكبير المعاينة"
                 >
@@ -215,26 +216,24 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
       </div>
 
       {/* Printable Paper Canvas */}
-      <div className="print-container overflow-x-auto bg-slate-200/60 p-2 sm:p-4 rounded-xl flex justify-start lg:justify-center border border-slate-300">
+      <div className="print-container overflow-x-auto bg-slate-200/60 p-2 sm:p-4 rounded-xl flex items-start justify-center border border-slate-300 min-h-[500px]">
         {format === 'a4' ? (
           /* ========================================================
              A4 STANDARD FORMAL INVOICE LAYOUT (With Signatures)
              ======================================================== */
           <div
-            className="print-zoom-wrapper transition-all duration-150 origin-top shrink-0 mx-auto flex justify-center"
+            className="print-zoom-wrapper transition-all duration-150 origin-top shrink-0 m-auto flex justify-center"
             style={
               zoomScale !== 100
-                ? {
-                    transform: `scale(${zoomScale / 100})`,
-                    transformOrigin: 'top center',
-                    marginBottom: `-${Math.round((100 - zoomScale) * 5)}px`,
-                  }
+                ? ({
+                    zoom: `${zoomScale}%`,
+                  } as React.CSSProperties)
                 : undefined
             }
           >
             <div
               id="mss-printable-invoice-a4"
-              className="print-area w-[210mm] min-h-[297mm] max-w-full bg-white p-8 sm:p-10 shadow-md border border-slate-300 rounded-sm text-slate-900 space-y-5"
+              className="print-area w-[210mm] min-h-[297mm] bg-white p-6 sm:p-7 print:p-10 shadow-md border border-slate-300 rounded-sm text-slate-900 space-y-4 shrink-0"
               dir="rtl"
               style={{ boxSizing: 'border-box' }}
             >
@@ -323,20 +322,20 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
             </div>
 
             {/* Line Items Table (Multi-Device Support) */}
-            <div className="border border-slate-300 rounded-xl overflow-x-auto print:overflow-visible print:border-slate-400">
-              <table className="w-full text-xs text-right border-collapse">
+            <div className="border border-slate-300 rounded-xl overflow-x-auto print:overflow-visible print:border-slate-400 w-full">
+              <table className="w-full min-w-[690px] text-xs text-right border-collapse table-auto">
                 <thead
                   className="bg-slate-100 border-b border-slate-300 text-[11px] font-bold text-slate-700 print:bg-slate-100"
                   style={{ display: 'table-header-group' }}
                 >
                   <tr>
-                    <th className="py-2.5 px-2 w-7 text-center">#</th>
-                    <th className="py-2.5 px-2.5 min-w-[180px]">الجهاز والموديل / المواصفات</th>
-                    <th className="py-2.5 px-2 w-36 text-center whitespace-nowrap">السيريال / الحالة</th>
-                    <th className="py-2.5 px-1.5 text-center w-12 whitespace-nowrap">الكمية</th>
-                    <th className="py-2.5 px-2 text-left w-20 whitespace-nowrap">السعر</th>
-                    <th className="py-2.5 px-1.5 text-left w-16 whitespace-nowrap">الخصم</th>
-                    <th className="py-2.5 px-2.5 text-left w-24 whitespace-nowrap">الإجمالي</th>
+                    <th className="py-2.5 px-2 w-8 min-w-[32px] text-center">#</th>
+                    <th className="py-2.5 px-3 min-w-[190px] text-right">الجهاز والموديل / المواصفات</th>
+                    <th className="py-2.5 px-2.5 w-44 min-w-[155px] text-center whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>السيريال / الحالة</th>
+                    <th className="py-2.5 px-2 w-14 min-w-[48px] text-center whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>الكمية</th>
+                    <th className="py-2.5 px-2.5 w-28 min-w-[95px] text-left whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>السعر</th>
+                    <th className="py-2.5 px-2 w-20 min-w-[65px] text-left whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>الخصم</th>
+                    <th className="py-2.5 px-3.5 w-28 min-w-[95px] text-left whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -349,10 +348,10 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
                         className="hover:bg-slate-50/50"
                         style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                       >
-                        <td className="py-2 px-2 text-center text-slate-500 font-mono text-xs tabular-nums">
+                        <td className="py-2.5 px-2 text-center text-slate-500 font-mono text-xs tabular-nums">
                           {idx + 1}
                         </td>
-                        <td className="py-2 px-2.5 font-medium text-slate-900">
+                        <td className="py-2.5 px-3 font-medium text-slate-900 min-w-[190px]">
                           <div className="space-y-1">
                             <span className="text-slate-950 font-bold text-xs sm:text-sm block leading-snug">
                               {item.brand} {item.model_name}
@@ -360,27 +359,27 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
                             {hasSpecs && (
                               <div className="flex flex-wrap items-center gap-1 text-[10px] leading-tight font-mono text-slate-600">
                                 {item.processor && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap font-medium">
                                     {item.processor}
                                   </span>
                                 )}
                                 {item.gpu && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap font-medium">
                                     {item.gpu}
                                   </span>
                                 )}
                                 {item.ram && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap font-medium">
                                     {item.ram}
                                   </span>
                                 )}
                                 {item.storage && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap font-medium">
                                     {item.storage}
                                   </span>
                                 )}
                                 {item.screen_size && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap font-medium">
                                     {item.screen_size}
                                   </span>
                                 )}
@@ -388,28 +387,37 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
                             )}
                           </div>
                         </td>
-                        <td className="py-2 px-2 text-center">
+                        <td className="py-2.5 px-2.5 text-center whitespace-nowrap min-w-[155px]" style={{ whiteSpace: 'nowrap' }}>
                           {item.serial_number ? (
-                            <span className="inline-block font-mono text-[11px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 tabular-nums text-slate-800 whitespace-nowrap tracking-tight">
+                            <span
+                              className="inline-block font-mono text-[11px] font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300 tabular-nums text-slate-900 whitespace-nowrap break-keep tracking-tight select-all"
+                              style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all', hyphens: 'none' }}
+                            >
                               {item.serial_number}
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                            <span className="text-xs text-slate-500 font-medium whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>
                               دفعة مخزون مجمعة
                             </span>
                           )}
                         </td>
-                        <td className="py-2 px-1.5 text-center font-mono font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                        <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-900 tabular-nums whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>
                           {item.quantity || 1}
                         </td>
-                        <td className="py-2 px-2 text-left font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap">
-                          {formatCurrency(item.unit_price || item.list_price_snapshot)}
+                        <td className="py-2.5 px-2.5 text-left font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap min-w-[95px]" style={{ whiteSpace: 'nowrap' }}>
+                          <span className="whitespace-nowrap inline-block tabular-nums">
+                            {formatCurrency(item.unit_price || item.list_price_snapshot)}
+                          </span>
                         </td>
-                        <td className="py-2 px-1.5 text-left font-mono text-xs tabular-nums text-rose-600 whitespace-nowrap">
-                          {item.discount_amount > 0 ? `-${formatCurrency(item.discount_amount)}` : '0'}
+                        <td className="py-2.5 px-2 text-left font-mono text-xs tabular-nums text-rose-600 whitespace-nowrap min-w-[65px]" style={{ whiteSpace: 'nowrap' }}>
+                          <span className="whitespace-nowrap inline-block tabular-nums">
+                            {item.discount_amount > 0 ? `-${formatCurrency(item.discount_amount)}` : '0'}
+                          </span>
                         </td>
-                        <td className="py-2 px-2.5 text-left font-mono font-bold text-slate-950 tabular-nums whitespace-nowrap">
-                          {formatCurrency(item.actual_sale_price)}
+                        <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-950 tabular-nums whitespace-nowrap min-w-[95px]" style={{ whiteSpace: 'nowrap' }}>
+                          <span className="whitespace-nowrap inline-block tabular-nums font-bold">
+                            {formatCurrency(item.actual_sale_price)}
+                          </span>
                         </td>
                       </tr>
                     );

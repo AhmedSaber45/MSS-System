@@ -209,83 +209,124 @@ export const ReservationsView: React.FC = () => {
     setItemError('');
   };
 
-  // Add Item to reservation
+  // Add Item to reservation (for manual add & backward compatibility)
   const handleAddItemToReservation = () => {
     if (!pendingDevice) {
       setItemError('يرجى اختيار جهاز لإضافته للحجز');
       return;
     }
-
-    const isSerialized = Boolean(pendingDevice.is_serialized && pendingDevice.serial_number);
-    const availableStock =
-      pendingDevice.quantity && pendingDevice.quantity > 0 ? pendingDevice.quantity : 1;
-
-    // Check duplicate serialized device
-    if (isSerialized) {
-      const exists = reservationItems.some(it => it.device_id === pendingDevice.id);
-      if (exists) {
-        setItemError(`الجهاز بالسيريال (${pendingDevice.serial_number}) مضاف بالفعل في الحجز`);
-        return;
-      }
-    }
-
-    const qtyToAdd = isSerialized ? 1 : Math.max(1, Math.floor(pendingQuantity));
-    const existing = reservationItems.find(it => it.device_id === pendingDevice.id);
-    const currentQty = existing ? existing.quantity : 0;
-
-    if (currentQty + qtyToAdd > availableStock) {
-      setItemError(
-        `الكمية المطلوبة (${currentQty + qtyToAdd}) تتجاوز المخزون المتاح (${availableStock}) لهذا الموديل.`
-      );
-      return;
-    }
-
-    const agreedPriceNum = Number(pendingAgreedPrice) || 0;
-    if (agreedPriceNum < 0) {
-      setItemError('السعر المتفق عليه لا يمكن أن يكون سالباً');
-      return;
-    }
-
-    if (existing && !isSerialized) {
-      setReservationItems(prev =>
-        prev.map(it =>
-          it.device_id === pendingDevice.id
-            ? {
-                ...it,
-                quantity: it.quantity + qtyToAdd,
-                agreed_price: agreedPriceNum,
-                total_agreed_price: (it.quantity + qtyToAdd) * agreedPriceNum,
-              }
-            : it
-        )
-      );
-    } else {
-      const newItem: ReservationModalItem = {
-        id: `res-item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        device_id: pendingDevice.id,
-        device: pendingDevice,
-        is_serialized: isSerialized,
-        serial_number: pendingDevice.serial_number,
-        model_name: pendingDevice.model_name,
-        brand: pendingDevice.brand,
-        quantity: qtyToAdd,
-        available_stock: availableStock,
-        agreed_price: agreedPriceNum,
-        total_agreed_price: qtyToAdd * agreedPriceNum,
-        branch: pendingDevice.stock_location,
-      };
-      setReservationItems(prev => [...prev, newItem]);
-    }
-
+    handleToggleReservationDevice(pendingDevice, true);
     setPendingDevice(null);
     setPendingQuantity(1);
     setPendingAgreedPrice(0);
     setItemError('');
-    showNotification({
-      type: 'success',
-      title: 'تمت إضافة الجهاز للحجز',
-      message: `${pendingDevice.brand} ${pendingDevice.model_name}`,
-    });
+  };
+
+  // Handle toggling reservation device via checkboxes (Multi-Device Support)
+  const handleToggleReservationDevice = (device: MSSDevice, isSelected: boolean) => {
+    if (isSelected) {
+      const isSerialized = Boolean(device.is_serialized && device.serial_number);
+      const availableStock = device.quantity && device.quantity > 0 ? device.quantity : 1;
+
+      // Prevent duplicate serialized device selection
+      if (isSerialized && reservationItems.some(it => it.device_id === device.id)) {
+        return;
+      }
+
+      if (reservationItems.some(it => it.device_id === device.id)) {
+        return;
+      }
+
+      const newItem: ReservationModalItem = {
+        id: `res-item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        device_id: device.id,
+        device,
+        is_serialized: isSerialized,
+        serial_number: device.serial_number,
+        model_name: device.model_name,
+        brand: device.brand,
+        quantity: 1,
+        available_stock: availableStock,
+        agreed_price: device.list_price,
+        total_agreed_price: device.list_price,
+        branch: device.stock_location,
+      };
+
+      setReservationItems(prev => [...prev, newItem]);
+      setItemError('');
+    } else {
+      setReservationItems(prev => prev.filter(it => it.device_id !== device.id));
+      setItemError('');
+    }
+  };
+
+  // Update quantity for non-serialized stock in reservation
+  const handleUpdateReservationQuantity = (deviceId: string, rawVal: string, maxAvailable: number) => {
+    if (rawVal === '') {
+      setItemError('يرجى إدخال كمية صحيحة');
+      setReservationItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: ('' as any), total_agreed_price: 0 } : it))
+      );
+      return;
+    }
+
+    const val = Number(rawVal);
+    if (isNaN(val) || val <= 0) {
+      setItemError('الكمية يجب أن تكون عدداً صحيحاً موجباً أكبر من الصفر');
+      setReservationItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: (val as any), total_agreed_price: 0 } : it))
+      );
+      return;
+    }
+
+    if (!Number.isInteger(val)) {
+      setItemError('الكمية لا يمكن أن تحتوي على كسور عشرية');
+      setReservationItems(prev =>
+        prev.map(it => (it.device_id === deviceId ? { ...it, quantity: (val as any), total_agreed_price: 0 } : it))
+      );
+      return;
+    }
+
+    if (val > maxAvailable) {
+      setItemError(`الكمية المطلوبة (${val}) تتجاوز المخزون المتاح (${maxAvailable})`);
+      setReservationItems(prev =>
+        prev.map(it =>
+          it.device_id === deviceId
+            ? { ...it, quantity: val, total_agreed_price: val * it.agreed_price }
+            : it
+        )
+      );
+      return;
+    }
+
+    setItemError('');
+    setReservationItems(prev =>
+      prev.map(it =>
+        it.device_id === deviceId
+          ? {
+              ...it,
+              quantity: val,
+              total_agreed_price: val * it.agreed_price,
+            }
+          : it
+      )
+    );
+  };
+
+  // Update agreed unit price for reservation item
+  const handleUpdateReservationPrice = (deviceId: string, rawPrice: string | number) => {
+    const p = Math.max(0, Number(rawPrice) || 0);
+    setReservationItems(prev =>
+      prev.map(it => {
+        if (it.device_id !== deviceId) return it;
+        const qty = Number(it.quantity) || 1;
+        return {
+          ...it,
+          agreed_price: p,
+          total_agreed_price: qty * p,
+        };
+      })
+    );
   };
 
   // Remove Item from reservation
@@ -320,6 +361,21 @@ export const ReservationsView: React.FC = () => {
     if (totalAgreedPrice < 0) {
       setFormError('السعر المتفق عليه لا يمكن أن يكون سالباً');
       return;
+    }
+
+    // Strict quantity validation
+    for (const it of reservationItems) {
+      if (!it.is_serialized) {
+        const q = Number(it.quantity);
+        if (isNaN(q) || q <= 0 || !Number.isInteger(q)) {
+          setFormError(`كمية الموديل (${it.model_name}) غير صالحة (${it.quantity}). يجب إدخال عدد صحيح موجب.`);
+          return;
+        }
+        if (q > it.available_stock) {
+          setFormError(`الكمية المطلوب حجزها (${q}) أكبر من المخزون المتاح (${it.available_stock}) للموديل (${it.model_name}).`);
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -901,120 +957,107 @@ export const ReservationsView: React.FC = () => {
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
-          {/* Section 1: Device Selection and Add to Reservation */}
+          {/* Section 1: Device Selection and Add to Reservation (Checkboxes & Multi-Select) */}
           <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-              <Laptop className="w-4 h-4 text-slate-600" />
-              <span>اختيار وإضافة جهاز للحجز:</span>
+            <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Laptop className="w-4 h-4 text-slate-600" />
+                <span>اختيار الأجهزة للحجز (تحديد متعدد عبر مربعات الاختيار):</span>
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                المتاح: {availableDevices.length} جهاز/موديل
+              </span>
             </h4>
 
             <div>
               <SearchableItemSelect<MSSDevice>
                 items={availableDevices}
-                selectedId={pendingDevice?.id || null}
-                onSelect={handlePendingDevicePick}
+                isMulti={true}
+                selectedIds={reservationItems.map(it => it.device_id)}
+                onItemToggle={handleToggleReservationDevice}
                 getKey={d => d.id}
                 getSearchableText={d =>
                   `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.stock_location}`
                 }
                 placeholder="اختر جهازاً لإضافته للحجز (بحث بالاسم، الموديل، السيريال)..."
                 emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
-                maxHeight="max-h-48"
-                renderItem={d => (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="font-bold text-slate-900">
-                        {d.brand} {d.model_name}
-                      </span>
-                      {d.serial_number ? (
-                        <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
-                          {d.serial_number}
-                        </span>
-                      ) : (
-                        <Badge variant="outline" size="sm" className="text-[10px]">
-                          بدون سيريال {d.quantity && d.quantity > 1 ? `(${d.quantity} وحدات)` : ''}
+                maxHeight="max-h-56"
+                renderItem={(d, isSelected) => {
+                  const isSerialized = Boolean(d.is_serialized && d.serial_number);
+                  const maxStock = d.quantity && d.quantity > 0 ? d.quantity : 1;
+                  const resItem = reservationItems.find(it => it.device_id === d.id);
+
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-0.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {d.brand} {d.model_name}
+                          </span>
+                          {isSerialized ? (
+                            <span className="font-mono text-[11px] bg-slate-100 text-slate-900 font-bold px-1.5 py-0.5 rounded border border-slate-300">
+                              {d.serial_number}
+                            </span>
+                          ) : (
+                            <Badge variant="outline" size="sm" className="text-[10px] font-semibold">
+                              مخزون مجمع ({maxStock} متاح)
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right controls: Quantity input for bulk + Branch & Price */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {!isSerialized && isSelected && (
+                          <div
+                            className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg border border-blue-200"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <label className="text-[11px] font-bold text-blue-900 whitespace-nowrap">
+                              الكمية:
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max={maxStock}
+                              value={resItem?.quantity ?? 1}
+                              onChange={e => handleUpdateReservationQuantity(d.id, e.target.value, maxStock)}
+                              className="w-16 h-7 text-center font-mono font-bold text-xs bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              title={`أدخل كمية بين 1 و ${maxStock}`}
+                            />
+                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                              / {maxStock}
+                            </span>
+                          </div>
+                        )}
+
+                        <Badge variant={d.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+                          {d.stock_location}
                         </Badge>
-                      )}
+                        <strong className="text-slate-900 font-mono text-xs font-bold tabular-nums">
+                          {formatCurrency(d.list_price)}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="default" size="sm">
-                        {d.stock_location}
-                      </Badge>
-                      <span className="font-mono text-xs font-bold text-slate-900">
-                        {formatCurrency(d.list_price)}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                  );
+                }}
               />
             </div>
 
-            {pendingDevice && (
-              <div className="pt-2 border-t border-slate-200 space-y-2.5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {!pendingDevice.is_serialized && (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        الكمية المطلوبة (المتاح: {pendingDevice.quantity || 1})
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max={pendingDevice.quantity || 1}
-                        value={pendingQuantity}
-                        onChange={e => {
-                          const val = parseInt(e.target.value, 10) || 1;
-                          setPendingQuantity(Math.max(1, Math.min(pendingDevice.quantity || 1, val)));
-                        }}
-                        className="h-8 text-xs font-mono font-bold"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      السعر المتفق عليه للوحدة (EGP)
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="0.00"
-                      value={pendingAgreedPrice}
-                      onChange={e => setPendingAgreedPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="h-8 text-xs font-mono font-bold"
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddItemToReservation}
-                      leftIcon={<Plus className="w-4 h-4" />}
-                      className="w-full font-bold border-slate-300 bg-white hover:bg-slate-100"
-                    >
-                      إضافة الجهاز للحجز
-                    </Button>
-                  </div>
-                </div>
-
-                {itemError && (
-                  <Alert type="danger" title="تنبيه" message={itemError} className="py-1 text-xs" />
-                )}
-              </div>
+            {itemError && (
+              <Alert type="danger" title="تنبيه" message={itemError} className="py-1 text-xs" />
             )}
           </div>
 
           {/* Section 2: Items currently in this reservation */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-800">
-              الأجهزة المشمولة بالحجز ({reservationItems.length} أجهزة):
+              الأجهزة المشمولة بالحجز ({reservationItems.length} أجهزة / {reservationItems.reduce((s, it) => s + (Number(it.quantity) || 1), 0)} وحدة):
             </label>
 
             {reservationItems.length === 0 ? (
               <div className="p-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 text-xs text-slate-500">
-                لم يتم إضافة أي أجهزة للحجز بعد. اختر جهازاً واضغط (إضافة الجهاز للحجز).
+                لم يتم تحديد أي أجهزة للحجز بعد. حدد مربعات الاختيار بجانب الأجهزة أعلاه لتضمينها في الحجز.
               </div>
             ) : (
               <div className="border border-slate-300 rounded-xl overflow-hidden">
@@ -1023,9 +1066,11 @@ export const ReservationsView: React.FC = () => {
                     <tr>
                       <th className="p-2">#</th>
                       <th className="p-2">الجهاز</th>
-                      <th className="p-2">السيريال / الكمية</th>
+                      <th className="p-2">السيريال / الحالة</th>
                       <th className="p-2">الفرع</th>
+                      <th className="p-2 text-center">الكمية</th>
                       <th className="p-2">السعر المتفق عليه</th>
+                      <th className="p-2">الإجمالي</th>
                       <th className="p-2 text-center">إجراء</th>
                     </tr>
                   </thead>
@@ -1043,7 +1088,7 @@ export const ReservationsView: React.FC = () => {
                             </span>
                           ) : (
                             <Badge variant="outline" size="sm">
-                              بدون سيريال ({item.quantity} وحدات)
+                              مخزون مجمع
                             </Badge>
                           )}
                         </td>
@@ -1051,6 +1096,69 @@ export const ReservationsView: React.FC = () => {
                           <Badge variant="default" size="sm">
                             {item.branch}
                           </Badge>
+                        </td>
+                        <td className="p-2 text-center">
+                          {item.is_serialized ? (
+                            <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                              1 وحدة
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateReservationQuantity(
+                                      item.device_id,
+                                      String(Math.max(1, (Number(item.quantity) || 1) - 1)),
+                                      item.available_stock
+                                    )
+                                  }
+                                  className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                  disabled={Number(item.quantity) <= 1}
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={item.available_stock}
+                                  value={item.quantity}
+                                  onChange={e =>
+                                    handleUpdateReservationQuantity(item.device_id, e.target.value, item.available_stock)
+                                  }
+                                  className="w-14 h-7 text-center font-mono font-bold text-xs rounded border border-slate-300 bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateReservationQuantity(
+                                      item.device_id,
+                                      String(Math.min(item.available_stock, (Number(item.quantity) || 1) + 1)),
+                                      item.available_stock
+                                    )
+                                  }
+                                  className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                  disabled={Number(item.quantity) >= item.available_stock}
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                من أصل {item.available_stock}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={item.agreed_price}
+                            onChange={e => handleUpdateReservationPrice(item.device_id, e.target.value)}
+                            className="w-20 h-7 text-center font-mono font-bold text-xs rounded border border-slate-300 bg-white"
+                          />
                         </td>
                         <td className="p-2 font-mono font-bold text-slate-900">
                           {formatCurrency(item.total_agreed_price)}

@@ -1,5 +1,8 @@
 import type { MSSCatalogModel, MSSCategory } from './mssCatalog';
 
+export type { MSSCatalogModel };
+export type MSSModel = MSSCatalogModel;
+
 export type MSSDeviceStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD' | 'MAINTENANCE' | 'RETURNED';
 
 export type MSSStockLocation = 'محل 1' | 'محل 2';

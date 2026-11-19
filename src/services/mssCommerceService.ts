@@ -623,8 +623,26 @@ export const mssCommerceService = {
         }
       }
 
-      const isBulk = !device.is_serialized || (device.quantity && device.quantity > 1);
-      const reqQuantity = isBulk ? Math.max(1, Math.floor(item.quantity || 1)) : 1;
+      const isBulk = !device.is_serialized || Boolean(device.quantity && device.quantity > 1);
+      let reqQuantity = 1;
+      if (isBulk) {
+        if (item.quantity === undefined || item.quantity === null) {
+          reqQuantity = 1;
+        } else {
+          const rawQ = typeof item.quantity === 'string' && (item.quantity as string).trim() === '' ? NaN : Number(item.quantity);
+          if (isNaN(rawQ) || rawQ <= 0 || !Number.isInteger(rawQ)) {
+            throw new Error(
+              `كمية الموديل (${device.model_name || ''}) غير صالحة (${item.quantity}). يجب إدخال عدد صحيح موجب أكبر من الصفر وبدون كسور.`
+            );
+          }
+          reqQuantity = rawQ;
+        }
+      } else {
+        if (item.quantity !== undefined && item.quantity !== null && Number(item.quantity) !== 1) {
+          throw new Error('الأجهزة المسلسلة تباع كوحدة واحدة فقط لكل سيريال.');
+        }
+        reqQuantity = 1;
+      }
       const availableQty = device.quantity && device.quantity > 0 ? device.quantity : 1;
 
       if (reqQuantity > availableQty) {
@@ -1527,8 +1545,26 @@ export const mssCommerceService = {
         throw new Error(`الجهاز ${sDesc} محجوز مسبقاً لعميل آخر.`);
       }
 
-      const isBulk = !device.is_serialized || (device.quantity && device.quantity > 1);
-      const reqQty = isBulk ? Math.max(1, Math.floor(item.quantity || 1)) : 1;
+      const isBulk = !device.is_serialized || Boolean(device.quantity && device.quantity > 1);
+      let reqQty = 1;
+      if (isBulk) {
+        if (item.quantity === undefined || item.quantity === null) {
+          reqQty = 1;
+        } else {
+          const rawQ = typeof item.quantity === 'string' && (item.quantity as string).trim() === '' ? NaN : Number(item.quantity);
+          if (isNaN(rawQ) || rawQ <= 0 || !Number.isInteger(rawQ)) {
+            throw new Error(
+              `الكمية المطلوب حجزها للموديل (${device.model_name || ''}) غير صالحة (${item.quantity}). يجب إدخال عدد صحيح موجب أكبر من الصفر وبدون كسور.`
+            );
+          }
+          reqQty = rawQ;
+        }
+      } else {
+        if (item.quantity !== undefined && item.quantity !== null && Number(item.quantity) !== 1) {
+          throw new Error('الأجهزة المسلسلة تحجز كوحدة واحدة فقط لكل سيريال.');
+        }
+        reqQty = 1;
+      }
       const availQty = device.quantity && device.quantity > 0 ? device.quantity : 1;
 
       if (reqQty > availQty) {
@@ -1721,9 +1757,24 @@ export const mssCommerceService = {
         if (!it.device_id) throw new Error('معرف الجهاز مطلوب لكل عنصر');
         const dev = await mssInventoryService.getDeviceById(it.device_id);
         if (!dev) throw new Error(`الجهاز المعرف بـ ${it.device_id} غير موجود بالمخزون`);
+        const isBulk = !dev.is_serialized || Boolean(dev.quantity && dev.quantity > 1);
+        let validQty = 1;
+        if (isBulk) {
+          if (it.quantity === undefined || it.quantity === null) {
+            validQty = 1;
+          } else {
+            const rawQ = typeof it.quantity === 'string' && (it.quantity as string).trim() === '' ? NaN : Number(it.quantity);
+            if (isNaN(rawQ) || rawQ <= 0 || !Number.isInteger(rawQ)) {
+              throw new Error(`كمية الحجز للموديل (${dev.model_name || ''}) غير صالحة. يجب إدخال عدد صحيح موجب.`);
+            }
+            validQty = rawQ;
+          }
+        } else {
+          validQty = 1;
+        }
         processedItems.push({
           device: dev,
-          quantity: it.quantity || 1,
+          quantity: validQty,
           agreedPrice: it.agreed_price,
           depositAmount: it.deposit_amount || 0,
           sourceBranch: it.source_branch || dev.stock_location,

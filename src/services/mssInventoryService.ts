@@ -143,7 +143,7 @@ function getCachedDevices(): MSSDevice[] {
       return INITIAL_SEED_DEVICES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_SEED_DEVICES;
+    return Array.isArray(parsed) ? parsed : INITIAL_SEED_DEVICES;
   } catch {
     return INITIAL_SEED_DEVICES;
   }

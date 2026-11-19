@@ -34,6 +34,7 @@ import { MovementsView } from '../placeholders/mss/MovementsView';
 import { MSSStoresView } from '../placeholders/mss/MSSStoresView';
 import { MSSAuditLogView } from '../placeholders/mss/MSSAuditLogView';
 import { MSSReportsView } from '../placeholders/mss/MSSReportsView';
+import { MSSDeviceReportsView } from '../placeholders/mss/MSSDeviceReportsView';
 import { SyncStatusView } from '../placeholders/mss/SyncStatusView';
 
 export const AppShell: React.FC = () => {
@@ -92,6 +93,8 @@ export const AppShell: React.FC = () => {
           return <MSSAuditLogView />;
         case 'reports':
           return <MSSReportsView />;
+        case 'device-reports':
+          return <MSSDeviceReportsView />;
         case 'sync':
           return <SyncStatusView />;
         default:

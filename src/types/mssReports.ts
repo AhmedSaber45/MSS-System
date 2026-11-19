@@ -105,3 +105,40 @@ export interface ModelStockQuantitySummary {
     existing_non_serialized: number;
   }>;
 }
+
+export interface WholesaleExportOptions {
+  includePrices: boolean;
+  includeQuantity: boolean;
+  includeSerialNumbers: boolean;
+  includeStatus?: boolean;
+  includeBranch?: boolean;
+  branch?: 'ALL' | 'محل 1' | 'محل 2';
+  branchFilter?: string;
+  selectedDeviceIds?: string[];
+  selectedModelIds?: string[];
+  selectedBrands?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  priceSortOrder?: 'asc' | 'desc';
+}
+
+export interface WholesaleExportRow {
+  brand?: string;
+  model_name?: string;
+  brand_and_model?: string;
+  category: string;
+  processor: string;
+  ram: string;
+  storage: string;
+  gpu: string;
+  screen?: string;
+  screen_size?: string;
+  screen_resolution?: string;
+  screen_type?: string;
+  physical_condition: string;
+  stock_location?: string;
+  serial_number?: string;
+  quantity?: number;
+  price?: number;
+  [key: string]: any;
+}
