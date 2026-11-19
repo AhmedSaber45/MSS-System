@@ -715,6 +715,7 @@ export const ReturnsView: React.FC = () => {
             columns={columns}
             data={returnsList}
             keyExtractor={(item: ReturnRecord) => item.id}
+            pagination={{ pageSize: 9 }}
           />
         )}
       </div>

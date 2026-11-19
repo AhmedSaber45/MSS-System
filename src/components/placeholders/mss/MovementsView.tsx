@@ -4,6 +4,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select } from '@/components/common/Select';
 import { Table, Column } from '@/components/common/Table';
+import { Pagination } from '@/components/common/Pagination';
 import { Badge } from '@/components/common/Badge';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
@@ -280,6 +281,29 @@ export const MovementsView: React.FC = () => {
     });
   }, [movements, locationFilter, dateFilter.startDate, dateFilter.endDate, searchQuery]);
 
+  // Pagination states
+  const [transfersPage, setTransfersPage] = useState<number>(1);
+  const [movementsPage, setMovementsPage] = useState<number>(1);
+
+  useEffect(() => {
+    setTransfersPage(1);
+    setMovementsPage(1);
+  }, [searchQuery, locationFilter, dateFilter.startDate, dateFilter.endDate]);
+
+  const pagedTransfers = useMemo(() => {
+    const total = filteredTransfers.length;
+    const maxPage = Math.max(1, Math.ceil(total / 9));
+    const safePage = Math.min(transfersPage, maxPage);
+    return filteredTransfers.slice((safePage - 1) * 9, safePage * 9);
+  }, [filteredTransfers, transfersPage]);
+
+  const pagedMovements = useMemo(() => {
+    const total = filteredMovements.length;
+    const maxPage = Math.max(1, Math.ceil(total / 9));
+    const safePage = Math.min(movementsPage, maxPage);
+    return filteredMovements.slice((safePage - 1) * 9, safePage * 9);
+  }, [filteredMovements, movementsPage]);
+
   // Source devices for Wizard Step 2
   const wizardSourceDevices = useMemo(() => {
     return availableDevices.filter(d => d.stock_location === wizardSource);
@@ -465,75 +489,83 @@ export const MovementsView: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="py-3 px-3.5">الرقم المرجعي</th>
-                    <th className="py-3 px-3.5">من الموقع (المصدر)</th>
-                    <th className="py-3 px-3.5">إلى الموقع (الوجهة)</th>
-                    <th className="py-3 px-3.5 text-center">عدد الأجهزة</th>
-                    <th className="py-3 px-3.5">إجمالي التكلفة</th>
-                    <th className="py-3 px-3.5">التاريخ والوقت</th>
-                    <th className="py-3 px-3.5">الحالة</th>
-                    <th className="py-3 px-3.5 text-center">الإجراء</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredTransfers.map(trf => (
-                    <tr key={trf.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-3.5">
-                        <span className="font-mono font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                          {trf.referenceNumber}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-3.5">
-                        <span className="font-bold text-slate-800">{trf.sourceLocation}</span>
-                      </td>
-
-                      <td className="py-3 px-3.5">
-                        <span className="font-bold text-slate-800">{trf.destinationLocation}</span>
-                      </td>
-
-                      <td className="py-3 px-3.5 text-center font-mono font-bold text-slate-900">
-                        {trf.itemCount} جهاز
-                      </td>
-
-                      <td className="py-3 px-3.5 font-mono font-bold text-slate-900 tabular-nums">
-                        {formatCurrency(trf.totalCost)}
-                      </td>
-
-                      <td className="py-3 px-3.5 font-mono text-slate-600 text-[11px]" dir="ltr">
-                        {formatDate(trf.createdAt)}
-                      </td>
-
-                      <td className="py-3 px-3.5">
-                        <Badge
-                          variant={trf.status === 'COMPLETED' ? 'success' : 'warning'}
-                          size="sm"
-                          className="font-semibold"
-                        >
-                          {trf.status === 'COMPLETED' ? 'مكتمل بنجاح' : trf.status}
-                        </Badge>
-                      </td>
-
-                      <td className="py-3 px-3.5 text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenTransferDetails(trf)}
-                          leftIcon={<Eye className="w-3.5 h-3.5" />}
-                          className="text-[11px]"
-                        >
-                          عرض الإيصال
-                        </Button>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3.5">الرقم المرجعي</th>
+                      <th className="py-3 px-3.5">من الموقع (المصدر)</th>
+                      <th className="py-3 px-3.5">إلى الموقع (الوجهة)</th>
+                      <th className="py-3 px-3.5 text-center">عدد الأجهزة</th>
+                      <th className="py-3 px-3.5">إجمالي التكلفة</th>
+                      <th className="py-3 px-3.5">التاريخ والوقت</th>
+                      <th className="py-3 px-3.5">الحالة</th>
+                      <th className="py-3 px-3.5 text-center">الإجراء</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {pagedTransfers.map(trf => (
+                      <tr key={trf.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3.5">
+                          <span className="font-mono font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            {trf.referenceNumber}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3.5">
+                          <span className="font-bold text-slate-800">{trf.sourceLocation}</span>
+                        </td>
+
+                        <td className="py-3 px-3.5">
+                          <span className="font-bold text-slate-800">{trf.destinationLocation}</span>
+                        </td>
+
+                        <td className="py-3 px-3.5 text-center font-mono font-bold text-slate-900">
+                          {trf.itemCount} جهاز
+                        </td>
+
+                        <td className="py-3 px-3.5 font-mono font-bold text-slate-900 tabular-nums">
+                          {formatCurrency(trf.totalCost)}
+                        </td>
+
+                        <td className="py-3 px-3.5 font-mono text-slate-600 text-[11px]" dir="ltr">
+                          {formatDate(trf.createdAt)}
+                        </td>
+
+                        <td className="py-3 px-3.5">
+                          <Badge
+                            variant={trf.status === 'COMPLETED' ? 'success' : 'warning'}
+                            size="sm"
+                            className="font-semibold"
+                          >
+                            {trf.status === 'COMPLETED' ? 'مكتمل بنجاح' : trf.status}
+                          </Badge>
+                        </td>
+
+                        <td className="py-3 px-3.5 text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenTransferDetails(trf)}
+                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                            className="text-[11px]"
+                          >
+                            عرض الإيصال
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={transfersPage}
+                totalItems={filteredTransfers.length}
+                pageSize={9}
+                onPageChange={setTransfersPage}
+              />
+            </>
           )}
         </Card>
       )}
@@ -544,40 +576,48 @@ export const MovementsView: React.FC = () => {
           {filteredMovements.length === 0 ? (
             <div className="p-8 text-center text-slate-500">لا توجد حركات مطابقة</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="py-3 px-3.5">السيريال والموديل</th>
-                    <th className="py-3 px-3.5">الموقع السابق</th>
-                    <th className="py-3 px-3.5">الموقع الحالي</th>
-                    <th className="py-3 px-3.5">تاريخ النقل</th>
-                    <th className="py-3 px-3.5">البيان والسبب</th>
-                    <th className="py-3 px-3.5">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredMovements.map(m => (
-                    <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-3.5">
-                        <span className="font-mono font-bold text-slate-900 block">{m.serial_number || 'بدون سيريال'}</span>
-                        {m.model_name && <span className="text-[11px] text-slate-500">{m.brand} {m.model_name}</span>}
-                      </td>
-
-                      <td className="py-3 px-3.5 font-bold text-slate-700">{m.from_location}</td>
-                      <td className="py-3 px-3.5 font-bold text-emerald-800">{m.to_location}</td>
-                      <td className="py-3 px-3.5 font-mono text-slate-600 text-[11px]" dir="ltr">
-                        {formatDate(m.movement_date)}
-                      </td>
-                      <td className="py-3 px-3.5 text-slate-700">{m.notes || 'نقل مادي بين المقرات'}</td>
-                      <td className="py-3 px-3.5">
-                        <Badge variant="success" size="sm">مكتمل</Badge>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3.5">السيريال والموديل</th>
+                      <th className="py-3 px-3.5">الموقع السابق</th>
+                      <th className="py-3 px-3.5">الموقع الحالي</th>
+                      <th className="py-3 px-3.5">تاريخ النقل</th>
+                      <th className="py-3 px-3.5">البيان والسبب</th>
+                      <th className="py-3 px-3.5">الحالة</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {pagedMovements.map(m => (
+                      <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3.5">
+                          <span className="font-mono font-bold text-slate-900 block">{m.serial_number || 'بدون سيريال'}</span>
+                          {m.model_name && <span className="text-[11px] text-slate-500">{m.brand} {m.model_name}</span>}
+                        </td>
+
+                        <td className="py-3 px-3.5 font-bold text-slate-700">{m.from_location}</td>
+                        <td className="py-3 px-3.5 font-bold text-emerald-800">{m.to_location}</td>
+                        <td className="py-3 px-3.5 font-mono text-slate-600 text-[11px]" dir="ltr">
+                          {formatDate(m.movement_date)}
+                        </td>
+                        <td className="py-3 px-3.5 text-slate-700">{m.notes || 'نقل مادي بين المقرات'}</td>
+                        <td className="py-3 px-3.5">
+                          <Badge variant="success" size="sm">مكتمل</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={movementsPage}
+                totalItems={filteredMovements.length}
+                pageSize={9}
+                onPageChange={setMovementsPage}
+              />
+            </>
           )}
         </Card>
       )}

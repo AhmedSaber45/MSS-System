@@ -7,6 +7,7 @@ import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
+import { Pagination } from '@/components/common/Pagination';
 import {
   Plus,
   Search,
@@ -82,6 +83,20 @@ export const CatalogView: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset pagination on search or category filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  const pagedModels = useMemo(() => {
+    const total = models.length;
+    const maxPage = Math.max(1, Math.ceil(total / 9));
+    const safePage = Math.min(currentPage, maxPage);
+    return models.slice((safePage - 1) * 9, safePage * 9);
+  }, [models, currentPage]);
 
   // Open modal for new model
   const handleOpenAddModal = () => {
@@ -302,7 +317,7 @@ export const CatalogView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {models.map(m => {
+                {pagedModels.map(m => {
                   const avail = availability[m.id] || {
                     available_shop1: 0,
                     available_shop2: 0,
@@ -409,7 +424,7 @@ export const CatalogView: React.FC = () => {
       ) : (
         /* CARDS VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {models.map(m => {
+          {pagedModels.map(m => {
             const avail = availability[m.id] || {
               available_shop1: 0,
               available_shop2: 0,
@@ -509,6 +524,18 @@ export const CatalogView: React.FC = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {models.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-300 p-2 shadow-2xs">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={models.length}
+            pageSize={9}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
+import { mssCatalogService } from './mssCatalogService.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
 import {
   roundMoney,
@@ -16,6 +17,8 @@ import type {
   LocationStockValuation,
   CategoryBreakdown,
   DailyMSSSummary,
+  SoldLaptopsByModelWarehouseItem,
+  SoldLaptopsReport,
 } from '../types/mssReports.ts';
 
 export const mssReportsService = {
@@ -404,6 +407,128 @@ export const mssReportsService = {
       overdueCount,
       paidCount,
       debtors,
+    };
+  },
+
+  /**
+   * Sold Laptops by Model and Warehouse Report (Requirement 2)
+   * Attributes sales based on authoritative source branch of the invoice line item.
+   * Excludes returned invoices (is_returned = true).
+   * Does NOT count reservations as sales.
+   */
+  async getSoldLaptopsByModelReport(options?: {
+    warehouse?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<SoldLaptopsReport> {
+    const { warehouse = 'ALL', startDate, endDate } = options || {};
+    const dateVal = validateDateRange(startDate, endDate);
+    const invoices = await mssCommerceService.getInvoices({
+      startDate: dateVal.sanitizedStart,
+      endDate: dateVal.sanitizedEnd,
+    });
+
+    // Only active, non-returned completed invoices
+    const activeInvoices = invoices.filter(inv => !inv.is_returned);
+
+    const models = await mssCatalogService.getModels();
+    const modelMap = new Map(models.map(m => [m.id, m]));
+
+    // Map: model_id -> SoldLaptopsByModelWarehouseItem
+    const itemMap = new Map<string, SoldLaptopsByModelWarehouseItem>();
+    const warehouseTotals: Record<string, number> = {
+      'محل 1': 0,
+      'محل 2': 0,
+    };
+    let totalSoldUnits = 0;
+    let totalRevenue = 0;
+
+    for (const inv of activeInvoices) {
+      const items = Array.isArray(inv.items) && inv.items.length > 0
+        ? inv.items
+        : [{
+            device_id: inv.device_id,
+            model_id: inv.model_id,
+            serial_number: inv.serial_number,
+            quantity: 1,
+            actual_sale_price: inv.actual_sale_price,
+            source_branch: inv.source_branch || inv.selling_branch,
+            brand: inv.brand,
+            model_name: inv.model_name,
+            category: inv.category,
+          }];
+
+      for (const it of items) {
+        // Authoritative warehouse from transaction line item
+        const itemWarehouse = it.source_branch || inv.source_branch || inv.selling_branch || 'محل 1';
+
+        // Filter by warehouse if a specific warehouse was chosen
+        if (warehouse !== 'ALL' && itemWarehouse !== warehouse) {
+          continue;
+        }
+
+        const modelId = it.model_id || inv.model_id || 'unknown';
+        const model = modelMap.get(modelId);
+        const brand = model?.brand || it.brand || inv.brand || 'غير محدد';
+        const modelName = model?.model_name || it.model_name || inv.model_name || 'موديل غير محدد';
+        const category = model?.category || it.category || inv.category || 'لابتوب';
+        const modelCode = (model as any)?.model_code || '';
+
+        const qty = Number(it.quantity) || 1;
+        const rev = Number(it.actual_sale_price) || 0;
+
+        if (!itemMap.has(modelId)) {
+          itemMap.set(modelId, {
+            model_id: modelId,
+            brand,
+            model_name: modelName,
+            category,
+            model_code: modelCode,
+            warehouse_breakdown: {},
+            total_sold_units: 0,
+            total_revenue: 0,
+          });
+        }
+
+        const row = itemMap.get(modelId)!;
+        row.warehouse_breakdown[itemWarehouse] = (row.warehouse_breakdown[itemWarehouse] || 0) + qty;
+        row.total_sold_units += qty;
+        row.total_revenue += rev;
+
+        warehouseTotals[itemWarehouse] = (warehouseTotals[itemWarehouse] || 0) + qty;
+        totalSoldUnits += qty;
+        totalRevenue += rev;
+      }
+    }
+
+    const items = Array.from(itemMap.values());
+    // Sort by total sold units descending, then brand and model_name
+    items.sort(
+      (a, b) =>
+        b.total_sold_units - a.total_sold_units ||
+        a.brand.localeCompare(b.brand) ||
+        a.model_name.localeCompare(b.model_name)
+    );
+
+    const dateLabel =
+      dateVal.sanitizedStart && dateVal.sanitizedEnd
+        ? `${dateVal.sanitizedStart} إلى ${dateVal.sanitizedEnd}`
+        : dateVal.sanitizedStart
+        ? `من ${dateVal.sanitizedStart}`
+        : dateVal.sanitizedEnd
+        ? `حتى ${dateVal.sanitizedEnd}`
+        : 'كافة الفترات';
+
+    return {
+      selected_warehouse: warehouse,
+      start_date: dateVal.sanitizedStart,
+      end_date: dateVal.sanitizedEnd,
+      date_label: dateLabel,
+      generated_at: new Date().toISOString(),
+      items,
+      total_sold_units: totalSoldUnits,
+      total_revenue: totalRevenue,
+      warehouse_totals: warehouseTotals,
     };
   },
 };

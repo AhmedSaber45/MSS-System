@@ -506,7 +506,7 @@ export const InvoicesView: React.FC = () => {
           </p>
         </div>
       ) : (
-        <Table columns={columns} data={invoices} keyExtractor={(item: Invoice) => item.id} />
+        <Table columns={columns} data={invoices} keyExtractor={(item: Invoice) => item.id} pagination={{ pageSize: 9 }} />
       )}
 
       {/* Invoice Detail / Print / Collection Modal */}

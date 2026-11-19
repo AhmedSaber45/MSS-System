@@ -222,6 +222,17 @@ export interface NewMSSReservationInput {
   items?: NewMSSReservationItemInput[];
 }
 
+export interface UpdateMSSReservationInput {
+  customer_name?: string;
+  customer_phone?: string;
+  deposit_amount?: number;
+  agreed_price?: number;
+  expiry_date?: string;
+  notes?: string;
+  branch?: MSSStockLocation;
+  items?: NewMSSReservationItemInput[];
+}
+
 export interface MSSReturn {
   id: string;
   return_number: string;

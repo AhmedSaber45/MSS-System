@@ -7,6 +7,7 @@ import { Select } from '@/components/common/Select';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
+import { Pagination } from '@/components/common/Pagination';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssOperationalService } from '@/services/mssOperationalService';
@@ -117,6 +118,19 @@ export const MSSAuditLogView: React.FC = () => {
     });
   }, [logs, searchQuery, targetFilter]);
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, targetFilter]);
+
+  const pagedLogs = useMemo(() => {
+    const total = filteredLogs.length;
+    const maxPage = Math.max(1, Math.ceil(total / 9));
+    const safePage = Math.min(currentPage, maxPage);
+    return filteredLogs.slice((safePage - 1) * 9, safePage * 9);
+  }, [filteredLogs, currentPage]);
+
   return (
     <div className="space-y-5">
       {/* Page Header */}
@@ -196,7 +210,7 @@ export const MSSAuditLogView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredLogs.map(log => {
+                {pagedLogs.map(log => {
                   const badge = getEventBadge(log.eventType);
                   return (
                     <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
@@ -251,6 +265,12 @@ export const MSSAuditLogView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredLogs.length}
+            pageSize={9}
+            onPageChange={setCurrentPage}
+          />
         </Card>
       )}
 

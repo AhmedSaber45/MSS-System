@@ -601,6 +601,7 @@ export const InventoryView: React.FC = () => {
             keyExtractor={item => item.id}
             isLoading={isLoading}
             emptyMessage="لم يتم العثور على أي أصناف مطابقة"
+            pagination={{ pageSize: 9 }}
           />
         </div>
       )}
@@ -639,6 +640,7 @@ export const InventoryView: React.FC = () => {
             data={filteredMovements}
             keyExtractor={item => item.id}
             isLoading={isLoading}
+            pagination={{ pageSize: 9 }}
             emptyMessage="لا توجد حركات مخزون مسجلة"
             emptySubMessage="تظهر هنا تلقائياً كافة حركات الوارد، التسويات الجردية، والمبيعات لضمان الشفافية والرقابة."
           />

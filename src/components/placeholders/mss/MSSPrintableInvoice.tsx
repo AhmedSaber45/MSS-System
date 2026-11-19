@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { MSSInvoice, MSSInvoiceItem } from '@/types/mssCommerce';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
-import { Printer, FileText, Receipt, FileDown, X } from 'lucide-react';
+import { Printer, FileText, Receipt, FileDown, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { documentPrintService } from '@/lib/documentPrintService';
 import { useNotification } from '@/context/NotificationContext';
 
@@ -22,6 +22,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
   onClose,
 }) => {
   const { showNotification } = useNotification();
+  const [zoomScale, setZoomScale] = useState<number>(85);
 
   // Ensure line items list is always populated
   const items: MSSInvoiceItem[] =
@@ -93,8 +94,8 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
     <div className="space-y-4">
       {/* Controls Bar: A4, Thermal, Save as PDF, Print Now */}
       <div className="no-print flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-300 shadow-2xs">
-        {/* Format Selector: A4 vs Thermal Receipt */}
-        <div className="flex items-center gap-3">
+        {/* Format Selector & Zoom Controls */}
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
             <button
               type="button"
@@ -121,6 +122,58 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               <span>إيصال حراري (POS 80mm)</span>
             </button>
           </div>
+
+          {/* Zoom Controls for A4 Preview */}
+          {format === 'a4' && (
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-300">
+              <span className="text-[11px] font-semibold text-slate-500 px-1">معاينة:</span>
+              <button
+                type="button"
+                onClick={() => setZoomScale(85)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  zoomScale === 85
+                    ? 'bg-white text-blue-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="ملائمة عرض الصفحة بالكامل داخل النافذة"
+              >
+                ملائمة العرض (85%)
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomScale(100)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  zoomScale === 100
+                    ? 'bg-white text-blue-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="حجم أصلي 100%"
+              >
+                100%
+              </button>
+              <div className="flex items-center gap-0.5 border-r border-slate-300 pr-1 mr-0.5">
+                <button
+                  type="button"
+                  onClick={() => setZoomScale(prev => Math.max(65, prev - 10))}
+                  className="p-1 hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
+                  title="تصغير المعاينة"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[11px] font-mono font-bold text-slate-700 w-9 text-center tabular-nums">
+                  {zoomScale}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoomScale(prev => Math.min(130, prev + 10))}
+                  className="p-1 hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
+                  title="تكبير المعاينة"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons: Close, Save as PDF, Print Now */}
@@ -162,17 +215,29 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
       </div>
 
       {/* Printable Paper Canvas */}
-      <div className="print-container overflow-x-auto bg-slate-100/75 p-6 rounded-xl flex justify-center border border-slate-300">
+      <div className="print-container overflow-x-auto bg-slate-200/60 p-2 sm:p-4 rounded-xl flex justify-start lg:justify-center border border-slate-300">
         {format === 'a4' ? (
           /* ========================================================
              A4 STANDARD FORMAL INVOICE LAYOUT (With Signatures)
              ======================================================== */
           <div
-            id="mss-printable-invoice-a4"
-            className="print-area w-full max-w-[210mm] bg-white p-8 sm:p-12 shadow-sm border border-slate-300 rounded-sm text-slate-900 space-y-6"
-            dir="rtl"
-            style={{ minHeight: 'auto', boxSizing: 'border-box' }}
+            className="print-zoom-wrapper transition-all duration-150 origin-top shrink-0 mx-auto flex justify-center"
+            style={
+              zoomScale !== 100
+                ? {
+                    transform: `scale(${zoomScale / 100})`,
+                    transformOrigin: 'top center',
+                    marginBottom: `-${Math.round((100 - zoomScale) * 5)}px`,
+                  }
+                : undefined
+            }
           >
+            <div
+              id="mss-printable-invoice-a4"
+              className="print-area w-[210mm] min-h-[297mm] max-w-full bg-white p-8 sm:p-10 shadow-md border border-slate-300 rounded-sm text-slate-900 space-y-5"
+              dir="rtl"
+              style={{ boxSizing: 'border-box' }}
+            >
             {/* Header */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
               <div>
@@ -258,27 +323,25 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
             </div>
 
             {/* Line Items Table (Multi-Device Support) */}
-            <div className="border border-slate-300 rounded-xl overflow-hidden print:border-slate-400">
-              <table className="w-full text-sm text-right">
+            <div className="border border-slate-300 rounded-xl overflow-x-auto print:overflow-visible print:border-slate-400">
+              <table className="w-full text-xs text-right border-collapse">
                 <thead
-                  className="bg-slate-100 border-b border-slate-300 text-xs font-bold text-slate-700 print:bg-slate-100"
+                  className="bg-slate-100 border-b border-slate-300 text-[11px] font-bold text-slate-700 print:bg-slate-100"
                   style={{ display: 'table-header-group' }}
                 >
                   <tr>
-                    <th className="py-3 px-3.5 w-10 text-center">#</th>
-                    <th className="py-3 px-3.5">الجهاز والموديل / المواصفات</th>
-                    <th className="py-3 px-3.5 w-36 text-center">السيريال / الحالة</th>
-                    <th className="py-3 px-3.5 w-20 text-center">الكمية</th>
-                    <th className="py-3 px-3.5 w-28 text-left">السعر</th>
-                    <th className="py-3 px-3.5 w-24 text-left">الخصم</th>
-                    <th className="py-3 px-3.5 w-28 text-left">الإجمالي</th>
+                    <th className="py-2.5 px-2 w-7 text-center">#</th>
+                    <th className="py-2.5 px-2.5 min-w-[180px]">الجهاز والموديل / المواصفات</th>
+                    <th className="py-2.5 px-2 w-36 text-center whitespace-nowrap">السيريال / الحالة</th>
+                    <th className="py-2.5 px-1.5 text-center w-12 whitespace-nowrap">الكمية</th>
+                    <th className="py-2.5 px-2 text-left w-20 whitespace-nowrap">السعر</th>
+                    <th className="py-2.5 px-1.5 text-left w-16 whitespace-nowrap">الخصم</th>
+                    <th className="py-2.5 px-2.5 text-left w-24 whitespace-nowrap">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {items.map((item, idx) => {
-                    const specs = [item.processor, item.gpu, item.ram, item.storage, item.screen_size]
-                      .filter(Boolean)
-                      .join(' • ');
+                    const hasSpecs = Boolean(item.processor || item.gpu || item.ram || item.storage || item.screen_size);
 
                     return (
                       <tr
@@ -286,42 +349,66 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
                         className="hover:bg-slate-50/50"
                         style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                       >
-                        <td className="py-2.5 px-3.5 text-center text-slate-500 font-mono text-xs tabular-nums">
+                        <td className="py-2 px-2 text-center text-slate-500 font-mono text-xs tabular-nums">
                           {idx + 1}
                         </td>
-                        <td className="py-2.5 px-3.5 font-bold text-slate-900">
-                          <div>
-                            <span className="text-slate-900 font-bold">
+                        <td className="py-2 px-2.5 font-medium text-slate-900">
+                          <div className="space-y-1">
+                            <span className="text-slate-950 font-bold text-xs sm:text-sm block leading-snug">
                               {item.brand} {item.model_name}
                             </span>
-                            {specs && (
-                              <p className="text-[11px] text-slate-500 font-normal font-mono mt-0.5">
-                                {specs}
-                              </p>
+                            {hasSpecs && (
+                              <div className="flex flex-wrap items-center gap-1 text-[10px] leading-tight font-mono text-slate-600">
+                                {item.processor && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                    {item.processor}
+                                  </span>
+                                )}
+                                {item.gpu && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                    {item.gpu}
+                                  </span>
+                                )}
+                                {item.ram && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                    {item.ram}
+                                  </span>
+                                )}
+                                {item.storage && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                    {item.storage}
+                                  </span>
+                                )}
+                                {item.screen_size && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap font-medium">
+                                    {item.screen_size}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3.5 text-center">
+                        <td className="py-2 px-2 text-center">
                           {item.serial_number ? (
-                            <span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300 tabular-nums text-slate-800">
+                            <span className="inline-block font-mono text-[11px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 tabular-nums text-slate-800 whitespace-nowrap tracking-tight">
                               {item.serial_number}
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-500 font-medium">
+                            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
                               دفعة مخزون مجمعة
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3.5 text-center font-mono font-bold text-slate-900 tabular-nums">
+                        <td className="py-2 px-1.5 text-center font-mono font-bold text-slate-900 tabular-nums whitespace-nowrap">
                           {item.quantity || 1}
                         </td>
-                        <td className="py-2.5 px-3.5 text-left font-mono text-xs tabular-nums text-slate-700">
+                        <td className="py-2 px-2 text-left font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap">
                           {formatCurrency(item.unit_price || item.list_price_snapshot)}
                         </td>
-                        <td className="py-2.5 px-3.5 text-left font-mono text-xs tabular-nums text-rose-600">
+                        <td className="py-2 px-1.5 text-left font-mono text-xs tabular-nums text-rose-600 whitespace-nowrap">
                           {item.discount_amount > 0 ? `-${formatCurrency(item.discount_amount)}` : '0'}
                         </td>
-                        <td className="py-2.5 px-3.5 text-left font-mono font-bold text-slate-950 tabular-nums">
+                        <td className="py-2 px-2.5 text-left font-mono font-bold text-slate-950 tabular-nums whitespace-nowrap">
                           {formatCurrency(item.actual_sale_price)}
                         </td>
                       </tr>
@@ -444,6 +531,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               </div>
             </div>
           </div>
+        </div>
         ) : (
           /* ========================================================
              THERMAL RECEIPT (POS 80mm) LAYOUT (Phase 3 Requirement)

@@ -7,7 +7,7 @@ export interface ModalProps {
   onClose: () => void;
   title: string;
   subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
@@ -42,6 +42,7 @@ export const Modal: React.FC<ModalProps> = ({
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
+    '2xl': 'max-w-5xl',
     full: 'max-w-[95vw] h-[90vh]',
   };
 
@@ -77,7 +78,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
 
           {/* Body */}
-          <div className="p-6 max-h-[calc(85vh-120px)] overflow-y-auto text-slate-800 text-sm">
+          <div className="p-6 max-h-[calc(85vh-120px)] overflow-y-auto overflow-x-auto text-slate-800 text-sm">
             {children}
           </div>
 

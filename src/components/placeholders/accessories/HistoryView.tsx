@@ -234,6 +234,7 @@ export const HistoryView: React.FC = () => {
             columns={columns}
             data={logs}
             keyExtractor={(item: AuditLogEntry) => item.id}
+            pagination={{ pageSize: 9 }}
           />
         </div>
       )}

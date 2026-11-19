@@ -4,6 +4,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select } from '@/components/common/Select';
 import { Table, Column } from '@/components/common/Table';
+import { Pagination } from '@/components/common/Pagination';
 import { Badge } from '@/components/common/Badge';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
@@ -13,7 +14,7 @@ import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCatalogService } from '@/services/mssCatalogService';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { getTodayLocalDateString } from '@/lib/dateValidation';
 import type {
   MSSDevice,
@@ -25,6 +26,7 @@ import type {
   AssignSerialsInput,
   MSSModelInventorySummary,
 } from '@/types/mssInventory';
+import type { ModelStockQuantitySummary } from '@/types/mssReports';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { MSSModelModal } from './MSSModelModal';
 import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
@@ -60,6 +62,7 @@ import {
   ChevronUp,
   Barcode,
   Tag,
+  BarChart3,
 } from 'lucide-react';
 
 export const MSSInventoryView: React.FC = () => {
@@ -108,8 +111,8 @@ export const MSSInventoryView: React.FC = () => {
   // Add / Edit Form State
   const [formSerial, setFormSerial] = useState<string>('');
   const [formModelId, setFormModelId] = useState<string>('');
-  const [formCost, setFormCost] = useState<number>(0);
-  const [formListPrice, setFormListPrice] = useState<number>(0);
+  const [formCost, setFormCost] = useState<number | ''>(0);
+  const [formListPrice, setFormListPrice] = useState<number | ''>(0);
   const [formPurchaseDate, setFormPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [formCondition, setFormCondition] = useState<string>('فرز أول ممتاز');
   const [formLocation, setFormLocation] = useState<MSSStockLocation>('محل 1');
@@ -121,8 +124,11 @@ export const MSSInventoryView: React.FC = () => {
   // View Switcher (Units vs Model Summary)
   const [inventoryTab, setInventoryTab] = useState<'UNITS' | 'MODELS'>('UNITS');
   const [modelSummaries, setModelSummaries] = useState<MSSModelInventorySummary[]>([]);
+  const [crossWarehouseSummaries, setCrossWarehouseSummaries] = useState<ModelStockQuantitySummary[]>([]);
+  const [isCrossWarehouseModalOpen, setIsCrossWarehouseModalOpen] = useState<boolean>(false);
   const [modelSearchQuery, setModelSearchQuery] = useState<string>('');
   const [expandedModelKey, setExpandedModelKey] = useState<string | null>(null);
+  const [modelsPage, setModelsPage] = useState<number>(1);
 
   // Add Stock Modal Mode (Individual vs Bulk)
   const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>('INDIVIDUAL');
@@ -152,18 +158,20 @@ export const MSSInventoryView: React.FC = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [devList, modelsList, sum, stores, modSummaries] = await Promise.all([
+      const [devList, modelsList, sum, stores, modSummaries, crossSummaries] = await Promise.all([
         mssInventoryService.getDevices(),
         mssCatalogService.getModels(),
         mssInventoryService.getInventorySummary(),
         mssOperationalService.getStores({ includeArchived: false }),
         mssInventoryService.getModelInventorySummary(),
+        mssInventoryService.getModelStockQuantitySummary(),
       ]);
       setDevices(devList);
       setCatalogModels(modelsList);
       setSummary(sum);
       setSystemStores(stores);
       setModelSummaries(modSummaries);
+      setCrossWarehouseSummaries(crossSummaries);
     } catch (err: any) {
       console.error('Failed to load inventory data:', err);
       showNotification({
@@ -302,11 +310,11 @@ export const MSSInventoryView: React.FC = () => {
       setFormError('يرجى اختيار الموديل المرتبط من الكتالوج');
       return;
     }
-    if (formCost < 0) {
+    if (Number(formCost) < 0) {
       setFormError('سعر التكلفة لا يمكن أن يكون سالباً');
       return;
     }
-    if (formListPrice < 0) {
+    if (Number(formListPrice) < 0) {
       setFormError('سعر العرض لا يمكن أن يكون سالباً');
       return;
     }
@@ -391,7 +399,7 @@ export const MSSInventoryView: React.FC = () => {
     e.preventDefault();
     if (!selectedDevice || isSubmitting) return;
 
-    if (formCost < 0 || formListPrice < 0) {
+    if (Number(formCost) < 0 || Number(formListPrice) < 0) {
       setFormError('الأسعار لا يمكن أن تكون سالبة');
       return;
     }
@@ -447,6 +455,12 @@ export const MSSInventoryView: React.FC = () => {
 
     if (rawSerials.length === 0) {
       setAssignSerialsError('يرجى إدخال رقم سيريال واحد على الأقل للتعيين');
+      return;
+    }
+
+    const uniqueInput = new Set(rawSerials);
+    if (uniqueInput.size !== rawSerials.length) {
+      setAssignSerialsError('يوجد تكرار في أرقام السيريال المدخلة في نفس العملية. يرجى التأكد من أن كل سيريال فريد.');
       return;
     }
 
@@ -584,32 +598,46 @@ export const MSSInventoryView: React.FC = () => {
     }
   };
 
-  // Filtered devices
-  const filteredDevices = devices.filter(d => {
-    if (locationFilter !== 'ALL' && d.stock_location !== locationFilter) return false;
-    if (statusFilter !== 'ALL' && d.status !== statusFilter) return false;
-    if (categoryFilter !== 'ALL' && d.category !== categoryFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const matchSerial = Boolean(d.serial_number?.toLowerCase().includes(q));
-      const matchModel = d.model_name?.toLowerCase().includes(q);
-      const matchBrand = d.brand?.toLowerCase().includes(q);
-      const matchCondition = d.physical_condition?.toLowerCase().includes(q);
-      const matchNotes = d.notes?.toLowerCase().includes(q);
-      if (!matchSerial && !matchModel && !matchBrand && !matchCondition && !matchNotes) {
-        return false;
+  // Filtered devices: Sold devices are visually de-emphasized and partitioned to the bottom (Requirement 1)
+  const filteredDevices = useMemo(() => {
+    const list = devices.filter(d => {
+      if (locationFilter !== 'ALL' && d.stock_location !== locationFilter) return false;
+      if (statusFilter !== 'ALL' && d.status !== statusFilter) return false;
+      if (categoryFilter !== 'ALL' && d.category !== categoryFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matchSerial = Boolean(d.serial_number?.toLowerCase().includes(q));
+        const matchModel = d.model_name?.toLowerCase().includes(q);
+        const matchBrand = d.brand?.toLowerCase().includes(q);
+        const matchCondition = d.physical_condition?.toLowerCase().includes(q);
+        const matchNotes = d.notes?.toLowerCase().includes(q);
+        if (!matchSerial && !matchModel && !matchBrand && !matchCondition && !matchNotes) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Stable partition: non-sold first, sold at the bottom
+    const nonSold: MSSDevice[] = [];
+    const sold: MSSDevice[] = [];
+    for (const d of list) {
+      if (d.status === 'SOLD') {
+        sold.push(d);
+      } else {
+        nonSold.push(d);
       }
     }
-    return true;
-  });
+    return [...nonSold, ...sold];
+  }, [devices, locationFilter, statusFilter, categoryFilter, searchQuery]);
 
   // Filtered model summaries
   const filteredModelSummaries = useMemo(() => {
+    const q = (modelSearchQuery || searchQuery).trim().toLowerCase();
     return modelSummaries.filter(m => {
       if (locationFilter !== 'ALL' && m.branch !== locationFilter) return false;
       if (categoryFilter !== 'ALL' && m.category !== categoryFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.trim().toLowerCase();
+      if (q) {
         const matchName = m.model_name?.toLowerCase().includes(q);
         const matchBrand = m.brand?.toLowerCase().includes(q);
         const matchCode = m.model_code?.toLowerCase().includes(q);
@@ -620,7 +648,19 @@ export const MSSInventoryView: React.FC = () => {
       }
       return true;
     });
-  }, [modelSummaries, locationFilter, categoryFilter, searchQuery]);
+  }, [modelSummaries, locationFilter, categoryFilter, modelSearchQuery, searchQuery]);
+
+  // Reset models page when filters change
+  useEffect(() => {
+    setModelsPage(1);
+  }, [locationFilter, categoryFilter, modelSearchQuery, searchQuery]);
+
+  const pagedModelSummaries = useMemo(() => {
+    const total = filteredModelSummaries.length;
+    const maxPage = Math.max(1, Math.ceil(total / 9));
+    const safePage = Math.min(modelsPage, maxPage);
+    return filteredModelSummaries.slice((safePage - 1) * 9, safePage * 9);
+  }, [filteredModelSummaries, modelsPage]);
 
   // Table Columns
   const columns: Column<MSSDevice>[] = [
@@ -988,7 +1028,7 @@ export const MSSInventoryView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <span className="font-bold text-slate-700 text-xs">الفرع:</span>
                 <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
                   <button
@@ -1015,6 +1055,16 @@ export const MSSInventoryView: React.FC = () => {
                     </button>
                   ))}
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCrossWarehouseModalOpen(true)}
+                  leftIcon={<BarChart3 className="w-4 h-4 text-blue-600" />}
+                  className="border-blue-300 text-blue-900 bg-blue-50/70 hover:bg-blue-100 font-bold whitespace-nowrap text-xs shadow-2xs"
+                >
+                  ملخص كميات الموديلات الشامل (كافة الفروع)
+                </Button>
               </div>
             </div>
           </Card>
@@ -1039,15 +1089,15 @@ export const MSSInventoryView: React.FC = () => {
                     <tr>
                       <th className="p-3">الموديل والماركة</th>
                       <th className="p-3">الفرع / الموقع</th>
-                      <th className="p-3 text-center">أجهزة مسلسلة</th>
-                      <th className="p-3 text-center">كميات غير مسلسلة</th>
-                      <th className="p-3 text-center">إجمالي المتاح</th>
-                      <th className="p-3 text-center">إجمالي الوحدات</th>
+                      <th className="p-3 text-center">الموجود بالمخزون (Existing)</th>
+                      <th className="p-3 text-center">الوحدات المباعة (Sold)</th>
+                      <th className="p-3 text-center">إجمالي الوحدات (Total)</th>
+                      <th className="p-3 text-center">تفصيل المتاح</th>
                       <th className="p-3 text-center">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredModelSummaries.map(m => {
+                    {pagedModelSummaries.map(m => {
                       const rowKey = `${m.model_id}:::${m.branch}`;
                       const isExpanded = expandedModelKey === rowKey;
                       const hasNonSerialized = m.available_non_serialized > 0;
@@ -1081,33 +1131,31 @@ export const MSSInventoryView: React.FC = () => {
                             </td>
 
                             <td className="p-3 text-center">
-                              <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                                {m.available_serialized}
-                              </span>
-                            </td>
-
-                            <td className="p-3 text-center">
-                              <span className={`font-mono font-bold px-2.5 py-0.5 rounded border ${
-                                m.available_non_serialized > 0
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-slate-50 text-slate-500 border-slate-200'
-                              }`}>
-                                {m.available_non_serialized}
-                              </span>
-                            </td>
-
-                            <td className="p-3 text-center">
                               <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-full ${
-                                m.total_available > 0
+                                m.existing_units > 0
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-slate-100 text-slate-500'
                               }`}>
-                                {m.total_available}
+                                {m.existing_units}
                               </span>
                             </td>
 
-                            <td className="p-3 text-center font-mono text-slate-600">
-                              {m.total_units}
+                            <td className="p-3 text-center">
+                              <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                                {m.sold_count}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className="font-mono font-bold text-slate-900 bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded border border-blue-200">
+                                {m.total_units}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center text-[11px] text-slate-600">
+                              <span className="font-mono text-slate-800 font-semibold">{m.available_serialized} مسلسل</span>
+                              <span className="mx-1">•</span>
+                              <span className="font-mono text-amber-700 font-semibold">{m.available_non_serialized} مجمع</span>
                             </td>
 
                             <td className="p-3 text-center">
@@ -1142,13 +1190,36 @@ export const MSSInventoryView: React.FC = () => {
                             <tr>
                               <td colSpan={7} className="p-4 bg-slate-50/90 border-y border-slate-200">
                                 <div className="space-y-3">
+                                  {/* Model Stock Invariant KPI Bar */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-white rounded-lg border border-slate-200">
+                                    <div className="text-right">
+                                      <span className="text-[11px] text-slate-500 block">الموجود بالمخزون (Existing)</span>
+                                      <span className="font-mono font-bold text-sm text-emerald-800">{m.existing_units} وحدة</span>
+                                      <span className="text-[10px] text-slate-500 block">
+                                        (متاح: {m.total_available} • محجوز: {m.reserved_count} • صيانة: {m.maintenance_count})
+                                      </span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[11px] text-slate-500 block">الوحدات المباعة (Sold)</span>
+                                      <span className="font-mono font-bold text-sm text-slate-700">{m.sold_count} وحدة</span>
+                                      <span className="text-[10px] text-slate-500 block">مبيعات معتمدة لهذا الموديل</span>
+                                    </div>
+                                    <div className="text-right bg-blue-50/60 p-2 rounded border border-blue-100">
+                                      <span className="text-[11px] text-blue-900 font-semibold block">إجمالي الوحدات (Total)</span>
+                                      <span className="font-mono font-bold text-sm text-blue-900">{m.total_units} وحدة</span>
+                                      <span className="text-[10px] text-blue-700 block font-medium">
+                                        Total ({m.total_units}) = Existing ({m.existing_units}) + Sold ({m.sold_count})
+                                      </span>
+                                    </div>
+                                  </div>
+
                                   <div className="flex items-center justify-between">
                                     <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                                       <Laptop className="w-4 h-4 text-slate-500" />
                                       <span>قائمة الوحدات المسجلة لهذا الموديل في ({m.branch})</span>
                                     </h5>
                                     <span className="text-[11px] text-slate-500">
-                                      إجمالي الوحدات في الموقع: {m.devices.length}
+                                      وحدات المخزون الحالي: {m.devices.length}
                                     </span>
                                   </div>
 
@@ -1166,8 +1237,20 @@ export const MSSInventoryView: React.FC = () => {
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
-                                        {m.devices.map(dev => (
-                                          <tr key={dev.id} className="hover:bg-slate-50">
+                                        {[...m.devices]
+                                          .sort((a, b) => {
+                                            const aSold = a.status === 'SOLD' ? 1 : 0;
+                                            const bSold = b.status === 'SOLD' ? 1 : 0;
+                                            return aSold - bSold;
+                                          })
+                                          .map(dev => (
+                                          <tr
+                                            key={dev.id}
+                                            className={cn(
+                                              'hover:bg-slate-50 transition-opacity',
+                                              dev.status === 'SOLD' && 'opacity-60 bg-slate-50/80 text-slate-500'
+                                            )}
+                                          >
                                             <td className="p-2">
                                               {dev.serial_number ? (
                                                 <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
@@ -1250,6 +1333,12 @@ export const MSSInventoryView: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                currentPage={modelsPage}
+                totalItems={filteredModelSummaries.length}
+                pageSize={9}
+                onPageChange={setModelsPage}
+              />
             </div>
           )}
         </div>
@@ -1461,6 +1550,12 @@ export const MSSInventoryView: React.FC = () => {
                 columns={columns}
                 data={filteredDevices}
                 keyExtractor={(item: MSSDevice) => item.id}
+                pagination={{ pageSize: 9 }}
+                rowClassName={(item: MSSDevice) =>
+                  item.status === 'SOLD'
+                    ? 'opacity-60 bg-slate-50/80 text-slate-500 hover:bg-slate-100/80 transition-opacity'
+                    : undefined
+                }
               />
             </div>
           )}
@@ -1559,7 +1654,8 @@ export const MSSInventoryView: React.FC = () => {
                 type="number"
                 min="0"
                 value={formCost}
-                onChange={e => setFormCost(Number(e.target.value))}
+                placeholder="0.00"
+                onChange={e => setFormCost(e.target.value === '' ? '' : Number(e.target.value))}
                 required
               />
             </div>
@@ -1571,7 +1667,8 @@ export const MSSInventoryView: React.FC = () => {
                 type="number"
                 min="0"
                 value={formListPrice}
-                onChange={e => setFormListPrice(Number(e.target.value))}
+                placeholder="0.00"
+                onChange={e => setFormListPrice(e.target.value === '' ? '' : Number(e.target.value))}
                 required
               />
             </div>
@@ -2288,6 +2385,189 @@ export const MSSInventoryView: React.FC = () => {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: Cross-Warehouse Model Stock Quantity Summary (Requirement 3) */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isCrossWarehouseModalOpen}
+        onClose={() => setIsCrossWarehouseModalOpen(false)}
+        title="ملخص كميات الموديلات الشامل — كافة الفروع والمخازن"
+        subtitle="تقرير شامل يضمن تطبيق المعادلة: إجمالي الوحدات = الموجود بالمخزون + الوحدات المباعة"
+        size="xl"
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-xs text-slate-500 font-medium">
+              * يتم احتساب كافة الأجهزة المسلسلة والكميات المجمعة والمبيعات المعتمدة تلقائياً
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setIsCrossWarehouseModalOpen(false)}>
+              إغلاق
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Top KPI Metrics Banner */}
+          {(() => {
+            const grandTotal = crossWarehouseSummaries.reduce((sum, s) => sum + s.total_units, 0);
+            const grandExisting = crossWarehouseSummaries.reduce((sum, s) => sum + s.existing_units, 0);
+            const grandSold = crossWarehouseSummaries.reduce((sum, s) => sum + s.sold_units, 0);
+            const grandSerial = crossWarehouseSummaries.reduce((sum, s) => sum + s.existing_serialized, 0);
+            const grandBulk = crossWarehouseSummaries.reduce((sum, s) => sum + s.existing_non_serialized, 0);
+            const isStrictMatch = grandTotal === grandExisting + grandSold;
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-300 text-xs">
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-slate-500 block mb-0.5">الموجود بالمخزون (Existing)</span>
+                  <span className="font-mono text-base font-bold text-emerald-800">{grandExisting} وحدة</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    ({grandSerial} مسلسل • {grandBulk} مجمع)
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                  <span className="text-slate-500 block mb-0.5">الوحدات المباعة (Sold)</span>
+                  <span className="font-mono text-base font-bold text-slate-800">{grandSold} وحدة</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">مبيعات معتمدة من الفروع</span>
+                </div>
+
+                <div className="p-2.5 bg-blue-50/70 rounded-lg border border-blue-200">
+                  <span className="text-blue-900 font-bold block mb-0.5">إجمالي الوحدات (Total)</span>
+                  <span className="font-mono text-base font-bold text-blue-900">{grandTotal} وحدة</span>
+                  <span className="text-[10px] text-blue-700 block mt-0.5 font-medium">
+                    Total = Existing + Sold
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-200 flex flex-col justify-center">
+                  <span className="text-emerald-900 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>صحة المعادلة المحاسبية</span>
+                  </span>
+                  <span className="text-[11px] text-emerald-800 mt-1">
+                    {isStrictMatch ? '✓ المعادلة مطابقة 100% لكافة الموديلات' : 'تنبيه: يوجد فرق غير مطابق'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Cross Warehouse Table */}
+          <div className="border border-slate-300 rounded-xl overflow-hidden bg-white">
+            <div className="overflow-x-auto max-h-[55vh]">
+              <table className="w-full text-xs text-right border-collapse">
+                <thead className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold sticky top-0 z-10">
+                  <tr>
+                    <th className="p-2.5">#</th>
+                    <th className="p-2.5">الموديل والماركة</th>
+                    <th className="p-2.5">التصنيف</th>
+                    <th className="p-2.5 text-center bg-blue-50/40">محل 1 (موجود / مباع / إجمالي)</th>
+                    <th className="p-2.5 text-center bg-emerald-50/40">محل 2 (موجود / مباع / إجمالي)</th>
+                    <th className="p-2.5 text-center">الموجود الكلي</th>
+                    <th className="p-2.5 text-center">المباع الكلي</th>
+                    <th className="p-2.5 text-center font-bold text-blue-950">إجمالي الوحدات (Total)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {crossWarehouseSummaries.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-slate-500">
+                        لا توجد موديلات مسجلة بالمخزون حالياً
+                      </td>
+                    </tr>
+                  ) : (
+                    crossWarehouseSummaries.map((item, idx) => {
+                      const branch1 = item.warehouse_breakdown['محل 1'] || { existing_units: 0, sold_units: 0, total_units: 0 };
+                      const branch2 = item.warehouse_breakdown['محل 2'] || { existing_units: 0, sold_units: 0, total_units: 0 };
+
+                      return (
+                        <tr key={item.model_id} className="hover:bg-slate-50/80">
+                          <td className="p-2.5 text-slate-500 font-mono text-[11px]">{idx + 1}</td>
+                          <td className="p-2.5 font-bold text-slate-900">
+                            <div>
+                              <span>{item.brand} {item.model_name}</span>
+                              {item.model_code && (
+                                <span className="mr-1.5 font-mono text-[10px] text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">
+                                  {item.model_code}
+                                </span>
+                              )}
+                            </div>
+                            {item.specifications && (
+                              <p className="text-[10px] text-slate-500 font-normal truncate max-w-xs">{item.specifications}</p>
+                            )}
+                          </td>
+                          <td className="p-2.5">
+                            <Badge variant="default" size="sm" className="text-[10px]">
+                              {item.category}
+                            </Badge>
+                          </td>
+                          <td className="p-2.5 text-center font-mono text-[11px] bg-blue-50/20">
+                            <span className="text-emerald-800 font-semibold">{branch1.existing_units} موجود</span>
+                            <span className="mx-1 text-slate-400">/</span>
+                            <span className="text-slate-700 font-semibold">{branch1.sold_units} مباع</span>
+                            <span className="mx-1 text-slate-400">=</span>
+                            <span className="font-bold text-slate-900">{branch1.total_units}</span>
+                          </td>
+                          <td className="p-2.5 text-center font-mono text-[11px] bg-emerald-50/20">
+                            <span className="text-emerald-800 font-semibold">{branch2.existing_units} موجود</span>
+                            <span className="mx-1 text-slate-400">/</span>
+                            <span className="text-slate-700 font-semibold">{branch2.sold_units} مباع</span>
+                            <span className="mx-1 text-slate-400">=</span>
+                            <span className="font-bold text-slate-900">{branch2.total_units}</span>
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                              {item.existing_units}
+                            </span>
+                            <span className="block text-[9px] text-slate-500 font-mono mt-0.5">
+                              ({item.existing_serialized} مس / {item.existing_non_serialized} مج)
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-xs">
+                              {item.sold_units}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <span className="font-mono font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-300 text-xs">
+                              {item.total_units}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                {crossWarehouseSummaries.length > 0 && (
+                  <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs sticky bottom-0">
+                    <tr>
+                      <td colSpan={3} className="p-2.5 text-right">
+                        الإجمالي الكلي لكافة الموديلات والفروع ({crossWarehouseSummaries.length} موديل):
+                      </td>
+                      <td className="p-2.5 text-center font-mono">
+                        {crossWarehouseSummaries.reduce((s, it) => s + (it.warehouse_breakdown['محل 1']?.total_units || 0), 0)} وحدة
+                      </td>
+                      <td className="p-2.5 text-center font-mono">
+                        {crossWarehouseSummaries.reduce((s, it) => s + (it.warehouse_breakdown['محل 2']?.total_units || 0), 0)} وحدة
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-emerald-800">
+                        {crossWarehouseSummaries.reduce((s, it) => s + it.existing_units, 0)}
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-slate-800">
+                        {crossWarehouseSummaries.reduce((s, it) => s + it.sold_units, 0)}
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-blue-900 text-sm">
+                        {crossWarehouseSummaries.reduce((s, it) => s + it.total_units, 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

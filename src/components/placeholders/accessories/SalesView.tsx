@@ -900,6 +900,7 @@ export const SalesView: React.FC = () => {
                               min="1"
                               max={isMaintenance ? 9999 : item.product?.stock}
                               value={item.quantity}
+                              onFocus={e => e.currentTarget.select()}
                               onChange={e => handleUpdateQuantity(itemId, parseInt(e.target.value, 10) || 1)}
                               className="w-12 text-center font-bold font-mono text-sm bg-transparent focus:outline-none tabular-nums"
                             />
@@ -921,6 +922,7 @@ export const SalesView: React.FC = () => {
                               max={isMaintenance ? (item.price || 0) : item.product?.price}
                               value={item.discount || ''}
                               placeholder="خصم"
+                              onFocus={e => e.currentTarget.select()}
                               onChange={e => handleUpdateItemDiscount(itemId, parseFloat(e.target.value) || 0)}
                               className="w-full text-center text-xs font-semibold py-1.5 px-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-slate-800 font-mono tabular-nums"
                               title="خصم على البند"

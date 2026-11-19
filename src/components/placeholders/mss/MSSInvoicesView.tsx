@@ -515,6 +515,7 @@ export const MSSInvoicesView: React.FC = () => {
             columns={columns}
             data={filteredInvoices}
             keyExtractor={(item: MSSInvoice) => item.id}
+            pagination={{ pageSize: 9 }}
           />
         </div>
       )}
@@ -532,7 +533,7 @@ export const MSSInvoicesView: React.FC = () => {
               : ` (${selectedInvoice.brand || ''} ${selectedInvoice.model_name})`
           }`}
           subtitle={`التاريخ: ${formatDate(selectedInvoice.sale_date)} • الفرع: ${selectedInvoice.selling_branch}`}
-          size="xl"
+          size="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
               <Button

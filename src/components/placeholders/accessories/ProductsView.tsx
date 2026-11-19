@@ -602,6 +602,7 @@ export const ProductsView: React.FC = () => {
         data={filteredProducts}
         keyExtractor={item => item.id}
         isLoading={isLoading}
+        pagination={{ pageSize: 9 }}
         onRowClick={item => handleOpenViewModal(item)}
         emptyMessage="لم يتم العثور على أصناف مطابقة"
         emptySubMessage="تأكد من كتابة الكلمات بشكل صحيح أو قم بإضافة أصناف جديدة إلى قاعدة البيانات."

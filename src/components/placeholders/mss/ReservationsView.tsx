@@ -39,12 +39,13 @@ import {
   Trash2,
   Layers,
   Laptop,
+  Pencil,
 } from 'lucide-react';
 
 export interface ReservationModalItem {
   id: string;
   device_id: string;
-  device: MSSDevice;
+  device?: MSSDevice;
   is_serialized: boolean;
   serial_number?: string | null;
   model_name: string;
@@ -68,18 +69,19 @@ export const ReservationsView: React.FC = () => {
   const [branchFilter, setBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
   const dateFilter = useDateRangeFilter();
 
-  // New Reservation Modal State (Multi-Device Support)
+  // New/Edit Reservation Modal State (Multi-Device Support)
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [editingReservation, setEditingReservation] = useState<MSSReservation | null>(null);
   const [reservationItems, setReservationItems] = useState<ReservationModalItem[]>([]);
   const [pendingDevice, setPendingDevice] = useState<MSSDevice | null>(null);
   const [pendingQuantity, setPendingQuantity] = useState<number>(1);
-  const [pendingAgreedPrice, setPendingAgreedPrice] = useState<number>(0);
+  const [pendingAgreedPrice, setPendingAgreedPrice] = useState<number | ''>(0);
   const [itemError, setItemError] = useState<string>('');
 
   const [branch, setBranch] = useState<MSSStockLocation>('محل 1');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
-  const [depositAmount, setDepositAmount] = useState<number>(500);
+  const [depositAmount, setDepositAmount] = useState<number | ''>(500);
   const [expiryDate, setExpiryDate] = useState<string>(
     new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
   );
@@ -119,7 +121,7 @@ export const ReservationsView: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Open Add Modal
+  // Open Add Modal (Starts with empty items list and no pre-selected device)
   const handleOpenAdd = () => {
     if (availableDevices.length === 0) {
       showNotification({
@@ -130,12 +132,12 @@ export const ReservationsView: React.FC = () => {
       return;
     }
 
-    const first = availableDevices[0];
-    setPendingDevice(first);
-    setPendingQuantity(1);
-    setPendingAgreedPrice(first.list_price);
+    setEditingReservation(null);
     setReservationItems([]);
-    setBranch(first.stock_location);
+    setPendingDevice(null);
+    setPendingQuantity(1);
+    setPendingAgreedPrice(0);
+    setBranch('محل 1');
     setDepositAmount(500);
     setCustomerName('');
     setCustomerPhone('');
@@ -143,6 +145,59 @@ export const ReservationsView: React.FC = () => {
     setNotes('حجز مؤقت مع عربون');
     setFormError('');
     setItemError('');
+    setIsAddModalOpen(true);
+  };
+
+  // Open Edit Modal for existing reservation (Loads actual saved items)
+  const handleOpenEdit = (res: MSSReservation) => {
+    setEditingReservation(res);
+    setBranch(res.branch);
+    setCustomerName(res.customer_name);
+    setCustomerPhone(res.customer_phone);
+    setDepositAmount(res.deposit_amount);
+    setExpiryDate(res.expiry_date);
+    setNotes(res.notes || '');
+    setPendingDevice(null);
+    setPendingQuantity(1);
+    setPendingAgreedPrice(0);
+    setFormError('');
+    setItemError('');
+
+    // Load actual saved items
+    if (res.items && res.items.length > 0) {
+      const mappedItems: ReservationModalItem[] = res.items.map(it => ({
+        id: it.id,
+        device_id: it.device_id || it.id,
+        device: undefined,
+        is_serialized: it.is_serialized ?? Boolean(it.serial_number),
+        serial_number: it.serial_number,
+        model_name: it.model_name || 'جهاز محجوز',
+        brand: it.brand || '',
+        quantity: it.quantity,
+        available_stock: it.quantity,
+        agreed_price: (it.agreed_price || 0) / (it.quantity || 1),
+        total_agreed_price: it.agreed_price,
+        branch: it.source_branch || res.branch,
+      }));
+      setReservationItems(mappedItems);
+    } else {
+      const singleItem: ReservationModalItem = {
+        id: 'res-item-' + res.id,
+        device_id: res.device_id,
+        device: undefined,
+        is_serialized: Boolean(res.serial_number),
+        serial_number: res.serial_number,
+        model_name: res.model_name || 'جهاز محجوز',
+        brand: res.brand || '',
+        quantity: 1,
+        available_stock: 1,
+        agreed_price: res.agreed_price,
+        total_agreed_price: res.agreed_price,
+        branch: res.branch,
+      };
+      setReservationItems([singleItem]);
+    }
+
     setIsAddModalOpen(true);
   };
 
@@ -185,7 +240,8 @@ export const ReservationsView: React.FC = () => {
       return;
     }
 
-    if (pendingAgreedPrice < 0) {
+    const agreedPriceNum = Number(pendingAgreedPrice) || 0;
+    if (agreedPriceNum < 0) {
       setItemError('السعر المتفق عليه لا يمكن أن يكون سالباً');
       return;
     }
@@ -197,8 +253,8 @@ export const ReservationsView: React.FC = () => {
             ? {
                 ...it,
                 quantity: it.quantity + qtyToAdd,
-                agreed_price: pendingAgreedPrice,
-                total_agreed_price: (it.quantity + qtyToAdd) * pendingAgreedPrice,
+                agreed_price: agreedPriceNum,
+                total_agreed_price: (it.quantity + qtyToAdd) * agreedPriceNum,
               }
             : it
         )
@@ -214,13 +270,16 @@ export const ReservationsView: React.FC = () => {
         brand: pendingDevice.brand,
         quantity: qtyToAdd,
         available_stock: availableStock,
-        agreed_price: pendingAgreedPrice,
-        total_agreed_price: qtyToAdd * pendingAgreedPrice,
+        agreed_price: agreedPriceNum,
+        total_agreed_price: qtyToAdd * agreedPriceNum,
         branch: pendingDevice.stock_location,
       };
       setReservationItems(prev => [...prev, newItem]);
     }
 
+    setPendingDevice(null);
+    setPendingQuantity(1);
+    setPendingAgreedPrice(0);
     setItemError('');
     showNotification({
       type: 'success',
@@ -237,13 +296,13 @@ export const ReservationsView: React.FC = () => {
   // Total agreed price for all items in reservation
   const totalAgreedPrice = reservationItems.reduce((sum, it) => sum + it.total_agreed_price, 0);
 
-  // Save new reservation
+  // Save new or edited reservation
   const handleSaveAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
     if (reservationItems.length === 0) {
-      setFormError('يرجى إضافة جهاز واحد على الأقل إلى الحجز');
+      setFormError('يرجى إضافة جهاز واحد على الأقل للحجز قبل التأكيد');
       return;
     }
     if (!customerName.trim()) {
@@ -254,7 +313,7 @@ export const ReservationsView: React.FC = () => {
       setFormError('رقم هاتف العميل مطلوب');
       return;
     }
-    if (depositAmount < 0) {
+    if (Number(depositAmount) < 0) {
       setFormError('مبلغ العربون لا يمكن أن يكون سالباً');
       return;
     }
@@ -274,29 +333,49 @@ export const ReservationsView: React.FC = () => {
         source_branch: it.branch,
       }));
 
-      const firstItem = reservationItems[0];
-      const res = await mssCommerceService.createReservation({
-        device_id: firstItem.device_id,
-        branch,
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        deposit_amount: Number(depositAmount),
-        agreed_price: Number(totalAgreedPrice),
-        expiry_date: expiryDate,
-        notes: notes.trim() || undefined,
-        items: itemsPayload,
-      });
+      if (editingReservation) {
+        await mssCommerceService.updateReservation(editingReservation.id, {
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim(),
+          deposit_amount: Number(depositAmount),
+          agreed_price: Number(totalAgreedPrice),
+          expiry_date: expiryDate,
+          notes: notes.trim() || undefined,
+          branch,
+          items: itemsPayload,
+        });
 
-      showNotification({
-        type: 'success',
-        title: 'تم إنشاء الحجز بنجاح',
-        message: `تم حجز (${reservationItems.length}) أجهزة للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
-      });
+        showNotification({
+          type: 'success',
+          title: 'تم تحديث الحجز بنجاح',
+          message: `تم تحديث الحجز رقم ${editingReservation.reservation_number} للعميل (${customerName.trim()})`,
+        });
+      } else {
+        const firstItem = reservationItems[0];
+        const res = await mssCommerceService.createReservation({
+          device_id: firstItem.device_id,
+          branch,
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim(),
+          deposit_amount: Number(depositAmount),
+          agreed_price: Number(totalAgreedPrice),
+          expiry_date: expiryDate,
+          notes: notes.trim() || undefined,
+          items: itemsPayload,
+        });
+
+        showNotification({
+          type: 'success',
+          title: 'تم إنشاء الحجز بنجاح',
+          message: `تم حجز (${reservationItems.length}) أجهزة للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
+        });
+      }
 
       setIsAddModalOpen(false);
+      setEditingReservation(null);
       await loadData();
     } catch (err: any) {
-      setFormError(err.message || 'فشلت عملية إنشاء الحجز');
+      setFormError(err.message || (editingReservation ? 'فشلت عملية تحديث الحجز' : 'فشلت عملية إنشاء الحجز'));
     } finally {
       setIsSubmitting(false);
     }
@@ -542,6 +621,17 @@ export const ReservationsView: React.FC = () => {
           {item.status === 'ACTIVE' && (
             <>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenEdit(item)}
+                className="h-8 px-2 text-xs font-semibold border-slate-300 hover:bg-slate-50 text-slate-700"
+                leftIcon={<Pencil className="w-3.5 h-3.5 text-blue-600" />}
+                title="تعديل بيانات الحجز"
+              >
+                تعديل
+              </Button>
+
+              <Button
                 variant="primary"
                 size="sm"
                 onClick={() => {
@@ -759,6 +849,7 @@ export const ReservationsView: React.FC = () => {
             columns={columns}
             data={filteredReservations}
             keyExtractor={(item: MSSReservation) => item.id}
+            pagination={{ pageSize: 9 }}
           />
         </div>
       )}
@@ -769,8 +860,12 @@ export const ReservationsView: React.FC = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="إنشاء حجز أجهزة جديد"
-        subtitle="حجز جهاز واحد أو عدة أجهزة لعميل مع توثيق العربون والأجهزة"
+        title={editingReservation ? `تعديل الحجز رقم ${editingReservation.reservation_number}` : 'إنشاء حجز أجهزة جديد'}
+        subtitle={
+          editingReservation
+            ? `تعديل بيانات وأجهزة حجز العميل (${editingReservation.customer_name})`
+            : 'حجز جهاز واحد أو عدة أجهزة لعميل مع توثيق العربون والأجهزة'
+        }
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -791,7 +886,11 @@ export const ReservationsView: React.FC = () => {
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4.5 h-4.5" />}
             >
               {isSubmitting
-                ? 'جاري إنشاء الحجز...'
+                ? editingReservation
+                  ? 'جاري حفظ تعديلات الحجز...'
+                  : 'جاري إنشاء الحجز...'
+                : editingReservation
+                ? `حفظ التعديلات (${reservationItems.length} أجهزة - ${formatCurrency(totalAgreedPrice)})`
                 : `تأكيد الحجز (${reservationItems.length} أجهزة - ${formatCurrency(totalAgreedPrice)})`}
             </Button>
           </div>
@@ -818,7 +917,7 @@ export const ReservationsView: React.FC = () => {
                 getSearchableText={d =>
                   `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.stock_location}`
                 }
-                placeholder="ابحث بالاسم، الموديل، الماركة أو السيريال..."
+                placeholder="اختر جهازاً لإضافته للحجز (بحث بالاسم، الموديل، السيريال)..."
                 emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
                 maxHeight="max-h-48"
                 renderItem={d => (
@@ -879,8 +978,9 @@ export const ReservationsView: React.FC = () => {
                     <Input
                       type="number"
                       min="0"
+                      placeholder="0.00"
                       value={pendingAgreedPrice}
-                      onChange={e => setPendingAgreedPrice(Number(e.target.value) || 0)}
+                      onChange={e => setPendingAgreedPrice(e.target.value === '' ? '' : Number(e.target.value))}
                       className="h-8 text-xs font-mono font-bold"
                     />
                   </div>
@@ -1001,8 +1101,9 @@ export const ReservationsView: React.FC = () => {
               label="العربون المدفوع (EGP) *"
               type="number"
               min="0"
+              placeholder="0.00"
               value={depositAmount}
-              onChange={e => setDepositAmount(Number(e.target.value))}
+              onChange={e => setDepositAmount(e.target.value === '' ? '' : Number(e.target.value))}
               required
             />
 

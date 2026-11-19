@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { X } from 'lucide-react';
 
@@ -27,10 +27,46 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       scannerReady = false,
       value,
       disabled,
+      type,
+      onFocus,
+      onBlur,
+      onChange,
       ...props
     },
     ref
   ) => {
+    const isNumberType = type === 'number';
+    const [isFocused, setIsFocused] = useState(false);
+    const [focusedText, setFocusedText] = useState<string | null>(null);
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(true);
+      setFocusedText(null);
+      if (isNumberType && (e.currentTarget.value === '0' || e.currentTarget.value === '0.00')) {
+        e.currentTarget.select();
+      }
+      onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(false);
+      setFocusedText(null);
+      onBlur?.(e);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isNumberType) {
+        setFocusedText(e.target.value);
+      }
+      onChange?.(e);
+    };
+
+    // Determine effective value: when focused in number mode, preserve what the user actually typed/cleared
+    let effectiveValue = value;
+    if (isNumberType && isFocused && focusedText !== null) {
+      effectiveValue = focusedText;
+    }
+
     return (
       <div className="w-full">
         {label && (
@@ -46,8 +82,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
           <input
             ref={ref}
-            value={value}
+            type={type}
+            value={effectiveValue}
             disabled={disabled}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onChange={handleChange}
             className={cn(
               'w-full h-10 px-3.5 bg-white border rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
               'transition-colors duration-150',

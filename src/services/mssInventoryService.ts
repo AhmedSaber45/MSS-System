@@ -16,6 +16,7 @@ import type {
   AssignSerialsInput,
   MSSModelInventorySummary,
 } from '../types/mssInventory.ts';
+import type { ModelStockQuantitySummary } from '../types/mssReports.ts';
 
 const MSS_DEVICES_CACHE_KEY = 'shop_mss_devices_cache_v1';
 const MSS_MOVEMENTS_CACHE_KEY = 'shop_mss_movements_cache_v1';
@@ -665,6 +666,42 @@ export const mssInventoryService = {
     cached.unshift(...convertedDevices);
     saveCachedDevices(cached);
 
+    // Record in inventory movement history / audit trail
+    const movements = getCachedMovements();
+    for (const dev of convertedDevices) {
+      const movId = 'mov-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+      const mov: MSSDeviceMovement = {
+        id: movId,
+        device_id: dev.id,
+        serial_number: dev.serial_number,
+        from_location: stock.stock_location,
+        to_location: stock.stock_location,
+        movement_date: now,
+        movement_status: 'COMPLETED',
+        notes: `تحويل من مخزون مجمع غير مسلسل (الدفعة: ${stock.id}) وتعيين سيريال (${dev.serial_number})`,
+        created_at: now,
+        model_name: dev.model_name,
+        brand: dev.brand,
+      };
+      movements.unshift(mov);
+
+      try {
+        await supabase.from('mss_device_movements').insert({
+          id: mov.id,
+          device_id: mov.device_id,
+          serial_number: mov.serial_number,
+          from_location: mov.from_location,
+          to_location: mov.to_location,
+          movement_date: mov.movement_date,
+          movement_status: mov.movement_status,
+          notes: mov.notes,
+        });
+      } catch {
+        // Silently handled in local cache fallback
+      }
+    }
+    saveCachedMovements(movements);
+
     // Supabase sync & logging
     try {
       for (const d of convertedDevices) {
@@ -681,7 +718,9 @@ export const mssInventoryService = {
           notes: d.notes,
         });
       }
-      if (remainingQty === 0) {
+      if (remainingQty > 0) {
+        await supabase.from('mss_devices').update({ quantity: remainingQty, updated_at: now }).eq('id', stock.id);
+      } else {
         await supabase.from('mss_devices').delete().eq('id', stock.id);
       }
     } catch (err) {
@@ -1097,7 +1136,9 @@ export const mssInventoryService = {
   },
 
   /**
-   * Model-based inventory summary grouped by model and branch context
+   * Model-based inventory summary grouped by model and branch context.
+   * Strictly guarantees: Total Units = Existing Units + Sold Units.
+   * Accounts for both serialized devices and non-serialized bulk stock (including sold bulk stock).
    */
   async getModelInventorySummary(filters?: {
     branch?: string;
@@ -1108,9 +1149,21 @@ export const mssInventoryService = {
       mssCatalogService.getModels(),
     ]);
 
-    const modelMap = new Map(models.map(m => [m.id, m]));
+    // Load active invoices dynamically to avoid circular dependencies
+    let activeInvoices: any[] = [];
+    try {
+      const { mssCommerceService } = await import('./mssCommerceService.ts');
+      const invoices = await mssCommerceService.getInvoices();
+      activeInvoices = invoices.filter(inv => !inv.is_returned);
+    } catch (e) {
+      console.warn('Could not load invoices for model summary:', e);
+    }
 
+    const modelMap = new Map(models.map(m => [m.id, m]));
     const groupMap = new Map<string, MSSModelInventorySummary>();
+
+    // Track serialized device IDs already counted as SOLD in the devices list
+    const recordedSoldDeviceIds = new Set<string>();
 
     for (const d of devices) {
       const model = modelMap.get(d.model_id);
@@ -1128,6 +1181,7 @@ export const mssInventoryService = {
           available_serialized: 0,
           available_non_serialized: 0,
           total_available: 0,
+          existing_units: 0,
           total_units: 0,
           reserved_count: 0,
           sold_count: 0,
@@ -1140,11 +1194,11 @@ export const mssInventoryService = {
       const qty = d.quantity && d.quantity > 0 ? d.quantity : 1;
       const isSer = Boolean(d.serial_number && d.is_serialized !== false);
 
-      acc.total_units += qty;
       acc.devices.push(d);
 
       if (d.status === 'AVAILABLE') {
         acc.total_available += qty;
+        acc.existing_units += qty;
         if (isSer) {
           acc.available_serialized += qty;
         } else {
@@ -1152,11 +1206,74 @@ export const mssInventoryService = {
         }
       } else if (d.status === 'RESERVED') {
         acc.reserved_count += qty;
+        acc.existing_units += qty;
       } else if (d.status === 'SOLD') {
         acc.sold_count += qty;
+        if (d.id) recordedSoldDeviceIds.add(d.id);
       } else if (d.status === 'MAINTENANCE') {
         acc.maintenance_count += qty;
+        acc.existing_units += qty;
       }
+    }
+
+    // Account for sold units from active invoices (especially non-serialized bulk stock sales)
+    for (const inv of activeInvoices) {
+      const items = (Array.isArray(inv.items) && inv.items.length > 0)
+        ? inv.items
+        : [{
+            device_id: inv.device_id,
+            model_id: inv.model_id,
+            serial_number: inv.serial_number,
+            quantity: 1,
+            source_branch: inv.source_branch || inv.selling_branch,
+            brand: inv.brand,
+            model_name: inv.model_name,
+            category: inv.category,
+          }];
+
+      for (const it of items) {
+        // Avoid duplicate counting if this physical device was already counted as SOLD in the devices table
+        if (it.device_id && recordedSoldDeviceIds.has(it.device_id)) {
+          continue;
+        }
+
+        const modelId = it.model_id || inv.model_id;
+        if (!modelId) continue;
+
+        const branch = it.source_branch || inv.source_branch || inv.selling_branch || 'محل 1';
+        const key = `${modelId}:::${branch}`;
+
+        if (!groupMap.has(key)) {
+          const model = modelMap.get(modelId);
+          groupMap.set(key, {
+            model_id: modelId,
+            model_name: model?.model_name || it.model_name || inv.model_name || 'غير محدد',
+            brand: model?.brand || it.brand || inv.brand || '',
+            model_code: (model as any)?.model_code || '',
+            category: model?.category || it.category || inv.category || 'أخرى',
+            branch,
+            available_serialized: 0,
+            available_non_serialized: 0,
+            total_available: 0,
+            existing_units: 0,
+            total_units: 0,
+            reserved_count: 0,
+            sold_count: 0,
+            maintenance_count: 0,
+            devices: [],
+          });
+        }
+
+        const acc = groupMap.get(key)!;
+        const qty = Number(it.quantity) || 1;
+        acc.sold_count += qty;
+      }
+    }
+
+    // Ensure strictly: Total Units = Existing Units + Sold Units
+    for (const acc of groupMap.values()) {
+      acc.existing_units = acc.total_available + acc.reserved_count + acc.maintenance_count;
+      acc.total_units = acc.existing_units + acc.sold_count;
     }
 
     let summaries = Array.from(groupMap.values());
@@ -1182,5 +1299,89 @@ export const mssInventoryService = {
     summaries.sort((a, b) => a.brand.localeCompare(b.brand) || a.model_name.localeCompare(b.model_name));
 
     return summaries;
+  },
+
+  /**
+   * Complete cross-warehouse Model Stock Quantity Summary.
+   * Provides: Total Units = Existing Units + Sold Units across all models and per warehouse.
+   */
+  async getModelStockQuantitySummary(filters?: {
+    branch?: string;
+    search?: string;
+  }): Promise<ModelStockQuantitySummary[]> {
+    const [summaries, models] = await Promise.all([
+      this.getModelInventorySummary({ search: filters?.search }),
+      mssCatalogService.getModels(),
+    ]);
+
+    const modelMap = new Map(models.map(m => [m.id, m]));
+    const aggregateMap = new Map<string, ModelStockQuantitySummary>();
+
+    for (const s of summaries) {
+      if (!aggregateMap.has(s.model_id)) {
+        const model = modelMap.get(s.model_id);
+        aggregateMap.set(s.model_id, {
+          model_id: s.model_id,
+          brand: s.brand,
+          model_name: s.model_name,
+          model_code: s.model_code,
+          category: s.category,
+          specifications: model?.specifications || '',
+          total_units: 0,
+          existing_units: 0,
+          sold_units: 0,
+          existing_serialized: 0,
+          existing_non_serialized: 0,
+          status_breakdown: {
+            available: 0,
+            reserved: 0,
+            maintenance: 0,
+            returned: 0,
+          },
+          warehouse_breakdown: {},
+        });
+      }
+
+      const agg = aggregateMap.get(s.model_id)!;
+      const branch = s.branch;
+
+      // Existing units for this branch
+      const branchExisting = s.existing_units;
+      const branchSold = s.sold_count;
+      const branchTotal = branchExisting + branchSold;
+
+      agg.warehouse_breakdown[branch] = {
+        existing_units: branchExisting,
+        sold_units: branchSold,
+        total_units: branchTotal,
+        existing_serialized: s.available_serialized,
+        existing_non_serialized: s.available_non_serialized,
+      };
+
+      agg.existing_units += branchExisting;
+      agg.sold_units += branchSold;
+      agg.total_units += branchTotal;
+      agg.existing_serialized += s.available_serialized;
+      agg.existing_non_serialized += s.available_non_serialized;
+
+      agg.status_breakdown.available += s.total_available;
+      agg.status_breakdown.reserved += s.reserved_count;
+      agg.status_breakdown.maintenance += s.maintenance_count;
+    }
+
+    let results = Array.from(aggregateMap.values());
+
+    // If branch filter applied, only keep items that have stock in that branch
+    if (filters?.branch && filters.branch !== 'ALL') {
+      results = results.filter(r => r.warehouse_breakdown[filters.branch!] !== undefined);
+    }
+
+    // Strictly guarantee: Total Units = Existing Units + Sold Units
+    for (const r of results) {
+      r.total_units = r.existing_units + r.sold_units;
+    }
+
+    results.sort((a, b) => a.brand.localeCompare(b.brand) || a.model_name.localeCompare(b.model_name));
+    return results;
   },
 };

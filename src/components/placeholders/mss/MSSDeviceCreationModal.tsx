@@ -45,10 +45,10 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   // Form State: Default to BULK as required
   const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>(initialMode);
   const [formSerial, setFormSerial] = useState('');
-  const [formQuantity, setFormQuantity] = useState(1);
+  const [formQuantity, setFormQuantity] = useState<number | ''>(1);
   const [formModelId, setFormModelId] = useState('');
-  const [formCost, setFormCost] = useState(0);
-  const [formListPrice, setFormListPrice] = useState(0);
+  const [formCost, setFormCost] = useState<number | ''>('');
+  const [formListPrice, setFormListPrice] = useState<number | ''>('');
   const [formPurchaseDate, setFormPurchaseDate] = useState(getTodayLocalDateString());
   const [formCondition, setFormCondition] = useState('فرز أول ممتاز');
   const [formLocation, setFormLocation] = useState<MSSStockLocation>(locationOptions[0] || 'محل 1');
@@ -81,7 +81,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
       setStockRegistrationMode(initialMode);
       setFormSerial('');
       setFormQuantity(1);
-      setFormCost(0);
+      setFormCost('');
       setFormPurchaseDate(getTodayLocalDateString());
       setFormCondition('فرز أول ممتاز');
       setFormLocation(locationOptions[0] || 'محل 1');
@@ -143,11 +143,14 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
       setFormError('يرجى اختيار الموديل المرتبط من الكتالوج أو إضافة موديل جديد');
       return;
     }
-    if (formCost < 0) {
+    const costNum = Number(formCost) || 0;
+    const listPriceNum = Number(formListPrice) || 0;
+
+    if (costNum < 0) {
       setFormError('سعر التكلفة لا يمكن أن يكون سالباً');
       return;
     }
-    if (formListPrice < 0) {
+    if (listPriceNum < 0) {
       setFormError('سعر العرض لا يمكن أن يكون سالباً');
       return;
     }
@@ -158,7 +161,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
       let createdDevice: MSSDevice;
 
       if (stockRegistrationMode === 'BULK') {
-        const qty = Math.floor(formQuantity);
+        const qty = Math.floor(Number(formQuantity) || 0);
         if (qty <= 0) {
           setFormError('يرجى إدخال كمية صحيحة أكبر من صفر');
           setIsSubmitting(false);
@@ -356,8 +359,8 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
                 min="1"
                 step="1"
                 value={formQuantity}
-                onChange={e => setFormQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                placeholder="مثال: 8 وحدات..."
+                onChange={e => setFormQuantity(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                placeholder="1"
                 required
               />
               <p className="text-[11px] text-amber-700 leading-relaxed">
@@ -393,7 +396,8 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
                 min="0"
                 step="50"
                 value={formCost}
-                onChange={e => setFormCost(Number(e.target.value))}
+                placeholder="0.00"
+                onChange={e => setFormCost(e.target.value === '' ? '' : Number(e.target.value))}
                 required
               />
             </div>
@@ -407,7 +411,8 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
                 min="0"
                 step="50"
                 value={formListPrice}
-                onChange={e => setFormListPrice(Number(e.target.value))}
+                placeholder="0.00"
+                onChange={e => setFormListPrice(e.target.value === '' ? '' : Number(e.target.value))}
                 required
               />
             </div>

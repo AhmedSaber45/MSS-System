@@ -30,6 +30,7 @@ import type {
   LocationStockValuation,
   CategoryBreakdown,
   DailyMSSSummary,
+  SoldLaptopsReport,
 } from '@/types/mssReports.ts';
 import type { ReportPeriod } from '@/types/unifiedDashboard.ts';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
@@ -52,6 +53,8 @@ export const MSSReportsView: React.FC = () => {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [dailySummaries, setDailySummaries] = useState<DailyMSSSummary[]>([]);
   const [dateLabel, setDateLabel] = useState<string>('');
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
+  const [soldLaptopsReport, setSoldLaptopsReport] = useState<SoldLaptopsReport | null>(null);
   const [receivables, setReceivables] = useState<{
     totalReceivables: number;
     totalPaidReceivables: number;
@@ -69,13 +72,14 @@ export const MSSReportsView: React.FC = () => {
       setDateLabel(dateFilter.label);
       const { startDate, endDate } = dateFilter;
 
-      const [sum, bSales, sVal, catBreak, daily, rec] = await Promise.all([
+      const [sum, bSales, sVal, catBreak, daily, rec, soldReport] = await Promise.all([
         mssReportsService.getMSSFinancialSummary(startDate, endDate),
         mssReportsService.getBranchOperationalBreakdown(startDate, endDate),
         mssReportsService.getInventoryValuationByLocation(),
         mssReportsService.getCategoryBreakdown(startDate, endDate),
         mssReportsService.getDailyMSSSummaries(14),
         mssReportsService.getMSSReceivablesReport(),
+        mssReportsService.getSoldLaptopsByModelReport({ warehouse: selectedWarehouse, startDate, endDate }),
       ]);
 
       setSummary(sum);
@@ -84,12 +88,13 @@ export const MSSReportsView: React.FC = () => {
       setCategoryBreakdown(catBreak);
       setDailySummaries(daily);
       setReceivables(rec);
+      setSoldLaptopsReport(soldReport);
     } catch (err) {
       console.warn('Failed to load MSS report data:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [period, customStart, customEnd]);
+  }, [period, customStart, customEnd, selectedWarehouse]);
 
   useEffect(() => {
     loadReportData();
@@ -102,6 +107,25 @@ export const MSSReportsView: React.FC = () => {
       format: 'report',
       orientation: 'portrait',
     });
+  };
+
+  const handlePrintSoldLaptopsReport = async () => {
+    if (!soldLaptopsReport) return;
+    await documentPrintService.printElement('mss-sold-laptops-report-print', {
+      title: `تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`,
+      format: 'report',
+      orientation: 'portrait',
+    });
+  };
+
+  const handleExportSoldLaptopsPdf = async () => {
+    if (!soldLaptopsReport) return;
+    showNotification({
+      type: 'info',
+      title: 'استخراج تقرير مبيعات الأجهزة كـ PDF',
+      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند.',
+    });
+    await handlePrintSoldLaptopsReport();
   };
 
   const handleExportPdf = async () => {
@@ -399,6 +423,247 @@ export const MSSReportsView: React.FC = () => {
             </div>
           </Card>
 
+          {/* ========================================================================= */}
+          {/* SECTION: Sold Laptops by Model and Warehouse Report (Requirement 2) */}
+          {/* ========================================================================= */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <Laptop className="w-5 h-5 text-blue-700" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    تقرير مبيعات الأجهزة حسب الموديل والمخزن (Sold Laptops by Model & Warehouse)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    تقرير معتمد لحصر الأجهزة والكميات المباعة لكل موديل وفقاً للفرع البائع الأصلي
+                  </p>
+                </div>
+              </div>
+
+              {/* Warehouse Selection & Print Actions */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+                  <button
+                    onClick={() => setSelectedWarehouse('ALL')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      selectedWarehouse === 'ALL'
+                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    كافة الفروع
+                  </button>
+                  <button
+                    onClick={() => setSelectedWarehouse('محل 1')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      selectedWarehouse === 'محل 1'
+                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    محل 1
+                  </button>
+                  <button
+                    onClick={() => setSelectedWarehouse('محل 2')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      selectedWarehouse === 'محل 2'
+                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    محل 2
+                  </button>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintSoldLaptopsReport}
+                  leftIcon={<Printer className="w-4 h-4 text-slate-700" />}
+                  className="font-bold text-xs"
+                >
+                  طباعة التقرير
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportSoldLaptopsPdf}
+                  leftIcon={<FileDown className="w-4 h-4 text-blue-700" />}
+                  className="font-bold text-xs text-blue-700 border-blue-200 bg-blue-50/50 hover:bg-blue-100"
+                >
+                  تصدير PDF
+                </Button>
+              </div>
+            </div>
+
+            {/* Sold Laptops KPI Summary Cards */}
+            {soldLaptopsReport && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    إجمالي الوحدات المباعة
+                  </span>
+                  <span className="font-mono text-xl font-bold text-slate-900 tabular-nums">
+                    {soldLaptopsReport.total_sold_units} جهاز
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    {selectedWarehouse === 'ALL' ? 'عبر كافة الفروع' : `من ${selectedWarehouse}`}
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    إجمالي إيرادات الموديلات
+                  </span>
+                  <span className="font-mono text-xl font-bold text-emerald-700 tabular-nums">
+                    {formatCurrency(soldLaptopsReport.total_revenue)}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    صافي الفواتير المعتمدة
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    مبيعات محل 1
+                  </span>
+                  <span className="font-mono text-xl font-bold text-blue-800 tabular-nums">
+                    {soldLaptopsReport.warehouse_totals['محل 1'] || 0} جهاز
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    الفرع الأول
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    مبيعات محل 2
+                  </span>
+                  <span className="font-mono text-xl font-bold text-purple-800 tabular-nums">
+                    {soldLaptopsReport.warehouse_totals['محل 2'] || 0} جهاز
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    الفرع الثاني
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Sold Laptops Table */}
+            <Card className="bg-white border-slate-300 shadow-2xs overflow-hidden">
+              <CardHeader className="py-3 px-4 bg-slate-50/90 border-b border-slate-300 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  قائمة الموديلات المباعة ({soldLaptopsReport?.items.length || 0} موديل) — {selectedWarehouse === 'ALL' ? 'كافة الفروع' : selectedWarehouse}
+                </CardTitle>
+                <span className="text-xs text-slate-500 font-medium">
+                  النطاق الزمني: <strong className="text-slate-800">{dateLabel || 'كافة الفترات'}</strong>
+                </span>
+              </CardHeader>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-right">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">#</th>
+                      <th className="py-2.5 px-3">الموديل والماركة</th>
+                      <th className="py-2.5 px-3">التصنيف</th>
+                      {selectedWarehouse === 'ALL' ? (
+                        <>
+                          <th className="py-2.5 px-3 text-center bg-blue-50/30">مبيعات محل 1</th>
+                          <th className="py-2.5 px-3 text-center bg-purple-50/30">مبيعات محل 2</th>
+                        </>
+                      ) : (
+                        <th className="py-2.5 px-3 text-center">المخزن / الفرع</th>
+                      )}
+                      <th className="py-2.5 px-3 text-center">إجمالي الوحدات المباعة</th>
+                      <th className="py-2.5 px-3 text-left">إجمالي الإيراد</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {!soldLaptopsReport || soldLaptopsReport.items.length === 0 ? (
+                      <tr>
+                        <td colSpan={selectedWarehouse === 'ALL' ? 7 : 6} className="py-8 text-center text-slate-500">
+                          لا توجد مبيعات مسجلة لأجهزة اللابتوب في هذه الفترة {selectedWarehouse !== 'ALL' ? `لهذا الفرع (${selectedWarehouse})` : ''}
+                        </td>
+                      </tr>
+                    ) : (
+                      soldLaptopsReport.items.map((it, idx) => (
+                        <tr key={it.model_id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">{idx + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900 block">{it.brand} {it.model_name}</span>
+                            {it.model_code && (
+                              <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">
+                                {it.model_code}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <Badge variant="default" size="sm" className="text-[10px]">
+                              {it.category}
+                            </Badge>
+                          </td>
+                          {selectedWarehouse === 'ALL' ? (
+                            <>
+                              <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-900 bg-blue-50/10">
+                                {it.warehouse_breakdown['محل 1'] || 0}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-mono font-bold text-purple-900 bg-purple-50/10">
+                                {it.warehouse_breakdown['محل 2'] || 0}
+                              </td>
+                            </>
+                          ) : (
+                            <td className="py-2.5 px-3 text-center">
+                              <Badge variant={selectedWarehouse === 'محل 1' ? 'primary' : 'default'} size="sm">
+                                {selectedWarehouse}
+                              </Badge>
+                            </td>
+                          )}
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 text-xs">
+                              {it.total_sold_units}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-left font-mono font-bold text-emerald-800 text-xs">
+                            {formatCurrency(it.total_revenue)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {soldLaptopsReport && soldLaptopsReport.items.length > 0 && (
+                    <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+                      <tr>
+                        <td colSpan={3} className="py-3 px-3 text-right">
+                          الإجمالي الكلي لتقرير المبيعات ({soldLaptopsReport.items.length} موديل):
+                        </td>
+                        {selectedWarehouse === 'ALL' ? (
+                          <>
+                            <td className="py-3 px-3 text-center font-mono text-blue-900">
+                              {soldLaptopsReport.warehouse_totals['محل 1'] || 0} جهاز
+                            </td>
+                            <td className="py-3 px-3 text-center font-mono text-purple-900">
+                              {soldLaptopsReport.warehouse_totals['محل 2'] || 0} جهاز
+                            </td>
+                          </>
+                        ) : (
+                          <td className="py-3 px-3 text-center font-mono">
+                            {selectedWarehouse}
+                          </td>
+                        )}
+                        <td className="py-3 px-3 text-center font-mono text-slate-950 text-sm">
+                          {soldLaptopsReport.total_sold_units} جهاز
+                        </td>
+                        <td className="py-3 px-3 text-left font-mono text-emerald-900 text-sm">
+                          {formatCurrency(soldLaptopsReport.total_revenue)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </Card>
+          </div>
+
           {/* Compu MSS Customer Receivables & Debt Collection Section */}
           {receivables && (
             <div className="space-y-4">
@@ -666,6 +931,136 @@ export const MSSReportsView: React.FC = () => {
               <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-mono">
                 <span>نظام Compu MSS — تم استخراج التقرير إلكترونياً وهو معتمد رسمياً</span>
                 <span>© 2026 Ahmed Saber. All rights reserved. • Contact: 01030137635</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hidden Sold Laptops by Model and Warehouse Report Template for Print & PDF */}
+          <div className="hidden" aria-hidden="true">
+            <div id="mss-sold-laptops-report-print" className="p-8 bg-white text-slate-900 space-y-6 max-w-[210mm] mx-auto" dir="rtl">
+              {/* Report Header */}
+              <div className="border-b-2 border-slate-900 pb-5 flex justify-between items-start">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-950 tracking-tight">Compu MSS</h1>
+                  <p className="text-base font-semibold text-slate-800 mt-1">تقرير مبيعات الأجهزة حسب الموديل والمخزن</p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    الفرع المستهدف: <span className="font-bold text-slate-900">{selectedWarehouse === 'ALL' ? 'كافة الفروع والمخازن' : selectedWarehouse}</span>
+                    <span className="mx-2">•</span>
+                    فترة التقرير: <span className="font-bold text-slate-900">{dateLabel || 'كافة الفترات'}</span>
+                  </p>
+                </div>
+                <div className="text-left font-mono text-xs text-slate-500" dir="ltr">
+                  <p className="font-bold text-slate-900">Compu MSS Sales Management</p>
+                  <p>تاريخ الاستخراج: {new Date().toLocaleDateString('ar-EG')}</p>
+                </div>
+              </div>
+
+              {/* KPI Summary Table */}
+              {soldLaptopsReport && (
+                <div className="grid grid-cols-3 gap-4 border border-slate-300 p-3 rounded-lg bg-slate-50 text-xs">
+                  <div>
+                    <span className="text-slate-600 block">إجمالي الوحدات المباعة:</span>
+                    <span className="font-mono text-base font-bold text-slate-950">{soldLaptopsReport.total_sold_units} جهاز</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-600 block">إجمالي الإيرادات:</span>
+                    <span className="font-mono text-base font-bold text-emerald-800">{formatCurrency(soldLaptopsReport.total_revenue)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-600 block">تفصيل الفروع:</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      محل 1: {soldLaptopsReport.warehouse_totals['محل 1'] || 0} • محل 2: {soldLaptopsReport.warehouse_totals['محل 2'] || 0}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Items Table */}
+              <div className="border border-slate-300 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800">
+                    <tr>
+                      <th className="py-2 px-2.5 text-right">#</th>
+                      <th className="py-2 px-2.5 text-right">الموديل والماركة</th>
+                      <th className="py-2 px-2.5 text-right">التصنيف</th>
+                      {selectedWarehouse === 'ALL' ? (
+                        <>
+                          <th className="py-2 px-2.5 text-center">محل 1</th>
+                          <th className="py-2 px-2.5 text-center">محل 2</th>
+                        </>
+                      ) : (
+                        <th className="py-2 px-2.5 text-center">الفرع</th>
+                      )}
+                      <th className="py-2 px-2.5 text-center">إجمالي المباع</th>
+                      <th className="py-2 px-2.5 text-left">إجمالي الإيراد</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {!soldLaptopsReport || soldLaptopsReport.items.length === 0 ? (
+                      <tr>
+                        <td colSpan={selectedWarehouse === 'ALL' ? 6 : 5} className="py-6 text-center text-slate-500">
+                          لا توجد مبيعات في هذه الفترة
+                        </td>
+                      </tr>
+                    ) : (
+                      soldLaptopsReport.items.map((it, idx) => (
+                        <tr key={it.model_id}>
+                          <td className="py-2 px-2.5 font-mono">{idx + 1}</td>
+                          <td className="py-2 px-2.5 font-bold">
+                            {it.brand} {it.model_name}
+                            {it.model_code && <span className="mr-1 text-[10px] text-slate-500">({it.model_code})</span>}
+                          </td>
+                          <td className="py-2 px-2.5">{it.category}</td>
+                          {selectedWarehouse === 'ALL' ? (
+                            <>
+                              <td className="py-2 px-2.5 text-center font-mono">{it.warehouse_breakdown['محل 1'] || 0}</td>
+                              <td className="py-2 px-2.5 text-center font-mono">{it.warehouse_breakdown['محل 2'] || 0}</td>
+                            </>
+                          ) : (
+                            <td className="py-2 px-2.5 text-center">{selectedWarehouse}</td>
+                          )}
+                          <td className="py-2 px-2.5 text-center font-mono font-bold">{it.total_sold_units}</td>
+                          <td className="py-2 px-2.5 text-left font-mono font-bold text-emerald-800">{formatCurrency(it.total_revenue)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {soldLaptopsReport && (
+                    <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                      <tr>
+                        <td colSpan={3} className="py-2.5 px-2.5 text-right">المجموع الكلي:</td>
+                        {selectedWarehouse === 'ALL' ? (
+                          <>
+                            <td className="py-2.5 px-2.5 text-center font-mono">{soldLaptopsReport.warehouse_totals['محل 1'] || 0}</td>
+                            <td className="py-2.5 px-2.5 text-center font-mono">{soldLaptopsReport.warehouse_totals['محل 2'] || 0}</td>
+                          </>
+                        ) : (
+                          <td className="py-2.5 px-2.5 text-center">{selectedWarehouse}</td>
+                        )}
+                        <td className="py-2.5 px-2.5 text-center font-mono text-sm">{soldLaptopsReport.total_sold_units}</td>
+                        <td className="py-2.5 px-2.5 text-left font-mono text-emerald-900 text-sm">{formatCurrency(soldLaptopsReport.total_revenue)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+
+              {/* Signatures & Approvals */}
+              <div className="pt-6 border-t-2 border-slate-300 grid grid-cols-2 gap-8 text-xs text-slate-700" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <div className="space-y-6">
+                  <p className="font-bold">مسؤول مبيعات الفرع:</p>
+                  <p className="border-b border-dotted border-slate-400 pb-1 w-48">التوقيع: ___________________</p>
+                </div>
+                <div className="space-y-6 text-left" dir="rtl">
+                  <p className="font-bold">اعتماد الإدارة والمخازن:</p>
+                  <p className="border-b border-dotted border-slate-400 pb-1 w-48">الختم والاعتماد: ___________________</p>
+                </div>
+              </div>
+
+              {/* Footer Notice */}
+              <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                <span>نظام Compu MSS — تقرير رسمي لمبيعات الأجهزة حسب الموديل والمخزن</span>
+                <span>© 2026 Compu MSS. All rights reserved.</span>
               </div>
             </div>
           </div>

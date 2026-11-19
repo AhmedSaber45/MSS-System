@@ -106,6 +106,7 @@ export interface MSSModelInventorySummary {
   available_serialized: number;
   available_non_serialized: number;
   total_available: number;
+  existing_units: number;
   total_units: number;
   reserved_count: number;
   sold_count: number;

@@ -5,6 +5,7 @@ import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
+import type { MSSDevice } from '../types/mssInventory.ts';
 import type {
   MSSInvoice,
   MSSInvoiceItem,
@@ -14,6 +15,7 @@ import type {
   MSSReservationItem,
   NewMSSReservationInput,
   NewMSSReservationItemInput,
+  UpdateMSSReservationInput,
   MSSReturn,
   NewMSSReturnInput,
   MSSStockLocation,
@@ -1679,6 +1681,116 @@ export const mssCommerceService = {
     backupService.notifyDataChanged(`حجز جهاز MSS: ${newReservation.reservation_number}`);
 
     return newReservation;
+  },
+
+  /**
+   * Update an existing active reservation (details, customer, notes, deposit, expiry date)
+   */
+  async updateReservation(
+    id: string,
+    input: UpdateMSSReservationInput
+  ): Promise<MSSReservation> {
+    const cached = getCachedReservations();
+    const index = cached.findIndex(r => r.id === id);
+    if (index < 0) throw new Error('سجل الحجز غير موجود');
+
+    const res = cached[index];
+    if (res.status !== 'ACTIVE') {
+      throw new Error(`لا يمكن تعديل حجز بحالة (${res.status})`);
+    }
+
+    const now = new Date().toISOString();
+
+    if (input.customer_name !== undefined) res.customer_name = input.customer_name.trim();
+    if (input.customer_phone !== undefined) res.customer_phone = input.customer_phone.trim();
+    if (input.deposit_amount !== undefined) res.deposit_amount = Number(input.deposit_amount);
+    if (input.expiry_date !== undefined) res.expiry_date = input.expiry_date;
+    if (input.notes !== undefined) res.notes = input.notes.trim() || null;
+    if (input.branch !== undefined) res.branch = input.branch;
+
+    if (input.items && input.items.length > 0) {
+      const processedItems: {
+        device: MSSDevice;
+        quantity: number;
+        agreedPrice: number;
+        depositAmount: number;
+        sourceBranch: MSSStockLocation;
+      }[] = [];
+
+      for (const it of input.items) {
+        if (!it.device_id) throw new Error('معرف الجهاز مطلوب لكل عنصر');
+        const dev = await mssInventoryService.getDeviceById(it.device_id);
+        if (!dev) throw new Error(`الجهاز المعرف بـ ${it.device_id} غير موجود بالمخزون`);
+        processedItems.push({
+          device: dev,
+          quantity: it.quantity || 1,
+          agreedPrice: it.agreed_price,
+          depositAmount: it.deposit_amount || 0,
+          sourceBranch: it.source_branch || dev.stock_location,
+        });
+      }
+
+      res.items = processedItems.map((p, idx) => ({
+        id: `res-item-${res.id}-${idx + 1}`,
+        reservation_id: res.id,
+        device_id: p.device.id,
+        model_id: p.device.model_id,
+        serial_number: p.device.serial_number || null,
+        is_serialized: p.device.is_serialized ?? Boolean(p.device.serial_number),
+        quantity: p.quantity,
+        agreed_price: p.agreedPrice,
+        deposit_amount: p.depositAmount,
+        source_branch: p.sourceBranch,
+        brand: p.device.brand,
+        model_name: p.device.model_name,
+        processor: p.device.model?.processor,
+        gpu: p.device.model?.gpu,
+        ram: p.device.model?.ram,
+        storage: p.device.model?.storage,
+      }));
+      res.items_count = processedItems.reduce((s, it) => s + it.quantity, 0);
+      res.agreed_price = processedItems.reduce((s, it) => s + it.agreedPrice, 0);
+      res.device_id = processedItems[0].device.id;
+      res.serial_number = processedItems.length === 1 ? processedItems[0].device.serial_number : null;
+      res.brand = processedItems[0].device.brand;
+      res.model_name = processedItems[0].device.model_name;
+    } else if (input.agreed_price !== undefined) {
+      res.agreed_price = Number(input.agreed_price);
+    }
+
+    res.updated_at = now;
+    cached[index] = res;
+    saveCachedReservations(cached);
+
+    try {
+      await supabase
+        .from('mss_reservations')
+        .update({
+          customer_name: res.customer_name,
+          customer_phone: res.customer_phone,
+          deposit_amount: res.deposit_amount,
+          agreed_price: res.agreed_price,
+          expiry_date: res.expiry_date,
+          notes: res.notes,
+          branch: res.branch,
+          updated_at: now,
+        })
+        .eq('id', id);
+    } catch (err) {
+      console.warn('Supabase update reservation failed:', err);
+    }
+
+    mssSyncService
+      .queueOperation(
+        'RESERVATION_CREATE',
+        res,
+        `تعديل بيانات حجز رقم ${res.reservation_number}`,
+        res.branch
+      )
+      .catch(console.warn);
+
+    backupService.notifyDataChanged(`تعديل حجز جهاز MSS: ${res.reservation_number}`);
+    return res;
   },
 
   /**

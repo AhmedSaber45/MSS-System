@@ -672,6 +672,7 @@ export const BackupView: React.FC = () => {
             data={backups}
             density="compact"
             keyExtractor={(item: BackupItem) => item.id}
+            pagination={{ pageSize: 9 }}
           />
         )}
       </div>

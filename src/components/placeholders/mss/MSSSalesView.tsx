@@ -1039,7 +1039,7 @@ export const MSSSalesView: React.FC = () => {
           onClose={handleStartNewSale}
           title={`تمت عملية البيع بنجاح - فاتورة رقم ${completedInvoice.invoice_number}`}
           subtitle={`تحتوي الفاتورة على (${completedInvoice.items_count || completedInvoice.items?.length || 1}) جهاز/بند`}
-          size="lg"
+          size="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
               <Button

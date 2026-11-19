@@ -520,6 +520,7 @@ export const PurchasesView: React.FC = () => {
         data={filteredPurchases}
         keyExtractor={item => item.id}
         isLoading={isLoading}
+        pagination={{ pageSize: 9 }}
         onRowClick={item => handleOpenDetails(item)}
         emptyMessage="لا توجد فواتير مشتريات مسجلة"
         emptySubMessage="قم بالضغط على 'تسجيل فاتورة شراء جديدة' لإضافة بضاعة واردة إلى المحل."

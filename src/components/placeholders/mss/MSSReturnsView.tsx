@@ -33,7 +33,7 @@ export const MSSReturnsView: React.FC = () => {
   const [isSearchingInvoice, setIsSearchingInvoice] = useState<boolean>(false);
 
   // Return Form State
-  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [refundAmount, setRefundAmount] = useState<number | ''>(0);
   const [returnReason, setReturnReason] = useState<string>('طلب العميل استبدال أو استرجاع الجهاز');
   const [restockLocation, setRestockLocation] = useState<MSSStockLocation>('محل 1');
   const [newCondition, setNewCondition] = useState<string>('فرز أول ممتاز');
@@ -345,8 +345,9 @@ export const MSSReturnsView: React.FC = () => {
                     label="المبلغ المسترد للعميل (EGP) *"
                     type="number"
                     min="0"
+                    placeholder="0.00"
                     value={refundAmount}
-                    onChange={e => setRefundAmount(Number(e.target.value))}
+                    onChange={e => setRefundAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     required
                   />
 
@@ -412,7 +413,7 @@ export const MSSReturnsView: React.FC = () => {
                     className="font-bold"
                     leftIcon={isSubmitting ? <Spinner size="sm" /> : <RotateCcw className="w-4.5 h-4.5" />}
                   >
-                    {isSubmitting ? 'جاري  الإرجاع...' : `تأكيد إرجاع الجهاز (${formatCurrency(refundAmount)})`}
+                    {isSubmitting ? 'جاري  الإرجاع...' : `تأكيد إرجاع الجهاز (${formatCurrency(Number(refundAmount) || 0)})`}
                   </Button>
                 </div>
               </form>
@@ -467,6 +468,7 @@ export const MSSReturnsView: React.FC = () => {
               columns={columns}
               data={filteredReturns}
               keyExtractor={(item: MSSReturn) => item.id}
+              pagination={{ pageSize: 9 }}
             />
           </div>
         )}

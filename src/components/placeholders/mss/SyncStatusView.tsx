@@ -416,6 +416,7 @@ export const SyncStatusView: React.FC = () => {
               columns={outboxColumns}
               data={outbox}
               keyExtractor={(item: OutboxOperation) => item.uuid}
+              pagination={{ pageSize: 9 }}
             />
           </div>
         )}
