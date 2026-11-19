@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -8,17 +8,58 @@ import { Badge } from '@/components/common/Badge';
 import { Alert } from '@/components/common/Alert';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
-import { CheckCircle, Laptop, Store, ArrowRightLeft, Search, Printer, FileDown, ShieldCheck, RefreshCw, Banknote, Tag, Clock, Calendar } from 'lucide-react';
+import {
+  Laptop,
+  Store,
+  ArrowRightLeft,
+  Search,
+  ShieldCheck,
+  RefreshCw,
+  Banknote,
+  Tag,
+  Clock,
+  Calendar,
+  CheckCircle,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Layers,
+} from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCommerceService } from '@/services/mssCommerceService';
-import { documentPrintService } from '@/lib/documentPrintService';
 import { InstallmentScheduleBuilder, PlannedInstallmentItem } from '@/components/common/InstallmentScheduleBuilder';
 import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
+import { MSSPrintableInvoice } from '@/components/placeholders/mss/MSSPrintableInvoice';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
-import type { MSSInvoice, MSSPaymentType } from '@/types/mssCommerce';
+import type { MSSInvoice, MSSPaymentType, NewMSSSaleItemInput } from '@/types/mssCommerce';
+
+export interface SaleCartItem {
+  id: string;
+  device_id: string;
+  device: MSSDevice;
+  is_serialized: boolean;
+  serial_number?: string | null;
+  model_name: string;
+  brand: string;
+  category: string;
+  processor?: string | null;
+  gpu?: string | null;
+  ram?: string | null;
+  storage?: string | null;
+  screen_size?: string | null;
+  physical_condition?: string | null;
+  source_branch: MSSStockLocation;
+  available_stock: number;
+  quantity: number;
+  unit_cost: number;
+  unit_list_price: number;
+  unit_price: number;
+  discount: number;
+  line_total: number;
+}
 
 export const MSSSalesView: React.FC = () => {
   const { showNotification } = useNotification();
@@ -26,13 +67,19 @@ export const MSSSalesView: React.FC = () => {
 
   const [availableDevices, setAvailableDevices] = useState<MSSDevice[]>([]);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
-  const [selectedDevice, setSelectedDevice] = useState<MSSDevice | null>(null);
 
-  // Form State
-  const [searchSerialQuery, setSearchSerialQuery] = useState<string>('');
+  // Cart State (Multi-Device Support)
+  const [cartItems, setCartItems] = useState<SaleCartItem[]>([]);
+
+  // Selection / Pending Item State
+  const [selectedDevice, setSelectedDevice] = useState<MSSDevice | null>(null);
+  const [pendingQuantity, setPendingQuantity] = useState<number>(1);
+  const [pendingUnitPrice, setPendingUnitPrice] = useState<number>(0);
+  const [pendingDiscount, setPendingDiscount] = useState<number>(0);
+  const [itemError, setItemError] = useState<string>('');
+
+  // Invoice & Customer Info
   const [sellingBranch, setSellingBranch] = useState<MSSStockLocation>('محل 1');
-  const [actualPrice, setActualPrice] = useState<number>(0);
-  const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [paymentType, setPaymentType] = useState<MSSPaymentType>('FULL');
@@ -49,8 +96,9 @@ export const MSSSalesView: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Success Modal with Invoice Preview
+  // Success Modal with Multi-Format Printable Invoice
   const [completedInvoice, setCompletedInvoice] = useState<MSSInvoice | null>(null);
+  const [invoicePrintFormat, setInvoicePrintFormat] = useState<'a4' | 'thermal'>('a4');
 
   // Load available devices
   const loadDevices = useCallback(async () => {
@@ -59,7 +107,7 @@ export const MSSSalesView: React.FC = () => {
       const devices = await mssInventoryService.getDevices({ status: 'AVAILABLE' });
       setAvailableDevices(devices);
       if (devices.length > 0 && !selectedDevice) {
-        handleSelectDevice(devices[0]);
+        handlePickDevice(devices[0]);
       }
     } catch (err: any) {
       console.error('Failed to load available devices:', err);
@@ -72,65 +120,178 @@ export const MSSSalesView: React.FC = () => {
     loadDevices();
   }, [loadDevices]);
 
-  // Handle selecting a device
-  const handleSelectDevice = (device: MSSDevice) => {
+  // Handle picking a device in the selector
+  const handlePickDevice = (device: MSSDevice) => {
     setSelectedDevice(device);
-    setSearchSerialQuery(device.serial_number || '');
-    setActualPrice(device.list_price);
-    setDiscountAmount(0);
-    setFormError('');
+    setPendingQuantity(1);
+    setPendingUnitPrice(device.list_price);
+    setPendingDiscount(0);
+    setItemError('');
   };
 
-  // Handle searching by serial number / scanner
-  const handleSearchSerial = async (serial: string) => {
-    setSearchSerialQuery(serial);
-    if (!serial.trim()) return;
+  // Add selected device to cart
+  const handleAddToCart = () => {
+    if (!selectedDevice) {
+      setItemError('يرجى اختيار جهاز أولاً لإضافته للفاتورة');
+      return;
+    }
 
-    const match = availableDevices.find(
-      d => d.serial_number && d.serial_number.toUpperCase() === serial.trim().toUpperCase()
-    );
+    const isSerialized = Boolean(selectedDevice.is_serialized && selectedDevice.serial_number);
+    const availableStock =
+      selectedDevice.quantity && selectedDevice.quantity > 0 ? selectedDevice.quantity : 1;
 
-    if (match) {
-      handleSelectDevice(match);
-    } else {
-      // Try fetching by serial from service
-      const found = await mssInventoryService.getDeviceBySerial(serial.trim());
-      if (found) {
-        if (found.status === 'AVAILABLE') {
-          handleSelectDevice(found);
-        } else {
-          setFormError(`الجهاز بالسيريال (${found.serial_number}) ليس متاحاً للبيع (حالته: ${found.status})`);
-        }
+    // 1. Prevent duplicate serialized device
+    if (isSerialized) {
+      const alreadyInCart = cartItems.some(item => item.device_id === selectedDevice.id);
+      if (alreadyInCart) {
+        setItemError(`الجهاز بالسيريال (${selectedDevice.serial_number}) مضاف بالفعل في الفاتورة.`);
+        return;
       }
     }
+
+    // 2. Validate quantity for non-serialized
+    const qtyToAdd = isSerialized ? 1 : Math.max(1, Math.floor(pendingQuantity));
+    const existingInCart = cartItems.find(item => item.device_id === selectedDevice.id);
+    const currentQtyInCart = existingInCart ? existingInCart.quantity : 0;
+
+    if (currentQtyInCart + qtyToAdd > availableStock) {
+      setItemError(
+        `الكمية المطلوبة (${currentQtyInCart + qtyToAdd}) تتجاوز المخزون المتاح (${availableStock}) لهذا الموديل.`
+      );
+      return;
+    }
+
+    if (pendingUnitPrice < 0) {
+      setItemError('سعر بيع الوحدة لا يمكن أن يكون سالباً');
+      return;
+    }
+
+    if (existingInCart && !isSerialized) {
+      // Update quantity of existing bulk item
+      setCartItems(prev =>
+        prev.map(item =>
+          item.device_id === selectedDevice.id
+            ? {
+                ...item,
+                quantity: item.quantity + qtyToAdd,
+                unit_price: pendingUnitPrice,
+                discount: pendingDiscount,
+                line_total: (item.quantity + qtyToAdd) * pendingUnitPrice,
+              }
+            : item
+        )
+      );
+    } else {
+      // Add as new cart item
+      const newItem: SaleCartItem = {
+        id: `cart-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        device_id: selectedDevice.id,
+        device: selectedDevice,
+        is_serialized: isSerialized,
+        serial_number: selectedDevice.serial_number,
+        model_name: selectedDevice.model_name,
+        brand: selectedDevice.brand,
+        category: selectedDevice.category,
+        processor: selectedDevice.model?.processor,
+        gpu: selectedDevice.model?.gpu,
+        ram: selectedDevice.model?.ram,
+        storage: selectedDevice.model?.storage,
+        screen_size: selectedDevice.model?.screen_size,
+        physical_condition: selectedDevice.physical_condition,
+        source_branch: selectedDevice.stock_location,
+        available_stock: availableStock,
+        quantity: qtyToAdd,
+        unit_cost: selectedDevice.purchase_cost,
+        unit_list_price: selectedDevice.list_price,
+        unit_price: pendingUnitPrice,
+        discount: pendingDiscount,
+        line_total: qtyToAdd * pendingUnitPrice,
+      };
+
+      setCartItems(prev => [...prev, newItem]);
+    }
+
+    // Reset pending error
+    setItemError('');
+    showNotification({
+      type: 'success',
+      title: 'تمت إضافة الجهاز للفاتورة',
+      message: `${selectedDevice.brand} ${selectedDevice.model_name} ${
+        selectedDevice.serial_number ? `(${selectedDevice.serial_number})` : `(كمية: ${qtyToAdd})`
+      }`,
+    });
   };
 
-  // Live calculations
-  const costSnapshot = selectedDevice ? selectedDevice.purchase_cost : 0;
-  const listPriceSnapshot = selectedDevice ? selectedDevice.list_price : 0;
-  const grossProfit = selectedDevice ? actualPrice - costSnapshot : 0;
-  const sourceBranch = selectedDevice ? selectedDevice.stock_location : 'محل 1';
-  const isCrossBranch = sellingBranch !== sourceBranch;
-  const remainingBalance = paymentType === 'FULL' ? 0 : Math.max(0, actualPrice - initialPayment);
+  // Remove an item from the cart
+  const handleRemoveFromCart = (cartItemId: string) => {
+    setCartItems(prev => prev.filter(item => item.id !== cartItemId));
+  };
 
-  // Submit sale
+  // Clear all items from cart
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
+  // Calculations for all items in the cart
+  const {
+    totalUnits,
+    subtotalListPrice,
+    totalDiscount,
+    grandTotal,
+    totalCost,
+    grossProfit,
+    hasCrossBranch,
+  } = useMemo(() => {
+    let units = 0;
+    let subtotal = 0;
+    let discount = 0;
+    let total = 0;
+    let cost = 0;
+    let crossBranch = false;
+
+    for (const item of cartItems) {
+      units += item.quantity;
+      subtotal += item.unit_list_price * item.quantity;
+      discount += item.discount * item.quantity;
+      total += item.line_total;
+      cost += item.unit_cost * item.quantity;
+      if (item.source_branch !== sellingBranch) {
+        crossBranch = true;
+      }
+    }
+
+    return {
+      totalUnits: units,
+      subtotalListPrice: subtotal,
+      totalDiscount: discount,
+      grandTotal: total,
+      totalCost: cost,
+      grossProfit: total - cost,
+      hasCrossBranch: crossBranch,
+    };
+  }, [cartItems, sellingBranch]);
+
+  const remainingBalance =
+    paymentType === 'FULL' ? 0 : Math.max(0, grandTotal - initialPayment);
+
+  // Submit sale with multi-device support
   const handleConfirmSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!selectedDevice) {
-      setFormError('يرجى اختيار الجهاز المراد بيعه أولاً');
+    if (cartItems.length === 0) {
+      setFormError('يرجى إضافة جهاز واحد على الأقل إلى الفاتورة قبل التأكيد.');
       return;
     }
 
-    if (actualPrice < 0) {
-      setFormError('سعر البيع الفعلي لا يمكن أن يكون سالباً');
+    if (grandTotal < 0) {
+      setFormError('إجمالي سعر البيع الفعلي لا يمكن أن يكون سالباً.');
       return;
     }
 
     if (paymentType === 'DEFERRED') {
-      if (initialPayment > actualPrice) {
-        setFormError('الدفعة المقدمة لا يمكن أن تتجاوز سعر بيع الجهاز.');
+      if (initialPayment > grandTotal) {
+        setFormError('الدفعة المقدمة لا يمكن أن تتجاوز إجمالي سعر بيع الفاتورة.');
         return;
       }
       if (initialPayment < 0) {
@@ -143,29 +304,42 @@ export const MSSSalesView: React.FC = () => {
     setFormError('');
 
     try {
+      const itemsPayload: NewMSSSaleItemInput[] = cartItems.map(item => ({
+        device_id: item.device_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_amount: item.discount,
+        actual_sale_price: item.line_total,
+        source_branch: item.source_branch,
+      }));
+
+      const firstItem = cartItems[0];
       const invoice = await mssCommerceService.confirmSale({
-        device_id: selectedDevice.id,
+        device_id: firstItem.device_id,
         selling_branch: sellingBranch,
-        actual_sale_price: Number(actualPrice),
-        discount_amount: Number(discountAmount),
+        actual_sale_price: Number(grandTotal),
+        discount_amount: Number(totalDiscount),
         customer_name: customerName.trim() || undefined,
         customer_phone: customerPhone.trim() || undefined,
         warranty_period: warrantyPeriod.trim() || undefined,
         notes: notes.trim() || undefined,
         payment_type: paymentType,
-        initial_payment: paymentType === 'DEFERRED' ? initialPayment : Number(actualPrice),
+        initial_payment: paymentType === 'DEFERRED' ? initialPayment : Number(grandTotal),
         due_date: paymentType === 'DEFERRED' ? dueDate || undefined : undefined,
-        installments: paymentType === 'DEFERRED' && installmentSchedule.length > 0 ? installmentSchedule : undefined,
+        installments:
+          paymentType === 'DEFERRED' && installmentSchedule.length > 0
+            ? installmentSchedule
+            : undefined,
+        items: itemsPayload,
       });
 
       showNotification({
         type: 'success',
         title: 'تم تأكيد البيع وإصدار الفاتورة',
-        message: `تم تسجيل الفاتورة (${invoice.invoice_number}) بنجاح لصالح (${sellingBranch}) بربح قدره ${formatCurrency(invoice.gross_profit)}.`,
+        message: `تم تسجيل الفاتورة (${invoice.invoice_number}) بنجاح لصالح (${sellingBranch}) بعدد (${totalUnits}) أجهزة وإجمالي ${formatCurrency(invoice.actual_sale_price)}.`,
       });
 
       setCompletedInvoice(invoice);
-      // Reload inventory devices
       await loadDevices();
     } catch (err: any) {
       setFormError(err.message || 'فشلت عملية تأكيد البيع');
@@ -176,6 +350,7 @@ export const MSSSalesView: React.FC = () => {
 
   const handleStartNewSale = () => {
     setCompletedInvoice(null);
+    setCartItems([]);
     setCustomerName('');
     setCustomerPhone('');
     setPaymentType('FULL');
@@ -188,43 +363,48 @@ export const MSSSalesView: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title=" بيع أجهزة Compu MSS"
-        subtitle=""
+        title="بيع أجهزة Compu MSS"
+        subtitle="إصدار فواتير بيع وضمان (تدعم بيع جهاز واحد أو أجهزة متعددة ومخزون مجمع في فاتورة واحدة)"
         actions={
           <Button
             variant="outline"
             size="md"
-            onClick={() => triggerRefresh(loadDevices, 'جارٍ تحديث الأجهزة  ...')}
+            onClick={() => triggerRefresh(loadDevices, 'جارٍ تحديث الأجهزة المتوفرة...')}
             disabled={isRefreshing || isLoadingDevices}
-            leftIcon={<RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            leftIcon={
+              <RefreshCw className={`w-4.5 h-4.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+            }
             className="border-slate-300 font-semibold"
           >
-            Refresh
+            تحديث المخزون
           </Button>
         }
       />
 
-
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left Column: Device selection & Branches */}
+        {/* Left Columns (2 cols): Device Selection, Cart List, Customer Info */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Card 1: Select Device */}
+          {/* Card 1: Select & Add Device */}
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Laptop className="w-4.5 h-4.5 text-slate-600" />
-              <span>1. اختيار الجهاز بالسيريال نمبر </span>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Laptop className="w-4.5 h-4.5 text-slate-600" />
+                <span>1. اختيار الأجهزة وإضافتها إلى الفاتورة</span>
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                الأجهزة المتاحة: {availableDevices.length} جهاز
+              </span>
             </h3>
 
             {/* Searchable selector for available devices */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                اختر الجهاز المراد بيعه ({availableDevices.length} جهاز متوفر):
+                اختر الجهاز أو الموديل المراد إضافته:
               </label>
               <SearchableItemSelect<MSSDevice>
                 items={availableDevices}
                 selectedId={selectedDevice?.id || null}
-                onSelect={handleSelectDevice}
+                onSelect={handlePickDevice}
                 getKey={d => d.id}
                 getSearchableText={d =>
                   `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.model?.processor || ''} ${d.model?.gpu || ''} ${d.stock_location}`
@@ -250,7 +430,8 @@ export const MSSSalesView: React.FC = () => {
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {[d.model?.processor, d.model?.gpu, d.model?.ram].filter(Boolean).join(' • ') || d.physical_condition}
+                        {[d.model?.processor, d.model?.gpu, d.model?.ram].filter(Boolean).join(' • ') ||
+                          d.physical_condition}
                       </p>
                     </div>
 
@@ -267,16 +448,21 @@ export const MSSSalesView: React.FC = () => {
               />
             </div>
 
-            {/* Selected Device Preview Card */}
+            {/* Selected Device Preview & Config before Add */}
             {selectedDevice && (
-              <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-300 text-sm space-y-2.5">
+              <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-300 text-sm space-y-3">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">
                       {selectedDevice.brand} {selectedDevice.model_name}
                     </h4>
                     <p className="text-slate-500 font-mono font-medium text-xs mt-0.5">
-                      {[selectedDevice.model?.processor, selectedDevice.model?.gpu, selectedDevice.model?.ram, selectedDevice.model?.storage]
+                      {[
+                        selectedDevice.model?.processor,
+                        selectedDevice.model?.gpu,
+                        selectedDevice.model?.ram,
+                        selectedDevice.model?.storage,
+                      ]
                         .filter(Boolean)
                         .join(' • ')}
                     </p>
@@ -287,46 +473,256 @@ export const MSSSalesView: React.FC = () => {
                     </span>
                   ) : (
                     <Badge variant="outline">
-                      بدون سيريال {selectedDevice.quantity && selectedDevice.quantity > 1 ? `(كمية: ${selectedDevice.quantity})` : ''}
+                      بدون سيريال (المتاح: {selectedDevice.quantity || 1} وحدة)
                     </Badge>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-slate-700">
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">السعر :</span>
-                    <strong className="text-slate-900 text-sm font-mono font-bold tabular-nums">{formatCurrency(selectedDevice.list_price)}</strong>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">سعر العرض:</span>
+                    <strong className="text-slate-900 text-sm font-mono font-bold tabular-nums">
+                      {formatCurrency(selectedDevice.list_price)}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">التكلفة :</span>
-                    <strong className="font-mono text-slate-700 text-sm font-semibold tabular-nums">{formatCurrency(selectedDevice.purchase_cost)}</strong>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">التكلفة:</span>
+                    <strong className="font-mono text-slate-700 text-sm font-semibold tabular-nums">
+                      {formatCurrency(selectedDevice.purchase_cost)}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الحالة :</span>
-                    <strong className="text-slate-800 text-sm font-medium">{selectedDevice.physical_condition}</strong>
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الحالة:</span>
+                    <strong className="text-slate-800 text-sm font-medium">
+                      {selectedDevice.physical_condition || 'ممتازة'}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">موقع التخزين:</span>
-                    <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm" className="font-semibold">
+                    <span className="text-slate-500 block text-xs font-semibold mb-0.5">الموقع الفعلي:</span>
+                    <Badge
+                      variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}
+                      size="sm"
+                      className="font-semibold"
+                    >
                       {selectedDevice.stock_location}
                     </Badge>
+                  </div>
+                </div>
+
+                {/* Pricing and Quantity Inputs for adding item */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200">
+                  {!selectedDevice.is_serialized && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        الكمية المطلوبة (المتاح: {selectedDevice.quantity || 1})
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={selectedDevice.quantity || 1}
+                        value={pendingQuantity}
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10) || 1;
+                          setPendingQuantity(Math.max(1, Math.min(selectedDevice.quantity || 1, val)));
+                        }}
+                        className="h-9 font-mono font-bold"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      سعر بيع الوحدة (EGP)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={pendingUnitPrice}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setPendingUnitPrice(val);
+                        setPendingDiscount(Math.max(0, selectedDevice.list_price - val));
+                      }}
+                      className="h-9 font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      خصم الوحدة (EGP)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={pendingDiscount}
+                      onChange={e => {
+                        const d = parseFloat(e.target.value) || 0;
+                        setPendingDiscount(d);
+                        setPendingUnitPrice(Math.max(0, selectedDevice.list_price - d));
+                      }}
+                      className="h-9 font-mono font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {itemError && (
+                  <Alert type="danger" title="تنبيه" message={itemError} className="py-2" />
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="md"
+                    onClick={handleAddToCart}
+                    leftIcon={<Plus className="w-4 h-4" />}
+                    className="font-bold shadow-xs"
+                  >
+                    إضافة الجهاز إلى الفاتورة
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Card 2: Items in Cart */}
+          <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Layers className="w-4.5 h-4.5 text-slate-600" />
+                <span>
+                  2. قائمة الأجهزة بالفاتورة ({cartItems.length} بند / {totalUnits} جهاز)
+                </span>
+              </h3>
+              {cartItems.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearCart}
+                  leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+                  className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
+                >
+                  تفريغ الفاتورة
+                </Button>
+              )}
+            </div>
+
+            {cartItems.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-2">
+                <Laptop className="w-10 h-10 text-slate-400 mx-auto" />
+                <p className="text-sm font-semibold text-slate-700">لم يتم إضافة أجهزة للفاتورة بعد</p>
+                <p className="text-xs text-slate-500">
+                  اختر جهازاً من القائمة أعلاه واضغط (إضافة الجهاز إلى الفاتورة) لدعم البيع الفردي أو المتعدد.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="overflow-x-auto rounded-xl border border-slate-300">
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-100 text-slate-800 border-b border-slate-300 font-bold">
+                      <tr>
+                        <th className="p-2.5">#</th>
+                        <th className="p-2.5">الجهاز والمواصفات</th>
+                        <th className="p-2.5">السيريال / الكمية</th>
+                        <th className="p-2.5">الفرع المصدر</th>
+                        <th className="p-2.5">سعر الوحدة</th>
+                        <th className="p-2.5">الخصم</th>
+                        <th className="p-2.5">الإجمالي</th>
+                        <th className="p-2.5 text-center">إجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {cartItems.map((item, idx) => (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2.5 font-mono text-slate-500">{idx + 1}</td>
+                          <td className="p-2.5">
+                            <span className="font-bold text-slate-900 block">
+                              {item.brand} {item.model_name}
+                            </span>
+                            <span className="text-[11px] text-slate-500 block truncate max-w-xs font-mono">
+                              {[item.processor, item.gpu, item.ram, item.storage]
+                                .filter(Boolean)
+                                .join(' • ') || item.physical_condition}
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            {item.serial_number ? (
+                              <span className="font-mono text-[11px] font-bold bg-slate-100 text-slate-900 px-2 py-0.5 rounded border border-slate-300 tabular-nums">
+                                {item.serial_number}
+                              </span>
+                            ) : (
+                              <Badge variant="outline" size="sm">
+                                بدون سيريال ({item.quantity} وحدات)
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-2.5">
+                            <Badge
+                              variant={item.source_branch === 'محل 1' ? 'primary' : 'default'}
+                              size="sm"
+                            >
+                              {item.source_branch}
+                            </Badge>
+                          </td>
+                          <td className="p-2.5 font-mono font-bold tabular-nums text-slate-900">
+                            {formatCurrency(item.unit_price)}
+                          </td>
+                          <td className="p-2.5 font-mono text-rose-700 tabular-nums">
+                            {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '—'}
+                          </td>
+                          <td className="p-2.5 font-mono font-bold text-slate-900 tabular-nums text-sm">
+                            {formatCurrency(item.line_total)}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFromCart(item.id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="إزالة من الفاتورة"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Subtotals bar */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                  <span className="text-slate-600 font-semibold">
+                    المجموع الفرعي ({totalUnits} أجهزة):
+                  </span>
+                  <div className="flex items-center gap-4">
+                    {totalDiscount > 0 && (
+                      <span className="text-rose-700 font-bold font-mono">
+                        إجمالي الخصم: -{formatCurrency(totalDiscount)}
+                      </span>
+                    )}
+                    <span className="text-slate-900 font-bold font-mono text-sm">
+                      الصافي: {formatCurrency(grandTotal)}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
           </Card>
 
-          {/* Card 2: Branch Attribution */}
+          {/* Card 3: Branch Attribution & Customer Details */}
           <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Store className="w-4.5 h-4.5 text-slate-600" />
-              <span>2. تحديد فروع  (البيع والمخزون)</span>
+              <span>3. تحديد فرع البيع وبيانات العميل والضمان</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  فرع البيع  <span className="text-rose-500">*</span>
+                  فرع البيع (الفرع الذي يسجل الفاتورة) <span className="text-rose-500">*</span>
                 </label>
                 <Select
                   value={sellingBranch}
@@ -336,46 +732,43 @@ export const MSSSalesView: React.FC = () => {
                     { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
                   ]}
                 />
-                <p className="text-xs text-slate-500 mt-1">تُنسب الفاتورة  لهذا الفرع</p>
+                <p className="text-xs text-slate-500 mt-1">تُنسب الفاتورة والأرباح لهذا الفرع</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    الموقع الفعلي للتخزين
+                  فروع المخزون للأجهزة
                 </label>
-                <div className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 font-semibold flex items-center justify-between">
-                  <span>{sourceBranch}</span>
-                  <Badge variant={sourceBranch === 'محل 1' ? 'primary' : 'default'} size="sm" className="font-semibold">
-                    موقع الجهاز الفعلي
+                <div className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 font-semibold flex items-center justify-between">
+                  <span>
+                    {cartItems.length > 0
+                      ? Array.from(new Set(cartItems.map(i => i.source_branch))).join(' و ')
+                      : sellingBranch}
+                  </span>
+                  <Badge variant="default" size="sm">
+                    {cartItems.length} أجهزة محددة
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">يُخصم الجهاز  من مخزون هذا المحل</p>
+                <p className="text-xs text-slate-500 mt-1">يُخصم كل جهاز تلقائياً من فرع مخزنه الأصلي</p>
               </div>
             </div>
 
             {/* Cross-Branch Alert */}
-            {isCrossBranch && (
-              <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 text-sm text-slate-700 flex items-center gap-2.5">
+            {hasCrossBranch && (
+              <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 text-xs text-slate-700 flex items-center gap-2.5">
                 <ArrowRightLeft className="w-4.5 h-4.5 text-slate-600 shrink-0" />
                 <span>
-                  <strong className="text-slate-900 font-bold">تنبيه عملية بيع مشتركة بين الفروع:</strong> الجهاز مسحوب  من مخزون{' '}
-                  <strong className="text-slate-900 font-bold">({sourceBranch})</strong> وبيعه   إلى <strong className="text-slate-900 font-bold">({sellingBranch})</strong>.
+                  <strong className="text-slate-900 font-bold">تنبيه عملية بيع مشتركة بين الفروع:</strong>{' '}
+                  تحتوي الفاتورة على أجهزة مسحوبة من مخزن فرع آخر غير فرع البيع المختار ({sellingBranch}). يتم
+                  تسجيل حركة السحب والأرباح بدقة طبقاً لقواعد النظام.
                 </span>
               </div>
             )}
-          </Card>
 
-          {/* Card 3: Customer & Payment Details */}
-          <Card className="p-4 bg-white border-slate-300 shadow-2xs space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="w-4.5 h-4.5 text-slate-600" />
-              <span>3. بيانات العميل ونوع البيع</span>
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
               <Input
                 label={paymentType === 'DEFERRED' ? 'اسم العميل (مطلوب للآجل) *' : 'اسم العميل (اختياري)'}
-                placeholder="مثال: م. أحمد ..."
+                placeholder="مثال: م. أحمد..."
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
               />
@@ -391,7 +784,9 @@ export const MSSSalesView: React.FC = () => {
 
             {/* Payment Type Selection: Full vs Deferred */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1.5">نوع البيع وطريقة التحصيل:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                نوع البيع وطريقة التحصيل:
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -413,8 +808,8 @@ export const MSSSalesView: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setPaymentType('DEFERRED');
-                    if (initialPayment === 0 && actualPrice > 0) {
-                      setInitialPayment(Math.round(actualPrice / 2));
+                    if (initialPayment === 0 && grandTotal > 0) {
+                      setInitialPayment(Math.round(grandTotal / 2));
                     }
                   }}
                   className={`flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
@@ -438,7 +833,10 @@ export const MSSSalesView: React.FC = () => {
                     <span>بيانات البيع الآجل والأقساط</span>
                   </span>
                   <span className="text-xs font-bold text-slate-700">
-                    المتبقي: <strong className="text-rose-700 font-mono text-sm">{formatCurrency(remainingBalance)}</strong>
+                    المتبقي:{' '}
+                    <strong className="text-rose-700 font-mono text-sm">
+                      {formatCurrency(remainingBalance)}
+                    </strong>
                   </span>
                 </div>
 
@@ -456,7 +854,7 @@ export const MSSSalesView: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setInitialPayment(Math.round(actualPrice / 2))}
+                          onClick={() => setInitialPayment(Math.round(grandTotal / 2))}
                           className="text-[10px] bg-white border border-slate-300 px-1.5 py-0.5 rounded text-slate-700 hover:bg-slate-100 font-bold"
                         >
                           50%
@@ -466,12 +864,12 @@ export const MSSSalesView: React.FC = () => {
                     <Input
                       type="number"
                       min="0"
-                      max={actualPrice}
+                      max={grandTotal}
                       value={initialPayment || ''}
                       placeholder="0"
                       onChange={e => {
                         const val = parseFloat(e.target.value) || 0;
-                        setInitialPayment(Math.max(0, Math.min(actualPrice, val)));
+                        setInitialPayment(Math.max(0, Math.min(grandTotal, val)));
                       }}
                       className="h-8 text-xs font-bold font-mono"
                       isMonospace
@@ -500,7 +898,11 @@ export const MSSSalesView: React.FC = () => {
                     onClick={() => setShowScheduleBuilder(!showScheduleBuilder)}
                     className="w-full text-xs font-bold border-amber-300 bg-white hover:bg-amber-100/60 text-amber-900 justify-between"
                   >
-                    <span>{showScheduleBuilder ? 'إخفاء تفاصيل جدول الأقساط' : 'تحديد وتوزيع جدول الأقساط بالتفصيل'}</span>
+                    <span>
+                      {showScheduleBuilder
+                        ? 'إخفاء تفاصيل جدول الأقساط'
+                        : 'تحديد وتوزيع جدول الأقساط بالتفصيل'}
+                    </span>
                     <Calendar className="w-3.5 h-3.5 text-amber-700" />
                   </Button>
 
@@ -525,7 +927,7 @@ export const MSSSalesView: React.FC = () => {
               />
 
               <Input
-                label="ملاحظات الفاتورة "
+                label="ملاحظات الفاتورة"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="الشاحن، كابل العرض، الحقيبة..."
@@ -538,70 +940,43 @@ export const MSSSalesView: React.FC = () => {
         <div className="space-y-4">
           <Card className="bg-white border-slate-300 shadow-2xs sticky top-4">
             <CardHeader className="bg-slate-100 border-b border-slate-300 py-3.5 px-4">
-              <CardTitle className="text-sm font-bold text-slate-900">ملخص التسعير والأرباح</CardTitle>
+              <CardTitle className="text-sm font-bold text-slate-900">
+                ملخص التسعير والأرباح للفاتورة
+              </CardTitle>
             </CardHeader>
 
             <CardContent className="p-4 space-y-4">
-              {formError && (
-                <Alert type="danger" title="خطأ" message={formError} />
-              )}
+              {formError && <Alert type="danger" title="خطأ" message={formError} />}
 
-              {/* Actual Selling Price Input */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  سعر البيع الفعلي   (EGP) <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="50"
-                  value={actualPrice}
-                  onChange={e => {
-                    const p = Number(e.target.value) || 0;
-                    setActualPrice(p);
-                    setDiscountAmount(Math.max(0, listPriceSnapshot - p));
-                  }}
-                  className="font-bold text-lg text-slate-900 font-mono"
-                  required
-                />
-   
+              {/* Items summary counter */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold">عدد البنود في الفاتورة:</span>
+                <Badge variant="primary" size="md">
+                  {cartItems.length} بند ({totalUnits} جهاز)
+                </Badge>
               </div>
 
-              {/* Discount Input */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  قيمة الخصم إن وجد (EGP)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={discountAmount}
-                  onChange={e => {
-                    const d = Number(e.target.value) || 0;
-                    setDiscountAmount(d);
-                    setActualPrice(Math.max(0, listPriceSnapshot - d));
-                  }}
-                  className="font-semibold font-mono"
-                />
-              </div>
-
-              {/* Financial Snapshot Summary (Rule 8) */}
+              {/* Financial Snapshot Summary */}
               <div className="p-4 bg-slate-50/90 rounded-xl space-y-2.5 text-sm border border-slate-300">
                 <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">سعر العرض الأصلي:</span>
-                  <span className="font-bold text-slate-800 font-mono tabular-nums">{formatCurrency(listPriceSnapshot)}</span>
+                  <span className="text-slate-600 font-medium">المجموع الفرعي (قبل الخصم):</span>
+                  <span className="font-bold text-slate-800 font-mono tabular-nums">
+                    {formatCurrency(subtotalListPrice)}
+                  </span>
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">الخصم المطبق:</span>
+                  <span className="text-slate-600 font-medium">إجمالي الخصم المطبق:</span>
                   <span className="font-bold text-rose-700 font-mono tabular-nums">
-                    {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '0.00 EGP'}
+                    {totalDiscount > 0 ? `-${formatCurrency(totalDiscount)}` : '0.00 EGP'}
                   </span>
                 </div>
 
                 <div className="flex justify-between font-bold pt-2.5 border-t border-slate-300">
-                  <span className="text-slate-900">سعر البيع الفعلي:</span>
-                  <span className="text-slate-900 font-mono text-base tabular-nums">{formatCurrency(actualPrice)}</span>
+                  <span className="text-slate-900">إجمالي الفاتورة المطلوب:</span>
+                  <span className="text-slate-900 font-mono text-base tabular-nums">
+                    {formatCurrency(grandTotal)}
+                  </span>
                 </div>
 
                 {paymentType === 'DEFERRED' && (
@@ -618,18 +993,21 @@ export const MSSSalesView: React.FC = () => {
                 )}
 
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>تكلفة الجهاز :</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(costSnapshot)}</span>
+                  <span>إجمالي تكلفة الأجهزة:</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(totalCost)}</span>
                 </div>
 
                 <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-300">
-                  <span className="text-slate-900">مجمل الربح :</span>
-                  <span className={`font-mono text-base tabular-nums ${grossProfit >= 0 ? 'text-emerald-800' : 'text-rose-700'}`}>
+                  <span className="text-slate-900">مجمل ربح الفاتورة:</span>
+                  <span
+                    className={`font-mono text-base tabular-nums ${
+                      grossProfit >= 0 ? 'text-emerald-800' : 'text-rose-700'
+                    }`}
+                  >
                     {grossProfit >= 0 ? `+${formatCurrency(grossProfit)}` : formatCurrency(grossProfit)}
                   </span>
                 </div>
               </div>
-
             </CardContent>
 
             <CardFooter className="bg-slate-50/90 p-4 border-t border-slate-300">
@@ -637,15 +1015,15 @@ export const MSSSalesView: React.FC = () => {
                 variant="primary"
                 size="lg"
                 onClick={handleConfirmSale}
-                disabled={isSubmitting || !selectedDevice}
+                disabled={isSubmitting || cartItems.length === 0}
                 className="w-full font-bold"
                 leftIcon={isSubmitting ? <Spinner size="sm" /> : <CheckCircle className="w-5 h-5" />}
               >
                 {isSubmitting
-                  ? 'جاري تأكيد البيع...'
+                  ? 'جاري تأكيد الفاتورة...'
                   : paymentType === 'DEFERRED'
-                    ? `تأكيد البيع الآجل (المحصل: ${formatCurrency(initialPayment)})`
-                    : `تأكيد بيع الجهاز (${formatCurrency(actualPrice)})`}
+                  ? `تأكيد البيع الآجل (${formatCurrency(initialPayment)} مقدم)`
+                  : `تأكيد الفاتورة (${formatCurrency(grandTotal)})`}
               </Button>
             </CardFooter>
           </Card>
@@ -653,145 +1031,45 @@ export const MSSSalesView: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* SUCCESS MODAL: Printable Invoice Preview */}
+      {/* SUCCESS MODAL: Multi-Format Printable Invoice Preview */}
       {/* ========================================================================= */}
-      <Modal
-        isOpen={!!completedInvoice}
-        onClose={handleStartNewSale}
-        title={`تمت عملية البيع بنجاح - فاتورة رقم ${completedInvoice?.invoice_number}`}
-        subtitle=""
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button variant="outline" size="md" onClick={handleStartNewSale} className="border-slate-300 font-semibold">
-              تسجيل عملية بيع أخرى
-            </Button>
-            <div className="flex items-center gap-2">
+      {completedInvoice && (
+        <Modal
+          isOpen={!!completedInvoice}
+          onClose={handleStartNewSale}
+          title={`تمت عملية البيع بنجاح - فاتورة رقم ${completedInvoice.invoice_number}`}
+          subtitle={`تحتوي الفاتورة على (${completedInvoice.items_count || completedInvoice.items?.length || 1}) جهاز/بند`}
+          size="lg"
+          footer={
+            <div className="flex items-center justify-between w-full">
               <Button
                 variant="outline"
                 size="md"
-                onClick={async () => {
-                  if (!completedInvoice) return;
-                  await documentPrintService.exportToPdf('mss-sale-print-root', {
-                    title: `فاتورة_Compu_MSS_${completedInvoice.invoice_number}`,
-                    format: 'a4',
-                  });
-                }}
-                leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
-                className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
+                onClick={handleStartNewSale}
+                className="border-slate-300 font-semibold"
               >
-                حفظ كـ PDF
+                تسجيل عملية بيع أخرى
               </Button>
               <Button
                 variant="primary"
                 size="md"
-                onClick={async () => {
-                  if (!completedInvoice) return;
-                  await documentPrintService.printElement('mss-sale-print-root', {
-                    title: `فاتورة_Compu_MSS_${completedInvoice.invoice_number}`,
-                    format: 'a4',
-                  });
-                }}
-                leftIcon={<Printer className="w-4.5 h-4.5" />}
+                onClick={handleStartNewSale}
                 className="font-bold shadow-xs"
               >
-                طباعة الفاتورة A4
+                تم والعودة
               </Button>
             </div>
-          </div>
-        }
-      >
-        {completedInvoice && (
-          <div id="mss-sale-print-root" className="p-5 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none">
-            {/* Header */}
-            <div className="text-center pb-3.5 border-b border-slate-300">
-              <h3 className="text-lg font-bold text-slate-900">Compu MSS   </h3>
-            </div>
-
-            {/* Metadata Grid */}
-            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50/90 rounded-xl border border-slate-300 text-sm">
-              <div>
-                <span className="text-slate-500 font-medium">رقم الفاتورة: </span>
-                <strong className="font-mono text-slate-900 tabular-nums font-bold">{completedInvoice.invoice_number}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">تاريخ البيع: </span>
-                <span className="font-mono font-semibold text-slate-800 tabular-nums">{formatDate(completedInvoice.sale_date)}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">فرع البيع: </span>
-                <strong className="text-slate-900 font-bold">{completedInvoice.selling_branch}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">فرع مصدر الجهاز: </span>
-                <strong className="text-slate-900 font-bold">{completedInvoice.source_branch}</strong>
-              </div>
-              {completedInvoice.customer_name && (
-                <div>
-                  <span className="text-slate-500 font-medium">اسم العميل: </span>
-                  <strong className="text-slate-900 font-bold">{completedInvoice.customer_name}</strong>
-                </div>
-              )}
-              {completedInvoice.customer_phone && (
-                <div>
-                  <span className="text-slate-500 font-medium">رقم الهاتف: </span>
-                  <span className="font-mono font-semibold text-slate-800 tabular-nums">{completedInvoice.customer_phone}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Device Info */}
-            <div className="p-3.5 border border-slate-300 rounded-xl space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-sm">
-                  {completedInvoice.brand} {completedInvoice.model_name}
-                </span>
-                <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-2.5 py-1 rounded border border-slate-300 tabular-nums">
-                  {completedInvoice.serial_number}
-                </span>
-              </div>
-              <p className="text-slate-500 font-mono text-xs font-medium">
-                {[completedInvoice.processor, completedInvoice.gpu, completedInvoice.ram, completedInvoice.storage, completedInvoice.screen_size]
-                  .filter(Boolean)
-                  .join(' • ')}
-              </p>
-            </div>
-
-            {/* Financials Table */}
-            <div className="border border-slate-300 rounded-xl overflow-hidden">
-              <div className="flex justify-between p-3 bg-slate-100 font-bold text-slate-800 border-b border-slate-300 text-sm">
-                <span>البيان</span>
-                <span>المبلغ</span>
-              </div>
-              <div className="p-3.5 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 font-medium">السعر  :</span>
-                  <span className="font-mono font-semibold tabular-nums">{formatCurrency(completedInvoice.list_price_snapshot)}</span>
-                </div>
-                {completedInvoice.discount_amount > 0 && (
-                  <div className="flex justify-between text-rose-700 font-medium">
-                    <span>الخصم الممنوح:</span>
-                    <span className="font-mono font-bold tabular-nums">-{formatCurrency(completedInvoice.discount_amount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-300 text-slate-900">
-                  <span>إجمالي المدفوع:</span>
-                  <span className="font-mono font-bold text-base tabular-nums">{formatCurrency(completedInvoice.actual_sale_price)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Warranty & Terms */}
-            <div className="p-3.5 bg-slate-50/90 border border-slate-300 rounded-xl space-y-1.5 text-sm">
-              <span className="font-bold text-slate-900 block">شروط الضمان:</span>
-              <p className="text-slate-700 text-xs leading-relaxed">{completedInvoice.warranty_period}</p>
-              {completedInvoice.notes && (
-                <p className="text-slate-500 text-xs pt-1.5 border-t border-slate-200">ملاحظات: {completedInvoice.notes}</p>
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
+          }
+        >
+          <MSSPrintableInvoice
+            invoice={completedInvoice}
+            items={completedInvoice.items}
+            format={invoicePrintFormat}
+            onFormatChange={setInvoicePrintFormat}
+            onClose={handleStartNewSale}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

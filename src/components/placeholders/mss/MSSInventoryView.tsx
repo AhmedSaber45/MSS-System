@@ -26,6 +26,8 @@ import type {
   MSSModelInventorySummary,
 } from '@/types/mssInventory';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
+import { MSSModelModal } from './MSSModelModal';
+import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
 import { mssOperationalService } from '@/services/mssOperationalService';
 import type { SystemStore, TransferPreviewResponse, ExecuteTransferResult } from '@/types/mssOperational';
 import { useAuth } from '@/context/AuthContext';
@@ -92,6 +94,7 @@ export const MSSInventoryView: React.FC = () => {
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isAddModelModalOpen, setIsAddModelModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
@@ -276,20 +279,8 @@ export const MSSInventoryView: React.FC = () => {
   };
 
   // Open Add Modal
-  const handleOpenAdd = (defaultMode: 'INDIVIDUAL' | 'BULK' = 'INDIVIDUAL') => {
+  const handleOpenAdd = (defaultMode: 'INDIVIDUAL' | 'BULK' = 'BULK') => {
     setStockRegistrationMode(defaultMode);
-    setFormSerial('');
-    setFormQuantity(1);
-    const defaultModel = catalogModels[0];
-    setFormModelId(defaultModel ? defaultModel.id : '');
-    setFormCost(0);
-    setFormListPrice(defaultModel ? defaultModel.default_list_price : 0);
-    setFormPurchaseDate(new Date().toISOString().split('T')[0]);
-    setFormCondition('فرز أول ممتاز');
-    setFormLocation('محل 1');
-    setFormStatus('AVAILABLE');
-    setFormNotes('');
-    setFormError('');
     setIsAddModalOpen(true);
   };
 
@@ -863,6 +854,16 @@ export const MSSInventoryView: React.FC = () => {
               className="border-slate-300 font-semibold"
             >
               نقل جهاز بين المحلين
+            </Button>
+
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setIsAddModelModalOpen(true)}
+              leftIcon={<Plus className="w-4.5 h-4.5 text-blue-600" />}
+              className="border-slate-300 font-bold text-blue-700 hover:bg-blue-50"
+            >
+              إضافة موديل جديد
             </Button>
 
             <Button
@@ -1467,254 +1468,20 @@ export const MSSInventoryView: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 1: Add New Device or Bulk Stock */}
+      {/* MODAL 1: Unified Add Device & Add Model Modals */}
       {/* ========================================================================= */}
-      <Modal
+      <MSSDeviceCreationModal
         isOpen={isAddModalOpen}
-        onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title={stockRegistrationMode === 'BULK' ? 'إضافة مخزون مجمع بدون سيريال' : 'تسجيل جهاز جديد في المخزون'}
-        subtitle={
-          stockRegistrationMode === 'BULK'
-            ? 'تسجيل دفعة أجهزة بالكمية والموديل مباشرة بدون سيريالات'
-            : 'تسجيل جهاز فردي مع إمكانية إدخال السيريال أو تركه فارغاً'
-        }
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddModalOpen(false)}
-              disabled={isSubmitting}
-            >
-              إلغاء
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSaveAdd}
-              disabled={isSubmitting}
-              leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
-            >
-              {isSubmitting
-                ? 'جاري الحفظ...'
-                : stockRegistrationMode === 'BULK'
-                ? `تسجيل الدفعة (${formQuantity} أجهزة)`
-                : 'تسجيل الجهاز'}
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={handleSaveAdd} className="space-y-4 text-xs">
-          {formError && (
-            <Alert type="danger" title="خطأ في البيانات" message={formError} />
-          )}
+        onClose={() => setIsAddModalOpen(false)}
+        initialMode={stockRegistrationMode}
+        onSuccess={() => loadData()}
+      />
 
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-300">
-            <button
-              type="button"
-              onClick={() => setStockRegistrationMode('INDIVIDUAL')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                stockRegistrationMode === 'INDIVIDUAL'
-                  ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Laptop className="w-4 h-4" />
-              <span>جهاز فردي (سيريال اختياري)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setStockRegistrationMode('BULK')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                stockRegistrationMode === 'BULK'
-                  ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Box className="w-4 h-4" />
-              <span>كمية مجمعة بدون سيريال (بالعدد)</span>
-            </button>
-          </div>
-
-          {/* Model Selection via SearchableItemSelect */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              اختيار الموديل من الكتالوج <span className="text-rose-500">*</span>
-            </label>
-            <SearchableItemSelect<MSSCatalogModel>
-              items={catalogModels}
-              selectedId={formModelId}
-              onSelect={m => handleModelChange(m.id)}
-              getKey={m => m.id}
-              getSearchableText={m =>
-                `${m.brand} ${m.model_name} ${(m as any).model_code || ''} ${m.category} ${m.processor || ''} ${m.gpu || ''}`
-              }
-              placeholder="ابحث بالماركة، اسم الموديل، كود الموديل أو المواصفات..."
-              emptyMessage="لا توجد موديلات مطابقة في الكتالوج"
-              maxHeight="max-h-40"
-              renderItem={m => (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate">
-                    <span className="font-bold text-slate-900">{m.brand} {m.model_name}</span>
-                    {(m as any).model_code && (
-                      <span className="font-mono text-[10px] text-slate-500 ml-1.5 bg-slate-100 px-1 rounded border border-slate-200">
-                        {(m as any).model_code}
-                      </span>
-                    )}
-                    <p className="text-[10px] text-slate-500 truncate">
-                      {[m.processor, m.gpu, m.ram, m.storage].filter(Boolean).join(' • ')}
-                    </p>
-                  </div>
-                  <Badge variant="default" size="sm">{m.category}</Badge>
-                </div>
-              )}
-            />
-          </div>
-
-          {/* Serial Number (Individual Mode) or Quantity (Bulk Mode) */}
-          {stockRegistrationMode === 'INDIVIDUAL' ? (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                السيريال نمبر <span className="text-slate-400 font-normal">(اختياري)</span>
-              </label>
-              <Input
-                placeholder="اكتب السيريال (مثال: PF1K892-LEN) أو اتركه فارغاً..."
-                value={formSerial}
-                onChange={e => setFormSerial(e.target.value.toUpperCase())}
-                helperText="يمكنك حفظ الجهاز بدون سيريال الآن وتعيين السيريال لاحقاً"
-              />
-            </div>
-          ) : (
-            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 space-y-1.5">
-              <label className="block text-xs font-bold text-amber-900 mb-1">
-                الكمية الإجمالية للدفعة (عدد الأجهزة) <span className="text-rose-500">*</span>
-              </label>
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                value={formQuantity}
-                onChange={e => setFormQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                placeholder="مثال: 8 وحدات..."
-                required
-              />
-              <p className="text-[11px] text-amber-700 leading-relaxed">
-                سيتم حفظ هذه الكمية في المخزون المتاح بدون سيريالات، ويمكن تحويل أي عدد منها إلى أجهزة مسلسلة لاحقاً بزر &quot;تعيين سيريال&quot;.
-              </p>
-            </div>
-          )}
-
-          {/* Stock Location */}
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              مكان التخزين / الفرع <span className="text-rose-500">*</span>
-            </label>
-            <Select
-              value={formLocation}
-              onChange={e => setFormLocation(e.target.value as MSSStockLocation)}
-              options={locationOptions.map(loc => ({
-                value: loc,
-                label: loc,
-              }))}
-              required
-            />
-          </div>
-
-          {/* Financials & Purchase Date */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر التكلفة للوحدة (EGP) <span className="text-rose-500">*</span>
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="50"
-                value={formCost}
-                onChange={e => setFormCost(Number(e.target.value))}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                سعر العرض للوحدة (EGP) <span className="text-rose-500">*</span>
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="50"
-                value={formListPrice}
-                onChange={e => setFormListPrice(Number(e.target.value))}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                تاريخ الشراء / الاستلام
-              </label>
-              <Input
-                type="date"
-                max={getTodayLocalDateString()}
-                value={formPurchaseDate}
-                onChange={e => setFormPurchaseDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Condition and Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                الحالة الفنية
-              </label>
-              <Select
-                value={formCondition}
-                onChange={e => setFormCondition(e.target.value)}
-                options={[
-                  { value: 'فرز أول ممتاز', label: 'فرز أول ممتاز ' },
-                  { value: 'فرز ثانٍ', label: 'فرز ثانٍ ' },
-                  { value: 'يحتاج صيانة ', label: 'يحتاج صيانة / مراجعة' },
-                ]}
-              />
-            </div>
-
-            {stockRegistrationMode === 'INDIVIDUAL' && (
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  حالة الجهاز في المخزون
-                </label>
-                <Select
-                  value={formStatus}
-                  onChange={e => setFormStatus(e.target.value as MSSDeviceStatus)}
-                  options={[
-                    { value: 'AVAILABLE', label: 'متاح للبيع' },
-                    { value: 'RESERVED', label: 'محجوز' },
-                    { value: 'MAINTENANCE', label: 'تحت الصيانة والفحص' },
-                  ]}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              ملاحظات إضافية
-            </label>
-            <textarea
-              className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
-              rows={2}
-              placeholder="مثال: صحة البطارية 96%، كيبورد مضيئة، شاحن أصلي..."
-              value={formNotes}
-              onChange={e => setFormNotes(e.target.value)}
-            />
-          </div>
-        </form>
-      </Modal>
+      <MSSModelModal
+        isOpen={isAddModelModalOpen}
+        onClose={() => setIsAddModelModalOpen(false)}
+        onSuccess={() => loadData()}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL 2: Edit Existing Device */}

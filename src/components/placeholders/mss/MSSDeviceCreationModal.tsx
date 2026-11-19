@@ -16,6 +16,8 @@ import type { MSSDevice, MSSDeviceStatus, MSSStockLocation } from '@/types/mssIn
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { Plus, Laptop, Box } from 'lucide-react';
 
+const DEFAULT_LOCATIONS: MSSStockLocation[] = ['محل 1', 'محل 2'];
+
 export interface MSSDeviceCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,16 +32,17 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  initialMode = 'INDIVIDUAL',
+  initialMode = 'BULK',
   initialModelId,
-  locationOptions = ['محل 1', 'محل 2'],
+  locationOptions = DEFAULT_LOCATIONS,
   zIndexClassName,
 }) => {
   const { showNotification } = useNotification();
   const [catalogModels, setCatalogModels] = useState<MSSCatalogModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const prevIsOpenRef = React.useRef(false);
 
-  // Form State
+  // Form State: Default to BULK as required
   const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>(initialMode);
   const [formSerial, setFormSerial] = useState('');
   const [formQuantity, setFormQuantity] = useState(1);
@@ -72,9 +75,9 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
     }
   }, []);
 
-  // Initialize form state when modal opens
+  // Initialize form state ONLY when modal transitions from closed to open
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setStockRegistrationMode(initialMode);
       setFormSerial('');
       setFormQuantity(1);
@@ -97,6 +100,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
         }
       });
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, initialMode, initialModelId, locationOptions, loadCatalogModels]);
 
   // When model selection changes, auto-fill default list price if currently 0

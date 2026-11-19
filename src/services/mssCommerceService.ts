@@ -7,9 +7,13 @@ import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
 import type {
   MSSInvoice,
+  MSSInvoiceItem,
   NewMSSSaleInput,
+  NewMSSSaleItemInput,
   MSSReservation,
+  MSSReservationItem,
   NewMSSReservationInput,
+  NewMSSReservationItemInput,
   MSSReturn,
   NewMSSReturnInput,
   MSSStockLocation,
@@ -101,17 +105,89 @@ const INITIAL_SEED_PAYMENTS: MSSPayment[] = [
   },
 ];
 
+function normalizeInvoiceItems(inv: MSSInvoice): MSSInvoice {
+  if (Array.isArray(inv.items) && inv.items.length > 0) {
+    const totalSub = inv.subtotal ?? inv.items.reduce((s, it) => s + (it.list_price_snapshot || it.actual_sale_price), 0);
+    const totalCount = inv.items_count ?? inv.items.reduce((s, it) => s + (it.quantity || 1), 0);
+    return {
+      ...inv,
+      subtotal: totalSub,
+      items_count: totalCount,
+    };
+  }
+  const item: MSSInvoiceItem = {
+    id: 'item-' + inv.id + '-1',
+    invoice_id: inv.id,
+    device_id: inv.device_id,
+    model_id: inv.model_id,
+    serial_number: inv.serial_number,
+    is_serialized: Boolean(inv.serial_number),
+    quantity: 1,
+    list_price_snapshot: inv.list_price_snapshot,
+    unit_price: inv.list_price_snapshot,
+    discount_amount: inv.discount_amount || 0,
+    actual_sale_price: inv.actual_sale_price,
+    cost_snapshot: inv.cost_snapshot,
+    gross_profit: inv.gross_profit,
+    source_branch: inv.source_branch,
+    brand: inv.brand,
+    model_name: inv.model_name,
+    category: inv.category,
+    processor: inv.processor,
+    gpu: inv.gpu,
+    ram: inv.ram,
+    storage: inv.storage,
+    screen_size: inv.screen_size,
+  };
+  return {
+    ...inv,
+    items: [item],
+    items_count: 1,
+    subtotal: inv.list_price_snapshot,
+  };
+}
+
+function normalizeReservationItems(res: MSSReservation): MSSReservation {
+  if (Array.isArray(res.items) && res.items.length > 0) {
+    const totalCount = res.items_count ?? res.items.reduce((s, it) => s + (it.quantity || 1), 0);
+    return {
+      ...res,
+      items_count: totalCount,
+    };
+  }
+  const item: MSSReservationItem = {
+    id: 'item-' + res.id + '-1',
+    reservation_id: res.id,
+    device_id: res.device_id,
+    model_id: '',
+    serial_number: res.serial_number,
+    is_serialized: Boolean(res.serial_number),
+    quantity: 1,
+    agreed_price: res.agreed_price,
+    deposit_amount: res.deposit_amount,
+    source_branch: res.branch,
+    brand: res.brand,
+    model_name: res.model_name,
+  };
+  return {
+    ...res,
+    items: [item],
+    items_count: 1,
+  };
+}
+
 function getCachedInvoices(): MSSInvoice[] {
   try {
     const raw = localStorage.getItem(MSS_INVOICES_CACHE_KEY);
     if (!raw) {
       localStorage.setItem(MSS_INVOICES_CACHE_KEY, JSON.stringify(INITIAL_SEED_INVOICES));
-      return INITIAL_SEED_INVOICES;
+      return INITIAL_SEED_INVOICES.map(normalizeInvoiceItems);
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_INVOICES;
+    const list = Array.isArray(parsed) ? parsed : INITIAL_SEED_INVOICES;
+    return list.map(normalizeInvoiceItems);
   } catch {
-    return INITIAL_SEED_INVOICES;
+    return INITIAL_SEED_INVOICES.map(normalizeInvoiceItems);
   }
 }
 
@@ -124,12 +200,13 @@ function getCachedReservations(): MSSReservation[] {
     const raw = localStorage.getItem(MSS_RESERVATIONS_CACHE_KEY);
     if (!raw) {
       localStorage.setItem(MSS_RESERVATIONS_CACHE_KEY, JSON.stringify(INITIAL_SEED_RESERVATIONS));
-      return INITIAL_SEED_RESERVATIONS;
+      return INITIAL_SEED_RESERVATIONS.map(normalizeReservationItems);
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_RESERVATIONS;
+    const list = Array.isArray(parsed) ? parsed : INITIAL_SEED_RESERVATIONS;
+    return list.map(normalizeReservationItems);
   } catch {
-    return INITIAL_SEED_RESERVATIONS;
+    return INITIAL_SEED_RESERVATIONS.map(normalizeReservationItems);
   }
 }
 
@@ -443,73 +520,198 @@ export const mssCommerceService = {
   },
 
   /**
-   * Confirm and finalize an MSS device sale
+   * Confirm and finalize an MSS device sale (Supports single or multi-device invoices)
    * Accurately enforces:
    * - Selling Branch vs Stock-Source Branch (Rule 9 & Section 16)
    * - Price Snapshots: list price, cost, discount, actual price, gross profit (Rule 8 & Section 17)
-   * - Updates device status to 'SOLD'
+   * - Multi-Device Line Items: preserves unique serial, model, cost & price per device
+   * - Non-serialized bulk stock support (model & quantity)
+   * - Duplicate serialized device prevention
+   * - Atomic inventory status/quantity deductions
    */
   async confirmSale(input: NewMSSSaleInput): Promise<MSSInvoice> {
-    if (!input.device_id) {
-      throw new Error('يجب تحديد الجهاز المراد بيعه بالسيريال');
-    }
-
-    const device = await mssInventoryService.getDeviceById(input.device_id);
-    if (!device) {
-      throw new Error('الجهاز غير موجود في المخزون');
-    }
-
-    if (device.status === 'SOLD') {
-      const serialDisplay = device.serial_number ? `بالسيريال (${device.serial_number})` : '';
-      throw new Error(`الجهاز ${serialDisplay} مباع مسبقاً ولا يمكن بيعه مجدداً.`);
-    }
-
-    let activeRes: MSSReservation | undefined = undefined;
-    if (device.status === 'RESERVED') {
-      // Check if device is reserved by someone else
-      const reservations = await this.getReservations();
-      activeRes = reservations.find(
-        r =>
-          (r.device_id === device.id || (Boolean(device.serial_number) && r.serial_number === device.serial_number)) &&
-          r.status === 'ACTIVE'
-      );
-      if (activeRes) {
-        // If customer name matches reservation customer, allow fulfillment; otherwise require releasing/cancelling first
-        const saleCustomer = input.customer_name?.trim() || '';
-        if (!saleCustomer || !activeRes.customer_name.includes(saleCustomer)) {
-          throw new Error(
-            `الجهاز محجوز حالياً للعميل (${activeRes.customer_name}) بحجز رقم ${activeRes.reservation_number}. يجب إتمام البيع عبر الحجز أو إلغاء الحجز أولاً.`
-          );
-        }
-      } else {
-        throw new Error('الجهاز محجوز حالياً ولا يمكن بيعه مباشرة');
-      }
-    }
-
-    if (input.actual_sale_price < 0) {
-      throw new Error('سعر البيع الفعلي لا يمكن أن يكون سالباً');
-    }
-
     if (!['محل 1', 'محل 2'].includes(input.selling_branch)) {
       throw new Error('فرع البيع غير صالح. يجب اختيار "محل 1" أو "محل 2"');
     }
 
-    const sourceBranch = device.stock_location;
-    const sellingBranch = input.selling_branch;
-    const listPriceSnapshot = device.list_price;
-    const costSnapshot = device.purchase_cost;
-    const actualSalePrice = Number(input.actual_sale_price) || 0;
-    const discountAmount =
-      input.discount_amount !== undefined
-        ? Number(input.discount_amount)
-        : Math.max(0, listPriceSnapshot - actualSalePrice);
-    const grossProfit = actualSalePrice - costSnapshot;
+    // 1. Normalize line items: single-device vs multi-device
+    let rawItems: NewMSSSaleItemInput[] = [];
+    if (Array.isArray(input.items) && input.items.length > 0) {
+      rawItems = input.items;
+    } else if (input.device_id) {
+      rawItems = [
+        {
+          device_id: input.device_id,
+          actual_sale_price: Number(input.actual_sale_price) || 0,
+          discount_amount: input.discount_amount,
+        },
+      ];
+    } else {
+      throw new Error('يجب تحديد جهاز واحد على الأقل لإتمام البيع');
+    }
+
+    // 2. Prevent duplicate selection of serialized devices
+    const seenDeviceIds = new Set<string>();
+    const seenSerials = new Set<string>();
+    for (const it of rawItems) {
+      if (it.device_id) {
+        if (seenDeviceIds.has(it.device_id)) {
+          throw new Error('يمنع تكرار اختيار نفس الجهاز المسلسل في الفاتورة');
+        }
+        seenDeviceIds.add(it.device_id);
+      }
+      if (it.serial_number && it.serial_number.trim()) {
+        const cleanSN = it.serial_number.trim().toUpperCase();
+        if (seenSerials.has(cleanSN)) {
+          throw new Error(`يمنع تكرار الجهاز بالسيريال (${cleanSN}) في نفس الفاتورة`);
+        }
+        seenSerials.add(cleanSN);
+      }
+    }
+
+    // 3. Validate stock availability and calculate line items
+    interface ProcessedSaleItem {
+      device: any;
+      quantity: number;
+      unitPrice: number;
+      listPriceSnapshot: number;
+      actualSalePrice: number;
+      discountAmount: number;
+      costSnapshot: number;
+      grossProfit: number;
+      sourceBranch: MSSStockLocation;
+      activeReservation?: MSSReservation;
+    }
+
+    const processedItems: ProcessedSaleItem[] = [];
+    const reservations = await this.getReservations();
+
+    for (const item of rawItems) {
+      if (!item.device_id) {
+        throw new Error('يجب تحديد الجهاز أو دفعة المخزون لإتمام البيع');
+      }
+
+      const device = await mssInventoryService.getDeviceById(item.device_id);
+      if (!device) {
+        throw new Error('أحد الأجهزة المحددة غير موجود في المخزون');
+      }
+
+      if (device.status === 'SOLD') {
+        const serialDisplay = device.serial_number ? `بالسيريال (${device.serial_number})` : '';
+        throw new Error(`الجهاز ${serialDisplay} مباع مسبقاً ولا يمكن بيعه مجدداً.`);
+      }
+
+      let activeRes: MSSReservation | undefined = undefined;
+      if (device.status === 'RESERVED') {
+        activeRes = reservations.find(
+          r =>
+            (r.device_id === device.id ||
+              (Boolean(device.serial_number) && r.serial_number === device.serial_number)) &&
+            r.status === 'ACTIVE'
+        );
+        if (activeRes) {
+          const saleCustomer = input.customer_name?.trim() || '';
+          if (!saleCustomer || !activeRes.customer_name.includes(saleCustomer)) {
+            throw new Error(
+              `الجهاز محجوز حالياً للعميل (${activeRes.customer_name}) بحجز رقم ${activeRes.reservation_number}. يجب إتمام البيع عبر الحجز أو إلغاء الحجز أولاً.`
+            );
+          }
+        } else {
+          throw new Error('الجهاز محجوز حالياً ولا يمكن بيعه مباشرة');
+        }
+      }
+
+      const isBulk = !device.is_serialized || (device.quantity && device.quantity > 1);
+      const reqQuantity = isBulk ? Math.max(1, Math.floor(item.quantity || 1)) : 1;
+      const availableQty = device.quantity && device.quantity > 0 ? device.quantity : 1;
+
+      if (reqQuantity > availableQty) {
+        throw new Error(
+          `الكمية المطلوبة (${reqQuantity}) أكبر من المخزون المتاح (${availableQty}) للموديل (${device.model_name || ''})`
+        );
+      }
+
+      const unitPrice =
+        item.unit_price !== undefined
+          ? Number(item.unit_price)
+          : item.actual_sale_price !== undefined
+          ? Number(item.actual_sale_price) / reqQuantity
+          : device.list_price;
+
+      const listPriceSnapshot =
+        (item.list_price !== undefined ? Number(item.list_price) : device.list_price) * reqQuantity;
+
+      const actualSalePrice =
+        item.actual_sale_price !== undefined ? Number(item.actual_sale_price) : unitPrice * reqQuantity;
+
+      if (actualSalePrice < 0) {
+        throw new Error('سعر البيع الفعلي لا يمكن أن يكون سالباً');
+      }
+
+      const discountAmount =
+        item.discount_amount !== undefined
+          ? Number(item.discount_amount)
+          : Math.max(0, listPriceSnapshot - actualSalePrice);
+
+      const costSnapshot = device.purchase_cost * reqQuantity;
+      const grossProfit = actualSalePrice - costSnapshot;
+      const sourceBranch = item.source_branch || device.stock_location;
+
+      processedItems.push({
+        device,
+        quantity: reqQuantity,
+        unitPrice,
+        listPriceSnapshot,
+        actualSalePrice,
+        discountAmount,
+        costSnapshot,
+        grossProfit,
+        sourceBranch,
+        activeReservation: activeRes,
+      });
+    }
+
+    // 4. Compute totals across all line items
+    const totalListPrice = processedItems.reduce((s, it) => s + it.listPriceSnapshot, 0);
+    const totalActualSalePrice = processedItems.reduce((s, it) => s + it.actualSalePrice, 0);
+    const totalCostSnapshot = processedItems.reduce((s, it) => s + it.costSnapshot, 0);
+    const totalDiscountAmount =
+      processedItems.reduce((s, it) => s + it.discountAmount, 0) +
+      (input.discount_amount && input.items ? Number(input.discount_amount) : 0);
+    const totalGrossProfit = totalActualSalePrice - totalCostSnapshot;
+    const totalUnitsCount = processedItems.reduce((s, it) => s + it.quantity, 0);
 
     const invoiceNumber = await this.getNextInvoiceNumber();
     const now = new Date().toISOString();
     const newId = 'inv-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
 
-    // Phase 2: Deferred & Installment Calculation
+    // 5. Construct line items
+    const constructedItems: MSSInvoiceItem[] = processedItems.map((p, idx) => ({
+      id: `inv-item-${newId}-${idx + 1}`,
+      invoice_id: newId,
+      device_id: p.device.id,
+      model_id: p.device.model_id,
+      serial_number: p.device.serial_number || null,
+      is_serialized: p.device.is_serialized ?? Boolean(p.device.serial_number),
+      quantity: p.quantity,
+      list_price_snapshot: p.listPriceSnapshot,
+      unit_price: p.unitPrice,
+      discount_amount: p.discountAmount,
+      actual_sale_price: p.actualSalePrice,
+      cost_snapshot: p.costSnapshot,
+      gross_profit: p.grossProfit,
+      source_branch: p.sourceBranch,
+      brand: p.device.brand,
+      model_name: p.device.model_name,
+      category: p.device.category,
+      processor: p.device.model?.processor,
+      gpu: p.device.model?.gpu,
+      ram: p.device.model?.ram,
+      storage: p.device.model?.storage,
+      screen_size: p.device.model?.screen_size,
+    }));
+
+    // 6. Deferred & Installment Calculation
     const paymentType: MSSPaymentType = input.payment_type || 'FULL';
     let paidAmount = 0;
     let remainingBalance = 0;
@@ -522,12 +724,12 @@ export const mssCommerceService = {
       if (isNaN(initialPayment) || initialPayment < 0) {
         throw new Error('الدفعة المقدمة لا يمكن أن تكون سالبة');
       }
-      if (roundMoney(initialPayment) > actualSalePrice) {
+      if (roundMoney(initialPayment) > totalActualSalePrice) {
         throw new Error('الدفعة المقدمة لا يمكن أن تتجاوز إجمالي سعر البيع الفعلي');
       }
 
       paidAmount = roundMoney(initialPayment);
-      remainingBalance = roundMoney(actualSalePrice - paidAmount);
+      remainingBalance = roundMoney(totalActualSalePrice - paidAmount);
 
       if (input.installments && input.installments.length > 0) {
         for (const inst of input.installments) {
@@ -560,18 +762,18 @@ export const mssCommerceService = {
       }
 
       const nextDue = input.due_date || (schedulesToStore[0]?.due_date ?? null);
-      const metrics = computeMSSInvoicePaymentStatus(actualSalePrice, initialPaymentsToStore, nextDue, schedulesToStore);
+      const metrics = computeMSSInvoicePaymentStatus(totalActualSalePrice, initialPaymentsToStore, nextDue, schedulesToStore);
       paymentStatus = metrics.paymentStatus;
     } else {
-      paidAmount = actualSalePrice;
+      paidAmount = totalActualSalePrice;
       remainingBalance = 0;
       paymentStatus = 'PAID';
 
-      if (actualSalePrice > 0) {
+      if (totalActualSalePrice > 0) {
         initialPaymentsToStore.push({
           id: 'pay-mss-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36),
           invoice_id: newId,
-          amount: actualSalePrice,
+          amount: totalActualSalePrice,
           payment_date: now.substring(0, 10),
           payment_method: input.payment_method?.trim() || 'نقدي',
           notes: 'سداد كامل عند تأكيد البيع',
@@ -583,20 +785,25 @@ export const mssCommerceService = {
     }
 
     const nextDueDate = input.due_date || (schedulesToStore[0]?.due_date ?? null);
+    const firstDev = processedItems[0].device;
+    const device = firstDev;
 
     const newInvoice: MSSInvoice = {
       id: newId,
       invoice_number: invoiceNumber,
       device_id: device.id,
-      serial_number: device.serial_number,
+      serial_number: processedItems.length === 1 ? device.serial_number : null,
       model_id: device.model_id,
-      selling_branch: sellingBranch,
-      source_branch: sourceBranch,
-      list_price_snapshot: listPriceSnapshot,
-      discount_amount: discountAmount,
-      actual_sale_price: actualSalePrice,
-      cost_snapshot: costSnapshot,
-      gross_profit: grossProfit,
+      selling_branch: input.selling_branch,
+      source_branch: processedItems[0].sourceBranch,
+      list_price_snapshot: processedItems.length === 1 ? processedItems[0].listPriceSnapshot : totalListPrice,
+      discount_amount: totalDiscountAmount,
+      actual_sale_price: totalActualSalePrice,
+      cost_snapshot: totalCostSnapshot,
+      gross_profit: totalGrossProfit,
+      subtotal: input.subtotal !== undefined ? Number(input.subtotal) : totalListPrice,
+      items_count: totalUnitsCount,
+      items: constructedItems,
       customer_name: input.customer_name?.trim() || null,
       customer_phone: input.customer_phone?.trim() || null,
       warranty_period: input.warranty_period?.trim() || 'ضمان شهر كامل',
@@ -623,7 +830,7 @@ export const mssCommerceService = {
       installment_schedule: schedulesToStore,
     };
 
-    // 1. Try remote insert to Supabase
+    // 7. Remote insert to Supabase
     try {
       const { data, error } = await supabase
         .from('mss_invoices')
@@ -659,31 +866,54 @@ export const mssCommerceService = {
         newInvoice.id = data.id;
         newInvoice.created_at = data.created_at;
         newInvoice.updated_at = data.updated_at;
-        // update foreign key in initial payments and schedules
         initialPaymentsToStore.forEach(p => (p.invoice_id = data.id));
         schedulesToStore.forEach(s => (s.invoice_id = data.id));
+        constructedItems.forEach(it => (it.invoice_id = data.id));
+
+        try {
+          await supabase.from('mss_invoice_items').insert(
+            constructedItems.map(it => ({
+              invoice_id: data.id,
+              device_id: it.device_id || null,
+              model_id: it.model_id,
+              serial_number: it.serial_number || null,
+              quantity: it.quantity,
+              list_price_snapshot: it.list_price_snapshot,
+              unit_price: it.unit_price,
+              discount_amount: it.discount_amount,
+              actual_sale_price: it.actual_sale_price,
+              cost_snapshot: it.cost_snapshot,
+              gross_profit: it.gross_profit,
+              source_branch: it.source_branch,
+            }))
+          );
+        } catch {
+          // Fallback handled
+        }
       }
     } catch (err) {
       console.warn('Supabase insert invoice failed, cached locally:', err);
     }
 
-    // 2. Atomically update device status in inventory
-    if (device.quantity && device.quantity > 1) {
-      await mssInventoryService.updateDevice(device.id, {
-        quantity: device.quantity - 1,
-      });
-    } else {
-      await mssInventoryService.updateDevice(device.id, {
-        status: 'SOLD',
-      });
+    // 8. Atomically update inventory devices & fulfill reservations
+    for (const p of processedItems) {
+      if (p.device.quantity && p.device.quantity > p.quantity) {
+        await mssInventoryService.updateDevice(p.device.id, {
+          quantity: p.device.quantity - p.quantity,
+        });
+      } else {
+        await mssInventoryService.updateDevice(p.device.id, {
+          status: 'SOLD',
+          quantity: 0,
+        });
+      }
+
+      if (p.activeReservation) {
+        await this.updateReservationStatus(p.activeReservation.id, 'FULFILLED');
+      }
     }
 
-    // 3. If there was an active reservation for this device, mark it FULFILLED
-    if (activeRes) {
-      await this.updateReservationStatus(activeRes.id, 'FULFILLED');
-    }
-
-    // 4. Update local caches
+    // 9. Update local caches
     const cached = getCachedInvoices();
     cached.unshift(newInvoice);
     saveCachedInvoices(cached);
@@ -696,19 +926,21 @@ export const mssCommerceService = {
       saveCachedSchedules([...getCachedSchedules(), ...schedulesToStore]);
     }
 
-    // 5. Queue in Outbox for reliable synchronization
+    // 10. Queue in Outbox
     mssSyncService
       .queueOperation(
         'SALE_CREATE',
         newInvoice,
-        newInvoice.serial_number
+        constructedItems.length > 1
+          ? `بيع فاتورة متعددة (${constructedItems.length} أجهزة) برقم ${newInvoice.invoice_number}`
+          : newInvoice.serial_number
           ? `بيع جهاز ${newInvoice.brand || ''} ${newInvoice.model_name || ''} بالسيريال (${newInvoice.serial_number}) بفاتورة رقم ${newInvoice.invoice_number}`
           : `بيع جهاز بدون سيريال ${newInvoice.brand || ''} ${newInvoice.model_name || ''} بفاتورة رقم ${newInvoice.invoice_number}`,
         newInvoice.selling_branch
       )
       .catch(console.warn);
 
-    backupService.notifyDataChanged(`بيع جهاز MSS: ${newInvoice.invoice_number}`);
+    backupService.notifyDataChanged(`بيع أجهزة MSS: ${newInvoice.invoice_number}`);
 
     return newInvoice;
   },
@@ -1221,54 +1453,151 @@ export const mssCommerceService = {
   },
 
   /**
-   * Create device reservation visible to both shops
+   * Create device reservation visible to both shops (Supports single or multi-device reservations)
    */
   async createReservation(input: NewMSSReservationInput): Promise<MSSReservation> {
-    if (!input.device_id) throw new Error('يجب اختيار الجهاز المراد حجزه');
     if (!input.customer_name?.trim()) throw new Error('اسم العميل مطلوب لتوثيق الحجز');
     if (!input.customer_phone?.trim()) throw new Error('رقم هاتف العميل مطلوب');
     if (input.deposit_amount < 0) throw new Error('مبلغ العربون لا يمكن أن يكون سالباً');
-    if (input.agreed_price < 0) throw new Error('السعر المتفق عليه لا يمكن أن يكون سالباً');
+
+    // 1. Normalize line items
+    let rawItems: NewMSSReservationItemInput[] = [];
+    if (Array.isArray(input.items) && input.items.length > 0) {
+      rawItems = input.items;
+    } else if (input.device_id) {
+      rawItems = [
+        {
+          device_id: input.device_id,
+          agreed_price: Number(input.agreed_price) || 0,
+          deposit_amount: Number(input.deposit_amount) || 0,
+        },
+      ];
+    } else {
+      throw new Error('يجب اختيار جهاز واحد على الأقل للحجز');
+    }
 
     const today = getTodayLocalDateString();
     if (input.expiry_date && input.expiry_date.trim() < today) {
       throw new Error(`تاريخ انتهاء الحجز (${input.expiry_date}) لا يمكن أن يكون في الماضي. يجب أن يكون اليوم أو تاريخاً مستقبلياً.`);
     }
 
-    const device = await mssInventoryService.getDeviceById(input.device_id);
-    if (!device) throw new Error('الجهاز غير موجود في المخزون');
-
-    if (device.status === 'SOLD') {
-      const sDesc = device.serial_number ? `(${device.serial_number})` : '';
-      throw new Error(`لا يمكن حجز جهاز مباع بالفعل ${sDesc}`);
+    // 2. Prevent duplicate serialized device reservations
+    const seenDevIds = new Set<string>();
+    const seenSerials = new Set<string>();
+    for (const it of rawItems) {
+      if (it.device_id) {
+        if (seenDevIds.has(it.device_id)) {
+          throw new Error('يمنع تكرار حجز نفس الجهاز المسلسل أكثر من مرة');
+        }
+        seenDevIds.add(it.device_id);
+      }
+      if (it.serial_number && it.serial_number.trim()) {
+        const s = it.serial_number.trim().toUpperCase();
+        if (seenSerials.has(s)) {
+          throw new Error(`يمنع تكرار حجز الجهاز بالسيريال (${s}) أكثر من مرة`);
+        }
+        seenSerials.add(s);
+      }
     }
 
-    if (device.status === 'RESERVED') {
-      const sDesc = device.serial_number ? `(${device.serial_number})` : '';
-      throw new Error(`الجهاز ${sDesc} محجوز مسبقاً لعميل آخر.`);
+    // 3. Validate stock availability and calculate items
+    interface ProcessedResItem {
+      device: any;
+      quantity: number;
+      agreedPrice: number;
+      depositAmount: number;
+      sourceBranch: MSSStockLocation;
     }
 
+    const processedItems: ProcessedResItem[] = [];
+    for (const item of rawItems) {
+      if (!item.device_id) throw new Error('يجب اختيار الجهاز المراد حجزه');
+      const device = await mssInventoryService.getDeviceById(item.device_id);
+      if (!device) throw new Error('الجهاز غير موجود في المخزون');
+
+      if (device.status === 'SOLD') {
+        const sDesc = device.serial_number ? `(${device.serial_number})` : '';
+        throw new Error(`لا يمكن حجز جهاز مباع بالفعل ${sDesc}`);
+      }
+
+      if (device.status === 'RESERVED') {
+        const sDesc = device.serial_number ? `(${device.serial_number})` : '';
+        throw new Error(`الجهاز ${sDesc} محجوز مسبقاً لعميل آخر.`);
+      }
+
+      const isBulk = !device.is_serialized || (device.quantity && device.quantity > 1);
+      const reqQty = isBulk ? Math.max(1, Math.floor(item.quantity || 1)) : 1;
+      const availQty = device.quantity && device.quantity > 0 ? device.quantity : 1;
+
+      if (reqQty > availQty) {
+        throw new Error(
+          `الكمية المطلوب حجزها (${reqQty}) أكبر من المخزون المتاح (${availQty}) للموديل (${device.model_name || ''})`
+        );
+      }
+
+      const itemAgreedPrice = item.agreed_price !== undefined ? Number(item.agreed_price) : device.list_price;
+      if (itemAgreedPrice < 0) {
+        throw new Error('السعر المتفق عليه لا يمكن أن يكون سالباً');
+      }
+
+      processedItems.push({
+        device,
+        quantity: reqQty,
+        agreedPrice: itemAgreedPrice * reqQty,
+        depositAmount: Number(item.deposit_amount) || 0,
+        sourceBranch: item.source_branch || device.stock_location,
+      });
+    }
+
+    const totalAgreedPrice =
+      input.agreed_price !== undefined && input.device_id && !input.items
+        ? Number(input.agreed_price)
+        : processedItems.reduce((s, it) => s + it.agreedPrice, 0);
+
+    const totalDeposit = Number(input.deposit_amount) || 0;
     const resNumber = await this.getNextReservationNumber();
     const now = new Date().toISOString();
     const newId = 'res-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
 
+    const constructedItems: MSSReservationItem[] = processedItems.map((p, idx) => ({
+      id: `res-item-${newId}-${idx + 1}`,
+      reservation_id: newId,
+      device_id: p.device.id,
+      model_id: p.device.model_id,
+      serial_number: p.device.serial_number || null,
+      is_serialized: p.device.is_serialized ?? Boolean(p.device.serial_number),
+      quantity: p.quantity,
+      agreed_price: p.agreedPrice,
+      deposit_amount: p.depositAmount,
+      source_branch: p.sourceBranch,
+      brand: p.device.brand,
+      model_name: p.device.model_name,
+      processor: p.device.model?.processor,
+      gpu: p.device.model?.gpu,
+      ram: p.device.model?.ram,
+      storage: p.device.model?.storage,
+    }));
+
+    const firstDev = processedItems[0].device;
     const newReservation: MSSReservation = {
       id: newId,
       reservation_number: resNumber,
-      device_id: device.id,
-      serial_number: device.serial_number,
+      device_id: firstDev.id,
+      serial_number: processedItems.length === 1 ? firstDev.serial_number : null,
       branch: input.branch,
       customer_name: input.customer_name.trim(),
       customer_phone: input.customer_phone.trim(),
-      deposit_amount: Number(input.deposit_amount) || 0,
-      agreed_price: Number(input.agreed_price) || device.list_price,
+      deposit_amount: totalDeposit,
+      agreed_price: totalAgreedPrice,
       expiry_date: input.expiry_date || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
       status: 'ACTIVE',
       notes: input.notes?.trim() || null,
+      items: constructedItems,
+      items_count: processedItems.reduce((s, it) => s + it.quantity, 0),
       created_at: now,
       updated_at: now,
-      brand: device.brand,
-      model_name: device.model_name,
+      brand: firstDev.brand,
+      model_name: firstDev.model_name,
     };
 
     // Try remote insert
@@ -1293,20 +1622,40 @@ export const mssCommerceService = {
 
       if (!error && data) {
         newReservation.id = data.id;
+        constructedItems.forEach(it => (it.reservation_id = data.id));
+
+        try {
+          await supabase.from('mss_reservation_items').insert(
+            constructedItems.map(it => ({
+              reservation_id: data.id,
+              device_id: it.device_id || null,
+              model_id: it.model_id,
+              serial_number: it.serial_number || null,
+              quantity: it.quantity,
+              agreed_price: it.agreed_price,
+              deposit_amount: it.deposit_amount || 0,
+              source_branch: it.source_branch,
+            }))
+          );
+        } catch {
+          // Fallback handled
+        }
       }
     } catch (err) {
       console.warn('Supabase insert reservation failed, cached locally:', err);
     }
 
     // Atomically set device status to 'RESERVED' or decrement bulk quantity
-    if (device.quantity && device.quantity > 1) {
-      await mssInventoryService.updateDevice(device.id, {
-        quantity: device.quantity - 1,
-      });
-    } else {
-      await mssInventoryService.updateDevice(device.id, {
-        status: 'RESERVED',
-      });
+    for (const p of processedItems) {
+      if (p.device.quantity && p.device.quantity > p.quantity) {
+        await mssInventoryService.updateDevice(p.device.id, {
+          quantity: p.device.quantity - p.quantity,
+        });
+      } else {
+        await mssInventoryService.updateDevice(p.device.id, {
+          status: 'RESERVED',
+        });
+      }
     }
 
     const cached = getCachedReservations();
@@ -1318,7 +1667,9 @@ export const mssCommerceService = {
       .queueOperation(
         'RESERVATION_CREATE',
         newReservation,
-        newReservation.serial_number
+        constructedItems.length > 1
+          ? `حجز متعدد (${constructedItems.length} أجهزة) للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`
+          : newReservation.serial_number
           ? `حجز جهاز بالسيريال (${newReservation.serial_number}) للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`
           : `حجز جهاز بدون سيريال للعميل (${newReservation.customer_name}) بحجز رقم ${newReservation.reservation_number}`,
         newReservation.branch
@@ -1360,17 +1711,37 @@ export const mssCommerceService = {
     cached[index] = res;
     saveCachedReservations(cached);
 
-    // Release device back to AVAILABLE
-    await mssInventoryService.updateDevice(res.device_id, {
-      status: 'AVAILABLE',
-    });
+    // Release devices back to AVAILABLE
+    if (Array.isArray(res.items) && res.items.length > 0) {
+      for (const it of res.items) {
+        if (it.device_id) {
+          const dev = await mssInventoryService.getDeviceById(it.device_id);
+          if (dev) {
+            if (!dev.is_serialized && dev.quantity !== undefined) {
+              await mssInventoryService.updateDevice(dev.id, {
+                status: 'AVAILABLE',
+                quantity: dev.quantity + (it.quantity || 1),
+              });
+            } else {
+              await mssInventoryService.updateDevice(dev.id, {
+                status: 'AVAILABLE',
+              });
+            }
+          }
+        }
+      }
+    } else if (res.device_id) {
+      await mssInventoryService.updateDevice(res.device_id, {
+        status: 'AVAILABLE',
+      });
+    }
 
     // Queue in Outbox
     mssSyncService
       .queueOperation(
         'RESERVATION_CANCEL',
         { reservation_id: res.id, serial_number: res.serial_number, reason },
-        `إلغاء حجز رقم ${res.reservation_number} للجهاز (${res.serial_number})`,
+        `إلغاء حجز رقم ${res.reservation_number}`,
         res.branch
       )
       .catch(console.warn);
@@ -1591,12 +1962,36 @@ export const mssCommerceService = {
       saveCachedInvoices(invoices);
     }
 
-    // 3. Restock device: set status and location
-    await mssInventoryService.updateDevice(invoice.device_id, {
-      status: input.new_status || 'AVAILABLE',
-      stock_location: input.restock_location,
-      physical_condition: input.new_condition?.trim() || 'فرز أول ممتاز',
-    });
+    // 3. Restock device(s): set status and location
+    if (Array.isArray(invoice.items) && invoice.items.length > 0) {
+      for (const it of invoice.items) {
+        if (it.device_id) {
+          const dev = await mssInventoryService.getDeviceById(it.device_id);
+          if (dev) {
+            if (!dev.is_serialized && dev.quantity !== undefined) {
+              await mssInventoryService.updateDevice(dev.id, {
+                status: input.new_status || 'AVAILABLE',
+                stock_location: input.restock_location,
+                physical_condition: input.new_condition?.trim() || 'فرز أول ممتاز',
+                quantity: dev.quantity + (it.quantity || 1),
+              });
+            } else {
+              await mssInventoryService.updateDevice(dev.id, {
+                status: input.new_status || 'AVAILABLE',
+                stock_location: input.restock_location,
+                physical_condition: input.new_condition?.trim() || 'فرز أول ممتاز',
+              });
+            }
+          }
+        }
+      }
+    } else if (invoice.device_id) {
+      await mssInventoryService.updateDevice(invoice.device_id, {
+        status: input.new_status || 'AVAILABLE',
+        stock_location: input.restock_location,
+        physical_condition: input.new_condition?.trim() || 'فرز أول ممتاز',
+      });
+    }
 
     // 4. Save return to local cache
     const cachedReturns = getCachedReturns();

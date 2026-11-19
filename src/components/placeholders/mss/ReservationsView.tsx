@@ -17,7 +17,13 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { getTodayLocalDateString, useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
-import type { MSSReservation, MSSStockLocation, MSSReservationStatus } from '@/types/mssCommerce';
+import type {
+  MSSReservation,
+  MSSReservationItem,
+  MSSStockLocation,
+  MSSReservationStatus,
+  NewMSSReservationItemInput,
+} from '@/types/mssCommerce';
 import type { MSSDevice } from '@/types/mssInventory';
 import {
   Plus,
@@ -30,7 +36,25 @@ import {
   RefreshCw,
   Phone,
   User,
+  Trash2,
+  Layers,
+  Laptop,
 } from 'lucide-react';
+
+export interface ReservationModalItem {
+  id: string;
+  device_id: string;
+  device: MSSDevice;
+  is_serialized: boolean;
+  serial_number?: string | null;
+  model_name: string;
+  brand: string;
+  quantity: number;
+  available_stock: number;
+  agreed_price: number;
+  total_agreed_price: number;
+  branch: MSSStockLocation;
+}
 
 export const ReservationsView: React.FC = () => {
   const { showNotification } = useNotification();
@@ -44,14 +68,18 @@ export const ReservationsView: React.FC = () => {
   const [branchFilter, setBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
   const dateFilter = useDateRangeFilter();
 
-  // New Reservation Modal State
+  // New Reservation Modal State (Multi-Device Support)
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [reservationItems, setReservationItems] = useState<ReservationModalItem[]>([]);
+  const [pendingDevice, setPendingDevice] = useState<MSSDevice | null>(null);
+  const [pendingQuantity, setPendingQuantity] = useState<number>(1);
+  const [pendingAgreedPrice, setPendingAgreedPrice] = useState<number>(0);
+  const [itemError, setItemError] = useState<string>('');
+
   const [branch, setBranch] = useState<MSSStockLocation>('محل 1');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [depositAmount, setDepositAmount] = useState<number>(500);
-  const [agreedPrice, setAgreedPrice] = useState<number>(0);
   const [expiryDate, setExpiryDate] = useState<string>(
     new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
   );
@@ -103,35 +131,119 @@ export const ReservationsView: React.FC = () => {
     }
 
     const first = availableDevices[0];
-    setSelectedDeviceId(first.id);
+    setPendingDevice(first);
+    setPendingQuantity(1);
+    setPendingAgreedPrice(first.list_price);
+    setReservationItems([]);
     setBranch(first.stock_location);
-    setAgreedPrice(first.list_price);
     setDepositAmount(500);
     setCustomerName('');
     setCustomerPhone('');
     setExpiryDate(new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]);
     setNotes('حجز مؤقت مع عربون');
     setFormError('');
+    setItemError('');
     setIsAddModalOpen(true);
   };
 
-  // Device change in modal
-  const handleDeviceChange = (devId: string) => {
-    setSelectedDeviceId(devId);
-    const d = availableDevices.find(x => x.id === devId);
-    if (d) {
-      setAgreedPrice(d.list_price);
-      setBranch(d.stock_location);
-    }
+  // Device pick in modal
+  const handlePendingDevicePick = (d: MSSDevice) => {
+    setPendingDevice(d);
+    setPendingQuantity(1);
+    setPendingAgreedPrice(d.list_price);
+    setItemError('');
   };
+
+  // Add Item to reservation
+  const handleAddItemToReservation = () => {
+    if (!pendingDevice) {
+      setItemError('يرجى اختيار جهاز لإضافته للحجز');
+      return;
+    }
+
+    const isSerialized = Boolean(pendingDevice.is_serialized && pendingDevice.serial_number);
+    const availableStock =
+      pendingDevice.quantity && pendingDevice.quantity > 0 ? pendingDevice.quantity : 1;
+
+    // Check duplicate serialized device
+    if (isSerialized) {
+      const exists = reservationItems.some(it => it.device_id === pendingDevice.id);
+      if (exists) {
+        setItemError(`الجهاز بالسيريال (${pendingDevice.serial_number}) مضاف بالفعل في الحجز`);
+        return;
+      }
+    }
+
+    const qtyToAdd = isSerialized ? 1 : Math.max(1, Math.floor(pendingQuantity));
+    const existing = reservationItems.find(it => it.device_id === pendingDevice.id);
+    const currentQty = existing ? existing.quantity : 0;
+
+    if (currentQty + qtyToAdd > availableStock) {
+      setItemError(
+        `الكمية المطلوبة (${currentQty + qtyToAdd}) تتجاوز المخزون المتاح (${availableStock}) لهذا الموديل.`
+      );
+      return;
+    }
+
+    if (pendingAgreedPrice < 0) {
+      setItemError('السعر المتفق عليه لا يمكن أن يكون سالباً');
+      return;
+    }
+
+    if (existing && !isSerialized) {
+      setReservationItems(prev =>
+        prev.map(it =>
+          it.device_id === pendingDevice.id
+            ? {
+                ...it,
+                quantity: it.quantity + qtyToAdd,
+                agreed_price: pendingAgreedPrice,
+                total_agreed_price: (it.quantity + qtyToAdd) * pendingAgreedPrice,
+              }
+            : it
+        )
+      );
+    } else {
+      const newItem: ReservationModalItem = {
+        id: `res-item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        device_id: pendingDevice.id,
+        device: pendingDevice,
+        is_serialized: isSerialized,
+        serial_number: pendingDevice.serial_number,
+        model_name: pendingDevice.model_name,
+        brand: pendingDevice.brand,
+        quantity: qtyToAdd,
+        available_stock: availableStock,
+        agreed_price: pendingAgreedPrice,
+        total_agreed_price: qtyToAdd * pendingAgreedPrice,
+        branch: pendingDevice.stock_location,
+      };
+      setReservationItems(prev => [...prev, newItem]);
+    }
+
+    setItemError('');
+    showNotification({
+      type: 'success',
+      title: 'تمت إضافة الجهاز للحجز',
+      message: `${pendingDevice.brand} ${pendingDevice.model_name}`,
+    });
+  };
+
+  // Remove Item from reservation
+  const handleRemoveItemFromReservation = (id: string) => {
+    setReservationItems(prev => prev.filter(it => it.id !== id));
+  };
+
+  // Total agreed price for all items in reservation
+  const totalAgreedPrice = reservationItems.reduce((sum, it) => sum + it.total_agreed_price, 0);
 
   // Save new reservation
   const handleSaveAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!selectedDeviceId) {
-      setFormError('يرجى اختيار الجهاز المراد حجزه');
+    if (reservationItems.length === 0) {
+      setFormError('يرجى إضافة جهاز واحد على الأقل إلى الحجز');
       return;
     }
     if (!customerName.trim()) {
@@ -142,8 +254,12 @@ export const ReservationsView: React.FC = () => {
       setFormError('رقم هاتف العميل مطلوب');
       return;
     }
-    if (depositAmount < 0 || agreedPrice < 0) {
-      setFormError('القيم المالية لا يمكن أن تكون سالبة');
+    if (depositAmount < 0) {
+      setFormError('مبلغ العربون لا يمكن أن يكون سالباً');
+      return;
+    }
+    if (totalAgreedPrice < 0) {
+      setFormError('السعر المتفق عليه لا يمكن أن يكون سالباً');
       return;
     }
 
@@ -151,21 +267,30 @@ export const ReservationsView: React.FC = () => {
     setFormError('');
 
     try {
+      const itemsPayload: NewMSSReservationItemInput[] = reservationItems.map(it => ({
+        device_id: it.device_id,
+        quantity: it.quantity,
+        agreed_price: it.total_agreed_price,
+        source_branch: it.branch,
+      }));
+
+      const firstItem = reservationItems[0];
       const res = await mssCommerceService.createReservation({
-        device_id: selectedDeviceId,
+        device_id: firstItem.device_id,
         branch,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
         deposit_amount: Number(depositAmount),
-        agreed_price: Number(agreedPrice),
+        agreed_price: Number(totalAgreedPrice),
         expiry_date: expiryDate,
         notes: notes.trim() || undefined,
+        items: itemsPayload,
       });
 
       showNotification({
         type: 'success',
         title: 'تم إنشاء الحجز بنجاح',
-        message: `تم حجز الجهاز ${res.serial_number ? `بالسيريال (${res.serial_number}) ` : ''}للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
+        message: `تم حجز (${reservationItems.length}) أجهزة للعميل (${res.customer_name}) بحجز رقم ${res.reservation_number}`,
       });
 
       setIsAddModalOpen(false);
@@ -208,6 +333,25 @@ export const ReservationsView: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      const saleItems =
+        activeReservation.items && activeReservation.items.length > 0
+          ? activeReservation.items.map(it => ({
+              device_id: it.device_id,
+              quantity: it.quantity || 1,
+              unit_price: (it.agreed_price || 0) / (it.quantity || 1),
+              actual_sale_price: it.agreed_price,
+              source_branch: it.source_branch || activeReservation.branch,
+            }))
+          : [
+              {
+                device_id: activeReservation.device_id,
+                quantity: 1,
+                unit_price: activeReservation.agreed_price,
+                actual_sale_price: activeReservation.agreed_price,
+                source_branch: activeReservation.branch,
+              },
+            ];
+
       const invoice = await mssCommerceService.confirmSale({
         device_id: activeReservation.device_id,
         selling_branch: activeReservation.branch,
@@ -215,12 +359,13 @@ export const ReservationsView: React.FC = () => {
         customer_name: activeReservation.customer_name,
         customer_phone: activeReservation.customer_phone,
         notes: `إتمام حجز رقم ${activeReservation.reservation_number} - مسدد عربون: ${formatCurrency(activeReservation.deposit_amount)}`,
+        items: saleItems,
       });
 
       showNotification({
         type: 'success',
         title: 'تم إتمام البيع بنجاح',
-        message: `تم تحويل الحجز إلى فاتورة بيع رسمية رقم (${invoice.invoice_number})`,
+        message: `تم تحويل الحجز إلى فاتورة بيع رسمية رقم (${invoice.invoice_number}) بعدد (${saleItems.length}) أجهزة`,
       });
 
       setIsFulfillModalOpen(false);
@@ -270,8 +415,17 @@ export const ReservationsView: React.FC = () => {
     {
       key: 'serial_number',
       header: 'السيريال المحجوز',
-      render: (item: MSSReservation) => (
-        item.serial_number ? (
+      render: (item: MSSReservation) => {
+        const isMulti = (item.items && item.items.length > 1) || (item.items_count && item.items_count > 1);
+        const count = item.items?.length || item.items_count || 1;
+        if (isMulti) {
+          return (
+            <Badge variant="primary" size="sm" className="font-bold">
+              متعدد ({count} أجهزة)
+            </Badge>
+          );
+        }
+        return item.serial_number ? (
           <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
             {item.serial_number}
           </span>
@@ -279,18 +433,35 @@ export const ReservationsView: React.FC = () => {
           <Badge variant="outline" size="sm">
             بدون سيريال
           </Badge>
-        )
-      ),
+        );
+      },
     },
     {
       key: 'model_name',
       header: 'الموديل',
-      render: (item: MSSReservation) => (
-        <span className="font-bold text-slate-900 text-sm">
-          {item.brand ? `${item.brand} ` : ''}
-          {item.model_name || 'جهاز لابتوب / شاشة'}
-        </span>
-      ),
+      render: (item: MSSReservation) => {
+        const isMulti = (item.items && item.items.length > 1) || (item.items_count && item.items_count > 1);
+        if (isMulti) {
+          return (
+            <div className="space-y-0.5">
+              <span className="font-bold text-slate-900 text-sm block">
+                {item.brand ? `${item.brand} ` : ''}
+                {item.model_name || 'أجهزة متعددة'}
+              </span>
+              <span className="text-[11px] text-slate-500 font-mono block">
+                {item.items?.map(it => it.serial_number || it.model_name).filter(Boolean).slice(0, 2).join(' • ')}
+                {item.items && item.items.length > 2 ? ' ...' : ''}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <span className="font-bold text-slate-900 text-sm">
+            {item.brand ? `${item.brand} ` : ''}
+            {item.model_name || 'جهاز لابتوب / شاشة'}
+          </span>
+        );
+      },
     },
     {
       key: 'customer_name',
@@ -593,14 +764,14 @@ export const ReservationsView: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 1: Create New Reservation */}
+      {/* MODAL 1: Create New Reservation (Multi-Device Support) */}
       {/* ========================================================================= */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isSubmitting && setIsAddModalOpen(false)}
-        title="إنشاء حجز جهاز جديد "
-        subtitle=""
-        size="md"
+        title="إنشاء حجز أجهزة جديد"
+        subtitle="حجز جهاز واحد أو عدة أجهزة لعميل مع توثيق العربون والأجهزة"
+        size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -615,11 +786,13 @@ export const ReservationsView: React.FC = () => {
               variant="primary"
               size="md"
               onClick={handleSaveAdd}
-              disabled={isSubmitting}
+              disabled={isSubmitting || reservationItems.length === 0}
               className="font-bold"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <Plus className="w-4.5 h-4.5" />}
             >
-              {isSubmitting ? 'جاري إنشاء الحجز...' : 'تأكيد الحجز'}
+              {isSubmitting
+                ? 'جاري إنشاء الحجز...'
+                : `تأكيد الحجز (${reservationItems.length} أجهزة - ${formatCurrency(totalAgreedPrice)})`}
             </Button>
           </div>
         }
@@ -629,54 +802,186 @@ export const ReservationsView: React.FC = () => {
             <Alert type="danger" title="خطأ في البيانات" message={formError} />
           )}
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-              الجهاز المراد حجزه (الأجهزة المتاحة فقط) <span className="text-rose-500">*</span>
-            </label>
-            <SearchableItemSelect<MSSDevice>
-              items={availableDevices}
-              selectedId={selectedDeviceId}
-              onSelect={d => handleDeviceChange(d.id)}
-              getKey={d => d.id}
-              getSearchableText={d =>
-                `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.stock_location}`
-              }
-              placeholder="ابحث بالاسم، الموديل، الماركة أو السيريال..."
-              emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
-              maxHeight="max-h-52"
-              renderItem={d => (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="font-bold text-slate-900">
-                      {d.brand} {d.model_name}
-                    </span>
-                    {d.serial_number ? (
-                      <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
-                        {d.serial_number}
+          {/* Section 1: Device Selection and Add to Reservation */}
+          <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+              <Laptop className="w-4 h-4 text-slate-600" />
+              <span>اختيار وإضافة جهاز للحجز:</span>
+            </h4>
+
+            <div>
+              <SearchableItemSelect<MSSDevice>
+                items={availableDevices}
+                selectedId={pendingDevice?.id || null}
+                onSelect={handlePendingDevicePick}
+                getKey={d => d.id}
+                getSearchableText={d =>
+                  `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.stock_location}`
+                }
+                placeholder="ابحث بالاسم، الموديل، الماركة أو السيريال..."
+                emptyMessage="لا توجد أجهزة متوفرة مطابقة للبحث"
+                maxHeight="max-h-48"
+                renderItem={d => (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="font-bold text-slate-900">
+                        {d.brand} {d.model_name}
                       </span>
-                    ) : (
-                      <Badge variant="outline" size="sm" className="text-[10px]">
-                        بدون سيريال
+                      {d.serial_number ? (
+                        <span className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
+                          {d.serial_number}
+                        </span>
+                      ) : (
+                        <Badge variant="outline" size="sm" className="text-[10px]">
+                          بدون سيريال {d.quantity && d.quantity > 1 ? `(${d.quantity} وحدات)` : ''}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="default" size="sm">
+                        {d.stock_location}
                       </Badge>
-                    )}
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {formatCurrency(d.list_price)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="default" size="sm">
-                      {d.stock_location}
-                    </Badge>
-                    <span className="font-mono text-xs font-bold text-slate-900">
-                      {formatCurrency(d.list_price)}
-                    </span>
+                )}
+              />
+            </div>
+
+            {pendingDevice && (
+              <div className="pt-2 border-t border-slate-200 space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {!pendingDevice.is_serialized && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        الكمية المطلوبة (المتاح: {pendingDevice.quantity || 1})
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={pendingDevice.quantity || 1}
+                        value={pendingQuantity}
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10) || 1;
+                          setPendingQuantity(Math.max(1, Math.min(pendingDevice.quantity || 1, val)));
+                        }}
+                        className="h-8 text-xs font-mono font-bold"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      السعر المتفق عليه للوحدة (EGP)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={pendingAgreedPrice}
+                      onChange={e => setPendingAgreedPrice(Number(e.target.value) || 0)}
+                      className="h-8 text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddItemToReservation}
+                      leftIcon={<Plus className="w-4 h-4" />}
+                      className="w-full font-bold border-slate-300 bg-white hover:bg-slate-100"
+                    >
+                      إضافة الجهاز للحجز
+                    </Button>
                   </div>
                 </div>
-              )}
-            />
+
+                {itemError && (
+                  <Alert type="danger" title="تنبيه" message={itemError} className="py-1 text-xs" />
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Section 2: Items currently in this reservation */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-800">
+              الأجهزة المشمولة بالحجز ({reservationItems.length} أجهزة):
+            </label>
+
+            {reservationItems.length === 0 ? (
+              <div className="p-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 text-xs text-slate-500">
+                لم يتم إضافة أي أجهزة للحجز بعد. اختر جهازاً واضغط (إضافة الجهاز للحجز).
+              </div>
+            ) : (
+              <div className="border border-slate-300 rounded-xl overflow-hidden">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+                    <tr>
+                      <th className="p-2">#</th>
+                      <th className="p-2">الجهاز</th>
+                      <th className="p-2">السيريال / الكمية</th>
+                      <th className="p-2">الفرع</th>
+                      <th className="p-2">السعر المتفق عليه</th>
+                      <th className="p-2 text-center">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {reservationItems.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50">
+                        <td className="p-2 font-mono text-slate-500">{idx + 1}</td>
+                        <td className="p-2 font-bold text-slate-900">
+                          {item.brand} {item.model_name}
+                        </td>
+                        <td className="p-2">
+                          {item.serial_number ? (
+                            <span className="font-mono text-[11px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
+                              {item.serial_number}
+                            </span>
+                          ) : (
+                            <Badge variant="outline" size="sm">
+                              بدون سيريال ({item.quantity} وحدات)
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <Badge variant="default" size="sm">
+                            {item.branch}
+                          </Badge>
+                        </td>
+                        <td className="p-2 font-mono font-bold text-slate-900">
+                          {formatCurrency(item.total_agreed_price)}
+                        </td>
+                        <td className="p-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItemFromReservation(item.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="حذف من الحجز"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs font-bold text-slate-900">
+                  <span>إجمالي السعر المتفق عليه:</span>
+                  <span className="font-mono text-sm">{formatCurrency(totalAgreedPrice)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Customer and Reservation Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
             <Input
               label="اسم العميل *"
-              placeholder="مثال: أحمد ..."
+              placeholder="مثال: أحمد..."
               value={customerName}
               onChange={e => setCustomerName(e.target.value)}
               required
@@ -701,14 +1006,14 @@ export const ReservationsView: React.FC = () => {
               required
             />
 
-            <Input
-              label="السعر المتفق عليه (EGP) *"
-              type="number"
-              min="0"
-              value={agreedPrice}
-              onChange={e => setAgreedPrice(Number(e.target.value))}
-              required
-            />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                إجمالي السعر المتفق عليه
+              </label>
+              <div className="w-full h-10 px-3 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900 font-mono font-bold flex items-center">
+                {formatCurrency(totalAgreedPrice)}
+              </div>
+            </div>
 
             <Input
               label="تاريخ انتهاء الحجز *"
@@ -721,8 +1026,8 @@ export const ReservationsView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-              فرع  الحجز <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              فرع الحجز <span className="text-rose-500">*</span>
             </label>
             <Select
               value={branch}
@@ -735,11 +1040,11 @@ export const ReservationsView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
               ملاحظات الحجز
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900 transition-colors"
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900 transition-colors"
               rows={2}
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -754,7 +1059,7 @@ export const ReservationsView: React.FC = () => {
       <Modal
         isOpen={isFulfillModalOpen}
         onClose={() => !isSubmitting && setIsFulfillModalOpen(false)}
-        title="إتمام بيع جهاز محجوز"
+        title="إتمام بيع أجهزة محجوزة"
         subtitle={`تحويل الحجز (${activeReservation?.reservation_number}) إلى فاتورة بيع نهائية`}
         size="md"
         footer={
@@ -782,24 +1087,43 @@ export const ReservationsView: React.FC = () => {
       >
         {activeReservation && (
           <div className="space-y-4 text-sm">
-            <p className="text-slate-700 font-medium">
-              سيتم تسجيل الفاتورة للعميل وتحديث حالة الجهاز إلى (تم البيع) بالسعر المتفق عليه:
+            <p className="text-slate-700 font-medium text-xs">
+              سيتم تسجيل الفاتورة للعميل وتحديث حالة كافة الأجهزة المحجوزة إلى (تم البيع) بالسعر المتفق عليه:
             </p>
 
-            <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2.5">
+            <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-2.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-600 font-medium">العميل:</span>
                 <strong className="text-slate-900 font-bold">{activeReservation.customer_name}</strong>
               </div>
+
+              {/* Items breakdown if multi-device */}
+              {activeReservation.items && activeReservation.items.length > 1 ? (
+                <div className="space-y-1.5 py-1.5 border-y border-slate-200">
+                  <span className="text-slate-600 font-bold block">الأجهزة المشمولة بالحجز:</span>
+                  {activeReservation.items.map((it, idx) => (
+                    <div key={it.id || idx} className="flex justify-between text-slate-800">
+                      <span>
+                        {idx + 1}. {it.brand} {it.model_name}{' '}
+                        {it.serial_number ? `(${it.serial_number})` : `(${it.quantity || 1} وحدات)`}
+                      </span>
+                      <strong className="font-mono">{formatCurrency(it.agreed_price)}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-slate-600 font-medium">الجهاز والسيريال:</span>
+                  <strong className="font-mono text-slate-900 font-bold tabular-nums">
+                    {activeReservation.brand} {activeReservation.model_name}{' '}
+                    {activeReservation.serial_number ? `(${activeReservation.serial_number})` : 'بدون سيريال'}
+                  </strong>
+                </div>
+              )}
+
               <div className="flex justify-between">
-                <span className="text-slate-600 font-medium">السيريال:</span>
-                <strong className="font-mono text-slate-900 font-bold tabular-nums">
-                  {activeReservation.serial_number || 'بدون سيريال'}
-                </strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600 font-medium">السعر المتفق عليه:</span>
-                <strong className="text-slate-900 font-mono font-bold tabular-nums">
+                <span className="text-slate-600 font-medium">إجمالي السعر المتفق عليه:</span>
+                <strong className="text-slate-900 font-mono font-bold tabular-nums text-sm">
                   {formatCurrency(activeReservation.agreed_price)}
                 </strong>
               </div>
@@ -809,9 +1133,9 @@ export const ReservationsView: React.FC = () => {
                   {formatCurrency(activeReservation.deposit_amount)}
                 </span>
               </div>
-              <div className="border-t border-slate-200 pt-2.5 flex justify-between font-bold">
+              <div className="border-t border-slate-200 pt-2 flex justify-between font-bold">
                 <span className="text-slate-900">المتبقي المطلوب تحصيله:</span>
-                <span className="text-slate-900 font-mono text-base tabular-nums">
+                <span className="text-slate-900 font-mono text-sm tabular-nums">
                   {formatCurrency(activeReservation.agreed_price - activeReservation.deposit_amount)}
                 </span>
               </div>
@@ -827,7 +1151,7 @@ export const ReservationsView: React.FC = () => {
         isOpen={isCancelModalOpen}
         onClose={() => !isSubmitting && setIsCancelModalOpen(false)}
         title="تأكيد إلغاء الحجز"
-        subtitle={`إلغاء حجز رقم (${activeReservation?.reservation_number}) وإعادة الجهاز للمخزون المتاح`}
+        subtitle={`إلغاء حجز رقم (${activeReservation?.reservation_number}) وإعادة كافة الأجهزة للمخزون المتاح`}
         size="sm"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -847,31 +1171,48 @@ export const ReservationsView: React.FC = () => {
               className="font-bold"
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <XCircle className="w-4.5 h-4.5" />}
             >
-              {isSubmitting ? 'جاري الإلغاء...' : 'تأكيد الإلغاء '}
+              {isSubmitting ? 'جاري الإلغاء...' : 'تأكيد الإلغاء'}
             </Button>
           </div>
         }
       >
         <div className="space-y-4 text-sm">
-          <p className="text-slate-700 font-medium">
-            هل أنت متأكد من إلغاء هذا الحجز؟ سيصبح الجهاز متاحاً للبيع فوراً في كلا الفرعين:
+          <p className="text-slate-700 font-medium text-xs">
+            هل أنت متأكد من إلغاء هذا الحجز؟ ستصبح كافة الأجهزة المشمولة متاحة للبيع فوراً:
           </p>
-          <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-1.5">
-            <p className="font-bold text-slate-900">
-              {activeReservation?.brand} {activeReservation?.model_name}
-            </p>
-            <p className="font-mono font-medium text-slate-700">السيريال: {activeReservation?.serial_number || 'بدون سيريال'}</p>
-            <p className="text-slate-600">العميل: {activeReservation?.customer_name}</p>
+          <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-1.5 text-xs">
+            {activeReservation?.items && activeReservation.items.length > 1 ? (
+              <div className="space-y-1">
+                <p className="font-bold text-slate-900">الأجهزة التي ستعاد للمخزون:</p>
+                {activeReservation.items.map((it, idx) => (
+                  <p key={it.id || idx} className="text-slate-700 font-mono">
+                    • {it.brand} {it.model_name}{' '}
+                    {it.serial_number ? `(${it.serial_number})` : `(${it.quantity || 1} وحدات)`}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <p className="font-bold text-slate-900">
+                  {activeReservation?.brand} {activeReservation?.model_name}
+                </p>
+                <p className="font-mono font-medium text-slate-700">
+                  السيريال: {activeReservation?.serial_number || 'بدون سيريال'}
+                </p>
+              </div>
+            )}
+            <p className="text-slate-600 pt-1 border-t border-slate-200">العميل: {activeReservation?.customer_name}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-800 mb-1.5">
               سبب الإلغاء (اختياري)
             </label>
             <Input
               value={cancelReason}
               onChange={e => setCancelReason(e.target.value)}
               placeholder="مثال: لم يحضر العميل خلال المدة..."
+              className="h-8 text-xs"
             />
           </div>
         </div>

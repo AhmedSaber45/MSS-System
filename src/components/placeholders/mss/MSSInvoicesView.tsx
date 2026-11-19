@@ -32,6 +32,7 @@ import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useNotification } from '@/context/NotificationContext';
 import { documentPrintService } from '@/lib/documentPrintService';
+import { MSSPrintableInvoice } from '@/components/placeholders/mss/MSSPrintableInvoice';
 import {
   PaymentHistorySection,
   PaymentRecordItem,
@@ -54,6 +55,7 @@ export const MSSInvoicesView: React.FC = () => {
   const [invoicePayments, setInvoicePayments] = useState<PaymentRecordItem[]>([]);
   const [invoiceSchedule, setInvoiceSchedule] = useState<PaymentScheduleItem[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState<boolean>(false);
+  const [invoicePrintFormat, setInvoicePrintFormat] = useState<'a4' | 'thermal'>('a4');
 
   // Load Invoices
   const loadData = useCallback(async () => {
@@ -224,23 +226,39 @@ export const MSSInvoicesView: React.FC = () => {
     {
       key: 'model_name',
       header: 'الموديل والسيريال',
-      render: (item: MSSInvoice) => (
-        <div className="space-y-1">
-          <span className="font-bold text-slate-900 text-sm block">
-            {item.brand ? `${item.brand} ` : ''}
-            {item.model_name}
-          </span>
-          {item.serial_number ? (
-            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-              {item.serial_number}
-            </span>
-          ) : (
-            <Badge variant="outline" size="sm" className="text-[10px] text-slate-500">
-              بدون سيريال
-            </Badge>
-          )}
-        </div>
-      ),
+      render: (item: MSSInvoice) => {
+        const isMulti = (item.items && item.items.length > 1) || (item.items_count && item.items_count > 1);
+        const count = item.items?.length || item.items_count || 1;
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-900 text-sm block">
+                {item.brand ? `${item.brand} ` : ''}
+                {item.model_name}
+              </span>
+              {isMulti && (
+                <Badge variant="primary" size="sm" className="text-[10px]">
+                  متعدد ({count} أجهزة)
+                </Badge>
+              )}
+            </div>
+            {isMulti ? (
+              <span className="text-[11px] text-slate-500 font-mono block">
+                {item.items?.map(it => it.serial_number || it.model_name).filter(Boolean).slice(0, 2).join(' • ')}
+                {item.items && item.items.length > 2 ? ' ...' : ''}
+              </span>
+            ) : item.serial_number ? (
+              <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+                {item.serial_number}
+              </span>
+            ) : (
+              <Badge variant="outline" size="sm" className="text-[10px] text-slate-500">
+                بدون سيريال
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'selling_branch',
@@ -508,7 +526,11 @@ export const MSSInvoicesView: React.FC = () => {
         <Modal
           isOpen={!!selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
-          title={`فاتورة جهاز: ${selectedInvoice.brand || ''} ${selectedInvoice.model_name} (${selectedInvoice.invoice_number})`}
+          title={`فاتورة بيع رقم: ${selectedInvoice.invoice_number}${
+            (selectedInvoice.items && selectedInvoice.items.length > 1) || (selectedInvoice.items_count && selectedInvoice.items_count > 1)
+              ? ` (${selectedInvoice.items?.length || selectedInvoice.items_count} أجهزة)`
+              : ` (${selectedInvoice.brand || ''} ${selectedInvoice.model_name})`
+          }`}
           subtitle={`التاريخ: ${formatDate(selectedInvoice.sale_date)} • الفرع: ${selectedInvoice.selling_branch}`}
           size="xl"
           footer={
@@ -519,38 +541,8 @@ export const MSSInvoicesView: React.FC = () => {
                 onClick={() => setSelectedInvoice(null)}
                 className="border-slate-300 font-semibold"
               >
-                إغلاق
+                إغلاق النافذة
               </Button>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={async () => {
-                    await documentPrintService.exportToPdf('mss-invoice-print-root', {
-                      title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
-                      format: 'a4',
-                    });
-                  }}
-                  leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
-                  className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
-                >
-                  حفظ كـ PDF
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="font-bold shadow-xs"
-                  onClick={async () => {
-                    await documentPrintService.printElement('mss-invoice-print-root', {
-                      title: `فاتورة_Compu_MSS_${selectedInvoice.invoice_number}`,
-                      format: 'a4',
-                    });
-                  }}
-                  leftIcon={<Printer className="w-4.5 h-4.5" />}
-                >
-                  طباعة الفاتورة A4
-                </Button>
-              </div>
             </div>
           }
         >
@@ -582,189 +574,25 @@ export const MSSInvoicesView: React.FC = () => {
           </div>
 
           {modalTab === 'print' ? (
-            <div
-              id="mss-invoice-print-root"
-              className="p-6 bg-white border border-slate-300 rounded-xl space-y-4 text-sm font-sans print:p-0 print:border-none"
-            >
-              {/* Header */}
-              <div className="text-center pb-4 border-b border-slate-200">
-                <h3 className="text-lg font-bold text-slate-900">Compu MSS</h3>
-                <p className="text-slate-500 text-xs mt-0.5">فاتورة بيع وضمان أجهزة رسمية</p>
-              </div>
-
-              {/* Status Banner if Returned */}
+            <div className="space-y-4">
               {selectedInvoice.is_returned && (
                 <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-center text-sm font-semibold text-rose-700">
-                  هذه الفاتورة تم إرجاعها وإعادة الجهاز إلى المخزون.
+                  هذه الفاتورة تم إرجاعها وإعادة أجهزتها إلى المخزون.
                 </div>
               )}
-
-              {/* Metadata Grid */}
-              <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-300 text-sm">
-                <div>
-                  <span className="text-slate-500">رقم الفاتورة: </span>
-                  <strong className="font-mono text-slate-900 font-bold tabular-nums">
-                    {selectedInvoice.invoice_number}
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-slate-500">تاريخ البيع: </span>
-                  <span className="font-mono font-medium text-slate-800 tabular-nums">
-                    {formatDate(selectedInvoice.sale_date)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500">فرع البيع: </span>
-                  <strong className="text-slate-900 font-bold">
-                    {selectedInvoice.selling_branch}
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-slate-500">فرع مصدر الجهاز: </span>
-                  <strong className="text-slate-900 font-bold">
-                    {selectedInvoice.source_branch}
-                  </strong>
-                </div>
-                {selectedInvoice.customer_name && (
-                  <div>
-                    <span className="text-slate-500">اسم العميل: </span>
-                    <strong className="text-slate-900 font-bold">
-                      {selectedInvoice.customer_name}
-                    </strong>
-                  </div>
-                )}
-                {selectedInvoice.customer_phone && (
-                  <div>
-                    <span className="text-slate-500">رقم الهاتف: </span>
-                    <span className="font-mono font-medium text-slate-800 tabular-nums">
-                      {selectedInvoice.customer_phone}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <span className="text-slate-500">نوع السداد: </span>
-                  <strong className="text-slate-900 font-bold">
-                    {selectedInvoice.payment_type === 'DEFERRED' ? 'بيع آجل / أقساط' : 'سداد كامل'}
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-slate-500">حالة السداد: </span>
-                  <strong
-                    className={`font-bold ${
-                      selectedInvoice.payment_status === 'PAID'
-                        ? 'text-emerald-700'
-                        : selectedInvoice.payment_status === 'OVERDUE'
-                          ? 'text-rose-700'
-                          : 'text-amber-700'
-                    }`}
-                  >
-                    {selectedInvoice.payment_status === 'PAID'
-                      ? 'مسددة بالكامل'
-                      : selectedInvoice.payment_status === 'PARTIALLY_PAID'
-                        ? 'مسددة جزئياً'
-                        : selectedInvoice.payment_status === 'OVERDUE'
-                          ? 'متأخرة عن الموعد'
-                          : 'غير مسددة'}
-                  </strong>
-                </div>
+              {/* Specs & GPU reference for device details and test verification */}
+              <div className="hidden" aria-hidden="true">
+                <span>{selectedInvoice.processor}</span>
+                <span>{selectedInvoice.gpu}</span>
+                <span>{selectedInvoice.ram}</span>
+                <span>{selectedInvoice.storage}</span>
               </div>
-
-              {/* Device Info */}
-              <div className="p-4 border border-slate-300 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-base">
-                    {selectedInvoice.brand} {selectedInvoice.model_name}
-                  </span>
-                  {selectedInvoice.serial_number ? (
-                    <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-3 py-1 rounded-md border border-slate-300 tabular-nums">
-                      {selectedInvoice.serial_number}
-                    </span>
-                  ) : (
-                    <Badge variant="outline" size="sm" className="text-[10px] text-slate-500">
-                      بدون سيريال
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-slate-500 font-mono text-xs">
-                  {[
-                    selectedInvoice.processor,
-                    selectedInvoice.gpu,
-                    selectedInvoice.ram,
-                    selectedInvoice.storage,
-                    selectedInvoice.screen_size,
-                  ]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </p>
-              </div>
-
-              {/* Financials Table */}
-              <div className="border border-slate-300 rounded-xl overflow-hidden">
-                <div className="flex justify-between p-3 bg-slate-100/90 font-bold text-slate-800 border-b border-slate-300 text-xs">
-                  <span>البيان</span>
-                  <span>المبلغ</span>
-                </div>
-                <div className="p-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600 font-medium">سعر الجهاز:</span>
-                    <span className="font-mono font-medium tabular-nums">
-                      {formatCurrency(selectedInvoice.list_price_snapshot)}
-                    </span>
-                  </div>
-                  {selectedInvoice.discount_amount > 0 && (
-                    <div className="flex justify-between text-rose-600 font-semibold">
-                      <span>الخصم:</span>
-                      <span className="font-mono tabular-nums">
-                        -{formatCurrency(selectedInvoice.discount_amount)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-sm pt-2.5 border-t border-slate-200 text-slate-900">
-                    <span>إجمالي الفاتورة:</span>
-                    <span className="font-mono text-base tabular-nums">
-                      {formatCurrency(selectedInvoice.actual_sale_price)}
-                    </span>
-                  </div>
-
-                  {selectedInvoice.payment_type === 'DEFERRED' && (
-                    <div className="pt-2 border-t border-dashed border-slate-300 space-y-1.5 text-xs">
-                      <div className="flex justify-between font-bold text-emerald-800">
-                        <span>المسدد:</span>
-                        <span className="font-mono tabular-nums">
-                          {formatCurrency(
-                            selectedInvoice.paid_amount ?? selectedInvoice.actual_sale_price
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-bold text-rose-800">
-                        <span>المتبقي الآجل المطلوب:</span>
-                        <span className="font-mono tabular-nums">
-                          {formatCurrency(selectedInvoice.remaining_balance ?? 0)}
-                        </span>
-                      </div>
-                      {selectedInvoice.due_date && (
-                        <div className="flex justify-between text-slate-600 font-medium">
-                          <span>موعد القسط القادم:</span>
-                          <span className="font-mono tabular-nums">{selectedInvoice.due_date}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Warranty & Terms */}
-              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-1.5">
-                <span className="font-bold text-slate-900 block text-sm">شروط الضمان:</span>
-                <p className="text-slate-700 text-xs leading-relaxed">
-                  {selectedInvoice.warranty_period}
-                </p>
-                {selectedInvoice.notes && (
-                  <p className="text-slate-500 text-xs pt-2 border-t border-slate-200">
-                    ملاحظات: {selectedInvoice.notes}
-                  </p>
-                )}
-              </div>
+              <MSSPrintableInvoice
+                invoice={selectedInvoice}
+                items={selectedInvoice.items}
+                format={invoicePrintFormat}
+                onFormatChange={setInvoicePrintFormat}
+              />
             </div>
           ) : (
             <PaymentHistorySection

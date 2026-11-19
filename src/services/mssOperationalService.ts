@@ -215,7 +215,7 @@ export const mssOperationalService = {
 
   async createStore(
     input: CreateStoreInput,
-    actor: { id: string; username: string }
+    actor: { id: string; username: string } = { id: 'sys-admin', username: 'admin' }
   ): Promise<SystemStore> {
     const code = input.code.trim().toUpperCase();
     const name = input.name.trim();
@@ -286,15 +286,29 @@ export const mssOperationalService = {
 
   async updateStore(
     input: UpdateStoreInput,
-    actor: { id: string; username: string }
+    actor: { id: string; username: string } = { id: 'sys-admin', username: 'admin' }
   ): Promise<SystemStore> {
     const cached = getCachedStores();
     const index = cached.findIndex(s => s.id === input.id);
     if (index < 0) throw new Error('الفرع أو المخزن غير موجود');
 
     const current = cached[index];
+
+    let newCode = current.code;
+    if (input.code !== undefined) {
+      const cleanCode = input.code.trim().toUpperCase();
+      if (!cleanCode) {
+        throw new Error('رمز الفرع/المخزن لا يمكن أن يكون فارغاً');
+      }
+      if (cached.some(s => s.id !== input.id && s.code.toUpperCase() === cleanCode)) {
+        throw new Error(`رمز الفرع/المخزن (${cleanCode}) مسجل مسبقاً في النظام. يرجى اختيار رمز فريد.`);
+      }
+      newCode = cleanCode;
+    }
+
     const updated: SystemStore = {
       ...current,
+      code: newCode,
       name: input.name?.trim() || current.name,
       type: input.type || current.type,
       description: input.description !== undefined ? input.description.trim() || undefined : current.description,
@@ -309,6 +323,7 @@ export const mssOperationalService = {
       await supabase
         .from('system_stores')
         .update({
+          code: updated.code,
           name: updated.name,
           type: updated.type,
           description: updated.description || null,

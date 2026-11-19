@@ -183,43 +183,45 @@ describe('Compu MSS Inventory & UX Improvements Verification', () => {
   // ==============================================================================
   // 3. AUTOMATIC BRANCH / WAREHOUSE CODE GENERATION
   // ==============================================================================
-  describe('3. Automatic Branch/Warehouse Code Generation Rules', () => {
-    test('3.1 Rule: 1 word -> first two letters', () => {
-      assert.strictEqual(generateBranchCode('Cairo'), 'CA');
-      assert.strictEqual(generateBranchCode('Alexandria'), 'AL');
-      assert.strictEqual(generateBranchCode('Giza'), 'GI');
-      assert.strictEqual(generateBranchCode('القاهرة'), 'QA');
+  describe('3. Automatic Branch/Warehouse Code Generation Rules (PREFIX-001 format)', () => {
+    test('3.1 Rule: 1 word -> first two letters with 3-digit suffix', () => {
+      assert.strictEqual(generateBranchCode('Cairo'), 'CA-001');
+      assert.strictEqual(generateBranchCode('Alexandria'), 'AL-001');
+      assert.strictEqual(generateBranchCode('Giza'), 'GI-001');
+      assert.strictEqual(generateBranchCode('القاهرة'), 'QA-001');
     });
 
-    test('3.2 Rule: 2 words -> first letter of each word', () => {
-      assert.strictEqual(generateBranchCode('Nasr City'), 'NC');
-      assert.strictEqual(generateBranchCode('New Cairo'), 'NC');
-      assert.strictEqual(generateBranchCode('مدينة نصر'), 'MN');
-      assert.strictEqual(generateBranchCode('محل رئيسي'), 'MR');
+    test('3.2 Rule: 2 words -> first letter of each word with 3-digit suffix', () => {
+      assert.strictEqual(generateBranchCode('Nasr City'), 'NC-001');
+      assert.strictEqual(generateBranchCode('New Cairo'), 'NC-001');
+      assert.strictEqual(generateBranchCode('مدينة نصر'), 'MN-001');
+      assert.strictEqual(generateBranchCode('محل رئيسي'), 'MR-001');
     });
 
-    test('3.3 Rule: 3 words -> first letter of each word', () => {
-      assert.strictEqual(generateBranchCode('New Cairo Branch'), 'NCB');
-      assert.strictEqual(generateBranchCode('فرع مدينة نصر'), 'FMN');
-      assert.strictEqual(generateBranchCode('Main Warehouse Alex'), 'MWA');
+    test('3.3 Rule: 3 words -> first letter of each word with 3-digit suffix', () => {
+      assert.strictEqual(generateBranchCode('The First Agency'), 'TFA-001');
+      assert.strictEqual(generateBranchCode('New Cairo Branch'), 'NCB-001');
+      assert.strictEqual(generateBranchCode('فرع مدينة نصر'), 'FMN-001');
+      assert.strictEqual(generateBranchCode('Main Warehouse Alex'), 'MWA-001');
     });
 
-    test('3.4 Rule: >3 words -> first letter of first 3 words only', () => {
-      assert.strictEqual(generateBranchCode('New Cairo Fifth Settlement'), 'NCF');
-      assert.strictEqual(generateBranchCode('New Cairo Fifth Settlement District'), 'NCF');
-      assert.strictEqual(generateBranchCode('فرع مدينة نصر التجمع الخامس'), 'FMN');
+    test('3.4 Rule: >3 words -> first letter of first 3 words only with 3-digit suffix', () => {
+      assert.strictEqual(generateBranchCode('New Cairo Fifth Settlement'), 'NCF-001');
+      assert.strictEqual(generateBranchCode('New Cairo Fifth Settlement District'), 'NCF-001');
+      assert.strictEqual(generateBranchCode('فرع مدينة نصر التجمع الخامس'), 'FMN-001');
     });
 
     test('3.5 Handles extra spaces, trimming, and empty words gracefully', () => {
-      assert.strictEqual(generateBranchCode('   Nasr    City   '), 'NC');
+      assert.strictEqual(generateBranchCode('   Nasr    City   '), 'NC-001');
       assert.strictEqual(generateBranchCode(''), '');
       assert.strictEqual(generateBranchCode('   '), '');
     });
 
-    test('3.6 Duplicate prevention adds incremental numeric suffix', () => {
-      const existing = ['CA', 'NC', 'NC2'];
-      assert.strictEqual(generateBranchCode('Cairo', existing), 'CA2');
-      assert.strictEqual(generateBranchCode('Nasr City', existing), 'NC3');
+    test('3.6 Sequential 3-digit suffix prevents duplicates and increments safely', () => {
+      const existing = ['CA-001', 'CA-002', 'NC-001', 'TFA-001'];
+      assert.strictEqual(generateBranchCode('Cairo', existing), 'CA-003');
+      assert.strictEqual(generateBranchCode('Nasr City', existing), 'NC-002');
+      assert.strictEqual(generateBranchCode('The First Agency', existing), 'TFA-002');
     });
 
     test('3.7 Integration in mssOperationalService.createStore verifies uniqueness', async () => {

@@ -43,6 +43,7 @@ export interface CreateStoreInput {
 
 export interface UpdateStoreInput {
   id: string;
+  code?: string;
   name?: string;
   type?: StoreType;
   description?: string;

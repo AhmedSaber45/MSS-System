@@ -239,11 +239,31 @@ export const MSSStoresView: React.FC = () => {
     e.preventDefault();
     if (!selectedStore || !formName.trim()) return;
 
+    const cleanCode = formCode.trim().toUpperCase();
+    if (!cleanCode) {
+      showNotification({
+        type: 'warning',
+        title: 'رمز الفرع مطلوب',
+        message: 'يرجى إدخال رمز للفرع/المخزن',
+      });
+      return;
+    }
+
+    if (stores.some(s => s.id !== selectedStore.id && s.code.toUpperCase() === cleanCode)) {
+      showNotification({
+        type: 'warning',
+        title: 'رمز الفرع مكرر',
+        message: `رمز الفرع (${cleanCode}) مسجل مسبقاً لفرع أو مخزن آخر. يرجى اختيار رمز فريد.`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await mssOperationalService.updateStore(
         {
           id: selectedStore.id,
+          code: cleanCode,
           name: formName.trim(),
           type: formType,
           description: formDescription.trim() || undefined,
@@ -774,7 +794,7 @@ export const MSSStoresView: React.FC = () => {
                   <label className="font-bold text-slate-700 block">
                     رمز الفرع / المخزن <span className="text-rose-500">*</span>
                   </label>
-                  {!isEditModalOpen && isCodeManuallyEdited && (
+                  {isCodeManuallyEdited && (
                     <button
                       type="button"
                       onClick={handleRegenerateCode}
@@ -789,20 +809,17 @@ export const MSSStoresView: React.FC = () => {
                 <Input
                   value={formCode}
                   onChange={e => handleCodeChange(e.target.value)}
-                  disabled={isEditModalOpen}
-                  placeholder="مثال: CA, NC, NCB, NCF..."
+                  placeholder="مثال: CA-001, NC-001, NCB-001..."
                   className="font-mono uppercase font-bold"
                   required
                 />
-                {!isEditModalOpen && (
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    {isCodeManuallyEdited ? (
-                      <span className="text-amber-600">تم التعديل يدوياً (لن يُستبدل أثناء الكتابة)</span>
-                    ) : (
-                      <span className="text-emerald-600">يتم توليد الرمز تلقائياً حسب قواعد التسمية</span>
-                    )}
-                  </p>
-                )}
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {isCodeManuallyEdited ? (
+                    <span className="text-amber-600">تم التعديل يدوياً (لن يُستبدل تلقائياً)</span>
+                  ) : (
+                    <span className="text-emerald-600">يتم توليد الرمز تلقائياً بصيغة PREFIX-001</span>
+                  )}
+                </p>
               </div>
 
               <div>
