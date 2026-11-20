@@ -16,6 +16,7 @@ import {
 } from '../lib/security.ts';
 import type {
   AdminUser,
+  ModulePermission,
   SystemStore,
   StoreType,
   AppUser,
@@ -255,6 +256,7 @@ export const adminService = {
         email: 'admin@compumss.local',
         displayName: 'المدير العام (Superadmin)',
         role: 'superadmin',
+        allowedModules: 'both',
         isActive: true,
         lastLoginAt: new Date().toISOString(),
         createdAt: '2026-11-16T00:00:00Z',
@@ -287,6 +289,7 @@ export const adminService = {
             email: data.email,
             displayName: data.display_name,
             role: data.role,
+            allowedModules: (data.allowed_modules as ModulePermission) || (data.role === 'superadmin' ? 'both' : 'both'),
             isActive: data.is_active,
             lastLoginAt: data.last_login_at,
             createdAt: data.created_at,
@@ -296,6 +299,59 @@ export const adminService = {
       }
     } catch {
       // In development or if table not yet migrated, fall back gracefully
+    }
+
+    // 3. Query app_users table (users configured in User Management)
+    try {
+      // Check in-memory store first
+      const memUser = fallbackUsers.find(u => u.username === norm && u.isActive);
+      if (memUser) {
+        const matches = await verifyAccessCode(passwordPlain, memUser.access_code_hash);
+        if (matches) {
+          return {
+            id: memUser.id,
+            username: memUser.username,
+            displayName: memUser.displayName,
+            role: 'admin',
+            allowedModules: memUser.allowedModules,
+            isActive: memUser.isActive,
+            createdAt: memUser.createdAt,
+            updatedAt: memUser.updatedAt,
+          };
+        }
+      }
+
+      const supabase = getServerSupabase();
+      const { data: appUser, error: appError } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('username', norm)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!appError && appUser) {
+        const matches = await verifyAccessCode(passwordPlain, appUser.access_code_hash);
+        if (matches) {
+          await supabase
+            .from('app_users')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('id', appUser.id);
+
+          return {
+            id: appUser.id,
+            username: appUser.username,
+            displayName: appUser.display_name,
+            role: 'admin',
+            allowedModules: appUser.allowed_modules as ModulePermission,
+            isActive: appUser.is_active,
+            lastLoginAt: appUser.last_login_at,
+            createdAt: appUser.created_at,
+            updatedAt: appUser.updated_at,
+          };
+        }
+      }
+    } catch {
+      // Fallback gracefully
     }
 
     return null;
@@ -2404,32 +2460,220 @@ export const adminService = {
     return deduplicated.slice(0, limit);
   },
 
-  // ============================================================================
-  // OVERVIEW STATS
-  // ============================================================================
-  async getOverviewStats(): Promise<OverviewStats> {
-    const users = await this.getAppUsers();
-    const stores = await this.getStores();
-    const auditLogs = await this.getAuditLogs(10);
+  /**
+   * Resolves a user's current effective module permission from the source of truth (app_users / admin_users)
+   */
+  async getUserEffectiveModulePermission(userId: string, role?: string): Promise<ModulePermission | 'none'> {
+    if (role === 'superadmin') {
+      return 'both';
+    }
 
-    const activeUsers = users.filter(u => u.isActive).length;
-    const activeStores = stores.filter(s => s.type === 'store' && s.isActive).length;
-    const warehouses = stores.filter(s => s.type === 'warehouse').length;
+    // 1. Check in-memory store (for test runner / fallback)
+    const memUser = fallbackUsers.find(u => u.id === userId || u.username === userId);
+    if (memUser) {
+      if (!memUser.isActive) return 'none';
+      return memUser.allowedModules || 'none';
+    }
+
+    // 2. Query Supabase app_users table
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('allowed_modules, is_active')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!error && data) {
+        if (!data.is_active) return 'none';
+        return (data.allowed_modules as ModulePermission) || 'none';
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 3. Query Supabase admin_users table
+    try {
+      const supabase = getServerSupabase();
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('role, is_active')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!error && data) {
+        if (!data.is_active) return 'none';
+        if (data.role === 'superadmin') return 'both';
+      }
+    } catch {
+      // Fallback
+    }
+
+    return 'both';
+  },
+
+  // ============================================================================
+  // OVERVIEW STATS (PERMISSION-ISOLATED)
+  // ============================================================================
+  async getOverviewStats(moduleScope: ModulePermission | 'all' | 'none' = 'both'): Promise<OverviewStats> {
+    const scope = moduleScope === 'all' ? 'both' : moduleScope;
+
+    if (scope === 'none') {
+      return {
+        moduleScope: 'none',
+        totalAppUsers: 0,
+        activeAppUsers: 0,
+        totalStores: 0,
+        activeStores: 0,
+        totalWarehouses: 0,
+        modulesBreakdown: {
+          accessoriesOnly: 0,
+          mssOnly: 0,
+          both: 0,
+        },
+        recentAuditLogs: [],
+      };
+    }
+
+    const allUsers = await this.getAppUsers();
+    const allStores = await this.getStores();
+    const rawAuditLogs = await this.getAuditLogs(15);
+
+    if (scope === 'accessories') {
+      // 1. Strict Data Isolation: Only Accessories-authorized users and data
+      const accUsers = allUsers.filter(u => u.allowedModules === 'accessories' || u.allowedModules === 'both');
+      const activeAccUsers = accUsers.filter(u => u.isActive).length;
+
+      // Only retail stores (stores relevant to accessories, warehouses strictly excluded)
+      const accStores = allStores.filter(s => s.type === 'store');
+      const activeAccStores = accStores.filter(s => s.isActive).length;
+
+      // Filter audit logs: strictly exclude MSS inventory and transfer operations
+      const filteredLogs = rawAuditLogs.filter(log => {
+        const type = (log.eventType || '').toUpperCase();
+        const target = (log.targetType || '').toLowerCase();
+        return (
+          target !== 'inventory' &&
+          !type.includes('TRANSFER') &&
+          !type.includes('DEVICE') &&
+          !type.includes('MSS')
+        );
+      });
+
+      return {
+        moduleScope: 'accessories',
+        totalAppUsers: accUsers.length,
+        activeAppUsers: activeAccUsers,
+        totalStores: accStores.length,
+        activeStores: activeAccStores,
+        totalWarehouses: 0, // Warehouses are MSS-only
+        modulesBreakdown: {
+          accessoriesOnly: allUsers.filter(u => u.allowedModules === 'accessories').length,
+          mssOnly: 0, // Strictly omitted from display and isolated
+          both: 0,
+        },
+        recentAuditLogs: filteredLogs.slice(0, 10),
+        accessoriesMetrics: {
+          totalUsers: accUsers.length,
+          activeUsers: activeAccUsers,
+          totalStores: accStores.length,
+          activeStores: activeAccStores,
+          localSyncStatus: 'معزولة ومحمية محلياً',
+        },
+        // mssMetrics is explicitly undefined: NEVER fetched or exposed
+      };
+    }
+
+    if (scope === 'mss') {
+      // 2. Strict Data Isolation: Only Compu MSS-authorized users and data
+      const mssUsers = allUsers.filter(u => u.allowedModules === 'mss' || u.allowedModules === 'both');
+      const activeMssUsers = mssUsers.filter(u => u.isActive).length;
+
+      const mssStores = allStores.filter(s => s.type === 'store');
+      const mssWarehouses = allStores.filter(s => s.type === 'warehouse');
+      const activeMssStores = mssStores.filter(s => s.isActive).length;
+
+      // Query MSS inventory foundation
+      const invFoundation = await this.getInventoryFoundation();
+
+      // Filter audit logs: exclude any accessories-only records
+      const filteredLogs = rawAuditLogs.filter(log => {
+        const type = (log.eventType || '').toUpperCase();
+        return !type.includes('ACCESSORIES');
+      });
+
+      return {
+        moduleScope: 'mss',
+        totalAppUsers: mssUsers.length,
+        activeAppUsers: activeMssUsers,
+        totalStores: mssStores.length,
+        activeStores: activeMssStores,
+        totalWarehouses: mssWarehouses.length,
+        modulesBreakdown: {
+          accessoriesOnly: 0, // Strictly omitted from display and isolated
+          mssOnly: allUsers.filter(u => u.allowedModules === 'mss').length,
+          both: 0,
+        },
+        recentAuditLogs: filteredLogs.slice(0, 10),
+        mssMetrics: {
+          totalUsers: mssUsers.length,
+          activeUsers: activeMssUsers,
+          totalStores: mssStores.length,
+          activeStores: activeMssStores,
+          totalWarehouses: mssWarehouses.length,
+          devicesCount: invFoundation.devicesCount,
+          availableDevices: invFoundation.availableCount,
+          reservedDevices: invFoundation.reservedCount,
+          soldDevices: invFoundation.soldCount,
+          modelsCount: invFoundation.modelsCount,
+          byLocation: invFoundation.byLocation,
+        },
+        // accessoriesMetrics is explicitly undefined: NEVER fetched or exposed
+      };
+    }
+
+    // 3. Full Combined Experience (Both modules authorized / Super Admin)
+    const activeUsers = allUsers.filter(u => u.isActive).length;
+    const activeStores = allStores.filter(s => s.type === 'store' && s.isActive).length;
+    const warehouses = allStores.filter(s => s.type === 'warehouse').length;
 
     const modulesBreakdown = {
-      accessoriesOnly: users.filter(u => u.allowedModules === 'accessories').length,
-      mssOnly: users.filter(u => u.allowedModules === 'mss').length,
-      both: users.filter(u => u.allowedModules === 'both').length,
+      accessoriesOnly: allUsers.filter(u => u.allowedModules === 'accessories').length,
+      mssOnly: allUsers.filter(u => u.allowedModules === 'mss').length,
+      both: allUsers.filter(u => u.allowedModules === 'both').length,
     };
 
+    const invFoundation = await this.getInventoryFoundation();
+
     return {
-      totalAppUsers: users.length,
+      moduleScope: 'both',
+      totalAppUsers: allUsers.length,
       activeAppUsers: activeUsers,
-      totalStores: stores.filter(s => s.type === 'store').length,
+      totalStores: allStores.filter(s => s.type === 'store').length,
       activeStores,
       totalWarehouses: warehouses,
       modulesBreakdown,
-      recentAuditLogs: auditLogs,
+      recentAuditLogs: rawAuditLogs.slice(0, 10),
+      accessoriesMetrics: {
+        totalUsers: allUsers.filter(u => u.allowedModules === 'accessories' || u.allowedModules === 'both').length,
+        activeUsers: allUsers.filter(u => (u.allowedModules === 'accessories' || u.allowedModules === 'both') && u.isActive).length,
+        totalStores: allStores.filter(s => s.type === 'store').length,
+        activeStores,
+        localSyncStatus: 'معزولة ومحمية محلياً',
+      },
+      mssMetrics: {
+        totalUsers: allUsers.filter(u => u.allowedModules === 'mss' || u.allowedModules === 'both').length,
+        activeUsers: allUsers.filter(u => (u.allowedModules === 'mss' || u.allowedModules === 'both') && u.isActive).length,
+        totalStores: allStores.filter(s => s.type === 'store').length,
+        activeStores,
+        totalWarehouses: warehouses,
+        devicesCount: invFoundation.devicesCount,
+        availableDevices: invFoundation.availableCount,
+        reservedDevices: invFoundation.reservedCount,
+        soldDevices: invFoundation.soldCount,
+        modelsCount: invFoundation.modelsCount,
+        byLocation: invFoundation.byLocation,
+      },
     };
   },
 

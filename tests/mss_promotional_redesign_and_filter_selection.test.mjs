@@ -156,9 +156,16 @@ describe('COMPU MSS — PROMOTIONAL IMAGE REDESIGN & CORRECT FILTER-BASED SELECT
         assert.ok(compSrc.includes(col), `DOM preview table must contain column "${col}"`);
       }
 
-      // Check angled laptop mockups in DOM and Canvas
-      assert.ok(compSrc.includes('scenicGradient') && compSrc.includes('bloomGradient'), 'DOM preview must render left and right angled laptop mockups');
-      assert.ok(servSrc.includes('drawAngledLaptop'), 'Canvas service must render left and right angled laptop mockups');
+      // Check realistic commercial laptop mockups and official logo in DOM and Canvas
+      assert.ok(
+        (compSrc.includes('laptopLeft') && compSrc.includes('laptopRight')) ||
+        (compSrc.includes('scenicGradient') && compSrc.includes('bloomGradient')),
+        'DOM preview must render left and right commercial laptop mockups'
+      );
+      assert.ok(
+        servSrc.includes('laptopLeft') || servSrc.includes('drawAngledLaptop'),
+        'Canvas service must render left and right commercial laptop mockups'
+      );
 
       // Check pagination support for lists > 12-14 items
       assert.ok(compSrc.includes('totalPages') && compSrc.includes('currentPageIndex'), 'Must support multi-page pagination');

@@ -118,11 +118,15 @@ export const MSSDeviceReportsView: React.FC = () => {
   const soldPageSize = 9;
 
   // Stable row key extractor for wholesale export rows
-  const getRowKey = useCallback((row: WholesaleExportRow, fallbackIdx?: number): string => {
+  const getRowKey = useCallback((r: WholesaleExportRow, fallbackIdx?: number): string => {
     return (
-      row._rowKey ||
-      row['السيريال (Serial Number)'] ||
-      row['الماركة والموديل (Brand & Model)'] ||
+      r._rowKey ||
+      r['السيريال نمبر'] ||
+      r['السيريال (Serial Number)'] ||
+      r.serial_number ||
+      r['الموديل'] ||
+      r['الماركة والموديل (Brand & Model)'] ||
+      r.model_name ||
       (fallbackIdx !== undefined ? `row-${fallbackIdx}` : '')
     );
   }, []);
@@ -1243,19 +1247,19 @@ export const MSSDeviceReportsView: React.FC = () => {
                         <th className="p-2.5 text-center w-10">#</th>
                         {wholesaleOptions.includeSerialNumbers && (
                           <th className="p-2.5 text-center bg-purple-50/70 border-x border-purple-200">
-                            الرقم المسلسل (Serial Number)
+                            السيريال نمبر
                           </th>
                         )}
-                        <th className="p-2.5">الماركة والموديل (Brand & Model)</th>
+                        <th className="p-2.5">الموديل</th>
                         {wholesaleOptions.includeCategory !== false && (
                           <th className="p-2.5 text-center">الفئة</th>
                         )}
-                        <th className="p-2.5">المعالج (CPU)</th>
-                        <th className="p-2.5">الرام (RAM)</th>
-                        <th className="p-2.5">التخزين (Storage)</th>
-                        <th className="p-2.5">كارت الشاشة (GPU)</th>
+                        <th className="p-2.5">المعالج</th>
+                        <th className="p-2.5">الرام</th>
+                        <th className="p-2.5">الهارد</th>
+                        <th className="p-2.5">كارت الشاشة</th>
                         {wholesaleOptions.includeScreen !== false && (
-                          <th className="p-2.5 text-center">الشاشة (Screen)</th>
+                          <th className="p-2.5 text-center">الشاشة</th>
                         )}
                         {wholesaleOptions.includeStatus !== false && (
                           <th className="p-2.5 text-center">الحالة</th>
@@ -1265,12 +1269,12 @@ export const MSSDeviceReportsView: React.FC = () => {
                         )}
                         {!wholesaleOptions.includeSerialNumbers && wholesaleOptions.includeQuantity && (
                           <th className="p-2.5 text-center bg-blue-50/70 font-bold text-blue-900 border-x border-blue-200">
-                            الكمية المتاحة
+                            الكمية
                           </th>
                         )}
                         {wholesaleOptions.includePrices && (
                           <th className="p-2.5 text-left bg-emerald-50/70 font-bold text-emerald-900 border-r border-emerald-200">
-                            السعر (EGP)
+                            السعر
                           </th>
                         )}
                       </tr>
@@ -1318,56 +1322,58 @@ export const MSSDeviceReportsView: React.FC = () => {
                               </td>
                               {wholesaleOptions.includeSerialNumbers && (
                                 <td className="p-2.5 text-center font-mono font-bold text-purple-900 bg-purple-50/20 border-x border-purple-100 whitespace-nowrap">
-                                  {row['السيريال (Serial Number)'] || row['الرقم المسلسل (Serial Number)'] || '---'}
+                                  {row['السيريال نمبر'] || row['السيريال (Serial Number)'] || row['الرقم المسلسل (Serial Number)'] || row.serial_number || '---'}
                                 </td>
                               )}
                               <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">
-                                {row['الماركة والموديل (Brand & Model)'] || (row['الماركة'] ? `${row['الماركة']} ${row['الموديل']}` : row['الموديل']) || '---'}
+                                {row['الموديل'] || row['الماركة والموديل (Brand & Model)'] || (row['الماركة'] ? `${row['الماركة']} ${row['الموديل']}` : row['الموديل']) || row.model_name || '---'}
                               </td>
                               {wholesaleOptions.includeCategory !== false && (
                                 <td className="p-2.5 text-center font-medium text-slate-700 whitespace-nowrap">
-                                  {row['الفئة'] || '---'}
+                                  {row['الفئة'] || row.category || '---'}
                                 </td>
                               )}
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                                {row['المعالج (Processor)'] || '---'}
+                                {row['المعالج'] || row['المعالج (Processor)'] || row.processor || '---'}
                               </td>
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                                {row['الرام (RAM)'] || row['الذاكرة العشوائية (RAM)'] || '---'}
+                                {row['الرام'] || row['الرام (RAM)'] || row['الذاكرة العشوائية (RAM)'] || row.ram || '---'}
                               </td>
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                                {row['سعة التخزين (Storage)'] || '---'}
+                                {row['الهارد'] || row['سعة التخزين (Storage)'] || row.storage || '---'}
                               </td>
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                                {row['كارت الشاشة (GPU)'] || '---'}
+                                {row['كارت الشاشة'] || row['كارت الشاشة (GPU)'] || row.gpu || '---'}
                               </td>
                               {wholesaleOptions.includeScreen !== false && (
                                 <td className="p-2.5 text-center font-mono text-slate-700 whitespace-nowrap">
-                                  {row['الشاشة (Screen)'] || row['حجم الشاشة'] || '---'}
+                                  {row['الشاشة'] || row['الشاشة (Screen)'] || row['حجم الشاشة'] || row.screen || '---'}
                                 </td>
                               )}
                               {wholesaleOptions.includeStatus !== false && (
                                 <td className="p-2.5 text-center whitespace-nowrap">
                                   <Badge variant="default" size="sm">
-                                    {row['الحالة'] || row['الحالة (Condition)'] || '---'}
+                                    {row['الحالة'] || row['الحالة (Condition)'] || row.physical_condition || '---'}
                                   </Badge>
                                 </td>
                               )}
                               {wholesaleOptions.includeBranch !== false && (
                                 <td className="p-2.5 text-center whitespace-nowrap">
                                   <Badge variant="primary" size="sm">
-                                    {row['الفرع / المخزن'] || row['المخزن / الفرع (Location)'] || '---'}
+                                    {row['الفرع / المخزن'] || row['المخزن / الفرع (Location)'] || row.stock_location || '---'}
                                   </Badge>
                                 </td>
                               )}
                               {!wholesaleOptions.includeSerialNumbers && wholesaleOptions.includeQuantity && (
                                 <td className="p-2.5 text-center font-mono font-bold text-blue-900 bg-blue-50/20 border-x border-blue-100 whitespace-nowrap">
-                                  {row['الكمية المتاحة'] ?? row['الكمية المتاحة (Quantity)'] ?? '---'}
+                                  {row['الكمية'] ?? row['الكمية المتاحة'] ?? row['الكمية المتاحة (Quantity)'] ?? row.quantity ?? '---'}
                                 </td>
                               )}
                               {wholesaleOptions.includePrices && (
                                 <td className="p-2.5 text-left font-mono font-bold text-emerald-800 bg-emerald-50/20 border-r border-emerald-100 whitespace-nowrap">
-                                  {row['السعر (EGP)'] !== undefined
+                                  {row['السعر'] !== undefined
+                                    ? formatCurrency(row['السعر'])
+                                    : row['السعر (EGP)'] !== undefined
                                     ? formatCurrency(row['السعر (EGP)'])
                                     : row['السعر (Price EGP)'] !== undefined
                                     ? formatCurrency(row['السعر (Price EGP)'])

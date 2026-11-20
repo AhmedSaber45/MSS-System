@@ -125,12 +125,11 @@ export const documentPrintService = {
         margin: 0 !important;
         padding: 0 !important;
       }
-      /* Promotional Poster Scaling & Clean Pagination for A4 Print */
+      /* Promotional Poster Clean Layout & Pagination for Print */
       .promotional-poster-container, [id^="mss-promotional-page-container"], [id^="mss-promotional-poster"] {
-        width: 1000px !important;
-        max-width: 1000px !important;
+        width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
-        zoom: 0.73 !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border: 1px solid #cbd5e1 !important;

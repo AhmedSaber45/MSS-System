@@ -9,6 +9,7 @@ export interface AdminUser {
   email?: string;
   displayName: string;
   role: AdminRole;
+  allowedModules?: ModulePermission;
   isActive: boolean;
   lastLoginAt?: string;
   createdAt: string;
@@ -229,7 +230,31 @@ export interface AdminAuditLog {
   createdAt: string;
 }
 
+export interface AccessoriesOverviewMetrics {
+  totalUsers: number;
+  activeUsers: number;
+  totalStores: number;
+  activeStores: number;
+  localSyncStatus?: string;
+}
+
+export interface MSSOverviewMetrics {
+  totalUsers: number;
+  activeUsers: number;
+  totalStores: number;
+  activeStores: number;
+  totalWarehouses: number;
+  devicesCount: number;
+  availableDevices: number;
+  reservedDevices: number;
+  soldDevices: number;
+  modelsCount: number;
+  byLocation: Record<string, number>;
+  activeTransfersCount?: number;
+}
+
 export interface OverviewStats {
+  moduleScope: ModulePermission | 'none';
   totalAppUsers: number;
   activeAppUsers: number;
   totalStores: number;
@@ -241,6 +266,8 @@ export interface OverviewStats {
     both: number;
   };
   recentAuditLogs: AdminAuditLog[];
+  accessoriesMetrics?: AccessoriesOverviewMetrics;
+  mssMetrics?: MSSOverviewMetrics;
 }
 
 // ============================================================================

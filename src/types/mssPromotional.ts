@@ -1,3 +1,11 @@
+/**
+ * Centralized configuration constant for maximum promotional devices per page.
+ * Determined by design constraints (270px commercial header + 60px table header +
+ * 10 * 52px table rows + 90px footer + 40px margins = ~1000px height x 1000px width),
+ * yielding an optimal 1:1 square aspect ratio for digital and document distribution.
+ */
+export const PROMOTIONAL_MAX_DEVICES_PER_PAGE = 10;
+
 export interface PromotionalLaptopItem {
   id: string; // Unique transient identifier for the preview session
   original_device_id?: string;
@@ -28,6 +36,18 @@ export interface PromotionalDisplayOptions {
   priceSortOrder?: 'asc' | 'desc';
   pageIndex?: number;
   itemsPerPage?: number;
+}
+
+export interface PromotionalExportOptions extends PromotionalDisplayOptions {
+  filename?: string;
+  onProgress?: (currentPage: number, totalPages: number) => void;
+  pageDataUrls?: string[];
+}
+
+export interface PromotionalPdfExportResult {
+  filename: string;
+  pageCount: number;
+  buffer?: Uint8Array;
 }
 
 export interface DeviceSelectionFilter {

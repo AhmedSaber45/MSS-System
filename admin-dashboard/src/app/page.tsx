@@ -12,9 +12,13 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState<NavTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [adminUser, setAdminUser] = useState<{ id: string; username: string; displayName: string; role: string } | null>(
-    null
-  );
+  const [adminUser, setAdminUser] = useState<{
+    id: string;
+    username: string;
+    displayName: string;
+    role: string;
+    allowedModules?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,7 +84,9 @@ export default function AdminDashboardPage() {
 
         {/* Dynamic View Container */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {currentTab === 'overview' && <OverviewView onNavigate={(tab) => setCurrentTab(tab)} />}
+          {currentTab === 'overview' && (
+            <OverviewView onNavigate={(tab) => setCurrentTab(tab)} adminUser={adminUser} />
+          )}
           {currentTab === 'users' && <UsersView />}
         </main>
       </div>

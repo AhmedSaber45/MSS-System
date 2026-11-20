@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import type { AdminUser } from '../types/admin';
+import type { AdminUser, ModulePermission } from '../types/admin';
 
 const SESSION_COOKIE_NAME = 'mss_admin_session';
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12; // 12 hours
@@ -17,6 +17,7 @@ export interface SessionPayload {
   username: string;
   displayName: string;
   role: string;
+  allowedModules?: ModulePermission;
   exp: number;
 }
 
@@ -71,6 +72,7 @@ export function setAdminSession(user: AdminUser): void {
     username: user.username,
     displayName: user.displayName,
     role: user.role,
+    allowedModules: user.allowedModules || (user.role === 'superadmin' ? 'both' : undefined),
     exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
   };
 

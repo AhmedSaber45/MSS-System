@@ -43,6 +43,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       : `الفترة المحددة: ${periodLabels[period] || period}`;
 
   const { combined, accessories, mss, branchOperationalSales, locationStockValuation } = data;
+  const scope = data.moduleScope || 'both';
 
   return (
     <div
@@ -56,10 +57,18 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-xl font-bold text-slate-950 tracking-tight">
-              Compu MSS — تقرير مجمع   
+              {scope === 'accessories'
+                ? 'Compu MSS — تقرير الأداء المالي لقسم الإكسسوارات'
+                : scope === 'mss'
+                ? 'Compu MSS — تقرير الأداء المالي والتشغيلي'
+                : 'Compu MSS — تقرير مجمع'}
             </h1>
             <p className="text-sm font-semibold text-slate-700 mt-1">
-              تقرير الأداء المالي المجمع — نشاط الإكسسوارات و Compu MSS المشترك
+              {scope === 'accessories'
+                ? 'تقرير الأداء المالي لموديول الإكسسوارات ومراقبة المخزون'
+                : scope === 'mss'
+                ? 'تقرير الأداء المالي لموديول Compu MSS ومراقبة الأصول والمخزون'
+                : 'تقرير الأداء المالي المجمع — نشاط الإكسسوارات و Compu MSS المشترك'}
             </p>
             <div className="flex items-center gap-3 text-xs text-slate-600 mt-2">
               <span>تاريخ الاستخراج: {currentDate} ({currentTime})</span>
@@ -74,15 +83,19 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         </div>
 
         {/* Title Banner */}
-          <div className="text-left font-mono text-xs font-bold text-slate-800">
-            <span className="bg-white px-2 py-1 rounded border border-slate-300">{periodText}</span>
-          </div>
+        <div className="text-left font-mono text-xs font-bold text-slate-800 mt-2">
+          <span className="bg-white px-2 py-1 rounded border border-slate-300">{periodText}</span>
+        </div>
       </div>
 
       {/* 2. Combined Financial Performance Table */}
       <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
         <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
-          أولاً: الأداء المالي المجمع  (الإكسسوارات + Compu MSS)
+          {scope === 'accessories'
+            ? 'أولاً: الأداء المالي لقسم الإكسسوارات'
+            : scope === 'mss'
+            ? 'أولاً: الأداء المالي لقسم Compu MSS'
+            : 'أولاً: الأداء المالي المجمع (الإكسسوارات + Compu MSS)'}
         </h3>
 
         <div className="border border-slate-300 rounded-xl overflow-hidden">
@@ -97,26 +110,52 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-200">
               <tr>
-                <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي الإيرادات المجمعة</td>
-                <td className="py-2.5 px-4 text-center font-mono tabular-nums text-slate-700">{combined.totalTransactionsCount} معاملة تجارية</td>
+                <td className="py-2.5 px-4 font-semibold text-slate-900">
+                  {scope === 'accessories'
+                    ? 'إجمالي إيرادات الإكسسوارات'
+                    : scope === 'mss'
+                    ? 'إجمالي مبيعات الأجهزة'
+                    : 'إجمالي الإيرادات المجمعة'}
+                </td>
+                <td className="py-2.5 px-4 text-center font-mono tabular-nums text-slate-700">
+                  {combined.totalTransactionsCount} {scope === 'accessories' ? 'فاتورة بيع' : scope === 'mss' ? 'جهاز مباع' : 'معاملة تجارية'}
+                </td>
                 <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-slate-900">{formatCurrency(combined.combinedRevenue)}</td>
-                <td className="py-2.5 px-4 text-left text-xs text-slate-600">نشاط المحل واللابتوبات</td>
+                <td className="py-2.5 px-4 text-left text-xs text-slate-600">
+                  {scope === 'accessories'
+                    ? 'نشاط محل الإكسسوارات'
+                    : scope === 'mss'
+                    ? 'نشاط بيع الأجهزة واللابتوبات'
+                    : 'نشاط المحل واللابتوبات'}
+                </td>
               </tr>
               <tr>
                 <td className="py-2.5 px-4 font-semibold text-slate-900">إجمالي تكلفة البضاعة المباعة </td>
                 <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">التكلفة التاريخية الدقيقة</td>
                 <td className="py-2.5 px-4 text-left font-mono tabular-nums text-slate-700">{formatCurrency(combined.combinedCogs)}</td>
-                <td className="py-2.5 px-4 text-left text-xs text-slate-600">تكلفة شراء البضاعة</td>
+                <td className="py-2.5 px-4 text-left text-xs text-slate-600">
+                  {scope === 'accessories'
+                    ? 'تكلفة بضاعة الإكسسوارات'
+                    : scope === 'mss'
+                    ? 'تكلفة شراء الأجهزة'
+                    : 'تكلفة شراء البضاعة'}
+                </td>
               </tr>
               <tr className="bg-slate-100 border-t-2 border-slate-900 font-bold print:bg-slate-50">
-                <td className="py-3 px-4 text-slate-950 text-base">مجمل الأرباح المجمعة</td>
+                <td className="py-3 px-4 text-slate-950 text-base">
+                  {scope === 'accessories'
+                    ? 'مجمل أرباح الإكسسوارات'
+                    : scope === 'mss'
+                    ? 'مجمل أرباح Compu MSS المشتركة'
+                    : 'مجمل الأرباح المجمعة'}
+                </td>
                 <td className="py-3 px-4 text-center font-mono text-sm text-slate-900">
                   هامش الربح العام: {combined.profitMarginPercent.toFixed(1)}%
                 </td>
                 <td className="py-3 px-4 text-left font-mono tabular-nums text-emerald-800 text-lg print:text-slate-950">
                   {formatCurrency(combined.combinedGrossProfit)}
                 </td>
-                <td className="py-3 px-4 text-left text-xs font-bold text-emerald-800 print:text-slate-900">
+                <td className="py-3 px-4 text-left text-xs font-bold text-emerald-800 print:text-slate-950">
                   صافي الأرباح التشغيلية
                 </td>
               </tr>
@@ -131,65 +170,69 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
           ثانياً: التحليل المالي المفصل    
         </h3>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid gap-4 ${scope === 'both' ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {/* Accessories Activity */}
-          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
-              1. نشاط محل الإكسسوارات 
-            </h4>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">صافي المبيعات :</span>
-              <span className="font-mono font-bold text-slate-900">{formatCurrency(accessories.netSales)}</span>
+          {(scope === 'accessories' || scope === 'both') && accessories && (
+            <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
+              <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
+                {scope === 'both' ? '1. نشاط محل الإكسسوارات' : 'نشاط محل الإكسسوارات'}
+              </h4>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">صافي المبيعات :</span>
+                <span className="font-mono font-bold text-slate-900">{formatCurrency(accessories.netSales)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">تكلفة البضاعة :</span>
+                <span className="font-mono tabular-nums">{formatCurrency(accessories.costOfGoodsSold)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
+                <span className="text-slate-900">أرباح الإكسسوارات (هامش {accessories.profitMarginPercent.toFixed(1)}%):</span>
+                <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(accessories.grossProfit)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">فواتير مسددة / مرتجعات:</span>
+                <span className="font-mono">{accessories.invoicesCount} فاتورة / {accessories.returnsCount} مرتجع</span>
+              </div>
+              <div className="flex justify-between py-1 pt-2 font-semibold">
+                <span className="text-slate-700">قيمة المخزون  (تكلفة):</span>
+                <span className="font-mono text-slate-900">{formatCurrency(accessories.inventoryCostValuation)}</span>
+              </div>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">تكلفة البضاعة :</span>
-              <span className="font-mono tabular-nums">{formatCurrency(accessories.costOfGoodsSold)}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
-              <span className="text-slate-900">أرباح الإكسسوارات (هامش {accessories.profitMarginPercent.toFixed(1)}%):</span>
-              <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(accessories.grossProfit)}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">فواتير مسددة / مرتجعات:</span>
-              <span className="font-mono">{accessories.invoicesCount} فاتورة / {accessories.returnsCount} مرتجع</span>
-            </div>
-            <div className="flex justify-between py-1 pt-2 font-semibold">
-              <span className="text-slate-700">قيمة المخزون  (تكلفة):</span>
-              <span className="font-mono text-slate-900">{formatCurrency(accessories.inventoryCostValuation)}</span>
-            </div>
-          </div>
+          )}
 
           {/* MSS Activity */}
-          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
-              2. نشاط  Compu MSS 
-            </h4>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">صافي المبيعات :</span>
-              <span className="font-mono font-bold text-slate-900">{formatCurrency(mss.netSales)}</span>
+          {(scope === 'mss' || scope === 'both') && mss && (
+            <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 print:bg-white space-y-2.5 text-xs">
+              <h4 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">
+                {scope === 'both' ? '2. نشاط Compu MSS' : 'نشاط Compu MSS'}
+              </h4>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">صافي المبيعات :</span>
+                <span className="font-mono font-bold text-slate-900">{formatCurrency(mss.netSales)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">تكلفة شراء الأجهزة :</span>
+                <span className="font-mono tabular-nums">{formatCurrency(mss.costOfGoodsSold)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
+                <span className="text-slate-900">أرباح Compu MSS  (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
+                <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(mss.sharedGrossProfit)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">أجهزة مباعة / مرتجعة / محجوزة:</span>
+                <span className="font-mono">{mss.soldDevicesCount} مباع / {mss.returnedDevicesCount} مرتجع / {mss.activeReservationsCount} حجز</span>
+              </div>
+              <div className="flex justify-between py-1 pt-2 font-semibold">
+                <span className="text-slate-700">قيمة  الأجهزة (تكلفة):</span>
+                <span className="font-mono text-slate-900">{formatCurrency(mss.inventoryCostValuation)}</span>
+              </div>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">تكلفة شراء الأجهزة :</span>
-              <span className="font-mono tabular-nums">{formatCurrency(mss.costOfGoodsSold)}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
-              <span className="text-slate-900">أرباح Compu MSS  (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
-              <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(mss.sharedGrossProfit)}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-600">أجهزة مباعة / مرتجعة / محجوزة:</span>
-              <span className="font-mono">{mss.soldDevicesCount} مباع / {mss.returnedDevicesCount} مرتجع / {mss.activeReservationsCount} حجز</span>
-            </div>
-            <div className="flex justify-between py-1 pt-2 font-semibold">
-              <span className="text-slate-700">قيمة  الأجهزة (تكلفة):</span>
-              <span className="font-mono text-slate-900">{formatCurrency(mss.inventoryCostValuation)}</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* 4. Branch Operational Distribution Table */}
-      {branchOperationalSales && branchOperationalSales.length > 0 && (
+      {(scope === 'mss' || scope === 'both') && branchOperationalSales && branchOperationalSales.length > 0 && (
         <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
             ثالثاً: توزيع المبيعات  حسب الفروع 
@@ -223,7 +266,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       )}
 
       {/* 5. Physical Inventory Location Valuation (Rule 9) */}
-      {locationStockValuation && locationStockValuation.length > 0 && (
+      {(scope === 'mss' || scope === 'both') && locationStockValuation && locationStockValuation.length > 0 && (
         <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
             رابعاً: تواجد الأجهزة  في الفروع والمخازن
@@ -253,7 +296,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       >
         <div className="grid grid-cols-2 gap-8 text-xs text-slate-700 font-semibold text-center">
           <div className="p-3 border border-slate-200 rounded-lg">
-            <p className="mb-8">إعداد وتدقيق الحسابات المجمعة:</p>
+            <p className="mb-8">إعداد وتدقيق الحسابات:</p>
             <p className="font-mono text-slate-400">________________________</p>
           </div>
           <div className="p-3 border border-slate-200 rounded-lg">
@@ -263,7 +306,7 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
         </div>
 
         <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-          <span>نظام Compu MSS — وثيقة مالية  مجمعة  صادرة إلكترونياً</span>
+          <span>نظام Compu MSS — وثيقة مالية صادرة إلكترونياً</span>
           <span>© 2026 Ahmed Saber. All rights reserved. • Contact: 01030137635</span>
         </div>
       </div>

@@ -83,11 +83,14 @@ export interface DashboardAlerts {
   hasSyncAlerts: boolean;
 }
 
+export type DashboardModuleScope = 'accessories' | 'mss' | 'both' | 'none';
+
 export interface UnifiedBusinessDashboardData {
+  moduleScope: DashboardModuleScope;
   filter: DateRangeFilter;
   combined: CombinedFinancials;
-  accessories: AccessoriesSummarySection;
-  mss: MSSSummarySection;
+  accessories?: AccessoriesSummarySection | null;
+  mss?: MSSSummarySection | null;
   branchOperationalSales: BranchOperationalSales[];
   locationStockValuation: LocationStockValuation[];
   alerts: DashboardAlerts;

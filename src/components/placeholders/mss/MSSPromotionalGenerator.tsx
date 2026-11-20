@@ -7,8 +7,10 @@ import {
   generatePromotionalArabicFilename,
   renderPromotionalToCanvas,
   exportPromotionalAsPng,
+  exportPromotionalAllPagesAsPng,
   exportPromotionalAsPdf,
   sortPromotionalItems,
+  PROMOTIONAL_MAX_DEVICES_PER_PAGE,
 } from '@/services/mssPromotionalService.ts';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
@@ -18,6 +20,7 @@ import { useNotification } from '@/context/NotificationContext';
 import {
   PROMOTIONAL_HEADER_ICONS,
   PROMOTIONAL_BRAND_LOGOS,
+  PROMOTIONAL_HEADER_ASSETS,
   getBrandLogoConfig,
 } from '@/assets/promotional/promotionalAssets';
 import {
@@ -61,13 +64,14 @@ export interface MSSPromotionalGeneratorProps {
  * with exact Flaticon 747 icon for Apple, and graceful text fallback for custom test entries.
  */
 const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
+  const [imgError, setImgError] = useState(false);
   const brandConfig = getBrandLogoConfig(brand);
 
-  if (!brandConfig) {
-    const b = (brand || '').trim();
+  if (!brandConfig || imgError) {
+    const label = brandConfig?.name || (brand || '').trim().slice(0, 8);
     return (
       <div className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[10px] shadow-2xs">
-        {b.slice(0, 8)}
+        {label}
       </div>
     );
   }
@@ -81,12 +85,28 @@ const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
           alt="Apple"
           className="w-4 h-4 object-contain"
           loading="eager"
+          onError={() => setImgError(true)}
         />
       </div>
     );
   }
 
-  // 2. Circular / square badge-friendly icons (Dell, HP, Huawei, LG, Razer, Alienware, Google, Microsoft)
+  // 2. Lenovo: Distinctive official red badge with crisp white wordmark
+  if (brandConfig.key === 'lenovo') {
+    return (
+      <div className="inline-flex items-center justify-center h-6 max-w-[76px] px-0.5">
+        <img
+          src={brandConfig.dataUri}
+          alt="Lenovo"
+          className="h-5 w-auto object-contain drop-shadow-2xs rounded-xs"
+          loading="eager"
+          onError={() => setImgError(true)}
+        />
+      </div>
+    );
+  }
+
+  // 3. Circular / square badge-friendly icons (Dell, HP, Huawei, LG, Razer, Alienware, Google, Microsoft)
   if (['dell', 'hp', 'huawei', 'lg', 'razer', 'alienware', 'google', 'microsoft'].includes(brandConfig.key)) {
     return (
       <div className="inline-flex items-center justify-center w-7 h-7">
@@ -95,12 +115,13 @@ const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
           alt={brandConfig.name}
           className="max-w-[26px] max-h-[26px] object-contain drop-shadow-2xs"
           loading="eager"
+          onError={() => setImgError(true)}
         />
       </div>
     );
   }
 
-  // 3. Wordmark logos (Lenovo, Asus, Acer, MSI, Samsung, Toshiba, Sony, Fujitsu)
+  // 4. Wordmark logos (Asus, Acer, MSI, Samsung, Toshiba, Sony, Fujitsu)
   return (
     <div className="inline-flex items-center justify-center h-7 max-w-[76px] px-1">
       <img
@@ -108,6 +129,7 @@ const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
         alt={brandConfig.name}
         className="max-h-5 max-w-[72px] object-contain drop-shadow-2xs"
         loading="eager"
+        onError={() => setImgError(true)}
       />
     </div>
   );
@@ -133,66 +155,88 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
   return (
     <div
       id={id}
-      className={`promotional-poster-container w-[1000px] shrink-0 bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 ${className}`}
+      className={`promotional-poster-container w-[1000px] shrink-0 bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 flex flex-col justify-between ${className}`}
+      style={{ minHeight: '960px' }}
       dir="rtl"
     >
-      {/* 1. Royal Blue Header Section */}
-      <div className="relative bg-gradient-to-b from-[#04102e] via-[#07205b] to-[#0c3582] p-6 text-center text-white overflow-hidden">
-        {/* Subtle Central Radial Glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.3)_0,transparent_70%)] pointer-events-none" />
+      <div>
+        {/* 1. Realistic Commercial Electronics Header Section */}
+      <div className="relative bg-gradient-to-b from-[#04102e] via-[#071c4d] to-[#0c3582] px-6 pt-5 pb-6 text-center text-white overflow-hidden border-b border-sky-400/20">
+        {/* Realistic Studio Lighting Overlays */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.35)_0%,transparent_65%)] pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
 
-        {/* Left Angled Laptop Illustration */}
-        <div className="absolute left-6 top-5 w-44 h-32 hidden sm:block pointer-events-none opacity-95">
-          <svg viewBox="0 0 200 150" className="w-full h-full drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
-            <path d="M20,105 L140,115 L180,138 L5,130 Z" fill="#cbd5e1" stroke="#64748b" strokeWidth="1.5" />
-            <path d="M30,110 L130,118 L150,128 L15,123 Z" fill="#334155" />
-            <path d="M30,10 L160,20 L140,115 L20,105 Z" fill="#0f172a" stroke="#94a3b8" strokeWidth="2.5" />
-            <path d="M35,16 L155,25 L137,108 L26,100 Z" fill="url(#scenicGradient)" />
-            <defs>
-              <linearGradient id="scenicGradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#0284c7" />
-                <stop offset="50%" stopColor="#38bdf8" />
-                <stop offset="100%" stopColor="#0f766e" />
-              </linearGradient>
-            </defs>
-          </svg>
+        {/* Left Photorealistic Laptop (Dell XPS Studio Product Render) */}
+        <div className="absolute left-4 bottom-1 w-56 h-36 hidden sm:block pointer-events-none select-none z-10 drop-shadow-[0_12px_16px_rgba(0,0,0,0.6)]">
+          <img
+            src={PROMOTIONAL_HEADER_ASSETS.laptopLeft}
+            alt="Commercial Laptop Display Left"
+            className="w-full h-full object-contain filter contrast-[1.03] brightness-[1.02]"
+            loading="eager"
+          />
         </div>
 
-        {/* Right Angled Laptop Illustration */}
-        <div className="absolute right-6 top-5 w-44 h-32 hidden sm:block pointer-events-none opacity-95">
-          <svg viewBox="0 0 200 150" className="w-full h-full drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transform -scale-x-100">
-            <path d="M20,105 L140,115 L180,138 L5,130 Z" fill="#cbd5e1" stroke="#64748b" strokeWidth="1.5" />
-            <path d="M30,110 L130,118 L150,128 L15,123 Z" fill="#334155" />
-            <path d="M30,10 L160,20 L140,115 L20,105 Z" fill="#0f172a" stroke="#94a3b8" strokeWidth="2.5" />
-            <path d="M35,16 L155,25 L137,108 L26,100 Z" fill="url(#bloomGradient)" />
-            <defs>
-              <linearGradient id="bloomGradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" />
-                <stop offset="50%" stopColor="#2563eb" />
-                <stop offset="100%" stopColor="#090d16" />
-              </linearGradient>
-            </defs>
-          </svg>
+        {/* Right Photorealistic Laptop (Apple MacBook Pro Studio Product Render) */}
+        <div className="absolute right-4 bottom-1 w-56 h-36 hidden sm:block pointer-events-none select-none z-10 drop-shadow-[0_12px_16px_rgba(0,0,0,0.6)]">
+          <img
+            src={PROMOTIONAL_HEADER_ASSETS.laptopRight}
+            alt="Commercial Laptop Display Right"
+            className="w-full h-full object-contain filter contrast-[1.03] brightness-[1.02]"
+            loading="eager"
+          />
         </div>
 
-        {/* COMPU MSS Branding Pill */}
-        <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/10 border border-sky-400/40 text-sky-300 text-xs font-bold tracking-widest uppercase mb-2">
-          {displayOptions.storeName || 'COMPU MSS'}
-        </div>
+        {/* Center Brand Identity & Commercial Typography */}
+        <div className="relative z-20 flex flex-col items-center justify-center max-w-xl mx-auto">
+          {/* Official COMPU MSS Company Logo & Brand Badge */}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden shadow-[0_0_15px_rgba(37,99,235,0.5)] border-2 border-slate-300/80 bg-[#04102e] shrink-0">
+              <img
+                src={PROMOTIONAL_HEADER_ASSETS.logo}
+                alt="COMPU MSS Official Logo"
+                className="w-full h-full object-cover"
+                loading="eager"
+              />
+            </div>
+            <div className="flex flex-col items-start text-right">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/10 border border-sky-400/35 text-sky-300 text-xs font-black tracking-wider uppercase">
+                {displayOptions.storeName || 'COMPU MSS'}
+              </div>
+              <span className="text-[10px] text-sky-200/75 font-semibold tracking-wide pr-1">
+                لاستيراد الكمبيوتر واللاب توب
+              </span>
+            </div>
+          </div>
 
-        {/* Main Headline */}
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">
-          {displayOptions.headline || 'متوفر بفضل الله'}
-        </h1>
+          {/* Primary Headline */}
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] font-cairo">
+            {displayOptions.headline || 'متوفر بفضل الله'}
+          </h1>
 
-        {/* Secondary Headline & Yellow Swoosh */}
-        <div className="relative inline-block mt-1">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#facc15] tracking-tight drop-shadow-sm">
-            {displayOptions.subHeadline || 'أعلى جودة بأقل سعر'}
-          </h2>
-          <svg viewBox="0 0 300 20" className="w-full h-4 mt-0.5 text-[#facc15]" fill="none" stroke="currentColor">
-            <path d="M10,12 Q150,22 290,6" strokeWidth="4" strokeLinecap="round" />
-          </svg>
+          {/* Secondary Headline & Elegant Golden Underline Arc */}
+          <div className="relative inline-block mt-1">
+            <h2 className="text-2xl sm:text-3xl font-black text-[#facc15] tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] font-cairo">
+              {displayOptions.subHeadline || 'أعلى جودة بأقل سعر'}
+            </h2>
+            <svg viewBox="0 0 280 14" className="w-56 sm:w-64 h-3 mx-auto mt-0.5 text-[#facc15]" fill="none" stroke="currentColor">
+              <path d="M10,8 Q140,16 270,4" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+
+          {/* Value Badges from Official Brand Identity */}
+          <div className="flex items-center gap-2 mt-1.5 text-[11px] font-bold text-sky-200/90 tracking-wide">
+            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
+              <span className="text-sky-400">✓</span> جودة معتمدة
+            </span>
+            <span className="text-sky-500/60">•</span>
+            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
+              <span className="text-sky-400">✓</span> ضمان شامل
+            </span>
+            <span className="text-sky-500/60">•</span>
+            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
+              <span className="text-sky-400">✓</span> أقل سعر
+            </span>
+          </div>
         </div>
       </div>
 
@@ -252,7 +296,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               {displayOptions.showQuantity && (
                 <th className="py-3 px-2 w-16 text-center">
                   <div className="flex flex-col items-center gap-1">
-                    <Package className="w-4 h-4 text-sky-400" />
+                    <img src={PROMOTIONAL_HEADER_ICONS.quantity} alt="الكمية" className="w-4 h-4 object-contain" />
                     <span>الكمية</span>
                   </div>
                 </th>
@@ -320,6 +364,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
             })}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* 3. Poster Footer */}
@@ -508,18 +553,24 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
     storeName: 'COMPU MSS',
     headline: 'متوفر بفضل الله',
     subHeadline: 'أعلى جودة بأقل سعر',
-    itemsPerPage: 12,
+    itemsPerPage: PROMOTIONAL_MAX_DEVICES_PER_PAGE,
   });
 
   // 5. Editable Preview Modal State & Pagination
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [previewItems, setPreviewItems] = useState<PromotionalLaptopItem[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(12);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(PROMOTIONAL_MAX_DEVICES_PER_PAGE);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<PromotionalLaptopItem>>({});
   const [isExportingPng, setIsExportingPng] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
+  const [exportProgress, setExportProgress] = useState<{
+    isExporting: boolean;
+    type: 'png' | 'pdf';
+    currentPage: number;
+    totalPages: number;
+  } | null>(null);
 
   // Open Preview Modal with the selected items (strictly filtered from visible items)
   const handleOpenPreviewModal = () => {
@@ -616,16 +667,17 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   };
 
   // 6. Export Handlers
-  const handleExportPng = async () => {
+
+  // Export current single page as PNG
+  const handleExportSinglePagePng = async () => {
     if (previewItems.length === 0) return;
     setIsExportingPng(true);
+    setExportProgress({ isExporting: true, type: 'png', currentPage: currentPageIndex + 1, totalPages });
     try {
-      // Ensure all custom fonts are fully loaded before capturing
       if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
         await document.fonts.ready;
       }
 
-      // Priority 1: Use live preview container if on active page; otherwise use rendered multi-page container
       const targetEl =
         document.getElementById('mss-promotional-poster-container') ||
         document.getElementById(`mss-promotional-page-container-${currentPageIndex}`);
@@ -637,13 +689,10 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       const filename = generatePromotionalArabicFilename(
         previewItems,
         'png',
-        totalPages > 1 ? currentPageIndex + 1 : undefined
+        currentPageIndex + 1,
+        totalPages
       );
 
-      // Ensure fonts and all embedded image assets are fully ready before capture
-      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
       const imgs = targetEl.querySelectorAll('img');
       await Promise.all(
         Array.from(imgs).map(img => {
@@ -655,7 +704,6 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         })
       );
 
-      // DOM rasterization via html-to-image for pixel-perfect match with preview modal
       const dataUrl = await toPng(targetEl, {
         quality: 1.0,
         pixelRatio: 2,
@@ -666,12 +714,11 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       exportPromotionalAsPng(dataUrl, filename);
       showNotification({
         type: 'success',
-        title: 'تم تصدير الصورة الترويجية بنجاح',
-        message: `تم تحميل التصميم بدقة عالية: ${filename}`,
+        title: 'تم تصدير صفحة المعاينة الحالية',
+        message: `تم تحميل الصفحة ${currentPageIndex + 1} بنجاح: ${filename}`,
       });
     } catch (err: any) {
       console.warn('html-to-image failed, falling back to canvas:', err);
-      // Fallback: renderPromotionalToCanvas
       try {
         if (canvasRef.current) {
           renderPromotionalToCanvas(
@@ -686,13 +733,14 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
           const filename = generatePromotionalArabicFilename(
             previewItems,
             'png',
-            totalPages > 1 ? currentPageIndex + 1 : undefined
+            currentPageIndex + 1,
+            totalPages
           );
           exportPromotionalAsPng(canvasRef.current, filename);
           showNotification({
             type: 'success',
-            title: 'تم تصدير الصورة الترويجية بنجاح',
-            message: `تم تحميل التصميم: ${filename}`,
+            title: 'تم تصدير صفحة المعاينة الحالية',
+            message: `تم تحميل الصفحة ${currentPageIndex + 1}: ${filename}`,
           });
           return;
         }
@@ -701,118 +749,94 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       }
       showNotification({
         type: 'error',
-        title: 'فشل تصدير الصورة',
-        message: err.message || 'حدث خطأ أثناء تصدير الصورة الترويجية.',
+        title: 'فشل تصدير الصفحة',
+        message: err.message || 'حدث خطأ أثناء تصدير الصفحة الترويجية.',
       });
     } finally {
       setIsExportingPng(false);
+      setExportProgress(null);
     }
   };
 
-  // Download all pages sequentially as PNG
+  // Download all pages sequentially as PNG with automatic pagination
   const handleExportAllPagesPng = async () => {
     if (previewItems.length === 0) return;
     setIsExportingPng(true);
+    setExportProgress({ isExporting: true, type: 'png', currentPage: 1, totalPages });
     try {
-      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
-
-      for (let p = 0; p < totalPages; p++) {
-        const pageEl =
-          document.getElementById(`mss-promotional-page-container-${p}`) ||
-          (p === currentPageIndex ? document.getElementById('mss-promotional-poster-container') : null);
-
-        if (!pageEl) continue;
-
-        const imgs = pageEl.querySelectorAll('img');
-        await Promise.all(
-          Array.from(imgs).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise(resolve => {
-              img.onload = resolve;
-              img.onerror = resolve;
-            });
-          })
-        );
-
-        const dataUrl = await toPng(pageEl, {
-          quality: 1.0,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          cacheBust: true,
-        });
-
-        const filename = generatePromotionalArabicFilename(previewItems, 'png', p + 1);
-        exportPromotionalAsPng(dataUrl, filename);
-        // Small pause between downloads to let browser process
-        await new Promise(res => setTimeout(res, 250));
-      }
+      const result = await exportPromotionalAllPagesAsPng(
+        previewItems,
+        {
+          ...displayOptions,
+          itemsPerPage,
+        },
+        (curr, total) => {
+          setExportProgress({ isExporting: true, type: 'png', currentPage: curr, totalPages: total });
+        }
+      );
 
       showNotification({
         type: 'success',
-        title: 'تم تحميل جميع الصفحات بنجاح',
-        message: `تم تحميل ${totalPages} صور ترويجية عالية الجودة.`,
+        title: 'تم تصدير كافة الصفحات بنجاح',
+        message: `تم تحميل ${result.totalPages} صور ترويجية عالية الدقة بالتسمية التسلسلية المعتمدة.`,
       });
     } catch (err: any) {
-      console.error('Failed to export all promotional PNGs with html-to-image:', err);
-      // Fallback to canvas
-      try {
-        if (canvasRef.current) {
-          for (let p = 0; p < totalPages; p++) {
-            renderPromotionalToCanvas(
-              previewItems,
-              {
-                ...displayOptions,
-                pageIndex: p,
-                itemsPerPage,
-              },
-              canvasRef.current
-            );
-            const filename = generatePromotionalArabicFilename(previewItems, 'png', p + 1);
-            exportPromotionalAsPng(canvasRef.current, filename);
-            await new Promise(res => setTimeout(res, 200));
-          }
-          showNotification({
-            type: 'success',
-            title: 'تم تحميل جميع الصفحات بنجاح',
-            message: `تم تحميل ${totalPages} صور ترويجية.`,
-          });
-          return;
-        }
-      } catch (canvasErr) {
-        console.error('Canvas fallback failed:', canvasErr);
-      }
+      console.error('Failed to export all promotional PNGs:', err);
       showNotification({
         type: 'error',
         title: 'فشل تصدير الصور',
-        message: err.message || 'حدث خطأ أثناء تصدير الصور.',
+        message: err.message || 'حدث خطأ أثناء تصدير الصور الترويجية.',
       });
     } finally {
       setIsExportingPng(false);
+      setExportProgress(null);
     }
   };
 
+  // Main PNG export handler: automatically handles single or multi-page datasets
+  const handleExportPng = async () => {
+    if (previewItems.length === 0) return;
+    if (totalPages > 1) {
+      await handleExportAllPagesPng();
+    } else {
+      await handleExportSinglePagePng();
+    }
+  };
+
+  // Automatic multi-page PDF export using genuine jsPDF document engine
   const handleExportPdf = async () => {
     if (previewItems.length === 0) return;
     setIsExportingPdf(true);
+    setExportProgress({ isExporting: true, type: 'pdf', currentPage: 1, totalPages });
     try {
       const filename = generatePromotionalArabicFilename(previewItems, 'pdf');
-      await exportPromotionalAsPdf('mss-promotional-pdf-export-container', filename);
+      const result = await exportPromotionalAsPdf(
+        previewItems,
+        {
+          ...displayOptions,
+          itemsPerPage,
+          filename,
+        },
+        (curr, total) => {
+          setExportProgress({ isExporting: true, type: 'pdf', currentPage: curr, totalPages: total });
+        }
+      );
+
       showNotification({
         type: 'success',
-        title: 'تم فتح نافذة الطباعة / تصدير PDF',
-        message: `اختر "Save as PDF" لحفظ التصميم الترويجي: ${filename}`,
+        title: 'تم تصدير ملف PDF بنجاح',
+        message: `تم إنشاء وتحميل ملف PDF متكامل بنجاح (${result.pageCount} صفحات متناسقة بدون أي اقتصاص): ${result.filename}`,
       });
     } catch (err: any) {
       console.error('Failed to export promotional PDF:', err);
       showNotification({
         type: 'error',
         title: 'فشل تصدير PDF',
-        message: err.message || 'حدث خطأ أثناء تصدير ملف PDF.',
+        message: err.message || 'حدث خطأ أثناء إنشاء وتصدير ملف PDF.',
       });
     } finally {
       setIsExportingPdf(false);
+      setExportProgress(null);
     }
   };
 
@@ -1247,49 +1271,80 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                   size="md"
                   onClick={handleExportPdf}
                   isLoading={isExportingPdf}
+                  disabled={Boolean(exportProgress)}
                   leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
                   className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"
                 >
-                  تصدير كـ PDF
+                  {totalPages > 1 ? `تصدير كافة الصفحات (${totalPages}) كـ PDF` : 'تصدير كـ PDF'}
                 </Button>
 
                 {totalPages > 1 && (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={handleExportAllPagesPng}
-                    isLoading={isExportingPng}
-                    leftIcon={<Layers className="w-4.5 h-4.5 text-indigo-600" />}
-                    className="font-bold border-indigo-300 hover:bg-indigo-50 text-indigo-900"
-                  >
-                    تحميل كافة الصفحات ({totalPages} صور)
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={handleExportAllPagesPng}
+                      isLoading={isExportingPng}
+                      disabled={Boolean(exportProgress)}
+                      leftIcon={<Layers className="w-4.5 h-4.5 text-indigo-600" />}
+                      className="font-bold border-indigo-300 hover:bg-indigo-50 text-indigo-900"
+                    >
+                      تحميل كافة الصفحات ({totalPages} صور PNG)
+                    </Button>
+
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleExportSinglePagePng}
+                      disabled={Boolean(exportProgress)}
+                      leftIcon={<Download className="w-4.5 h-4.5" />}
+                      className="font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs"
+                    >
+                      تحميل الصفحة الحالية {currentPageIndex + 1} (PNG)
+                    </Button>
+                  </>
                 )}
 
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={handleExportPng}
-                  isLoading={isExportingPng}
-                  leftIcon={<Download className="w-4.5 h-4.5" />}
-                  className="font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs"
-                >
-                  {totalPages > 1
-                    ? `تحميل الصفحة الحالية ${currentPageIndex + 1} (PNG)`
-                    : 'تحميل التصميم كصورة (PNG)'}
-                </Button>
+                {totalPages === 1 && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={handleExportPng}
+                    isLoading={isExportingPng}
+                    disabled={Boolean(exportProgress)}
+                    leftIcon={<Download className="w-4.5 h-4.5" />}
+                    className="font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs"
+                  >
+                    تحميل التصميم كصورة (PNG)
+                  </Button>
+                )}
               </div>
             </div>
           }
         >
           <div className="space-y-6">
-            {/* PDF Recommendation Warning Banner When > 12 Devices (totalPages > 1) */}
-            {totalPages > 1 && (
+            {/* Live Export Progress Banner */}
+            {exportProgress && (
+              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-950 text-xs flex items-center justify-between gap-3 shadow-xs animate-pulse">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="font-bold">
+                    جاري إنشاء وتصدير الصفحة {exportProgress.currentPage} من {exportProgress.totalPages} ({exportProgress.type === 'pdf' ? 'مستند PDF موحد' : 'صور ترويجية PNG'})... يرجى الانتظار
+                  </span>
+                </div>
+                <span className="font-mono font-extrabold text-blue-800 text-sm">
+                  {Math.round((exportProgress.currentPage / exportProgress.totalPages) * 100)}%
+                </span>
+              </div>
+            )}
+
+            {/* PDF Recommendation Warning Banner When > 10 Devices (totalPages > 1) */}
+            {totalPages > 1 && !exportProgress && (
               <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-xs flex items-center justify-between gap-3 shadow-2xs">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
                   <span className="font-bold">
-                    لقد قمت بتحديد عدد كبير من الأجهزة. يُنصح بالتصدير بصيغة PDF لتجربة عرض ومشاركة أفضل. ({previewItems.length} جهاز على {totalPages} صفحات)
+                    لقد قمت بتحديد عدد أجهزة ({previewItems.length} جهاز على {totalPages} صفحات). يُنصح بالتصدير بصيغة PDF لتجربة عرض ومشاركة متناسقة بدون أي اقتصاص.
                   </span>
                 </div>
                 <Button
@@ -1399,8 +1454,9 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                       }}
                       className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 cursor-pointer"
                     >
-                      <option value={10}>10 أجهزة</option>
-                      <option value={12}>12 جهاز (افتراضي)</option>
+                      <option value={8}>8 أجهزة</option>
+                      <option value={10}>10 أجهزة (الحد القياسي الأنسب)</option>
+                      <option value={12}>12 جهاز</option>
                       <option value={14}>14 جهاز</option>
                     </select>
                   </div>

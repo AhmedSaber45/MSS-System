@@ -1,4 +1,4 @@
-export type AppModule = 'accessories' | 'mss' | 'both';
+export type AppModule = 'accessories' | 'mss' | 'both' | 'none';
 
 export interface AuthenticatedUser {
   id: string;
