@@ -344,12 +344,13 @@ export const adminService = {
             const memUser = fallbackUsers.find(u => u.id === row.id);
             const effectiveDefaultStoreId = memUser?.defaultStoreId || row.default_store_id;
             const effectivePermVersion = Math.max(row.permission_version ?? 1, memUser?.permissionVersion ?? 1);
+            const effectiveAllowedModules = memUser?.allowedModules || row.allowed_modules;
 
             return {
               id: row.id,
               username: row.username,
               displayName: row.display_name,
-              allowedModules: row.allowed_modules,
+              allowedModules: effectiveAllowedModules,
               defaultStoreId: effectiveDefaultStoreId,
               defaultStoreName: row.default_store_name,
               defaultStoreCode: row.default_store_code,
@@ -536,8 +537,54 @@ export const adminService = {
   async updateAppUser(input: UpdateAppUserInput, actor: SessionPayload): Promise<AppUser> {
     try {
       const supabase = getServerSupabase();
+
+      // 1. Try secure atomic RPC first (handles permission_version, sessions & assignments under RLS)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_app_user', {
+        p_user_id: input.id,
+        p_display_name: input.displayName ? input.displayName.trim() : null,
+        p_username: input.username ? normalizeUsername(input.username) : null,
+        p_allowed_modules: input.allowedModules || null,
+        p_default_store_id: input.defaultStoreId || null,
+        p_assigned_store_ids: input.assignedStoreIds || null,
+        p_is_active: input.isActive !== undefined ? input.isActive : null,
+        p_actor_id: actor.adminId,
+        p_actor_username: actor.username,
+      });
+
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        const u = rpcData[0];
+        // Keep in-memory fallback in sync
+        const memIdx = fallbackUsers.findIndex(fu => fu.id === input.id);
+        if (memIdx !== -1) {
+          fallbackUsers[memIdx] = {
+            ...fallbackUsers[memIdx],
+            displayName: u.display_name,
+            username: u.username,
+            allowedModules: u.allowed_modules,
+            defaultStoreId: u.default_store_id,
+            permissionVersion: u.permission_version,
+            isActive: u.is_active,
+            updatedAt: u.updated_at,
+          };
+        }
+
+        return {
+          id: u.id,
+          username: u.username,
+          displayName: u.display_name,
+          allowedModules: u.allowed_modules,
+          defaultStoreId: u.default_store_id,
+          assignedStoreIds: input.assignedStoreIds,
+          assignedStoresCount: input.assignedStoreIds?.length || 0,
+          credentialVersion: u.credential_version || 1,
+          permissionVersion: u.permission_version || 1,
+          isActive: u.is_active,
+          createdAt: u.created_at,
+          updatedAt: u.updated_at,
+        };
+      }
       
-      // Get current user state to track version increments
+      // 2. Direct table update fallback if RPC not yet deployed
       const { data: current } = await supabase
         .from('app_users')
         .select('*')
@@ -550,16 +597,24 @@ export const adminService = {
 
       if (input.displayName) updateData.display_name = input.displayName.trim();
       
-      // Increment permission_version if allowed_modules changed
+      // Increment permission_version whenever allowed_modules changes
       let newPermVersion = current?.permission_version ?? 1;
-      if (input.allowedModules && input.allowedModules !== current?.allowed_modules) {
+      if (input.allowedModules) {
         updateData.allowed_modules = input.allowedModules;
-        newPermVersion += 1;
-        updateData.permission_version = newPermVersion;
+        if (!current || input.allowedModules !== current.allowed_modules) {
+          newPermVersion = (current?.permission_version ?? 0) + 1;
+          updateData.permission_version = newPermVersion;
+        }
       }
 
       if (input.defaultStoreId !== undefined) updateData.default_store_id = input.defaultStoreId || null;
-      if (input.isActive !== undefined) updateData.is_active = input.isActive;
+      if (input.isActive !== undefined) {
+        updateData.is_active = input.isActive;
+        if (current && input.isActive !== current.is_active) {
+          newPermVersion = (current?.permission_version ?? newPermVersion) + 1;
+          updateData.permission_version = newPermVersion;
+        }
+      }
 
       if (input.username) {
         const norm = normalizeUsername(input.username);
@@ -583,6 +638,15 @@ export const adminService = {
 
       if (error) throw new Error(error.message);
 
+      // If permissions or status changed, sync permission_version on active sessions
+      if (updateData.permission_version) {
+        await supabase
+          .from('app_user_sessions')
+          .update({ permission_version: updateData.permission_version })
+          .eq('user_id', input.id)
+          .is('revoked_at', null);
+      }
+
       // Update store assignments if provided
       if (input.assignedStoreIds) {
         await supabase.from('user_store_assignments').delete().eq('user_id', input.id);
@@ -594,6 +658,21 @@ export const adminService = {
           }));
           await supabase.from('user_store_assignments').insert(rows);
         }
+      }
+
+      // Keep in-memory fallback in sync
+      const memIdx = fallbackUsers.findIndex(fu => fu.id === input.id);
+      if (memIdx !== -1) {
+        fallbackUsers[memIdx] = {
+          ...fallbackUsers[memIdx],
+          displayName: data.display_name,
+          username: data.username,
+          allowedModules: data.allowed_modules,
+          defaultStoreId: data.default_store_id,
+          permissionVersion: data.permission_version,
+          isActive: data.is_active,
+          updatedAt: data.updated_at,
+        };
       }
 
       await this.logAdminAudit(
@@ -667,6 +746,125 @@ export const adminService = {
       });
 
       return sanitizeUser(updated) as unknown as AppUser;
+    }
+  },
+
+  async deleteAppUser(userId: string, actor: SessionPayload): Promise<void> {
+    if (actor.role === 'auditor') {
+      throw new Error('غير مصرح: حسابات التدقيق لا تملك صلاحية حذف المستخدمين');
+    }
+    if (userId === actor.adminId) {
+      throw new Error('لا يمكنك حذف حسابك الشخصي المسجل به حالياً');
+    }
+
+    try {
+      const supabase = getServerSupabase();
+
+      // 1. Try secure atomic deletion RPC function
+      const { data: rpcSuccess, error: rpcErr } = await supabase.rpc('admin_delete_app_user', {
+        p_user_id: userId,
+        p_actor_id: actor.adminId,
+        p_actor_username: actor.username,
+      });
+
+      if (!rpcErr && rpcSuccess) {
+        // Clean in-memory fallback
+        const idx = fallbackUsers.findIndex(u => u.id === userId);
+        if (idx !== -1) fallbackUsers.splice(idx, 1);
+        return;
+      }
+
+      // 2. Direct table deletion fallback
+      // Check if user is in admin_users
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (adminUser) {
+        if (adminUser.role === 'superadmin') {
+          const { count } = await supabase
+            .from('admin_users')
+            .select('*', { count: 'exact', head: true })
+            .eq('role', 'superadmin')
+            .eq('is_active', true);
+
+          if ((count || 0) <= 1) {
+            throw new Error('لا يمكن حذف المسؤول الرئيسي الأخير (Super Admin) لضمان استمرارية إدارة النظام');
+          }
+        }
+
+        await supabase.from('admin_users').delete().eq('id', userId);
+        await this.logAdminAudit(actor, 'ADMIN_DELETE', 'user', userId, {
+          isAdminUser: true,
+          username: adminUser.username,
+          displayName: adminUser.display_name,
+        });
+        return;
+      }
+
+      // Find user before deleting for audit trail
+      const { data: userBeforeDelete } = await supabase
+        .from('app_users')
+        .select('id, username, display_name, allowed_modules')
+        .eq('id', userId)
+        .maybeSingle();
+
+      // Delete active sessions
+      await supabase.from('app_user_sessions').delete().eq('user_id', userId);
+
+      // Delete store assignments
+      await supabase.from('user_store_assignments').delete().eq('user_id', userId);
+
+      // Permanently delete user
+      const { error: delErr } = await supabase
+        .from('app_users')
+        .delete()
+        .eq('id', userId);
+
+      if (delErr) {
+        throw new Error(delErr.message);
+      }
+
+      await this.logAdminAudit(
+        actor,
+        'USER_DELETE',
+        'user',
+        userId,
+        {
+          username: userBeforeDelete?.username,
+          displayName: userBeforeDelete?.display_name,
+          allowedModules: userBeforeDelete?.allowed_modules,
+        }
+      );
+
+      // Clean in-memory fallback
+      const idx = fallbackUsers.findIndex(u => u.id === userId);
+      if (idx !== -1) fallbackUsers.splice(idx, 1);
+    } catch (err: any) {
+      // In-memory fallback for test runner
+      const idx = fallbackUsers.findIndex(u => u.id === userId);
+      if (idx !== -1) {
+        const u = fallbackUsers[idx];
+        fallbackUsers.splice(idx, 1);
+        for (let i = fallbackUserStoreAssignments.length - 1; i >= 0; i--) {
+          if (fallbackUserStoreAssignments[i].userId === userId) {
+            fallbackUserStoreAssignments.splice(i, 1);
+          }
+        }
+        for (let i = fallbackSessions.length - 1; i >= 0; i--) {
+          if (fallbackSessions[i].userId === userId) {
+            fallbackSessions.splice(i, 1);
+          }
+        }
+        await this.logAdminAudit(actor, 'USER_DELETE', 'user', userId, {
+          username: u.username,
+          displayName: u.displayName,
+        });
+        return;
+      }
+      throw new Error(err.message || 'المستخدم غير موجود أو فشل في الحذف');
     }
   },
 

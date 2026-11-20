@@ -97,3 +97,27 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err.message || 'فشل في تحديث المستخدم' }, { status: 400 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: 'غير مصرح: يجب تسجيل الدخول كمدير نظام' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'معرف المستخدم مطلوب للحذف' }, { status: 400 });
+  }
+
+  try {
+    await adminService.deleteAppUser(id, session);
+    return NextResponse.json({
+      success: true,
+      message: 'تم حذف حساب المستخدم نهائياً وإلغاء كافة صلاحياته وجلساته بنجاح',
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'فشل في حذف المستخدم' }, { status: 400 });
+  }
+}

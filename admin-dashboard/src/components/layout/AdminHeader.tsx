@@ -21,10 +21,6 @@ const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     title: 'إدارة مستخدمي الفروع',
     subtitle: 'إنشاء حسابات المستخدمين، إدارة الصلاحيات، وتعيين رموز الدخول',
   },
-  settings: {
-    title: 'إعدادات النظام والربط',
-    subtitle: 'حالة قاعدة البيانات، سياسات الأمان، وقواعد العزل المعماري',
-  },
 };
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({

@@ -9,7 +9,7 @@
 
 export interface PrintDocumentOptions {
   title: string;
-  format: 'a4' | 'thermal' | 'report';
+  format: 'a4' | 'thermal' | 'report' | 'promotional';
   orientation?: 'portrait' | 'landscape';
   onBeforePrint?: () => void;
   onAfterPrint?: () => void;
@@ -59,6 +59,13 @@ export const documentPrintService = {
         pageRule = '@page { size: 80mm auto; margin: 0; }';
         bodyStyles = 'background: #ffffff; color: #000000; margin: 0; padding: 0; font-family: "JetBrains Mono", Consolas, Monaco, monospace; font-size: 11px;';
         containerStyles = 'width: 80mm; max-width: 80mm; margin: 0 auto; padding: 0;';
+      } else if (options.format === 'promotional') {
+        // High-fidelity A4 promotional poster format:
+        // Scaled to fit A4 page width with comfortable margins, avoiding any horizontal or vertical clipping
+        const orient = options.orientation || 'portrait';
+        pageRule = `@page { size: A4 ${orient}; margin: 6mm 8mm; }`;
+        bodyStyles = 'background: #ffffff; color: #0f172a; margin: 0; padding: 0; font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;';
+        containerStyles = 'width: 100%; margin: 0 auto; direction: rtl;';
       } else if (options.format === 'report') {
         const orient = options.orientation || 'portrait';
         pageRule = `@page { size: A4 ${orient}; margin: 12mm 15mm; }`;
@@ -117,6 +124,31 @@ export const documentPrintService = {
       body {
         margin: 0 !important;
         padding: 0 !important;
+      }
+      /* Promotional Poster Scaling & Clean Pagination for A4 Print */
+      .promotional-poster-container, [id^="mss-promotional-page-container"], [id^="mss-promotional-poster"] {
+        width: 1000px !important;
+        max-width: 1000px !important;
+        box-sizing: border-box !important;
+        zoom: 0.73 !important;
+        margin: 0 auto !important;
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .promotional-page-wrapper {
+        page-break-after: always !important;
+        break-after: page !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      .promotional-page-wrapper:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
     }
   </style>
@@ -187,6 +219,12 @@ export const documentPrintService = {
     clone.classList.remove('hidden');
     clone.style.display = 'block';
     clone.style.visibility = 'visible';
+    clone.style.position = 'static';
+    clone.style.left = 'auto';
+    clone.style.top = 'auto';
+    clone.style.opacity = '1';
+    clone.style.zIndex = 'auto';
+    clone.style.pointerEvents = 'auto';
     const content = clone.outerHTML;
     await this.printHtml(content, options);
   },

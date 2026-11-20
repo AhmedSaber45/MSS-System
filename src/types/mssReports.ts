@@ -112,11 +112,14 @@ export interface WholesaleExportOptions {
   includeSerialNumbers: boolean;
   includeStatus?: boolean;
   includeBranch?: boolean;
+  includeCategory?: boolean;
+  includeScreen?: boolean;
   branch?: 'ALL' | 'محل 1' | 'محل 2';
   branchFilter?: string;
   selectedDeviceIds?: string[];
   selectedModelIds?: string[];
   selectedBrands?: string[];
+  selectedCategories?: string[];
   minPrice?: number;
   maxPrice?: number;
   priceSortOrder?: 'asc' | 'desc';

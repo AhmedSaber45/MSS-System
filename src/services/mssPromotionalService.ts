@@ -2,6 +2,24 @@ import type { MSSDevice, MSSModel } from '../types/mssInventory.ts';
 import type { PromotionalLaptopItem, PromotionalDisplayOptions, DeviceSelectionFilter } from '../types/mssPromotional.ts';
 import { extractScreenDetails, formatScreenSummary, formatBrandAndModel, formatArabicExportFilename } from './mssWholesaleExportService.ts';
 import { documentPrintService } from '../lib/documentPrintService.ts';
+import {
+  PROMOTIONAL_HEADER_ICONS,
+  PROMOTIONAL_BRAND_LOGOS,
+  getBrandLogoConfig,
+} from '../assets/promotional/promotionalAssets.ts';
+
+// Synchronous image element cache for HTML5 canvas rendering
+const imageElementCache: Record<string, HTMLImageElement> = {};
+
+function getCachedImage(src: string): HTMLImageElement | null {
+  if (typeof window === 'undefined' || typeof Image === 'undefined') return null;
+  if (!src) return null;
+  if (imageElementCache[src]) return imageElementCache[src];
+  const img = new Image();
+  img.src = src;
+  imageElementCache[src] = img;
+  return img;
+}
 
 /**
  * Arabic names for processor generations (1st through 14th).
@@ -563,6 +581,7 @@ function drawAngledLaptop(
 
 /**
  * Draws brand badge icon and text inside a table cell.
+ * Uses authentic local brand logos with exact Flaticon 747 white Apple logo.
  */
 function drawBrandBadge(
   ctx: CanvasRenderingContext2D,
@@ -570,84 +589,87 @@ function drawBrandBadge(
   y: number,
   brand: string
 ) {
-  const b = (brand || '').trim();
-  const bUpper = b.toUpperCase();
+  const brandConfig = getBrandLogoConfig(brand);
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  if (bUpper.includes('HP')) {
-    // HP: Navy blue filled circle with white lowercase italic "hp"
-    ctx.beginPath();
-    ctx.arc(x, y, 16, 0, Math.PI * 2);
-    ctx.fillStyle = '#0b2e6d';
-    ctx.fill();
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+  if (brandConfig) {
+    const img = getCachedImage(brandConfig.dataUri);
 
-    ctx.font = 'italic bold 17px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('hp', x, y + 1);
-  } else if (bUpper.includes('DELL')) {
-    // Dell: White filled circle with blue border and blue uppercase DELL
-    ctx.beginPath();
-    ctx.arc(x, y, 16, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#0076ce';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // 1. Apple: dark circular badge with white Flaticon 747 Apple logo
+    if (brandConfig.key === 'apple') {
+      ctx.beginPath();
+      ctx.arc(x, y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
 
-    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#0076ce';
-    ctx.fillText('DELL', x, y);
-  } else if (bUpper.includes('LENOVO')) {
-    // Lenovo: Red rectangular badge with white text
-    drawRoundedRect(ctx, x - 26, y - 11, 52, 22, 4);
-    ctx.fillStyle = '#e2231a';
-    ctx.fill();
-
-    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('Lenovo', x, y + 1);
-  } else if (bUpper.includes('APPLE')) {
-    // Apple: Dark badge with Apple name
-    ctx.beginPath();
-    ctx.arc(x, y, 15, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
-    ctx.fill();
-
-    ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText('', x, y);
-  } else if (bUpper.includes('MICROSOFT')) {
-    // Microsoft: 4 colored squares
-    const sqSize = 6;
-    const sqGap = 2;
-    const startX = x - sqSize - sqGap / 2;
-    const startY = y - sqSize - sqGap / 2;
-
-    ctx.fillStyle = '#f25022'; // Red
-    ctx.fillRect(startX, startY, sqSize, sqSize);
-    ctx.fillStyle = '#7fba00'; // Green
-    ctx.fillRect(startX + sqSize + sqGap, startY, sqSize, sqSize);
-    ctx.fillStyle = '#00a4ef'; // Blue
-    ctx.fillRect(startX, startY + sqSize + sqGap, sqSize, sqSize);
-    ctx.fillStyle = '#ffb900'; // Yellow
-    ctx.fillRect(startX + sqSize + sqGap, startY + sqSize + sqGap, sqSize, sqSize);
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, x - 8, y - 8, 16, 16);
+      } else {
+        ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Apple', x, y);
+      }
+    } else if (['dell', 'hp', 'huawei', 'lg', 'razer', 'alienware', 'google', 'microsoft'].includes(brandConfig.key)) {
+      // 2. Circular / emblem-shaped logos
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, x - 13, y - 13, 26, 26);
+      } else {
+        ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(brandConfig.name, x, y);
+      }
+    } else {
+      // 3. Wordmark logos: Lenovo, Asus, Acer, MSI, Samsung, Toshiba, Sony, Fujitsu
+      if (img && img.complete && img.naturalWidth > 0) {
+        const aspect = (img.naturalWidth || 60) / (img.naturalHeight || 20);
+        const targetH = 18;
+        const targetW = Math.min(68, targetH * aspect);
+        ctx.drawImage(img, x - targetW / 2, y - targetH / 2, targetW, targetH);
+      } else {
+        ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(brandConfig.name, x, y);
+      }
+    }
   } else {
-    // Generic Brand Badge
+    // Generic fallback for custom test strings
+    const b = (brand || '').trim();
     drawRoundedRect(ctx, x - 24, y - 10, 48, 20, 4);
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = '#e2e8f0';
     ctx.fill();
     ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(b.slice(0, 7), x, y + 1);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(b.slice(0, 8), x, y + 1);
   }
 
   ctx.restore();
+}
+
+/**
+ * Draws text measured against a maximum width, truncating with ellipsis if it exceeds.
+ * Prevents text overlapping across adjacent table columns in HTML Canvas rendering.
+ */
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number
+): void {
+  if (!text) return;
+  const metrics = ctx.measureText(text);
+  if (metrics.width <= maxWidth) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+  let truncated = text;
+  while (truncated.length > 2 && ctx.measureText(truncated + '...').width > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  ctx.fillText(truncated + '...', x, y);
 }
 
 /**
@@ -775,9 +797,8 @@ export function renderPromotionalToCanvas(
   const tableY = headerSectionHeight + 15;
   const tableW = 1140;
 
-  // Define Columns configuration based on display options
-  // Matching the reference layout:
-  // Brand | Model | Processor | Generation | RAM | Storage | Screen | GPU | Price | (Quantity)
+  // Define Columns in RTL orientation from left-to-right on canvas:
+  // Leftmost is Price (or Quantity), Rightmost is Brand (where Arabic starts)
   const showPrice = options.showPrice;
   const showQty = options.showQuantity;
 
@@ -785,51 +806,51 @@ export function renderPromotionalToCanvas(
 
   if (showPrice && showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 195 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 85 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 120 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 75 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 110 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 110 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 120 },
-      { id: 'quantity', label: 'الكمية', icon: 'box', width: 80 },
-      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 150 },
+      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 140 },
+      { id: 'quantity', label: 'الكمية', icon: 'box', width: 75 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 115 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 115 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 80 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 125 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 90 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 185 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 90 },
     ];
   } else if (showPrice && !showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 220 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 95 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
+      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 145 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 135 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 125 },
       { id: 'storage', label: 'الهارد', icon: 'hdd', width: 125 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 120 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 130 },
-      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 130 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 95 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
     ];
   } else if (!showPrice && showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 105 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 235 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 105 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
+      { id: 'quantity', label: 'الكمية', icon: 'box', width: 80 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 145 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 135 },
       { id: 'storage', label: 'الهارد', icon: 'hdd', width: 135 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 130 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 140 },
-      { id: 'quantity', label: 'الكمية', icon: 'box', width: 50 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 105 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
     ];
   } else {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 110 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 260 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 110 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 160 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 150 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
       { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 130 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 130 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 155 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 110 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 240 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 105 },
     ];
   }
 
@@ -853,80 +874,35 @@ export function renderPromotionalToCanvas(
   colWidths.forEach(col => {
     const colCenterX = curX + col.width / 2;
 
-    // Small clean icon in header
-    ctx.strokeStyle = '#38bdf8';
-    ctx.fillStyle = '#38bdf8';
-    ctx.lineWidth = 1.8;
+    // Flaticon table header icons
+    const headerIconMap: Record<string, string> = {
+      brand: PROMOTIONAL_HEADER_ICONS.brand,
+      model: PROMOTIONAL_HEADER_ICONS.model,
+      processor: PROMOTIONAL_HEADER_ICONS.processor,
+      generation: PROMOTIONAL_HEADER_ICONS.generation,
+      ram: PROMOTIONAL_HEADER_ICONS.ram,
+      storage: PROMOTIONAL_HEADER_ICONS.storage,
+      screen: PROMOTIONAL_HEADER_ICONS.screen,
+      gpu: PROMOTIONAL_HEADER_ICONS.gpu,
+      price: PROMOTIONAL_HEADER_ICONS.price,
+    };
 
-    if (col.icon === 'tag') {
-      // Tag icon
+    const iconUri = headerIconMap[col.id];
+    let iconDrawn = false;
+    if (iconUri) {
+      const iconImg = getCachedImage(iconUri);
+      if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
+        ctx.drawImage(iconImg, colCenterX - 9, tableY + 8, 18, 18);
+        iconDrawn = true;
+      }
+    }
+
+    if (!iconDrawn) {
+      ctx.strokeStyle = '#38bdf8';
+      ctx.fillStyle = '#38bdf8';
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
-      ctx.rect(colCenterX - 6, tableY + 12, 12, 10);
-      ctx.stroke();
-    } else if (col.icon === 'laptop') {
-      // Laptop icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 8, tableY + 10, 16, 10);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(colCenterX - 11, tableY + 22);
-      ctx.lineTo(colCenterX + 11, tableY + 22);
-      ctx.stroke();
-    } else if (col.icon === 'cpu') {
-      // CPU chip icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 7, tableY + 10, 14, 14);
-      ctx.stroke();
-      ctx.font = 'bold 8px Arial';
-      ctx.fillText('CPU', colCenterX, tableY + 20);
-    } else if (col.icon === 'calendar') {
-      // Chip / Generation icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 7, tableY + 10, 14, 14);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(colCenterX - 4, tableY + 15);
-      ctx.lineTo(colCenterX + 4, tableY + 15);
-      ctx.stroke();
-    } else if (col.icon === 'ram') {
-      // RAM module icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 10, tableY + 13, 20, 8);
-      ctx.stroke();
-    } else if (col.icon === 'hdd') {
-      // Storage disk / SSD
-      ctx.beginPath();
-      ctx.rect(colCenterX - 8, tableY + 11, 16, 12);
-      ctx.stroke();
-      ctx.font = 'bold 7px Arial';
-      ctx.fillText('SSD', colCenterX, tableY + 20);
-    } else if (col.icon === 'screen') {
-      // Screen display icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 8, tableY + 11, 16, 11);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(colCenterX - 4, tableY + 24);
-      ctx.lineTo(colCenterX + 4, tableY + 24);
-      ctx.stroke();
-    } else if (col.icon === 'gpu') {
-      // GPU icon
-      ctx.beginPath();
-      ctx.rect(colCenterX - 9, tableY + 11, 18, 12);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(colCenterX, tableY + 17, 3, 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (col.icon === 'price') {
-      // Price tag
-      ctx.beginPath();
-      ctx.arc(colCenterX - 2, tableY + 14, 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeRect(colCenterX - 7, tableY + 11, 14, 12);
-    } else {
-      // Default icon
-      ctx.beginPath();
-      ctx.arc(colCenterX, tableY + 17, 4, 0, Math.PI * 2);
+      ctx.arc(colCenterX, tableY + 17, 5, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -988,27 +964,27 @@ export function renderPromotionalToCanvas(
       } else if (col.id === 'model') {
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
-        ctx.fillText(item.model_name || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 12);
       } else if (col.id === 'processor') {
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(item.processor || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'generation') {
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
-        ctx.fillText(item.generation || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.generation || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'ram') {
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(item.ram || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'storage') {
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(item.storage || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'screen') {
         ctx.font = '600 13px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(item.screen || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'gpu') {
         const gpuUpper = (item.gpu || '').toUpperCase();
         if (gpuUpper.includes('NVIDIA') || gpuUpper.includes('RTX') || gpuUpper.includes('GTX')) {
@@ -1021,7 +997,7 @@ export function renderPromotionalToCanvas(
           ctx.fillStyle = '#475569';
         }
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillText(item.gpu || '---', cellCenterX, cellCenterY);
+        drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'quantity') {
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
@@ -1031,7 +1007,7 @@ export function renderPromotionalToCanvas(
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
         ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
         ctx.fillStyle = '#0a2558'; // Bold dark blue numbers
-        ctx.fillText(priceFormatted, cellCenterX, cellCenterY);
+        drawFittedText(ctx, priceFormatted, cellCenterX, cellCenterY, col.width - 10);
       }
 
       ctx.restore();
@@ -1076,14 +1052,17 @@ export function renderPromotionalToCanvas(
 }
 
 /**
- * Downloads the rendered canvas as a high quality PNG file.
+ * Downloads the rendered canvas or data URL as a high quality PNG file.
  * Automatically ensures the filename has the export date _YYYY-MM-DD.png without duplication.
  */
-export function exportPromotionalAsPng(canvas: HTMLCanvasElement, filename: string): void {
+export function exportPromotionalAsPng(canvasOrDataUrl: HTMLCanvasElement | string, filename: string): void {
   const finalFilename = formatArabicExportFilename(filename, 'png');
+  const dataUrl = typeof canvasOrDataUrl === 'string'
+    ? canvasOrDataUrl
+    : canvasOrDataUrl.toDataURL('image/png', 1.0);
   const link = document.createElement('a');
   link.download = finalFilename;
-  link.href = canvas.toDataURL('image/png', 1.0);
+  link.href = dataUrl;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -1097,7 +1076,7 @@ export async function exportPromotionalAsPdf(elementId: string, filename: string
   const finalPdfName = formatArabicExportFilename(filename, 'pdf');
   await documentPrintService.exportToPdf(elementId, {
     title: finalPdfName,
-    format: 'report',
+    format: 'promotional',
     orientation: 'portrait',
   });
 }

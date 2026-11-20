@@ -180,4 +180,137 @@ describe('Admin Service Phase 2 User Management & Desktop Authentication', () =>
     assert.equal(result.success, false);
     assert.equal(result.error, 'بيانات الدخول غير صحيحة أو الحساب معطل');
   });
+
+  it('permanently deletes user, removing account and sessions while preserving business logs', async () => {
+    const username = `delete_target_${Date.now()}`;
+    const accessCode = 'delCode1234';
+
+    const user = await adminService.createAppUser(
+      {
+        username,
+        displayName: 'مستخدم للحذف',
+        accessCode,
+        allowedModules: 'mss',
+        isActive: true,
+      },
+      dummyActor
+    );
+
+    // Verify session creation
+    const authRes = await adminService.verifyDesktopCredentials({
+      username,
+      accessCode,
+    });
+    assert.equal(authRes.success, true);
+    assert.ok(authRes.sessionToken);
+
+    // Now delete the user
+    await adminService.deleteAppUser(user.id, dummyActor);
+
+    // Verify user no longer exists in getAppUsers
+    const users = await adminService.getAppUsers({ search: username });
+    const exists = users.some(u => u.id === user.id);
+    assert.equal(exists, false, 'User must not exist after permanent deletion');
+
+    // Verify session revalidation fails
+    const revalRes = await adminService.revalidateDesktopSession({
+      sessionToken: authRes.sessionToken,
+    });
+    assert.equal(revalRes.success, false, 'Deleted user sessions must be revoked');
+  });
+
+  it('security safeguard: prevents administrator from deleting their own account', async () => {
+    await assert.rejects(
+      async () => {
+        await adminService.deleteAppUser(dummyActor.adminId, dummyActor);
+      },
+      { message: 'لا يمكنك حذف حسابك الشخصي المسجل به حالياً' }
+    );
+  });
+
+  it('security safeguard: rejects deletion attempt by unauthorized auditor role', async () => {
+    const auditorActor = {
+      adminId: 'auditor-001',
+      username: 'auditor_user',
+      displayName: 'مراقب النظام',
+      role: 'auditor',
+      exp: Date.now() + 3600000,
+    };
+
+    await assert.rejects(
+      async () => {
+        await adminService.deleteAppUser('some-user-id', auditorActor);
+      },
+      { message: 'غير مصرح: حسابات التدقيق لا تملك صلاحية حذف المستخدمين' }
+    );
+  });
+
+  it('permissions workflow: assigning accessories-only persists accurately across reloads', async () => {
+    const username = `perm_acc_${Date.now()}`;
+    const user = await adminService.createAppUser(
+      {
+        username,
+        displayName: 'موظف الإكسسوارات',
+        accessCode: 'accPass123',
+        allowedModules: 'both',
+        isActive: true,
+      },
+      dummyActor
+    );
+
+    assert.equal(user.allowedModules, 'both');
+    assert.equal(user.permissionVersion, 1);
+
+    // Update to accessories only
+    const updated = await adminService.updateAppUser(
+      {
+        id: user.id,
+        allowedModules: 'accessories',
+      },
+      dummyActor
+    );
+
+    assert.equal(updated.allowedModules, 'accessories');
+    assert.equal(updated.permissionVersion, 2);
+
+    // Verify getAppUsers reflects the updated allowedModules correctly
+    const allUsers = await adminService.getAppUsers({ search: username });
+    const target = allUsers.find(u => u.id === user.id);
+    assert.ok(target, 'User must be found in list');
+    assert.equal(target.allowedModules, 'accessories', 'Must persist accessories permission accurately');
+    assert.equal(target.permissionVersion, 2, 'Permission version must match');
+  });
+
+  it('permissions workflow: assigning mss-only persists accurately across reloads', async () => {
+    const username = `perm_mss_${Date.now()}`;
+    const user = await adminService.createAppUser(
+      {
+        username,
+        displayName: 'موظف أجهزة MSS',
+        accessCode: 'mssPass123',
+        allowedModules: 'both',
+        isActive: true,
+      },
+      dummyActor
+    );
+
+    assert.equal(user.allowedModules, 'both');
+
+    // Update to mss only
+    const updated = await adminService.updateAppUser(
+      {
+        id: user.id,
+        allowedModules: 'mss',
+      },
+      dummyActor
+    );
+
+    assert.equal(updated.allowedModules, 'mss');
+
+    // Verify getAppUsers reflects mss permission
+    const allUsers = await adminService.getAppUsers({ search: username });
+    const target = allUsers.find(u => u.id === user.id);
+    assert.ok(target);
+    assert.equal(target.allowedModules, 'mss', 'Must persist mss permission accurately');
+  });
 });

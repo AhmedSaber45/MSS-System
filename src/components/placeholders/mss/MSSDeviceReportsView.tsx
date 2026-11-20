@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -24,6 +24,8 @@ import {
   ShoppingBag,
   Store,
   Building2,
+  FolderTree,
+  Monitor,
   Sparkles,
   CheckSquare,
   Square,
@@ -36,7 +38,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { mssInventoryService } from '@/services/mssInventoryService.ts';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
 import { mssReportsService } from '@/services/mssReportsService.ts';
-import { mssWholesaleExportService, formatArabicExportFilename } from '@/services/mssWholesaleExportService.ts';
+import { mssWholesaleExportService, formatArabicExportFilename, matchesCategory } from '@/services/mssWholesaleExportService.ts';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
 import { documentPrintService } from '@/lib/documentPrintService';
 import { usePageRefresh } from '@/context/PageRefreshContext';
@@ -75,6 +77,8 @@ export const MSSDeviceReportsView: React.FC = () => {
     includeSerialNumbers: false,
     includeStatus: true,
     includeBranch: true,
+    includeCategory: true,
+    includeScreen: true,
     branchFilter: 'ALL',
     priceSortOrder: 'asc',
   });
@@ -84,6 +88,8 @@ export const MSSDeviceReportsView: React.FC = () => {
   const wholesalePageSize = 9;
 
   // Advanced Filtering & Device Selection State for Wholesale Export
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const categoriesInitializedRef = useRef<boolean>(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [wholesaleMinPrice, setWholesaleMinPrice] = useState<string>('');
@@ -111,45 +117,124 @@ export const MSSDeviceReportsView: React.FC = () => {
   const [soldPage, setSoldPage] = useState<number>(1);
   const soldPageSize = 9;
 
+  // Stable row key extractor for wholesale export rows
+  const getRowKey = useCallback((row: WholesaleExportRow, fallbackIdx?: number): string => {
+    return (
+      row._rowKey ||
+      row['السيريال (Serial Number)'] ||
+      row['الماركة والموديل (Brand & Model)'] ||
+      (fallbackIdx !== undefined ? `row-${fallbackIdx}` : '')
+    );
+  }, []);
+
   // Active filter options for wholesale export (excluding row selection keys to prevent feedback loop)
   const activeWholesaleFilterOptions = useMemo<WholesaleExportOptions>(() => {
     return {
       ...wholesaleOptions,
+      selectedCategories: selectedCategories.length > 0 ? selectedCategories : (categoriesInitializedRef.current ? [] : undefined),
       selectedBrands: selectedBrands.length > 0 ? selectedBrands : undefined,
       selectedModelIds: selectedModelIds.length > 0 ? selectedModelIds : undefined,
       minPrice: wholesaleMinPrice ? Number(wholesaleMinPrice) : undefined,
       maxPrice: wholesaleMaxPrice ? Number(wholesaleMaxPrice) : undefined,
     };
-  }, [wholesaleOptions, selectedBrands, selectedModelIds, wholesaleMinPrice, wholesaleMaxPrice]);
+  }, [wholesaleOptions, selectedCategories, selectedBrands, selectedModelIds, wholesaleMinPrice, wholesaleMaxPrice]);
 
-  // Unique brands list for filters
+  // Active filter signature representing data-level filters (categories, brands, models, prices, branch, mode, options)
+  const activeFilterSignature = useMemo(() => {
+    return [
+      (selectedCategories || []).slice().sort().join(','),
+      (selectedBrands || []).slice().sort().join(','),
+      (selectedModelIds || []).slice().sort().join(','),
+      (wholesaleMinPrice || '').trim(),
+      (wholesaleMaxPrice || '').trim(),
+      wholesaleOptions.branchFilter || 'ALL',
+      wholesaleOptions.includeSerialNumbers ? 'serial' : 'model',
+      wholesaleOptions.priceSortOrder || 'asc',
+      wholesaleOptions.includeBranch !== false ? 'withBranch' : 'noBranch',
+      wholesaleOptions.includeStatus !== false ? 'withStatus' : 'noStatus',
+      wholesaleOptions.includeCategory !== false ? 'withCategory' : 'noCategory',
+      wholesaleOptions.includeScreen !== false ? 'withScreen' : 'noScreen',
+      wholesaleOptions.includePrices !== false ? 'withPrices' : 'noPrices',
+      wholesaleOptions.includeQuantity !== false ? 'withQty' : 'noQty',
+    ].join(':::');
+  }, [selectedCategories, selectedBrands, selectedModelIds, wholesaleMinPrice, wholesaleMaxPrice, wholesaleOptions]);
+
+  const [loadedFilterSignature, setLoadedFilterSignature] = useState<string>('');
+
+  // Combined full filter signature including client-side search query
+  const fullFilterSignature = useMemo(() => {
+    return `${loadedFilterSignature}###${(wholesaleSearch || '').trim().toLowerCase()}`;
+  }, [loadedFilterSignature, wholesaleSearch]);
+
+  const lastSelectedSignatureRef = useRef<string | null>(null);
+
+  // Dynamically extract distinct categories from devices and catalog models
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    allDevices.forEach(d => {
+      const c = d.category || d.model?.category;
+      if (c && c.trim()) cats.add(c.trim());
+    });
+    allModels.forEach(m => {
+      if (m.category && m.category.trim()) cats.add(m.category.trim());
+    });
+    // Fallback: If no categories loaded yet or empty, provide default Laptops & Screens
+    if (cats.size === 0) {
+      cats.add('لابتوب');
+      cats.add('شاشة');
+    }
+    return Array.from(cats).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [allDevices, allModels]);
+
+  // Initialize selectedCategories on first load once availableCategories are ready
+  useEffect(() => {
+    if (!categoriesInitializedRef.current && availableCategories.length > 0) {
+      categoriesInitializedRef.current = true;
+      setSelectedCategories(availableCategories);
+    }
+  }, [availableCategories]);
+
+  // Unique brands list for filters (filtered by category if selected)
   const availableBrands = useMemo(() => {
     const brands = new Set<string>();
     allDevices.forEach(d => {
+      const devCat = d.category || d.model?.category;
+      if (selectedCategories.length > 0 && !matchesCategory(devCat, selectedCategories)) {
+        return;
+      }
       if (d.brand) brands.add(d.brand.trim());
     });
     return Array.from(brands).sort((a, b) => a.localeCompare(b, 'ar'));
-  }, [allDevices]);
+  }, [allDevices, selectedCategories]);
 
-  // Available models dynamically filtered by selected brands
+  // Available models dynamically filtered by selected categories and brands
   const availableModels = useMemo(() => {
-    if (selectedBrands.length === 0) return allModels;
-    const brandSet = new Set(selectedBrands.map(b => b.trim().toLowerCase()));
-    return allModels.filter(m => brandSet.has((m.brand || '').trim().toLowerCase()));
-  }, [allModels, selectedBrands]);
+    let list = allModels;
+    if (selectedCategories.length > 0) {
+      list = list.filter(m => matchesCategory(m.category, selectedCategories));
+    }
+    if (selectedBrands.length > 0) {
+      const brandSet = new Set(selectedBrands.map(b => b.trim().toLowerCase()));
+      list = list.filter(m => brandSet.has((m.brand || '').trim().toLowerCase()));
+    }
+    return list;
+  }, [allModels, selectedCategories, selectedBrands]);
+
+  // Automatically prune selectedBrands if they are no longer in availableBrands
+  useEffect(() => {
+    if (selectedCategories.length > 0 && selectedBrands.length > 0) {
+      const validBrands = new Set(availableBrands);
+      setSelectedBrands(prev => prev.filter(b => validBrands.has(b)));
+    }
+  }, [selectedCategories, availableBrands]);
 
   // Automatically prune selectedModelIds if they are no longer in availableModels
   useEffect(() => {
-    if (selectedBrands.length > 0) {
+    if (selectedBrands.length > 0 || selectedCategories.length > 0) {
       const validIds = new Set(availableModels.map(m => m.id));
       setSelectedModelIds(prev => prev.filter(id => validIds.has(id)));
     }
-  }, [selectedBrands, availableModels]);
-
-  // Reset selected row keys when primary filters change
-  useEffect(() => {
-    setSelectedRowKeys(new Set());
-  }, [selectedBrands, selectedModelIds, wholesaleMinPrice, wholesaleMaxPrice, wholesaleOptions.branchFilter, wholesaleOptions.includeSerialNumbers]);
+  }, [selectedBrands, selectedCategories, availableModels]);
 
   // =========================================================================
   // DATA LOADING
@@ -171,6 +256,7 @@ export const MSSDeviceReportsView: React.FC = () => {
         devices || []
       );
       setWholesaleData(previewRows || []);
+      setLoadedFilterSignature(activeFilterSignature);
 
       // 2. Load model stock quantity summary
       const crossSummaries = await mssInventoryService.getModelStockQuantitySummary();
@@ -199,15 +285,30 @@ export const MSSDeviceReportsView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeWholesaleFilterOptions, soldPeriod, soldCustomStart, soldCustomEnd, soldWarehouse, showNotification]);
+  }, [activeWholesaleFilterOptions, activeFilterSignature, soldPeriod, soldCustomStart, soldCustomEnd, soldWarehouse, showNotification]);
 
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
 
+  // Re-run wholesale preview instantaneously in-memory when activeWholesaleFilterOptions change
+  useEffect(() => {
+    if (allDevices.length === 0) return;
+    let isCancelled = false;
+    mssWholesaleExportService.buildWholesaleData(activeWholesaleFilterOptions, allDevices).then(({ rows }) => {
+      if (!isCancelled) {
+        setWholesaleData(rows || []);
+        setLoadedFilterSignature(activeFilterSignature);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeWholesaleFilterOptions, allDevices, activeFilterSignature]);
+
   // Handle Export to Excel
   const handleExportToExcel = async () => {
-    if (wholesaleData.length === 0) {
+    if (filteredWholesaleRows.length === 0) {
       showNotification({
         type: 'warning',
         title: 'لا توجد أجهزة مطابقة للتصدير',
@@ -216,25 +317,23 @@ export const MSSDeviceReportsView: React.FC = () => {
       return;
     }
 
+    // Export only matching rows that are selected
+    const rowsToExport = filteredWholesaleRows.filter((r, idx) => {
+      const key = getRowKey(r, idx);
+      return selectedRowKeys.has(key);
+    });
+
+    if (rowsToExport.length === 0) {
+      showNotification({
+        type: 'warning',
+        title: 'لم يتم تحديد أي أجهزة للتصدير',
+        message: 'يرجى تحديد جهاز واحد على الأقل لتصديره أو الضغط على "تحديد كافة المطابقة".',
+      });
+      return;
+    }
+
     setIsExporting(true);
     try {
-      // If user specifically checked rows, export only those; otherwise export all matching rows
-      const rowsToExport = selectedRowKeys.size > 0
-        ? wholesaleData.filter(r =>
-            selectedRowKeys.has(r._rowKey || r['السيريال (Serial Number)'] || r['الماركة والموديل (Brand & Model)'])
-          )
-        : wholesaleData;
-
-      if (rowsToExport.length === 0) {
-        showNotification({
-          type: 'warning',
-          title: 'لم يتم تحديد أي أجهزة للتصدير',
-          message: 'يرجى تحديد جهاز واحد على الأقل لتصديره أو إلغاء تحديد الصفوف لتصدير كافة الأجهزة المطابقة.',
-        });
-        setIsExporting(false);
-        return;
-      }
-
       const { filename } = await mssWholesaleExportService.exportWholesaleInventoryToExcel(
         activeWholesaleFilterOptions,
         rowsToExport
@@ -297,6 +396,45 @@ export const MSSDeviceReportsView: React.FC = () => {
     const start = (wholesalePage - 1) * wholesalePageSize;
     return filteredWholesaleRows.slice(start, start + wholesalePageSize);
   }, [filteredWholesaleRows, wholesalePage, wholesalePageSize]);
+
+  // Automatically select all filtered devices whenever filters change or initial data loads:
+  // - When fullFilterSignature changes: auto-select all matching devices and prune old selections
+  // - When user unchecks an individual device: manual exclusion is preserved
+  // - When user reselects a device: manual inclusion is preserved
+  useEffect(() => {
+    if (!loadedFilterSignature) return;
+
+    const matchingKeys = filteredWholesaleRows.map((r, idx) => getRowKey(r, idx)).filter(Boolean);
+    const matchingKeySet = new Set(matchingKeys);
+
+    // If filter signature changed (or first time after data loaded)
+    if (lastSelectedSignatureRef.current !== fullFilterSignature) {
+      lastSelectedSignatureRef.current = fullFilterSignature;
+      setSelectedRowKeys(new Set(matchingKeys));
+      return;
+    }
+
+    // If fullFilterSignature didn't change but filteredWholesaleRows changed:
+    // Retain only selections that still match active filters
+    setSelectedRowKeys(prev => {
+      const next = new Set<string>();
+      prev.forEach(key => {
+        if (matchingKeySet.has(key)) {
+          next.add(key);
+        }
+      });
+      // If previous selections no longer match anything but matching items exist, auto-select all
+      if (next.size === 0 && matchingKeys.length > 0) {
+        return new Set(matchingKeys);
+      }
+      return next;
+    });
+  }, [loadedFilterSignature, fullFilterSignature, filteredWholesaleRows, getRowKey]);
+
+  // Selected device count strictly within currently filtered/matching devices
+  const selectedCount = useMemo(() => {
+    return filteredWholesaleRows.filter((r, idx) => selectedRowKeys.has(getRowKey(r, idx))).length;
+  }, [filteredWholesaleRows, selectedRowKeys, getRowKey]);
 
   // 2. Model Summary Filtering
   const filteredModelSummaries = useMemo(() => {
@@ -535,7 +673,59 @@ export const MSSDeviceReportsView: React.FC = () => {
                   </div>
                 </label>
 
-                {/* 4. Include Status Column */}
+                {/* 4. Include Category Column */}
+                <label className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={wholesaleOptions.includeCategory !== false}
+                    onChange={e =>
+                      setWholesaleOptions(prev => ({
+                        ...prev,
+                        includeCategory: e.target.checked,
+                      }))
+                    }
+                    className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
+                      <FolderTree className="w-4 h-4 text-amber-600" />
+                      إدراج عمود الفئة
+                    </span>
+                    <span className="text-xs text-slate-500 block mt-0.5">
+                      {wholesaleOptions.includeCategory !== false
+                        ? 'عمود الفئة ظاهر في ملف الإكسل'
+                        : 'إخفاء عمود الفئة تماماً من الملف'}
+                    </span>
+                  </div>
+                </label>
+
+                {/* 5. Include Screen Column */}
+                <label className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={wholesaleOptions.includeScreen !== false}
+                    onChange={e =>
+                      setWholesaleOptions(prev => ({
+                        ...prev,
+                        includeScreen: e.target.checked,
+                      }))
+                    }
+                    className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
+                      <Monitor className="w-4 h-4 text-blue-600" />
+                      إدراج عمود الشاشة (Screen)
+                    </span>
+                    <span className="text-xs text-slate-500 block mt-0.5">
+                      {wholesaleOptions.includeScreen !== false
+                        ? 'عمود مواصفات الشاشة ظاهر في الملف'
+                        : 'إخفاء عمود الشاشة تماماً من الملف'}
+                    </span>
+                  </div>
+                </label>
+
+                {/* 6. Include Status Column */}
                 <label className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
@@ -561,7 +751,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   </div>
                 </label>
 
-                {/* 5. Include Branch Column */}
+                {/* 7. Include Branch & Stock Column (تحديد وتصدير الفرع والمخزون) */}
                 <label className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
@@ -577,21 +767,21 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <Building2 className="w-4 h-4 text-indigo-600" />
-                      إدراج عمود الفرع (Branch)
+                      تحديد الفرع والمخزون (Branch)
                     </span>
                     <span className="text-xs text-slate-500 block mt-0.5">
                       {wholesaleOptions.includeBranch !== false
-                        ? 'عمود الفرع / المخزن ظاهر في الملف'
-                        : 'إخفاء عمود الفرع تماماً من الملف'}
+                        ? 'تصدير عمود الفرع والمخزن في ملف الإكسل'
+                        : 'عدم تصدير عمود الفرع والمخزن (إخفاء بالكامل)'}
                     </span>
                   </div>
                 </label>
 
-                {/* 5. Branch Filter */}
+                {/* 8. Target Branch / Store Filter */}
                 <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                   <label className="text-sm font-bold text-slate-900 block flex items-center gap-1.5 mb-1.5">
                     <Store className="w-4 h-4 text-blue-600" />
-                    تحديد الفرع / المخزن:
+                    فرع المخزون المستهدف للتصدير:
                   </label>
                   <select
                     value={wholesaleOptions.branchFilter}
@@ -599,15 +789,22 @@ export const MSSDeviceReportsView: React.FC = () => {
                       setWholesaleOptions(prev => ({ ...prev, branchFilter: e.target.value }))
                     }
                     aria-label="تحديد الفرع / المخزن لتصدير مخزون الجملة"
-                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     <option value="ALL">كافة الفروع والمخازن</option>
                     <option value="محل 1">محل 1 فقط</option>
                     <option value="محل 2">محل 2 فقط</option>
                   </select>
+                  <span className="text-[11px] text-slate-500 block mt-1">
+                    {wholesaleOptions.branchFilter === 'محل 1'
+                      ? 'تصدير مخزون محل 1 فقط'
+                      : wholesaleOptions.branchFilter === 'محل 2'
+                      ? 'تصدير مخزون محل 2 فقط'
+                      : 'تصدير مخزون كافة الفروع والمخازن'}
+                  </span>
                 </div>
 
-                {/* 6. Price Sort Order */}
+                {/* 9. Price Sort Order */}
                 <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                   <label className="text-sm font-bold text-slate-900 block flex items-center gap-1.5 mb-1.5">
                     <ArrowUpDown className="w-4 h-4 text-emerald-600" />
@@ -676,15 +873,17 @@ export const MSSDeviceReportsView: React.FC = () => {
                       تصفية وتخصيص الأجهزة المحددة للتصدير (Advanced Selection)
                     </span>
                   </div>
-                  {(selectedBrands.length > 0 || selectedModelIds.length > 0 || wholesaleMinPrice || wholesaleMaxPrice || selectedRowKeys.size > 0) && (
+                  {(selectedCategories.length < availableCategories.length || selectedBrands.length > 0 || selectedModelIds.length > 0 || wholesaleMinPrice || wholesaleMaxPrice || wholesaleSearch || selectedCount < filteredWholesaleRows.length) && (
                     <button
                       type="button"
                       onClick={() => {
+                        setSelectedCategories([...availableCategories]);
                         setSelectedBrands([]);
                         setSelectedModelIds([]);
                         setWholesaleMinPrice('');
                         setWholesaleMaxPrice('');
-                        setSelectedRowKeys(new Set());
+                        setWholesaleSearch('');
+                        setWholesalePage(1);
                       }}
                       className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer underline"
                     >
@@ -693,7 +892,67 @@ export const MSSDeviceReportsView: React.FC = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Category Filter (Dynamic Multi-select Checkboxes) */}
+                  <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                      <label className="text-xs font-bold text-slate-800">
+                        تصفية حسب الفئة ({selectedCategories.length > 0 ? `${selectedCategories.length} محددة` : 'كافة الفئات'}):
+                      </label>
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategories([...availableCategories]);
+                            setWholesalePage(1);
+                          }}
+                          className="text-emerald-700 hover:underline font-semibold"
+                        >
+                          تحديد الكل
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategories([]);
+                            setWholesalePage(1);
+                          }}
+                          className="text-slate-500 hover:underline font-semibold"
+                        >
+                          مسح
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
+                      {availableCategories.map(cat => {
+                        const isChecked = selectedCategories.includes(cat);
+                        return (
+                          <label
+                            key={cat}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border cursor-pointer transition-colors ${
+                              isChecked
+                                ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                setSelectedCategories(prev =>
+                                  e.target.checked ? [...prev, cat] : prev.filter(x => x !== cat)
+                                );
+                                setWholesalePage(1);
+                              }}
+                              className="w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span>{cat}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Brand Filter (Multi-select Checkboxes) */}
                   <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
@@ -895,7 +1154,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
                     <span className="font-semibold text-slate-700">تم تحديد</span>
                     <span className="font-bold font-mono text-emerald-700 tabular-nums">
-                      {selectedRowKeys.size > 0 ? selectedRowKeys.size : filteredWholesaleRows.length}
+                      {selectedCount}
                     </span>
                     <span className="font-semibold text-slate-700">من أصل</span>
                     <span className="font-bold font-mono text-slate-900 tabular-nums">
@@ -916,8 +1175,8 @@ export const MSSDeviceReportsView: React.FC = () => {
                         size="sm"
                         onClick={() => {
                           const next = new Set<string>();
-                          filteredWholesaleRows.forEach(r => {
-                            const key = r._rowKey || r['السيريال (Serial Number)'] || r['الماركة والموديل (Brand & Model)'];
+                          filteredWholesaleRows.forEach((r, idx) => {
+                            const key = getRowKey(r, idx);
                             if (key) next.add(key);
                           });
                           setSelectedRowKeys(next);
@@ -926,7 +1185,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                       >
                         تحديد كافة المطابقة
                       </Button>
-                      {selectedRowKeys.size > 0 && (
+                      {selectedCount > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -962,14 +1221,14 @@ export const MSSDeviceReportsView: React.FC = () => {
                             type="checkbox"
                             checked={
                               paginatedWholesaleRows.length > 0 &&
-                              paginatedWholesaleRows.every(r =>
-                                selectedRowKeys.has(r._rowKey || r['السيريال (Serial Number)'] || r['الماركة والموديل (Brand & Model)'])
+                              paginatedWholesaleRows.every((r, idx) =>
+                                selectedRowKeys.has(getRowKey(r, (wholesalePage - 1) * wholesalePageSize + idx))
                               )
                             }
                             onChange={e => {
                               const next = new Set(selectedRowKeys);
-                              paginatedWholesaleRows.forEach(r => {
-                                const key = r._rowKey || r['السيريال (Serial Number)'] || r['الماركة والموديل (Brand & Model)'];
+                              paginatedWholesaleRows.forEach((r, idx) => {
+                                const key = getRowKey(r, (wholesalePage - 1) * wholesalePageSize + idx);
                                 if (key) {
                                   if (e.target.checked) next.add(key);
                                   else next.delete(key);
@@ -988,11 +1247,16 @@ export const MSSDeviceReportsView: React.FC = () => {
                           </th>
                         )}
                         <th className="p-2.5">الماركة والموديل (Brand & Model)</th>
+                        {wholesaleOptions.includeCategory !== false && (
+                          <th className="p-2.5 text-center">الفئة</th>
+                        )}
                         <th className="p-2.5">المعالج (CPU)</th>
                         <th className="p-2.5">الرام (RAM)</th>
                         <th className="p-2.5">التخزين (Storage)</th>
                         <th className="p-2.5">كارت الشاشة (GPU)</th>
-                        <th className="p-2.5 text-center">الشاشة (Screen)</th>
+                        {wholesaleOptions.includeScreen !== false && (
+                          <th className="p-2.5 text-center">الشاشة (Screen)</th>
+                        )}
                         {wholesaleOptions.includeStatus !== false && (
                           <th className="p-2.5 text-center">الحالة</th>
                         )}
@@ -1014,14 +1278,14 @@ export const MSSDeviceReportsView: React.FC = () => {
                     <tbody className="divide-y divide-slate-100">
                       {paginatedWholesaleRows.length === 0 ? (
                         <tr>
-                          <td colSpan={13} className="py-10 text-center text-slate-500">
+                          <td colSpan={15} className="py-10 text-center text-slate-500">
                             لا توجد سجلات تطابق معايير البحث والفرز الحالية
                           </td>
                         </tr>
                       ) : (
                         paginatedWholesaleRows.map((row, idx) => {
                           const globalIdx = (wholesalePage - 1) * wholesalePageSize + idx + 1;
-                          const rowKey = row._rowKey || row['السيريال (Serial Number)'] || row['الماركة والموديل (Brand & Model)'] || String(globalIdx - 1);
+                          const rowKey = getRowKey(row, globalIdx - 1);
                           const isRowChecked = selectedRowKeys.has(rowKey);
                           return (
                             <tr
@@ -1060,6 +1324,11 @@ export const MSSDeviceReportsView: React.FC = () => {
                               <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">
                                 {row['الماركة والموديل (Brand & Model)'] || (row['الماركة'] ? `${row['الماركة']} ${row['الموديل']}` : row['الموديل']) || '---'}
                               </td>
+                              {wholesaleOptions.includeCategory !== false && (
+                                <td className="p-2.5 text-center font-medium text-slate-700 whitespace-nowrap">
+                                  {row['الفئة'] || '---'}
+                                </td>
+                              )}
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
                                 {row['المعالج (Processor)'] || '---'}
                               </td>
@@ -1072,9 +1341,11 @@ export const MSSDeviceReportsView: React.FC = () => {
                               <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
                                 {row['كارت الشاشة (GPU)'] || '---'}
                               </td>
-                              <td className="p-2.5 text-center font-mono text-slate-700 whitespace-nowrap">
-                                {row['الشاشة (Screen)'] || row['حجم الشاشة'] || '---'}
-                              </td>
+                              {wholesaleOptions.includeScreen !== false && (
+                                <td className="p-2.5 text-center font-mono text-slate-700 whitespace-nowrap">
+                                  {row['الشاشة (Screen)'] || row['حجم الشاشة'] || '---'}
+                                </td>
+                              )}
                               {wholesaleOptions.includeStatus !== false && (
                                 <td className="p-2.5 text-center whitespace-nowrap">
                                   <Badge variant="default" size="sm">

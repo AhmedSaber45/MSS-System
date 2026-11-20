@@ -13,13 +13,19 @@ export const ModuleGuard: React.FC<ModuleGuardProps> = ({ module, children }) =>
   const { setSection } = useNavigation();
 
   const isAllowed = canAccess(module);
+  const targetName = module === 'accessories' ? 'محل الإكسسوارات' : 'Compu MSS للأجهزة';
+  const otherModule = module === 'accessories' ? 'mss' : 'accessories';
+  const otherName = otherModule === 'accessories' ? 'قسم الإكسسوارات' : 'قسم Compu MSS';
+  const hasOtherAccess = user ? canAccess(otherModule) : false;
+
+  // Automatically redirect user to their authorized module if they land on an unauthorized module
+  React.useEffect(() => {
+    if (!isAllowed && hasOtherAccess) {
+      setSection(otherModule);
+    }
+  }, [isAllowed, hasOtherAccess, otherModule, setSection]);
 
   if (!isAllowed) {
-    const targetName = module === 'accessories' ? 'محل الإكسسوارات' : 'Compu MSS للأجهزة';
-    const otherModule = module === 'accessories' ? 'mss' : 'accessories';
-    const otherName = otherModule === 'accessories' ? 'قسم الإكسسوارات' : 'قسم Compu MSS';
-    const hasOtherAccess = user ? canAccess(otherModule) : false;
-
     return (
       <div
         dir="rtl"

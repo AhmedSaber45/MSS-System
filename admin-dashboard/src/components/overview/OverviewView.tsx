@@ -92,13 +92,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
             <Users className="w-4 h-4" />
             <span>إدارة المستخدمين</span>
           </button>
-          <button
-            onClick={() => onNavigate('settings')}
-            className="flex-1 md:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-brand-border flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>إعدادات النظام والأمان</span>
-          </button>
         </div>
       </div>
 

@@ -4,12 +4,11 @@ import React from 'react';
 import {
   LayoutDashboard,
   Users,
-  Settings,
   ShieldCheck,
   Building2,
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'users' | 'settings';
+export type NavTab = 'overview' | 'users';
 
 interface AdminSidebarProps {
   currentTab: NavTab;
@@ -34,11 +33,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       id: 'users' as NavTab,
       label: 'إدارة المستخدمين',
       icon: Users,
-    },
-    {
-      id: 'settings' as NavTab,
-      label: 'إعدادات النظام',
-      icon: Settings,
     },
   ];
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { toPng } from 'html-to-image';
 import type { MSSDevice, MSSModel } from '@/types/mssInventory';
 import type { PromotionalLaptopItem, PromotionalDisplayOptions } from '@/types/mssPromotional';
 import {
@@ -14,6 +15,11 @@ import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { useNotification } from '@/context/NotificationContext';
+import {
+  PROMOTIONAL_HEADER_ICONS,
+  PROMOTIONAL_BRAND_LOGOS,
+  getBrandLogoConfig,
+} from '@/assets/promotional/promotionalAssets';
 import {
   Sparkles,
   Download,
@@ -48,56 +54,61 @@ export interface MSSPromotionalGeneratorProps {
 }
 
 /**
- * Brand Logo badge component for HTML DOM preview table.
+ * Authentic brand logo badge component for HTML DOM preview table,
+ * device selector table, and export rendering.
+ *
+ * Provides 100% authentic logos for all Compu MSS supported laptop brands
+ * with exact Flaticon 747 icon for Apple, and graceful text fallback for custom test entries.
  */
 const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
-  const b = (brand || '').trim();
-  const bUpper = b.toUpperCase();
+  const brandConfig = getBrandLogoConfig(brand);
 
-  if (bUpper.includes('HP')) {
+  if (!brandConfig) {
+    const b = (brand || '').trim();
     return (
-      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#0b2e6d] border border-sky-400 text-white font-bold italic text-xs shadow-2xs">
-        hp
+      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[10px] shadow-2xs">
+        {b.slice(0, 8)}
       </div>
     );
   }
-  if (bUpper.includes('DELL')) {
+
+  // 1. Apple: balanced circular badge with Flaticon 747 white Apple logo
+  if (brandConfig.key === 'apple') {
     return (
-      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white border-2 border-[#0076ce] text-[#0076ce] font-extrabold text-[9px] tracking-tight shadow-2xs">
-        DELL
+      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 shadow-2xs">
+        <img
+          src={brandConfig.dataUri}
+          alt="Apple"
+          className="w-4 h-4 object-contain"
+          loading="eager"
+        />
       </div>
     );
   }
-  if (bUpper.includes('LENOVO')) {
+
+  // 2. Circular / square badge-friendly icons (Dell, HP, Huawei, LG, Razer, Alienware, Google, Microsoft)
+  if (['dell', 'hp', 'huawei', 'lg', 'razer', 'alienware', 'google', 'microsoft'].includes(brandConfig.key)) {
     return (
-      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[#e2231a] text-white font-bold text-[10px] tracking-tight shadow-2xs">
-        Lenovo
+      <div className="inline-flex items-center justify-center w-7 h-7">
+        <img
+          src={brandConfig.dataUri}
+          alt={brandConfig.name}
+          className="max-w-[26px] max-h-[26px] object-contain drop-shadow-2xs"
+          loading="eager"
+        />
       </div>
     );
   }
-  if (bUpper.includes('APPLE')) {
-    return (
-      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs shadow-2xs">
-        
-      </div>
-    );
-  }
-  if (bUpper.includes('MICROSOFT')) {
-    return (
-      <div className="inline-flex items-center gap-1">
-        <div className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
-          <span className="bg-[#f25022] w-1.5 h-1.5" />
-          <span className="bg-[#7fba00] w-1.5 h-1.5" />
-          <span className="bg-[#00a4ef] w-1.5 h-1.5" />
-          <span className="bg-[#ffb900] w-1.5 h-1.5" />
-        </div>
-        <span className="text-[10px] font-bold text-slate-800">MS</span>
-      </div>
-    );
-  }
+
+  // 3. Wordmark logos (Lenovo, Asus, Acer, MSI, Samsung, Toshiba, Sony, Fujitsu)
   return (
-    <div className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[10px]">
-      {b.slice(0, 8)}
+    <div className="inline-flex items-center justify-center h-7 max-w-[76px] px-1">
+      <img
+        src={brandConfig.dataUri}
+        alt={brandConfig.name}
+        className="max-h-5 max-w-[72px] object-contain drop-shadow-2xs"
+        loading="eager"
+      />
     </div>
   );
 };
@@ -122,7 +133,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
   return (
     <div
       id={id}
-      className={`w-[1000px] shrink-0 bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 ${className}`}
+      className={`promotional-poster-container w-[1000px] shrink-0 bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 ${className}`}
       dir="rtl"
     >
       {/* 1. Royal Blue Header Section */}
@@ -192,49 +203,49 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
             <tr>
               <th className="py-3 px-2 w-24">
                 <div className="flex flex-col items-center gap-1">
-                  <Tag className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.brand} alt="الماركة" className="w-4 h-4 object-contain" />
                   <span>الماركة</span>
                 </div>
               </th>
               <th className="py-3 px-3 text-right">
                 <div className="flex items-center gap-1 justify-start">
-                  <Laptop className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.model} alt="الموديل" className="w-4 h-4 object-contain" />
                   <span>الموديل</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-20">
                 <div className="flex flex-col items-center gap-1">
-                  <Cpu className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.processor} alt="المعالج" className="w-4 h-4 object-contain" />
                   <span>المعالج</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-28">
                 <div className="flex flex-col items-center gap-1">
-                  <Layers className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.generation} alt="الجيل" className="w-4 h-4 object-contain" />
                   <span>الجيل</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-16">
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-[10px] text-sky-400 font-mono font-bold">RAM</span>
+                  <img src={PROMOTIONAL_HEADER_ICONS.ram} alt="الرام" className="w-4 h-4 object-contain" />
                   <span>الرام</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-28">
                 <div className="flex flex-col items-center gap-1">
-                  <HardDrive className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.storage} alt="الهارد" className="w-4 h-4 object-contain" />
                   <span>الهارد</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-24">
                 <div className="flex flex-col items-center gap-1">
-                  <Monitor className="w-4 h-4 text-sky-400" />
+                  <img src={PROMOTIONAL_HEADER_ICONS.screen} alt="الشاشة" className="w-4 h-4 object-contain" />
                   <span>الشاشة</span>
                 </div>
               </th>
               <th className="py-3 px-2 w-28">
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-[10px] text-sky-400 font-mono font-bold">GPU</span>
+                  <img src={PROMOTIONAL_HEADER_ICONS.gpu} alt="كارت الشاشة" className="w-4 h-4 object-contain" />
                   <span>كارت الشاشة</span>
                 </div>
               </th>
@@ -249,7 +260,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               {displayOptions.showPrice && (
                 <th className="py-3 px-3 w-28 text-center bg-[#05163b]">
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-amber-400 font-mono font-bold">EGP</span>
+                    <img src={PROMOTIONAL_HEADER_ICONS.price} alt="السعر" className="w-4 h-4 object-contain" />
                     <span className="text-amber-300">السعر (جنيه)</span>
                   </div>
                 </th>
@@ -605,32 +616,89 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   };
 
   // 6. Export Handlers
-  const handleExportPng = () => {
-    if (!canvasRef.current || previewItems.length === 0) return;
+  const handleExportPng = async () => {
+    if (previewItems.length === 0) return;
     setIsExportingPng(true);
     try {
-      renderPromotionalToCanvas(
-        previewItems,
-        {
-          ...displayOptions,
-          pageIndex: currentPageIndex,
-          itemsPerPage,
-        },
-        canvasRef.current
-      );
+      // Ensure all custom fonts are fully loaded before capturing
+      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      // Priority 1: Use live preview container if on active page; otherwise use rendered multi-page container
+      const targetEl =
+        document.getElementById('mss-promotional-poster-container') ||
+        document.getElementById(`mss-promotional-page-container-${currentPageIndex}`);
+
+      if (!targetEl) {
+        throw new Error('لم يتم العثور على عنصر التصميم للتصدير.');
+      }
+
       const filename = generatePromotionalArabicFilename(
         previewItems,
         'png',
         totalPages > 1 ? currentPageIndex + 1 : undefined
       );
-      exportPromotionalAsPng(canvasRef.current, filename);
+
+      // Ensure fonts and all embedded image assets are fully ready before capture
+      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      const imgs = targetEl.querySelectorAll('img');
+      await Promise.all(
+        Array.from(imgs).map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        })
+      );
+
+      // DOM rasterization via html-to-image for pixel-perfect match with preview modal
+      const dataUrl = await toPng(targetEl, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+      });
+
+      exportPromotionalAsPng(dataUrl, filename);
       showNotification({
         type: 'success',
         title: 'تم تصدير الصورة الترويجية بنجاح',
         message: `تم تحميل التصميم بدقة عالية: ${filename}`,
       });
     } catch (err: any) {
-      console.error('Failed to export promotional PNG:', err);
+      console.warn('html-to-image failed, falling back to canvas:', err);
+      // Fallback: renderPromotionalToCanvas
+      try {
+        if (canvasRef.current) {
+          renderPromotionalToCanvas(
+            previewItems,
+            {
+              ...displayOptions,
+              pageIndex: currentPageIndex,
+              itemsPerPage,
+            },
+            canvasRef.current
+          );
+          const filename = generatePromotionalArabicFilename(
+            previewItems,
+            'png',
+            totalPages > 1 ? currentPageIndex + 1 : undefined
+          );
+          exportPromotionalAsPng(canvasRef.current, filename);
+          showNotification({
+            type: 'success',
+            title: 'تم تصدير الصورة الترويجية بنجاح',
+            message: `تم تحميل التصميم: ${filename}`,
+          });
+          return;
+        }
+      } catch (canvasErr) {
+        console.error('Canvas fallback also failed:', canvasErr);
+      }
       showNotification({
         type: 'error',
         title: 'فشل تصدير الصورة',
@@ -643,41 +711,78 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
 
   // Download all pages sequentially as PNG
   const handleExportAllPagesPng = async () => {
-    if (!canvasRef.current || previewItems.length === 0) return;
+    if (previewItems.length === 0) return;
     setIsExportingPng(true);
     try {
-      for (let p = 0; p < totalPages; p++) {
-        renderPromotionalToCanvas(
-          previewItems,
-          {
-            ...displayOptions,
-            pageIndex: p,
-            itemsPerPage,
-          },
-          canvasRef.current
-        );
-        const filename = generatePromotionalArabicFilename(previewItems, 'png', p + 1);
-        exportPromotionalAsPng(canvasRef.current, filename);
-        // Small pause between downloads to let browser process
-        await new Promise(res => setTimeout(res, 200));
+      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
       }
-      // Restore canvas to current page
-      renderPromotionalToCanvas(
-        previewItems,
-        {
-          ...displayOptions,
-          pageIndex: currentPageIndex,
-          itemsPerPage,
-        },
-        canvasRef.current
-      );
+
+      for (let p = 0; p < totalPages; p++) {
+        const pageEl =
+          document.getElementById(`mss-promotional-page-container-${p}`) ||
+          (p === currentPageIndex ? document.getElementById('mss-promotional-poster-container') : null);
+
+        if (!pageEl) continue;
+
+        const imgs = pageEl.querySelectorAll('img');
+        await Promise.all(
+          Array.from(imgs).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+
+        const dataUrl = await toPng(pageEl, {
+          quality: 1.0,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          cacheBust: true,
+        });
+
+        const filename = generatePromotionalArabicFilename(previewItems, 'png', p + 1);
+        exportPromotionalAsPng(dataUrl, filename);
+        // Small pause between downloads to let browser process
+        await new Promise(res => setTimeout(res, 250));
+      }
+
       showNotification({
         type: 'success',
         title: 'تم تحميل جميع الصفحات بنجاح',
         message: `تم تحميل ${totalPages} صور ترويجية عالية الجودة.`,
       });
     } catch (err: any) {
-      console.error('Failed to export all promotional PNGs:', err);
+      console.error('Failed to export all promotional PNGs with html-to-image:', err);
+      // Fallback to canvas
+      try {
+        if (canvasRef.current) {
+          for (let p = 0; p < totalPages; p++) {
+            renderPromotionalToCanvas(
+              previewItems,
+              {
+                ...displayOptions,
+                pageIndex: p,
+                itemsPerPage,
+              },
+              canvasRef.current
+            );
+            const filename = generatePromotionalArabicFilename(previewItems, 'png', p + 1);
+            exportPromotionalAsPng(canvasRef.current, filename);
+            await new Promise(res => setTimeout(res, 200));
+          }
+          showNotification({
+            type: 'success',
+            title: 'تم تحميل جميع الصفحات بنجاح',
+            message: `تم تحميل ${totalPages} صور ترويجية.`,
+          });
+          return;
+        }
+      } catch (canvasErr) {
+        console.error('Canvas fallback failed:', canvasErr);
+      }
       showNotification({
         type: 'error',
         title: 'فشل تصدير الصور',
@@ -1314,13 +1419,24 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
               />
             </div>
 
-            {/* Hidden Multi-Page Container Dedicated for Pristine PDF Export */}
-            <div id="mss-promotional-pdf-export-container" className="hidden">
+            {/* Multi-Page Container Dedicated for Pristine PDF and Batch PNG Export */}
+            <div
+              id="mss-promotional-pdf-export-container"
+              style={{
+                position: 'fixed',
+                left: '-99999px',
+                top: 0,
+                pointerEvents: 'none',
+                zIndex: -9999,
+                width: '1000px',
+              }}
+            >
               {Array.from({ length: totalPages }).map((_, p) => {
                 const pageSlice = previewItems.slice(p * itemsPerPage, (p + 1) * itemsPerPage);
                 return (
                   <div
                     key={p}
+                    className="promotional-page-wrapper"
                     style={{
                       pageBreakAfter: p < totalPages - 1 ? 'always' : 'auto',
                       breakAfter: p < totalPages - 1 ? 'page' : 'auto',
@@ -1328,6 +1444,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                     }}
                   >
                     <PromotionalPosterPage
+                      id={`mss-promotional-page-container-${p}`}
                       pageItems={pageSlice}
                       pageIndex={p}
                       totalPages={totalPages}

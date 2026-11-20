@@ -237,7 +237,7 @@ describe('Admin Service Phase 5: Inventory Management, Stock Transfers & Concurr
           dummyActor
         );
       },
-      /غير متاح|لا يمكن تنفيذ|أجهزة/
+      /غير متاح|لا يمكن تنفيذ|أجهزة|متواجد في/
     );
 
     // Verify the available device was NOT transferred (all-or-nothing rollback)

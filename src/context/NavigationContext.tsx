@@ -32,13 +32,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Sync section if user permission changes or on login
   useEffect(() => {
     if (user) {
-      if (user.allowedModules === 'mss' && currentSection !== 'mss') {
+      const hasAcc = canAccess('accessories');
+      const hasMss = canAccess('mss');
+      if (!hasAcc && hasMss && currentSection !== 'mss') {
         setCurrentSectionState('mss');
-      } else if (user.allowedModules === 'accessories' && currentSection !== 'accessories') {
+      } else if (!hasMss && hasAcc && currentSection !== 'accessories') {
         setCurrentSectionState('accessories');
       }
     }
-  }, [user, currentSection]);
+  }, [user, currentSection, canAccess]);
 
   const currentRoute = currentSection === 'accessories' ? accessoriesRoute : mssRoute;
 

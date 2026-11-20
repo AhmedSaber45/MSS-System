@@ -6,7 +6,6 @@ import { AdminSidebar, NavTab } from '@/components/layout/AdminSidebar';
 import { AdminHeader } from '@/components/layout/AdminHeader';
 import { OverviewView } from '@/components/overview/OverviewView';
 import { UsersView } from '@/components/users/UsersView';
-import { SettingsView } from '@/components/settings/SettingsView';
 import { RefreshCw } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -83,7 +82,6 @@ export default function AdminDashboardPage() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {currentTab === 'overview' && <OverviewView onNavigate={(tab) => setCurrentTab(tab)} />}
           {currentTab === 'users' && <UsersView />}
-          {currentTab === 'settings' && <SettingsView />}
         </main>
       </div>
     </div>

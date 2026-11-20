@@ -20,6 +20,7 @@ import {
   Layers,
   ShieldCheck,
   Check,
+  Trash2,
 } from 'lucide-react';
 import type { AppUser, SystemStore, ModulePermission, CreateAppUserInput, UpdateAppUserInput } from '@/types/admin';
 
@@ -39,7 +40,9 @@ export const UsersView: React.FC = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isChangeCodeOpen, setIsChangeCodeOpen] = useState(false);
   const [isDisableConfirmOpen, setIsDisableConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
 
   // Forms state
   const [createForm, setCreateForm] = useState<CreateAppUserInput>({
@@ -244,6 +247,28 @@ export const UsersView: React.FC = () => {
       }
     } catch {
       // Handled
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/users?id=${encodeURIComponent(userToDelete.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'فشل في حذف المستخدم');
+
+      setSuccessMessage(`تم حذف حساب المستخدم "${userToDelete.displayName}" نهائياً من النظام وإلغاء كافة صلاحياته.`);
+      setIsDeleteConfirmOpen(false);
+      setUserToDelete(null);
+      await fetchData();
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -560,6 +585,19 @@ export const UsersView: React.FC = () => {
                           }`}
                         >
                           {user.isActive ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                        </button>
+
+                        {/* Permanently delete user */}
+                        <button
+                          onClick={() => {
+                            setActionError(null);
+                            setUserToDelete(user);
+                            setIsDeleteConfirmOpen(true);
+                          }}
+                          title="حذف الحساب نهائياً"
+                          className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 hover:text-white border border-rose-800/50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -1104,6 +1142,99 @@ export const UsersView: React.FC = () => {
               >
                 {actionLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                 <span>نعم، تعطيل الحساب الآن</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* MODAL: PERMANENT USER DELETION CONFIRMATION */}
+      {/* ============================================================================ */}
+      {isDeleteConfirmOpen && userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-brand-card border border-rose-600/60 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+              <Trash2 className="w-7 h-7 text-rose-500" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-bold text-white">
+                تأكيد حذف حساب المستخدم نهائياً
+              </h3>
+              <p className="text-xs text-rose-200 bg-rose-950/60 border border-rose-900/60 p-2.5 rounded-lg leading-relaxed font-semibold">
+                ⚠️ تنبيه أمني حرج: هذا الإجراء نهائي ولا يمكن التراجع عنه. سيتم مسح بيانات الدخول، الصلاحيات، وإبطال الجلسات فوراً.
+              </p>
+            </div>
+
+            {/* User Account Info Card */}
+            <div className="p-3.5 bg-brand-surface/80 rounded-xl border border-brand-border space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">الاسم المعروض:</span>
+                <span className="font-bold text-white">{userToDelete.displayName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">اسم المستخدم (Username):</span>
+                <span className="font-mono text-slate-200">@{userToDelete.username}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">الوحدات المصرحة:</span>
+                <span className="font-semibold text-slate-200">
+                  {userToDelete.allowedModules === 'both' && 'كلا النشاطين (Accessories + MSS)'}
+                  {userToDelete.allowedModules === 'accessories' && 'إكسسوارات فقط'}
+                  {userToDelete.allowedModules === 'mss' && 'Compu MSS فقط'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">الفرع الافتراضي:</span>
+                <span className="text-slate-200">{userToDelete.defaultStoreName || 'بدون فرع افتراضي'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">حالة الحساب:</span>
+                <span className={userToDelete.isActive ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                  {userToDelete.isActive ? 'نشط' : 'معطل'}
+                </span>
+              </div>
+            </div>
+
+            {/* Historical Business Data Preservation Notice */}
+            <div className="p-3 bg-slate-900/70 border border-slate-700/60 rounded-xl text-[11px] text-slate-300 leading-relaxed space-y-1">
+              <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>حماية وسلامة السجلات والعمليات التاريخية:</span>
+              </div>
+              <p className="text-slate-400">
+                لن يتم حذف أي فواتير، مبيعات، أو حركات مخزن قام هذا المستخدم بإنشائها مسبقاً. ستبقى كافة السجلات والعمليات التاريخية محفوظة في النظام لأغراض التدقيق المالي والمحاسبي.
+              </p>
+            </div>
+
+            {actionError && (
+              <div className="p-3 bg-rose-950/60 border border-rose-900/60 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-brand-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteConfirmOpen(false);
+                  setUserToDelete(null);
+                  setActionError(null);
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors"
+              >
+                إلغاء التراجع
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-lg shadow-rose-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+              >
+                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>تأكيد الحذف النهائي للحساب</span>
               </button>
             </div>
           </div>

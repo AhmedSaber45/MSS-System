@@ -9,6 +9,7 @@ import type {
   AuthContextType,
 } from '../types/auth.ts';
 import { desktopAuthService } from '../services/desktopAuthService.ts';
+import { supabase } from '../lib/supabase.ts';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -235,6 +236,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('offline', handleOffline);
     };
   }, [revalidate, session]);
+
+  // Periodic background revalidation & window focus / visibility change listeners
+  useEffect(() => {
+    if (status !== 'authenticated' || !session) return;
+
+    // Periodic check every 30 seconds when online
+    const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined' ? navigator.onLine : true) {
+        revalidate();
+      }
+    }, 30000);
+
+    // Revalidate when user returns to the app
+    const handleFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        revalidate();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [status, session, revalidate]);
+
+  // Real-time permission & status synchronization via Supabase Realtime
+  useEffect(() => {
+    if (!user?.id || status !== 'authenticated') return;
+
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(`user-sync-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'app_users',
+            filter: `id=eq.${user.id}`,
+          },
+          () => {
+            revalidate();
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Realtime sync subscription unavailable, relying on polling:', err);
+    }
+
+    return () => {
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
+    };
+  }, [user?.id, status, revalidate]);
 
   // Login handler
   const login = async (credentials: LoginCredentials): Promise<LoginResult> => {

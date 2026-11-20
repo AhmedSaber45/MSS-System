@@ -219,8 +219,8 @@ export function applyStyledExcelFormatting(
     return { wch };
   });
 
-  // Ensure RTL view
-  ws['!views'] = [{ rightToLeft: true }];
+  // Ensure LTR view: First column starts on the left side of the sheet (A1)
+  ws['!views'] = [{ rightToLeft: false }];
 
   // Border styles
   const thinDataBorder = {
@@ -280,7 +280,7 @@ export function applyStyledExcelFormatting(
       const isPrice = col.key === 'price' || col.header.includes('السعر');
       const isQuantity = col.key === 'quantity' || col.header.includes('الكمية');
 
-      const horizontalAlign: 'right' | 'center' = isBrandModel ? 'right' : 'center';
+      const horizontalAlign: 'left' | 'center' = isBrandModel ? 'left' : 'center';
 
       const cellStyle: any = {
         fill: { fgColor: { rgb: bgRgb } },
@@ -302,11 +302,40 @@ export function applyStyledExcelFormatting(
   }
 }
 
+/**
+ * Evaluates whether an item's category matches the user's selected category filters.
+ * Supports exact dynamic matching as well as common Arabic/English aliases (e.g., Laptops / Monitors).
+ */
+export function matchesCategory(itemCatRaw?: string | null, selectedCategories?: string[]): boolean {
+  if (!selectedCategories || selectedCategories.length === 0) return false;
+
+  const itemCat = (itemCatRaw || '').trim().toLowerCase();
+
+  return selectedCategories.some(sel => {
+    const s = (sel || '').trim().toLowerCase();
+    if (!s) return false;
+    if (s === itemCat) return true;
+
+    // Laptop aliases
+    const isItemLaptop = itemCat === 'لابتوب' || itemCat === 'لاب توب' || itemCat === 'laptop' || itemCat === 'laptops';
+    const isSelLaptop = s === 'لابتوب' || s === 'لاب توب' || s === 'laptop' || s === 'laptops';
+    if (isItemLaptop && isSelLaptop) return true;
+
+    // Monitor / Screen aliases
+    const isItemMonitor = itemCat === 'شاشة' || itemCat === 'شاشات' || itemCat === 'monitor' || itemCat === 'monitors' || itemCat === 'screen' || itemCat === 'screens';
+    const isSelMonitor = s === 'شاشة' || s === 'شاشات' || s === 'monitor' || s === 'monitors' || s === 'screen' || s === 'screens';
+    if (isItemMonitor && isSelMonitor) return true;
+
+    return false;
+  });
+}
+
 export const mssWholesaleExportService = {
   cleanSpec,
   extractScreenDetails,
   formatBrandAndModel,
   formatScreenSummary,
+  matchesCategory,
   sanitizeArabicFilename,
   applyStyledExcelFormatting,
 
@@ -323,6 +352,8 @@ export const mssWholesaleExportService = {
     const { includePrices, includeQuantity, includeSerialNumbers } = options;
     const includeBranch = options.includeBranch !== false;
     const includeStatus = options.includeStatus !== false;
+    const includeCategory = options.includeCategory !== false;
+    const includeScreen = options.includeScreen !== false;
     const branch = options.branchFilter || options.branch || 'ALL';
 
     // Fetch ONLY available devices (strictly exclude SOLD, RESERVED, MAINTENANCE)
@@ -341,8 +372,27 @@ export const mssWholesaleExportService = {
     }
     const modelMap = new Map(models.map(m => [m.id, m]));
 
-    // Apply Advanced Filtering (Brand, Model, Price Range, Selected Devices)
+    // Apply Advanced Filtering (Category, Brand, Model, Price Range, Selected Devices)
     let allDevices = rawDevices;
+
+    // Filter by Branch / Store Location (strictly apply whether customDevices was passed or fetched)
+    if (branch && branch !== 'ALL') {
+      allDevices = allDevices.filter(d => (d.stock_location || '').trim() === branch.trim());
+    }
+
+    // 0. Filter by Categories (Dynamic Multi-Select)
+    if (options.selectedCategories !== undefined) {
+      if (options.selectedCategories.length === 0) {
+        // Explicitly cleared all categories -> 0 devices match
+        allDevices = [];
+      } else {
+        allDevices = allDevices.filter(d => {
+          const m = d.model || modelMap.get(d.model_id);
+          const cat = (d.category || m?.category || 'لابتوب').trim();
+          return matchesCategory(cat, options.selectedCategories);
+        });
+      }
+    }
 
     // 1. Filter by Brands (case-insensitive & trimmed, OR logic across selected brands)
     if (options.selectedBrands && options.selectedBrands.length > 0) {
@@ -438,13 +488,24 @@ export const mssWholesaleExportService = {
       const columns: { header: string; key: string; width: number }[] = [
         { header: 'السيريال (Serial Number)', key: 'serial_number', width: 24 },
         { header: 'الماركة والموديل (Brand & Model)', key: 'brand_and_model', width: 28 },
-        { header: 'الفئة', key: 'category', width: 12 },
+      ];
+
+      // Optional Category Column
+      if (includeCategory) {
+        columns.push({ header: 'الفئة', key: 'category', width: 14 });
+      }
+
+      columns.push(
         { header: 'المعالج (Processor)', key: 'processor', width: 24 },
         { header: 'الرام (RAM)', key: 'ram', width: 14 },
         { header: 'سعة التخزين (Storage)', key: 'storage', width: 18 },
-        { header: 'كارت الشاشة (GPU)', key: 'gpu', width: 20 },
-        { header: 'الشاشة (Screen)', key: 'screen', width: 26 },
-      ];
+        { header: 'كارت الشاشة (GPU)', key: 'gpu', width: 20 }
+      );
+
+      // Optional Screen Specifications Column
+      if (includeScreen) {
+        columns.push({ header: 'الشاشة (Screen)', key: 'screen', width: 26 });
+      }
 
       // Optional Status Column
       if (includeStatus) {
@@ -467,13 +528,20 @@ export const mssWholesaleExportService = {
         const rowObj: any = {
           'السيريال (Serial Number)': cleanSpec(d.serial_number),
           'الماركة والموديل (Brand & Model)': formatBrandAndModel(d.brand || m?.brand, d.model_name || m?.model_name),
-          'الفئة': cleanSpec(d.category || m?.category || 'لابتوب'),
-          'المعالج (Processor)': cleanSpec(m?.processor),
-          'الرام (RAM)': cleanSpec(m?.ram),
-          'سعة التخزين (Storage)': cleanSpec(m?.storage),
-          'كارت الشاشة (GPU)': cleanSpec(m?.gpu),
-          'الشاشة (Screen)': formatScreenSummary(m?.screen_size, m?.specifications),
         };
+
+        if (includeCategory) {
+          rowObj['الفئة'] = cleanSpec(d.category || m?.category || 'لابتوب');
+        }
+
+        rowObj['المعالج (Processor)'] = cleanSpec(m?.processor);
+        rowObj['الرام (RAM)'] = cleanSpec(m?.ram);
+        rowObj['سعة التخزين (Storage)'] = cleanSpec(m?.storage);
+        rowObj['كارت الشاشة (GPU)'] = cleanSpec(m?.gpu);
+
+        if (includeScreen) {
+          rowObj['الشاشة (Screen)'] = formatScreenSummary(m?.screen_size, m?.specifications);
+        }
 
         if (includeStatus) {
           rowObj['الحالة'] = cleanSpec(d.physical_condition || 'ممتازة');
@@ -570,13 +638,24 @@ export const mssWholesaleExportService = {
 
       const columns: { header: string; key: string; width: number }[] = [
         { header: 'الماركة والموديل (Brand & Model)', key: 'brand_and_model', width: 28 },
-        { header: 'الفئة', key: 'category', width: 12 },
+      ];
+
+      // Optional Category Column
+      if (includeCategory) {
+        columns.push({ header: 'الفئة', key: 'category', width: 14 });
+      }
+
+      columns.push(
         { header: 'المعالج (Processor)', key: 'processor', width: 24 },
         { header: 'الرام (RAM)', key: 'ram', width: 14 },
         { header: 'سعة التخزين (Storage)', key: 'storage', width: 18 },
-        { header: 'كارت الشاشة (GPU)', key: 'gpu', width: 20 },
-        { header: 'الشاشة (Screen)', key: 'screen', width: 26 },
-      ];
+        { header: 'كارت الشاشة (GPU)', key: 'gpu', width: 20 }
+      );
+
+      // Optional Screen Specifications Column
+      if (includeScreen) {
+        columns.push({ header: 'الشاشة (Screen)', key: 'screen', width: 26 });
+      }
 
       // Optional Status Column
       if (includeStatus) {
@@ -603,13 +682,20 @@ export const mssWholesaleExportService = {
 
         const rowObj: any = {
           'الماركة والموديل (Brand & Model)': formatBrandAndModel(g.brand, g.modelName),
-          'الفئة': cleanSpec(g.category),
-          'المعالج (Processor)': cleanSpec(m?.processor),
-          'الرام (RAM)': cleanSpec(m?.ram),
-          'سعة التخزين (Storage)': cleanSpec(m?.storage),
-          'كارت الشاشة (GPU)': cleanSpec(m?.gpu),
-          'الشاشة (Screen)': formatScreenSummary(m?.screen_size, m?.specifications),
         };
+
+        if (includeCategory) {
+          rowObj['الفئة'] = cleanSpec(g.category);
+        }
+
+        rowObj['المعالج (Processor)'] = cleanSpec(m?.processor);
+        rowObj['الرام (RAM)'] = cleanSpec(m?.ram);
+        rowObj['سعة التخزين (Storage)'] = cleanSpec(m?.storage);
+        rowObj['كارت الشاشة (GPU)'] = cleanSpec(m?.gpu);
+
+        if (includeScreen) {
+          rowObj['الشاشة (Screen)'] = formatScreenSummary(m?.screen_size, m?.specifications);
+        }
 
         if (includeStatus) {
           rowObj['الحالة'] = cleanSpec(condDisplay);
@@ -693,10 +779,10 @@ export const mssWholesaleExportService = {
     // Apply professional styling: colored headers, alternating zebra rows, borders, alignments, and number formats
     applyStyledExcelFormatting(ws, columns, rows);
 
-    // RTL view orientation for Arabic readability in Excel
+    // Force Left-to-Right (LTR) workbook and worksheet view
     if (!wb.Workbook) wb.Workbook = {} as any;
     if (!wb.Workbook.Views) wb.Workbook.Views = [];
-    wb.Workbook.Views[0] = { RTL: true } as any;
+    wb.Workbook.Views[0] = { RTL: false } as any;
 
     const sheetName = 'المخزون المتاح للجملة';
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -705,10 +791,11 @@ export const mssWholesaleExportService = {
     const dateStr = new Date().toISOString().split('T')[0];
     const branchSuffix = branchTarget && branchTarget !== 'ALL' ? `_${branchTarget.replace(/\s+/g, '_')}` : '';
     const brandSuffix = options.selectedBrands && options.selectedBrands.length === 1 ? `_${options.selectedBrands[0]}` : '';
+    const categorySuffix = options.selectedCategories && options.selectedCategories.length === 1 ? `_${options.selectedCategories[0].replace(/\s+/g, '_')}` : '';
     const baseTitle = options.includeSerialNumbers
       ? 'تقرير_الأجهزة_المسلسلة_المتاحة_للجملة'
       : 'تقرير_مخزون_الأجهزة_المتاحة_للجملة';
-    const filename = sanitizeArabicFilename(`${baseTitle}${brandSuffix}${branchSuffix}_${dateStr}.xlsx`);
+    const filename = sanitizeArabicFilename(`${baseTitle}${categorySuffix}${brandSuffix}${branchSuffix}_${dateStr}.xlsx`);
 
     return {
       wb,
