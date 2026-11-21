@@ -551,7 +551,7 @@ export const ReservationsView: React.FC = () => {
       header: 'رقم الحجز',
       align: 'center',
       nowrap: true,
-      className: 'w-24 min-w-[85px] max-w-[95px] text-center px-1.5',
+      className: 'w-[95px] min-w-[85px] max-w-[105px] text-center px-1',
       render: (item: MSSReservation) => (
         <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm tabular-nums whitespace-nowrap block text-center">
           {item.reservation_number}
@@ -563,7 +563,7 @@ export const ReservationsView: React.FC = () => {
       header: 'السيريال المحجوز',
       align: 'center',
       nowrap: true,
-      className: 'w-36 min-w-[125px] max-w-[150px] text-center px-1.5',
+      className: 'w-[130px] min-w-[115px] max-w-[145px] text-center px-1',
       render: (item: MSSReservation) => {
         const isMulti = (item.items && item.items.length > 1) || (item.items_count && item.items_count > 1);
         const count = item.items?.length || item.items_count || 1;
@@ -576,7 +576,7 @@ export const ReservationsView: React.FC = () => {
         }
         return item.serial_number ? (
           <span
-            className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/70 px-2 py-0.5 rounded border border-slate-300 tracking-tight select-all tabular-nums truncate max-w-[135px] inline-block"
+            className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/70 px-1.5 py-0.5 rounded border border-slate-300 tracking-tight select-all tabular-nums truncate max-w-[125px] inline-block"
             title={item.serial_number}
           >
             {item.serial_number}
@@ -593,17 +593,17 @@ export const ReservationsView: React.FC = () => {
       header: 'الموديل',
       align: 'right',
       nowrap: false,
-      className: 'w-full min-w-[145px] px-2.5',
+      className: 'min-w-[130px] max-w-[180px] px-2 text-right',
       render: (item: MSSReservation) => {
         const isMulti = (item.items && item.items.length > 1) || (item.items_count && item.items_count > 1);
         if (isMulti) {
           return (
-            <div className="min-w-[130px] space-y-0.5">
-              <span className="font-bold text-slate-900 text-xs sm:text-sm block leading-snug">
+            <div className="space-y-0.5 text-right">
+              <span className="font-bold text-slate-900 text-xs sm:text-sm block leading-snug truncate" title={`${item.brand ? `${item.brand} ` : ''}${item.model_name || 'أجهزة متعددة'}`}>
                 {item.brand ? `${item.brand} ` : ''}
                 {item.model_name || 'أجهزة متعددة'}
               </span>
-              <span className="text-[10px] text-slate-500 font-mono block truncate max-w-[180px]">
+              <span className="text-[10px] text-slate-500 font-mono block truncate max-w-[160px]">
                 {item.items?.map(it => it.serial_number || it.model_name).filter(Boolean).slice(0, 2).join(' • ')}
                 {item.items && item.items.length > 2 ? ' ...' : ''}
               </span>
@@ -611,8 +611,8 @@ export const ReservationsView: React.FC = () => {
           );
         }
         return (
-          <div className="min-w-[130px] space-y-0.5">
-            <span className="font-bold text-slate-900 text-xs sm:text-sm block leading-snug">
+          <div className="space-y-0.5 text-right">
+            <span className="font-bold text-slate-900 text-xs sm:text-sm block leading-snug truncate" title={`${item.brand ? `${item.brand} ` : ''}${item.model_name || 'جهاز لابتوب / شاشة'}`}>
               {item.brand ? `${item.brand} ` : ''}
               {item.model_name || 'جهاز لابتوب / شاشة'}
             </span>
@@ -625,10 +625,10 @@ export const ReservationsView: React.FC = () => {
       header: 'العميل وبيانات التواصل',
       align: 'right',
       nowrap: true,
-      className: 'w-36 min-w-[125px] max-w-[145px] px-2',
+      className: 'w-[135px] min-w-[120px] max-w-[145px] px-1.5 text-right',
       render: (item: MSSReservation) => (
         <div className="space-y-0.5 text-right">
-          <div className="flex items-center gap-1 font-bold text-slate-900 text-xs truncate max-w-[130px]" title={item.customer_name}>
+          <div className="flex items-center gap-1 font-bold text-slate-900 text-xs truncate max-w-[125px]" title={item.customer_name}>
             <User className="w-3 h-3 text-slate-400 shrink-0" />
             <span className="truncate">{item.customer_name}</span>
           </div>
@@ -644,7 +644,7 @@ export const ReservationsView: React.FC = () => {
       header: 'العربون',
       align: 'left',
       nowrap: true,
-      className: 'w-24 min-w-[75px] max-w-[90px] text-left px-2',
+      className: 'w-[85px] min-w-[70px] max-w-[95px] text-left px-1.5',
       render: (item: MSSReservation) => (
         <span className="font-mono text-xs sm:text-sm font-bold text-emerald-700 tabular-nums whitespace-nowrap block text-left">
           {formatCurrency(item.deposit_amount)}
@@ -656,7 +656,7 @@ export const ReservationsView: React.FC = () => {
       header: 'السعر المتفق عليه',
       align: 'left',
       nowrap: true,
-      className: 'w-28 min-w-[85px] max-w-[105px] text-left px-2',
+      className: 'w-[95px] min-w-[80px] max-w-[105px] text-left px-1.5',
       render: (item: MSSReservation) => (
         <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 tabular-nums whitespace-nowrap block text-left">
           {formatCurrency(item.agreed_price)}
@@ -668,7 +668,7 @@ export const ReservationsView: React.FC = () => {
       header: 'فرع الحجز',
       align: 'center',
       nowrap: true,
-      className: 'w-20 min-w-[65px] max-w-[80px] text-center px-1',
+      className: 'w-[75px] min-w-[65px] max-w-[85px] text-center px-1',
       render: (item: MSSReservation) => (
         <Badge variant="default" size="sm" className="font-semibold text-xs whitespace-nowrap">
           {item.branch}
@@ -680,7 +680,7 @@ export const ReservationsView: React.FC = () => {
       header: 'تاريخ الانتهاء',
       align: 'center',
       nowrap: true,
-      className: 'w-24 min-w-[80px] max-w-[95px] text-center px-1.5',
+      className: 'w-[85px] min-w-[75px] max-w-[95px] text-center px-1',
       render: (item: MSSReservation) => (
         <span className="font-mono text-xs font-semibold text-rose-700 tabular-nums whitespace-nowrap block text-center">
           {item.expiry_date}
@@ -692,7 +692,7 @@ export const ReservationsView: React.FC = () => {
       header: 'الحالة',
       align: 'center',
       nowrap: true,
-      className: 'w-24 min-w-[80px] max-w-[95px] text-center px-1',
+      className: 'w-[85px] min-w-[75px] max-w-[95px] text-center px-1',
       render: (item: MSSReservation) => {
         switch (item.status) {
           case 'ACTIVE':
@@ -713,9 +713,9 @@ export const ReservationsView: React.FC = () => {
       header: 'إجراءات',
       align: 'center',
       nowrap: true,
-      className: 'w-48 min-w-[185px] max-w-[205px] text-center px-1',
+      className: 'w-[190px] min-w-[180px] max-w-[205px] text-center px-1',
       render: (item: MSSReservation) => (
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
           {item.status === 'ACTIVE' ? (
             <>
               <Button
@@ -725,7 +725,7 @@ export const ReservationsView: React.FC = () => {
                   setActiveReservation(item);
                   setIsFulfillModalOpen(true);
                 }}
-                className="h-7 px-2 text-xs font-bold whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="h-7 px-2 text-xs font-bold whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
                 leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
                 title="إتمام البيع وتحويل الحجز إلى فاتورة مبيعات"
               >
@@ -736,7 +736,7 @@ export const ReservationsView: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => handleOpenEdit(item)}
-                className="h-7 px-2 text-xs font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 whitespace-nowrap"
+                className="h-7 px-1.5 text-xs font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 whitespace-nowrap"
                 leftIcon={<Pencil className="w-3.5 h-3.5 text-blue-600" />}
                 title="تعديل بيانات الحجز"
               >
@@ -939,7 +939,7 @@ export const ReservationsView: React.FC = () => {
           </Button>
         </Card>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
+        <div className="rounded-xl overflow-hidden shadow-2xs">
           <Table
             columns={columns}
             data={filteredReservations}
