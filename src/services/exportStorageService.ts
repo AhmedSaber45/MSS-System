@@ -906,6 +906,8 @@ export const exportStorageService = {
 
         const isThermal = format === 'thermal' || elementId.includes('thermal');
         const targetWidth = isThermal ? 300 : (orientation === 'landscape' ? 1123 : 794);
+        let elW = targetWidth;
+        let elH = orientation === 'landscape' ? 794 : 1123;
 
         if (hiddenNodes.length > 0) {
           for (const item of hiddenNodes) {
@@ -944,8 +946,8 @@ export const exportStorageService = {
           );
 
           const rect = el.getBoundingClientRect();
-          const elW = Math.max(Math.round(rect.width || 0), el.offsetWidth || 0, targetWidth);
-          const elH = Math.max(Math.round(rect.height || 0), el.scrollHeight || 0, el.offsetHeight || 0, 400);
+          elW = Math.max(Math.round(rect.width || 0), el.offsetWidth || 0, targetWidth);
+          elH = Math.max(Math.round(rect.height || 0), el.scrollHeight || 0, el.offsetHeight || 0, 400);
 
           let dataUrl = '';
           const isNodeEnv = typeof process !== 'undefined' && Boolean(process.versions?.node) && !(globalThis as any).__FORCE_BROWSER_IMAGE_CAPTURE__;
