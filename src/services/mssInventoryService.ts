@@ -1179,7 +1179,7 @@ export const mssInventoryService = {
 
     for (const d of devices) {
       const model = modelMap.get(d.model_id);
-      const branch = d.stock_location || mssOperationalService.getActiveLocationNamesSync()[0] || 'محل 1';
+      const branch = d.stock_location || mssOperationalService.getActiveLocationNamesSync()[0] || '';
       const key = `${d.model_id}:::${branch}`;
 
       if (!groupMap.has(key)) {
@@ -1252,7 +1252,7 @@ export const mssInventoryService = {
         const modelId = it.model_id || inv.model_id;
         if (!modelId) continue;
 
-        const branch = it.source_branch || inv.source_branch || inv.selling_branch || mssOperationalService.getActiveLocationNamesSync()[0] || 'محل 1';
+        const branch = it.source_branch || inv.source_branch || inv.selling_branch || mssOperationalService.getActiveLocationNamesSync()[0] || '';
         const key = `${modelId}:::${branch}`;
 
         if (!groupMap.has(key)) {

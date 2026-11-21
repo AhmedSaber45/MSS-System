@@ -196,9 +196,7 @@ export const NotificationDrawer: React.FC = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                تنبيهات المخزون والمزامنة وأحداث النظام
-              </p>
+       
             </div>
           </div>
 

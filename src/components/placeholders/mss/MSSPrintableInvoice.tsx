@@ -80,16 +80,24 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
   // Export as PDF
   const handleSavePdf = async () => {
     const elementId = format === 'a4' ? 'mss-printable-invoice-a4' : 'mss-printable-invoice-thermal';
-    showNotification({
-      type: 'info',
-      title: 'تصدير الفاتورة بتنسيق PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ الفاتورة بدقة عالية.',
-    });
-    await documentPrintService.exportToPdf(elementId, {
-      title: formatArabicExportFilename(`فاتورة_${invoice.invoice_number}`, 'pdf'),
-      format,
-      exportType: 'mss_invoices',
-    });
+    try {
+      await documentPrintService.exportToPdf(elementId, {
+        title: formatArabicExportFilename(`فاتورة_${invoice.invoice_number}`, 'pdf'),
+        format,
+        exportType: 'mss_invoices',
+      });
+      showNotification({
+        type: 'success',
+        title: 'تصدير الفاتورة بتنسيق PDF',
+        message: 'تم تصدير وتحميل الفاتورة بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل تصدير الفاتورة',
+        message: err?.message || 'تعذر تصدير الفاتورة بتنسيق PDF.',
+      });
+    }
   };
 
   return (
@@ -109,7 +117,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               }`}
             >
               <FileText className="w-4 h-4 text-blue-600" />
-              <span>فاتورة قياسية A4</span>
+              <span>فاتورة  A4</span>
             </button>
             <button
               type="button"
@@ -121,7 +129,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               }`}
             >
               <Receipt className="w-4 h-4 text-emerald-600" />
-              <span>إيصال حراري (POS 80mm)</span>
+              <span>إيصال حراري </span>
             </button>
           </div>
 
@@ -243,7 +251,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               <div>
                 <h1 className="text-2xl font-bold text-slate-950 tracking-tight">Compu MSS</h1>
                 <p className="text-sm text-slate-600 mt-1">
-                  بيع وصيانة أجهزة اللابتوب والكمبيوتر المعتمدة
+                  بيع  أجهزة اللابتوب والكمبيوتر المعتمدة
                 </p>
                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
                   <span>فرع البيع: {invoice.selling_branch}</span>
@@ -516,7 +524,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               {/* Customer Signature */}
               <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-8 bg-slate-50/50 print:bg-white print:border-slate-400">
                 <div className="flex items-center justify-center gap-1.5 font-bold text-slate-800">
-                  <span>توقيع العميل / المستلم</span>
+                  <span>توقيع العميل  </span>
                 </div>
                 <div className="h-14 flex items-end justify-center">
                   <div className="w-48 border-b-2 border-dotted border-slate-400"></div>
@@ -554,7 +562,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
             {/* Header */}
             <div className="text-center pb-2 border-b border-dashed border-slate-400 space-y-0.5">
               <h2 className="text-sm font-bold tracking-tight">Compu MSS</h2>
-              <p className="text-[11px] text-slate-700 font-semibold">إيصال مبيعات أجهزة رسمية</p>
+              <p className="text-[11px] text-slate-700 font-semibold">إيصال مبيعات رسمى </p>
               <p className="text-[10px] text-slate-600">الفرع: {invoice.selling_branch}</p>
             </div>
 

@@ -41,16 +41,24 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
   // Save / Export as PDF
   const handleSavePdf = async () => {
     const elementId = format === 'a4' ? 'printable-invoice-a4' : 'printable-invoice-thermal';
-    showNotification({
-      type: 'info',
-      title: 'حفظ الفاتورة بتنسيق PDF',
-      message: 'تم فتح نافذة الطباعة. اختر الوجهة "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند بدقة عالية.',
-    });
-    await documentPrintService.exportToPdf(elementId, {
-      title: `فاتورة_مبيعات_${invoice.invoice_number}`,
-      format: format,
-      exportType: 'accessories_invoices',
-    });
+    try {
+      await documentPrintService.exportToPdf(elementId, {
+        title: `فاتورة_مبيعات_${invoice.invoice_number}`,
+        format: format,
+        exportType: 'accessories_invoices',
+      });
+      showNotification({
+        type: 'success',
+        title: 'حفظ الفاتورة بتنسيق PDF',
+        message: 'تم حفظ وتحميل الفاتورة بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل حفظ الفاتورة',
+        message: err?.message || 'تعذر حفظ الفاتورة بتنسيق PDF.',
+      });
+    }
   };
 
   return (

@@ -266,7 +266,7 @@ export const MSSInvoicesView: React.FC = () => {
       key: 'selling_branch',
       header: 'الفرع',
       render: (item: MSSInvoice) => (
-        <Badge variant={item.selling_branch === 'محل 1' ? 'primary' : 'default'} size="sm">
+        <Badge variant="default" size="sm">
           {item.selling_branch}
         </Badge>
       ),
@@ -372,7 +372,7 @@ export const MSSInvoicesView: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="فواتير مبيعات وتحصيلات Compu MSS"
-        subtitle="متابعة فواتير الأجهزة النقدية والآجلة وتحصيل الأقساط"
+        subtitle=""
         actions={
           <Button
             variant="outline"
@@ -384,7 +384,7 @@ export const MSSInvoicesView: React.FC = () => {
             }
             className="border-slate-300 text-slate-800 font-semibold"
           >
-            تحديث
+            Refresh
           </Button>
         }
       />

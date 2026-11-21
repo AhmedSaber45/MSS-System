@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
-import { Badge } from '@/components/common/Badge';
+import { Pagination } from '@/components/common/Pagination';
 import { Input } from '@/components/common/Input';
 import { Spinner } from '@/components/common/Spinner';
 import { Modal } from '@/components/common/Modal';
@@ -184,12 +184,37 @@ export const AccessoriesExpensesView: React.FC = () => {
     });
   }, [expenses, sortBy]);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 9;
+
+  // Reset pagination on search query, period, date range, or sorting change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, period, dateValidation.startDate, dateValidation.endDate, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedExpenses.length / pageSize));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // Auto-correct if current page exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+  // Paginated items
+  const paginatedExpenses = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    return sortedExpenses.slice(startIndex, startIndex + pageSize);
+  }, [sortedExpenses, validCurrentPage, pageSize]);
+
   return (
     <div className="space-y-5" dir="rtl">
       {/* 1. Page Header */}
       <PageHeader
         title="مصروفات المحل"
-        subtitle="إدارة وتسجيل المصروفات التشغيلية اليومية وخصمها من صافي أرباح المحل"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
             <Button
@@ -408,76 +433,74 @@ export const AccessoriesExpensesView: React.FC = () => {
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-right">
-              <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
-                <tr>
-                  <th className="py-3 px-3.5 text-center w-10">#</th>
-                  <th className="py-3 px-3.5">اسم أو بيان المصروف</th>
-                  <th className="py-3 px-3.5">التصنيف</th>
-                  <th className="py-3 px-3.5 text-left">المبلغ المالي</th>
-                  <th className="py-3 px-3.5">الفرع المسؤول</th>
-                  <th className="py-3 px-3.5">تاريخ الصرف</th>
-                  <th className="py-3 px-3.5">مصدر الصرف</th>
-                  <th className="py-3 px-3.5">طريقة الدفع</th>
-                  <th className="py-3 px-3.5 text-center w-28">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {sortedExpenses.map((exp, idx) => (
-                  <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-3.5 text-center font-mono text-slate-500">{idx + 1}</td>
-                    <td className="py-3 px-3.5">
-                      <div className="font-bold text-slate-900 text-sm">{exp.title}</div>
-                      {exp.description && (
-                        <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{exp.description}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-3.5">
-                      <Badge variant="outline" size="sm" className="bg-slate-50 text-slate-800 border-slate-300">
-                        {exp.category}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-3.5 text-left font-mono font-bold text-rose-700 text-sm tabular-nums">
-                      {formatCurrency(exp.amount)}
-                    </td>
-                    <td className="py-3 px-3.5 font-semibold text-slate-800">
-                      <Badge variant="default" size="sm" className="bg-blue-50 text-blue-800 border-blue-200">
-                        {exp.branch}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-3.5 font-mono text-slate-600">{exp.expense_date}</td>
-                    <td className="py-3 px-3.5 text-slate-700">{exp.payment_source}</td>
-                    <td className="py-3 px-3.5 text-slate-600">{exp.payment_method}</td>
-                    <td className="py-3 px-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditingExpense(exp);
-                            setIsFormModalOpen(true);
-                          }}
-                          className="h-8 w-8 p-0 border-slate-300 hover:text-blue-600"
-                          title="تعديل المصروف"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeletingExpense(exp)}
-                          className="h-8 w-8 p-0 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
-                          title="حذف المصروف"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-right">
+                <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
+                  <tr>
+                    <th className="py-3 px-3.5 text-center w-12">#</th>
+                    <th className="py-3 px-3.5">اسم أو بيان المصروف</th>
+                    <th className="py-3 px-3.5 text-left">المبلغ المالي</th>
+                    <th className="py-3 px-3.5">تاريخ الصرف</th>
+                    <th className="py-3 px-3.5 text-center w-28">الإجراءات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {paginatedExpenses.map((exp, idx) => (
+                    <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-3.5 text-center font-mono text-slate-500">
+                        {(validCurrentPage - 1) * pageSize + idx + 1}
+                      </td>
+                      <td className="py-3 px-3.5">
+                        <div className="font-bold text-slate-900 text-sm">{exp.title}</div>
+                        {exp.description && (
+                          <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{exp.description}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3.5 text-left font-mono font-bold text-rose-700 text-sm tabular-nums">
+                        {formatCurrency(exp.amount)}
+                      </td>
+                      <td className="py-3 px-3.5 font-mono text-slate-600">{exp.expense_date}</td>
+                      <td className="py-3 px-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingExpense(exp);
+                              setIsFormModalOpen(true);
+                            }}
+                            className="h-8 w-8 p-0 border-slate-300 hover:text-blue-600"
+                            title="تعديل المصروف"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeletingExpense(exp)}
+                            className="h-8 w-8 p-0 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                            title="حذف المصروف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {sortedExpenses.length > 0 && (
+              <Pagination
+                currentPage={validCurrentPage}
+                totalItems={sortedExpenses.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         )}
       </Card>

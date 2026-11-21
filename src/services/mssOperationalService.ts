@@ -123,15 +123,14 @@ export const mssOperationalService = {
 
   getActiveLocationNamesSync(): string[] {
     const active = this.getActiveStoresSync();
-    const names = active.map(s => s.name.trim()).filter(Boolean);
-    return names.length > 0 ? names : ['محل 1', 'محل 2'];
+    return active.map(s => s.name.trim()).filter(Boolean);
   },
 
   async getActiveLocationNames(): Promise<string[]> {
     try {
       const active = await this.getActiveStores();
       const names = active.map(s => s.name.trim()).filter(Boolean);
-      return names.length > 0 ? names : ['محل 1', 'محل 2'];
+      return names.length > 0 ? names : this.getActiveLocationNamesSync();
     } catch {
       return this.getActiveLocationNamesSync();
     }
@@ -376,8 +375,48 @@ export const mssOperationalService = {
           updated_at: updated.updatedAt,
         })
         .eq('id', input.id);
+
+      // Cascade rename across all related entities when store name changes
+      const oldName = current.name?.trim();
+      const newName = updated.name?.trim();
+      if (oldName && newName && oldName !== newName) {
+        await Promise.allSettled([
+          supabase.from('mss_devices').update({ stock_location: newName }).eq('stock_location', oldName),
+          supabase.from('mss_reservations').update({ branch: newName }).eq('branch', oldName),
+          supabase.from('mss_invoices').update({ selling_branch: newName }).eq('selling_branch', oldName),
+          supabase.from('mss_invoices').update({ source_branch: newName }).eq('source_branch', oldName),
+          supabase.from('mss_invoice_items').update({ source_branch: newName }).eq('source_branch', oldName),
+          supabase.from('mss_operating_expenses').update({ branch: newName }).eq('branch', oldName),
+          supabase.from('mss_returns').update({ restock_location: newName }).eq('restock_location', oldName),
+        ]);
+      }
     } catch (err) {
       console.warn('Supabase store update failed, cached locally:', err);
+    }
+
+    // Cascade rename in local caches
+    const oldStoreName = current.name?.trim();
+    const newStoreName = updated.name?.trim();
+    if (oldStoreName && newStoreName && oldStoreName !== newStoreName) {
+      try {
+        const devKey = 'shop_mss_devices_cache_v1';
+        const rawDevs = localStorage.getItem(devKey);
+        if (rawDevs) {
+          const devs = JSON.parse(rawDevs);
+          if (Array.isArray(devs)) {
+            let mod = false;
+            devs.forEach((d: any) => {
+              if (d.stock_location === oldStoreName) {
+                d.stock_location = newStoreName;
+                mod = true;
+              }
+            });
+            if (mod) localStorage.setItem(devKey, JSON.stringify(devs));
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
     }
 
     cached[index] = updated;

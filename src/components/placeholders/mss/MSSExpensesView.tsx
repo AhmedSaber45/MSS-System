@@ -118,7 +118,7 @@ export const MSSExpensesView: React.FC = () => {
     } catch (err: any) {
       showNotification({
         type: 'error',
-        title: 'خطأ في تحميل مصروفات MSS',
+        title: 'خطأ في تحميل مصروفات Compu MSS',
         message: err?.message || 'تعذر تحميل بيانات مصروفات Compu MSS.',
       });
     } finally {
@@ -221,24 +221,11 @@ export const MSSExpensesView: React.FC = () => {
     <div className="space-y-5" dir="rtl">
       {/* 1. Page Header */}
       <PageHeader
-        title="مصروفات MSS"
-        subtitle="إدارة المصروفات التشغيلية لـ Compu MSS وخصمها من صافي أرباح الأعمال المشتركة"
+        title="مصروفات Compu MSS"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
-            {/* Cloud Status Indicator */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">
-              {isOnline ? (
-                <>
-                  <Cloud className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>السحابة متصلة</span>
-                </>
-              ) : (
-                <>
-                  <CloudOff className="w-3.5 h-3.5 text-amber-600" />
-                  <span>وضع عدم الاتصال</span>
-                </>
-              )}
-            </div>
+
 
             <Button
               variant="outline"
@@ -414,11 +401,10 @@ export const MSSExpensesView: React.FC = () => {
                     key={opt.id}
                     type="button"
                     onClick={() => setPeriod(opt.id as any)}
-                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                      period === opt.id
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${period === opt.id
                         ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-300'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -491,12 +477,9 @@ export const MSSExpensesView: React.FC = () => {
                 <tr>
                   <th className="py-3 px-3.5 text-center w-10">#</th>
                   <th className="py-3 px-3.5">اسم أو بيان المصروف</th>
-                  <th className="py-3 px-3.5">التصنيف</th>
                   <th className="py-3 px-3.5 text-left">المبلغ المالي</th>
                   <th className="py-3 px-3.5">الفرع المسؤول</th>
                   <th className="py-3 px-3.5">تاريخ الصرف</th>
-                  <th className="py-3 px-3.5">مصدر الصرف</th>
-                  <th className="py-3 px-3.5">طريقة الدفع</th>
                   <th className="py-3 px-3.5 text-center w-28">الإجراءات</th>
                 </tr>
               </thead>
@@ -510,11 +493,6 @@ export const MSSExpensesView: React.FC = () => {
                         <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{exp.description}</div>
                       )}
                     </td>
-                    <td className="py-3 px-3.5">
-                      <Badge variant="outline" size="sm" className="bg-slate-50 text-slate-800 border-slate-300">
-                        {exp.category}
-                      </Badge>
-                    </td>
                     <td className="py-3 px-3.5 text-left font-mono font-bold text-rose-700 text-sm tabular-nums">
                       {formatCurrency(exp.amount)}
                     </td>
@@ -524,8 +502,6 @@ export const MSSExpensesView: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="py-3 px-3.5 font-mono text-slate-600">{exp.expense_date}</td>
-                    <td className="py-3 px-3.5 text-slate-700">{exp.payment_source}</td>
-                    <td className="py-3 px-3.5 text-slate-600">{exp.payment_method}</td>
                     <td className="py-3 px-3.5 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <Button

@@ -78,6 +78,10 @@ export const MSSStoresView: React.FC = () => {
   const [assignIsPrimary, setAssignIsPrimary] = useState<boolean>(false);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
 
+  // Archive Confirmation Modal State
+  const [storeToArchive, setStoreToArchive] = useState<SystemStore | null>(null);
+  const [isArchiving, setIsArchiving] = useState<boolean>(false);
+
   // Merge Wizard State
   const [mergeStep, setMergeStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [mergeSourceIds, setMergeSourceIds] = useState<string[]>([]);
@@ -312,19 +316,30 @@ export const MSSStoresView: React.FC = () => {
     }
   };
 
-  // Archive Store
-  const handleArchiveStore = async (store: SystemStore) => {
-    if (!window.confirm(`هل أنت متأكد من أرشفة الفرع (${store.name})؟ سيتم الحفاظ على كافة أجهزة المخزون والفواتير السابقة بأمان.`)) {
-      return;
-    }
+  // Open Archive Confirmation Alert Modal
+  const handleOpenArchiveModal = (store: SystemStore) => {
+    setStoreToArchive(store);
+  };
 
+  const handleCancelArchive = () => {
+    if (isArchiving) return;
+    setStoreToArchive(null);
+  };
+
+  // Archive Store - Confirmed
+  const handleConfirmArchive = async () => {
+    if (!storeToArchive) return;
+
+    setIsArchiving(true);
     try {
-      await mssOperationalService.archiveStore(store.id, actor);
+      await mssOperationalService.archiveStore(storeToArchive.id, actor);
+      const entityLabel = storeToArchive.type === 'warehouse' ? 'المخزن' : 'الفرع';
       showNotification({
         type: 'success',
         title: 'تمت أرشفة الموقع',
-        message: `تمت أرشفة (${store.name}) مع الحفاظ على سلامة المخزون والسجلات التاريخية.`,
+        message: `تمت أرشفة ${entityLabel} (${storeToArchive.name}) مع الحفاظ على سلامة المخزون والسجلات التاريخية.`,
       });
+      setStoreToArchive(null);
       await loadStores();
     } catch (err: any) {
       showNotification({
@@ -332,7 +347,14 @@ export const MSSStoresView: React.FC = () => {
         title: 'فشل الأرشفة',
         message: err.message || 'تعذر أرشفة الموقع',
       });
+    } finally {
+      setIsArchiving(false);
     }
+  };
+
+  // Backwards-compatible alias for handleOpenArchiveModal
+  const handleArchiveStore = (store: SystemStore) => {
+    handleOpenArchiveModal(store);
   };
 
   // Assign user in details modal
@@ -618,82 +640,132 @@ export const MSSStoresView: React.FC = () => {
             return (
               <Card
                 key={st.id}
-                className={`p-4.5 bg-white border transition-all shadow-xs flex flex-col justify-between ${
+                className={`p-5 bg-white border transition-all duration-200 shadow-xs hover:shadow-md rounded-2xl flex flex-col justify-between group ${
                   st.isArchived
-                    ? 'border-slate-300 bg-slate-50/60 opacity-80'
+                    ? 'border-slate-300 bg-slate-50/70 opacity-80'
                     : st.isActive
-                    ? 'border-slate-200 hover:border-blue-400'
-                    : 'border-rose-200 bg-rose-50/20'
+                    ? 'border-slate-200/90 hover:border-blue-400 hover:shadow-blue-50/40'
+                    : 'border-rose-200 bg-rose-50/25'
                 }`}
               >
                 <div>
                   {/* Top Badges */}
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-300">
+                  <div className="flex items-center justify-between gap-2 pb-3 mb-3.5 border-b border-slate-100">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-md border border-slate-300 tracking-tight">
                         {st.code}
                       </span>
                       <Badge
                         variant={isStore ? 'primary' : isWarehouse ? 'default' : 'warning'}
                         size="sm"
+                        className="font-semibold text-xs inline-flex items-center gap-1"
                       >
-                        {isStore ? 'فرع تجاري' : isWarehouse ? 'مخزن' : 'مقر مدمج'}
+                        {isStore ? (
+                          <Store className="w-3 h-3 shrink-0" />
+                        ) : isWarehouse ? (
+                          <Warehouse className="w-3 h-3 shrink-0" />
+                        ) : (
+                          <Building className="w-3 h-3 shrink-0" />
+                        )}
+                        <span>{isStore ? 'فرع تجاري' : isWarehouse ? 'مخزن' : 'مقر مدمج'}</span>
                       </Badge>
                     </div>
 
                     <div>
                       {st.isArchived ? (
-                        <span className="text-[11px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">
+                        <span className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-300 px-2.5 py-0.5 rounded-full inline-flex items-center">
                           مؤرشف
                         </span>
                       ) : st.isActive ? (
-                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                           نشط
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                        <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
                           معطل
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Title & Info */}
-                  <h3 className="text-base font-bold text-slate-900 mb-1">{st.name}</h3>
-                  {st.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2 mb-3">{st.description}</p>
-                  )}
+                  {/* Title & Identity Section */}
+                  <div className="mb-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`p-2.5 rounded-xl shrink-0 ${
+                          isStore
+                            ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                            : isWarehouse
+                            ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                        }`}
+                      >
+                        {isStore ? (
+                          <Store className="w-5 h-5" />
+                        ) : isWarehouse ? (
+                          <Warehouse className="w-5 h-5" />
+                        ) : (
+                          <Building className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-bold text-slate-900 leading-snug truncate" title={st.name}>
+                          {st.name}
+                        </h3>
+                        {st.description ? (
+                          <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed font-normal" title={st.description}>
+                            {st.description}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-1 italic font-normal">لا يوجد وصف مسجل للفرع</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className="space-y-1.5 text-xs text-slate-600 mb-3 pt-2 border-t border-slate-100 font-medium">
-                    {st.address && (
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{st.address}</span>
-                      </div>
-                    )}
-                    {st.phone && (
-                      <div className="flex items-center gap-2 text-slate-700 font-mono">
-                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span dir="ltr">{st.phone}</span>
-                      </div>
-                    )}
+                  {/* Details / Contact Section */}
+                  <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/60 space-y-2 text-xs mb-4">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      {st.address ? (
+                        <span className="truncate font-medium text-slate-800" title={st.address}>
+                          {st.address}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">العنوان غير محدد</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      {st.phone ? (
+                        <span className="font-mono font-medium text-slate-800" dir="ltr">
+                          {st.phone}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">رقم الهاتف غير مسجل</span>
+                      )}
+                    </div>
+
                     {st.mergedIntoName && (
-                      <p className="text-[11px] text-blue-700 font-semibold bg-blue-50 p-1.5 rounded border border-blue-200">
-                        تم الدمج في: {st.mergedIntoName}
-                      </p>
+                      <div className="pt-2 border-t border-slate-200/70 flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                        <span className="truncate">تم الدمج في: {st.mergedIntoName}</span>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Footer Actions */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-1">
+                <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleOpenDetails(st)}
-                    leftIcon={<Users className="w-3.5 h-3.5" />}
-                    className="text-xs"
+                    leftIcon={<Users className="w-3.5 h-3.5 text-blue-600" />}
+                    className="text-xs font-semibold hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50 shadow-2xs"
                   >
                     الموظفون والمخزون
                   </Button>
@@ -703,28 +775,47 @@ export const MSSStoresView: React.FC = () => {
                       <>
                         <button
                           onClick={() => handleOpenEdit(st)}
-                          className="p-1.5 text-slate-500 hover:text-blue-700 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="تعديل البيانات"
+                          className="p-1.5 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                          title={st.type === 'warehouse' ? 'تعديل بيانات المخزن' : 'تعديل بيانات الفرع'}
+                          aria-label={st.type === 'warehouse' ? 'تعديل بيانات المخزن' : 'تعديل بيانات الفرع'}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
 
                         <button
                           onClick={() => handleToggleStatus(st)}
-                          className={`p-1.5 rounded-lg transition-colors ${
+                          className={`p-1.5 rounded-lg transition-colors border border-transparent ${
                             st.isActive
-                              ? 'text-emerald-600 hover:text-rose-600 hover:bg-rose-50'
-                              : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                              ? 'text-emerald-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200'
+                              : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
                           }`}
-                          title={st.isActive ? 'تعطيل الفرع' : 'تفعيل الفرع'}
+                          title={
+                            st.isActive
+                              ? st.type === 'warehouse'
+                                ? 'تعطيل المخزن'
+                                : 'تعطيل الفرع'
+                              : st.type === 'warehouse'
+                                ? 'تفعيل المخزن'
+                                : 'تفعيل الفرع'
+                          }
+                          aria-label={
+                            st.isActive
+                              ? st.type === 'warehouse'
+                                ? 'تعطيل المخزن'
+                                : 'تعطيل الفرع'
+                              : st.type === 'warehouse'
+                                ? 'تفعيل المخزن'
+                                : 'تفعيل الفرع'
+                          }
                         >
                           <Power className="w-4 h-4" />
                         </button>
 
                         <button
-                          onClick={() => handleArchiveStore(st)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="أرشفة الفرع"
+                          onClick={() => handleOpenArchiveModal(st)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                          title={st.type === 'warehouse' ? 'أرشفة المخزن' : 'أرشفة الفرع'}
+                          aria-label={st.type === 'warehouse' ? 'أرشفة المخزن' : 'أرشفة الفرع'}
                         >
                           <Archive className="w-4 h-4" />
                         </button>
@@ -876,7 +967,22 @@ export const MSSStoresView: React.FC = () => {
           subtitle={`الرمز: ${selectedStore.code} | النوع: ${selectedStore.type}`}
           size="lg"
           footer={
-            <div className="flex justify-end w-full">
+            <div className="flex items-center justify-between w-full">
+              {!selectedStore.isArchived ? (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    const st = selectedStore;
+                    setIsDetailsModalOpen(false);
+                    handleOpenArchiveModal(st);
+                  }}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 text-xs font-bold"
+                  leftIcon={<Archive className="w-4 h-4" />}
+                >
+                  أرشفة {selectedStore.type === 'warehouse' ? 'المخزن' : 'الفرع'}
+                </Button>
+              ) : <div />}
               <Button variant="outline" size="md" onClick={() => setIsDetailsModalOpen(false)}>
                 إغلاق
               </Button>
@@ -984,6 +1090,76 @@ export const MSSStoresView: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </Modal>
+      )}
+
+      {/* Archive Confirmation Alert Modal */}
+      {storeToArchive && (
+        <Modal
+          isOpen={!!storeToArchive}
+          onClose={handleCancelArchive}
+          title={`تأكيد أرشفة ${storeToArchive.type === 'warehouse' ? 'المخزن' : 'الفرع'}`}
+          subtitle={`نقل ${storeToArchive.type === 'warehouse' ? 'المخزن' : 'الفرع'} إلى سجلات الأرشيف مع الحفاظ على البيانات`}
+          size="sm"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="outline"
+                size="md"
+                onClick={handleCancelArchive}
+                disabled={isArchiving}
+              >
+                إلغاء
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                onClick={handleConfirmArchive}
+                disabled={isArchiving}
+                leftIcon={isArchiving ? <Spinner size="sm" /> : <Archive className="w-4 h-4" />}
+                className="font-bold bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                {isArchiving
+                  ? 'جارٍ الأرشفة...'
+                  : `تأكيد أرشفة ${storeToArchive.type === 'warehouse' ? 'المخزن' : 'الفرع'}`}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-sm" dir="rtl">
+      
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">نوع الموقع:</span>
+                <span className="font-bold text-slate-800">
+                  {storeToArchive.type === 'warehouse' ? 'مخزن' : 'فرع تجاري'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">رمز الموقع:</span>
+                <span className="font-mono font-bold text-slate-900">{storeToArchive.code}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">اسم {storeToArchive.type === 'warehouse' ? 'المخزن' : 'الفرع'}:</span>
+                <span className="font-bold text-slate-900">{storeToArchive.name}</span>
+              </div>
+              {storeToArchive.address && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">العنوان:</span>
+                  <span className="text-slate-700">{storeToArchive.address}</span>
+                </div>
+              )}
+              {storeToArchive.deviceCount !== undefined && storeToArchive.deviceCount > 0 && (
+                <div className="flex items-center justify-between text-blue-700 font-semibold pt-1 border-t border-slate-200">
+                  <span>الأجهزة المتواجدة حالياً:</span>
+                  <span className="font-mono font-bold">{storeToArchive.deviceCount} جهاز</span>
+                </div>
+              )}
+            </div>
+
+        
           </div>
         </Modal>
       )}

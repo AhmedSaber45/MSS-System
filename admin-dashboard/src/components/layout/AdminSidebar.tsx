@@ -58,20 +58,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white tracking-wide">Compu MSS</h1>
-              <p className="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                لوحة تحكم الإدارة المركزية
-              </p>
+              <h1 className="text-base font-bold text-white tracking-wide">  Admin Dashboard</h1>
+      
             </div>
           </div>
         </div>
 
         {/* Navigation Items */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          <div className="px-3 py-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-            الأقسام الرئيسية
-          </div>
+       
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -102,7 +97,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="p-4 border-t border-brand-border bg-brand-bg/40">
           <div className="flex flex-col gap-1 text-[11px] text-slate-400">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-300">نظام Compu MSS</span>
+              <span className="font-semibold text-slate-300"> Compu MSS Admin Dashboard</span>
               <span className="text-[10px] text-slate-400 bg-slate-800/60 border border-slate-700/50 px-1.5 py-0.5 rounded font-mono">
                 v1.0.0
               </span>

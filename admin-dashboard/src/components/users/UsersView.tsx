@@ -313,11 +313,9 @@ export const UsersView: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-brand-primary" />
-            <span>إدارة مستخدمي الفروع والصلاحيات</span>
+            <span>إدارة المستخدمين والصلاحيات  </span>
           </h2>
-          <p className="text-xs text-slate-400">
-            إنشاء حسابات الموظفين، تشفير رموز الدخول (Bcrypt)، تعيين صلاحيات الوحدات، وإبطال الجلسات المركزية
-          </p>
+  
         </div>
 
         <button
@@ -367,24 +365,12 @@ export const UsersView: React.FC = () => {
             className="px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-xs text-slate-200 focus:outline-none focus:border-brand-primary"
           >
             <option value="all">كافة الصلاحيات</option>
-            <option value="both">كلا النشاطين (Accessories + MSS)</option>
+            <option value="both">Accessories + MSS</option>
             <option value="accessories">إكسسوارات فقط</option>
             <option value="mss">Compu MSS فقط</option>
           </select>
 
-          {/* Store Filter */}
-          <select
-            value={storeFilter}
-            onChange={(e) => setStoreFilter(e.target.value)}
-            className="px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-xs text-slate-200 focus:outline-none focus:border-brand-primary"
-          >
-            <option value="all">كافة الفروع والمخازن</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.code})
-              </option>
-            ))}
-          </select>
+
 
           {/* Status Filter */}
           <select
@@ -403,6 +389,7 @@ export const UsersView: React.FC = () => {
             className="p-2 bg-brand-surface hover:bg-slate-800 border border-brand-border rounded-lg text-slate-400 hover:text-white transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-primary' : ''}`} />
+            
           </button>
         </div>
       </div>
@@ -414,8 +401,8 @@ export const UsersView: React.FC = () => {
             <thead className="bg-brand-surface/80 border-b border-brand-border text-slate-400 font-semibold uppercase text-[11px]">
               <tr>
                 <th className="py-3 px-4">المستخدم</th>
-                <th className="py-3 px-4">الصلاحيات المصرحة</th>
-                <th className="py-3 px-4">الفروع المصرح بها</th>
+                <th className="py-3 px-4">الصلاحيات </th>
+      
                 <th className="py-3 px-4 text-center">إصدار الأمان</th>
                 <th className="py-3 px-4 text-center">الحالة</th>
                 <th className="py-3 px-4">آخر دخول</th>
@@ -432,8 +419,8 @@ export const UsersView: React.FC = () => {
                         {loading
                           ? 'جاري التحميل...'
                           : users.length === 0
-                          ? 'لا يوجد مستخدمون مسجلون في النظام حتى الآن'
-                          : 'لا يوجد مستخدمون مطابقون لمعايير البحث'}
+                            ? 'لا يوجد مستخدمون مسجلون في النظام حتى الآن'
+                            : 'لا يوجد مستخدمون مطابقون لمعايير البحث'}
                       </p>
                       <p className="text-xs text-slate-500">
                         {users.length === 0
@@ -477,17 +464,7 @@ export const UsersView: React.FC = () => {
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1.5 text-slate-300">
-                        <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate max-w-[160px]">{user.defaultStoreName || 'بدون فرع افتراضي'}</span>
-                      </div>
-                      {(user.assignedStoreIds && user.assignedStoreIds.length > 1) && (
-                        <span className="text-[10px] text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-1.5 py-0.2 rounded mt-0.5 inline-block">
-                          +{user.assignedStoreIds.length - 1} فروع إضافية
-                        </span>
-                      )}
-                    </td>
+
 
                     <td className="py-3.5 px-4 text-center">
                       <span
@@ -578,11 +555,10 @@ export const UsersView: React.FC = () => {
                             }
                           }}
                           title={user.isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            user.isActive
+                          className={`p-1.5 rounded-lg transition-colors ${user.isActive
                               ? 'bg-rose-950/40 hover:bg-rose-900/40 text-rose-400 border border-rose-900/40'
                               : 'bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-900/40'
-                          }`}
+                            }`}
                         >
                           {user.isActive ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                         </button>
@@ -711,11 +687,10 @@ export const UsersView: React.FC = () => {
                 <label className="block text-slate-300 font-semibold mb-1">صلاحية الوحدات المصرحة *</label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${
-                      createForm.allowedModules === 'both'
+                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'both'
                         ? 'bg-purple-950/40 border-purple-500 text-purple-200'
                         : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -733,11 +708,10 @@ export const UsersView: React.FC = () => {
                   </label>
 
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${
-                      createForm.allowedModules === 'accessories'
+                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'accessories'
                         ? 'bg-amber-950/40 border-amber-500 text-amber-200'
                         : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -755,11 +729,10 @@ export const UsersView: React.FC = () => {
                   </label>
 
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${
-                      createForm.allowedModules === 'mss'
+                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'mss'
                         ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200'
                         : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"

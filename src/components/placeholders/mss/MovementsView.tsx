@@ -77,8 +77,8 @@ export const MovementsView: React.FC = () => {
   // Transfer Wizard Modal State
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
-  const [wizardSource, setWizardSource] = useState<string>('محل 1');
-  const [wizardDest, setWizardDest] = useState<string>('محل 2');
+  const [wizardSource, setWizardSource] = useState<string>('');
+  const [wizardDest, setWizardDest] = useState<string>('');
   const [wizardType, setWizardType] = useState<TransferType>('INDIVIDUAL');
   const [wizardSelectedIds, setWizardSelectedIds] = useState<string[]>([]);
   const [wizardModelId, setWizardModelId] = useState<string>('');
@@ -132,8 +132,8 @@ export const MovementsView: React.FC = () => {
   // Open Transfer Wizard
   const handleOpenWizard = (preselectedIds?: string[], preselectedSource?: string) => {
     setWizardStep(1);
-    const sourceLoc = preselectedSource || (systemStores[0]?.name || 'محل 1');
-    const destLoc = systemStores[1]?.name || 'محل 2';
+    const sourceLoc = preselectedSource || (systemStores[0]?.name || '');
+    const destLoc = systemStores.find(s => s.name !== sourceLoc)?.name || (systemStores[1]?.name || '');
     setWizardSource(sourceLoc);
     setWizardDest(destLoc);
     setWizardType(preselectedIds && preselectedIds.length > 0 ? 'SELECTED' : 'INDIVIDUAL');

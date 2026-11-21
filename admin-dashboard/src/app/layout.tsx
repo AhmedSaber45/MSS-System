@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Compu MSS — لوحة تحكم الإدارة المركزية',
+  title: 'Compu MSS Admin Dashboard     ',
   description: 'نظام إدارة الحسابات، الصلاحيات، الفروع وسجل التدقيق لشركة Compu MSS',
 };
 

@@ -37,7 +37,7 @@ export const MSSReturnsView: React.FC = () => {
   const [refundAmount, setRefundAmount] = useState<number | ''>(0);
   const [returnReason, setReturnReason] = useState<string>('طلب العميل استبدال أو استرجاع الجهاز');
   const { locations } = useMSSLocations();
-  const [restockLocation, setRestockLocation] = useState<MSSStockLocation>(() => locations[0] || 'محل 1');
+  const [restockLocation, setRestockLocation] = useState<MSSStockLocation>(() => locations[0] || '');
 
   useEffect(() => {
     if (locations.length > 0 && !locations.includes(restockLocation)) {
@@ -170,8 +170,11 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'return_number',
       header: 'رقم الإرجاع',
+      align: 'center',
+      nowrap: true,
+      className: 'w-28 min-w-[95px] max-w-[110px] text-center px-1.5',
       render: (item: MSSReturn) => (
-        <span className="font-mono font-bold text-slate-900 text-sm tabular-nums">
+        <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm tabular-nums whitespace-nowrap block text-center">
           {item.return_number}
         </span>
       ),
@@ -179,8 +182,11 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'invoice_number',
       header: 'الفاتورة الأصلية',
+      align: 'center',
+      nowrap: true,
+      className: 'w-32 min-w-[110px] max-w-[130px] text-center px-1.5',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-slate-800 font-bold text-sm tabular-nums">
+        <span className="font-mono text-slate-800 font-bold text-xs sm:text-sm tabular-nums whitespace-nowrap block text-center">
           {item.invoice_number}
         </span>
       ),
@@ -188,31 +194,45 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'serial_number',
       header: 'سيريال الجهاز',
+      align: 'center',
+      nowrap: true,
+      className: 'w-44 min-w-[150px] max-w-[180px] text-center px-2',
       render: (item: MSSReturn) => (
         item.serial_number ? (
-          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+          <span
+            className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/70 px-2 py-0.5 rounded border border-slate-300 tracking-tight select-all tabular-nums truncate max-w-[160px] inline-block"
+            title={item.serial_number}
+          >
             {item.serial_number}
           </span>
         ) : (
-          <span className="text-slate-400 font-medium text-xs">بدون سيريال</span>
+          <span className="text-slate-400 font-medium text-xs whitespace-nowrap">بدون سيريال</span>
         )
       ),
     },
     {
       key: 'model_name',
       header: 'الموديل',
+      align: 'right',
+      nowrap: false,
+      className: 'w-full min-w-[160px] px-2.5',
       render: (item: MSSReturn) => (
-        <span className="font-bold text-slate-900 text-sm">
-          {item.brand ? `${item.brand} ` : ''}
-          {item.model_name || 'جهاز لابتوب / شاشة'}
-        </span>
+        <div className="min-w-[140px] space-y-0.5">
+          <span className="font-bold text-slate-900 text-xs sm:text-sm block leading-snug">
+            {item.brand ? `${item.brand} ` : ''}
+            {item.model_name || 'جهاز لابتوب / شاشة'}
+          </span>
+        </div>
       ),
     },
     {
       key: 'refund_amount',
       header: 'المبلغ المسترد',
+      align: 'left',
+      nowrap: true,
+      className: 'w-28 min-w-[95px] max-w-[115px] text-left px-2',
       render: (item: MSSReturn) => (
-        <span className="font-bold text-rose-700 font-mono text-sm tabular-nums">
+        <span className="font-bold text-rose-700 font-mono text-xs sm:text-sm tabular-nums whitespace-nowrap block text-left">
           {formatCurrency(item.refund_amount)}
         </span>
       ),
@@ -220,10 +240,13 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'restock_location',
       header: 'موقع الجهاز بعد الإرجاع',
+      align: 'center',
+      nowrap: true,
+      className: 'w-44 min-w-[145px] max-w-[170px] text-center px-1.5',
       render: (item: MSSReturn) => (
-        <div className="flex items-center gap-1.5 font-semibold text-sm">
-          <Store className="w-4 h-4 text-slate-500" />
-          <Badge variant={item.restock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+          <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <Badge variant="default" size="sm" className="font-semibold text-xs whitespace-nowrap">
             {item.restock_location} ({item.new_status === 'AVAILABLE' ? 'متاح للبيع' : 'صيانة'})
           </Badge>
         </div>
@@ -232,8 +255,11 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'return_reason',
       header: 'سبب الإرجاع',
+      align: 'right',
+      nowrap: false,
+      className: 'w-52 min-w-[150px] max-w-[220px] px-2',
       render: (item: MSSReturn) => (
-        <span className="text-sm text-slate-700 max-w-xs truncate block" title={item.return_reason}>
+        <span className="text-xs text-slate-700 font-medium block truncate max-w-[210px]" title={item.return_reason}>
           {item.return_reason}
         </span>
       ),
@@ -241,8 +267,11 @@ export const MSSReturnsView: React.FC = () => {
     {
       key: 'return_date',
       header: 'تاريخ الإرجاع',
+      align: 'center',
+      nowrap: true,
+      className: 'w-32 min-w-[105px] max-w-[125px] text-center px-1.5',
       render: (item: MSSReturn) => (
-        <span className="font-mono text-sm font-medium text-slate-600 tabular-nums">
+        <span className="font-medium text-slate-700 text-xs tabular-nums whitespace-nowrap block text-center">
           {formatDate(item.return_date)}
         </span>
       ),
@@ -477,6 +506,8 @@ export const MSSReturnsView: React.FC = () => {
               data={filteredReturns}
               keyExtractor={(item: MSSReturn) => item.id}
               pagination={{ pageSize: 9 }}
+              density="compact"
+              className="w-full text-right"
             />
           </div>
         )}

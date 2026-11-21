@@ -282,8 +282,9 @@ export const unifiedDashboardService = {
         totalTransactionsCount,
       };
 
-      const shop1Stock = locationStock.find(l => l.location === 'محل 1');
-      const shop2Stock = locationStock.find(l => l.location === 'محل 2');
+      const dynamicLocs = locationStock.filter(l => l.location !== 'المجموع الكلي');
+      const shop1Stock = dynamicLocs[0];
+      const shop2Stock = dynamicLocs[1];
       const grandStock = locationStock.find(l => l.location === 'المجموع الكلي');
 
       const locationAvailableUnits: Record<string, number> = {};
@@ -424,8 +425,9 @@ export const unifiedDashboardService = {
     };
 
     // 5. MSS Section Summary (Shared Profit, Rule 16)
-    const shop1Stock = locationStock.find(l => l.location === 'محل 1');
-    const shop2Stock = locationStock.find(l => l.location === 'محل 2');
+    const dynamicLocs2 = locationStock.filter(l => l.location !== 'المجموع الكلي');
+    const shop1Stock = dynamicLocs2[0];
+    const shop2Stock = dynamicLocs2[1];
     const grandStock = locationStock.find(l => l.location === 'المجموع الكلي');
 
     const mssLocAvailableUnits: Record<string, number> = {};

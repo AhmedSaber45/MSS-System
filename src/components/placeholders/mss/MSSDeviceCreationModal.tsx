@@ -16,7 +16,6 @@ import type { MSSDevice, MSSDeviceStatus, MSSStockLocation } from '@/types/mssIn
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
 import { Plus, Laptop, Box } from 'lucide-react';
-const DEFAULT_LOCATIONS: MSSStockLocation[] = ['محل 1', 'محل 2'];
 
 export interface MSSDeviceCreationModalProps {
   isOpen: boolean;
@@ -40,7 +39,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   const { locations: dynamicLocations } = useMSSLocations();
   const availableLocations = locationOptions && locationOptions.length > 0
     ? locationOptions
-    : (dynamicLocations.length > 0 ? dynamicLocations : ['محل 1', 'محل 2']);
+    : dynamicLocations;
   const { showNotification } = useNotification();
   const [catalogModels, setCatalogModels] = useState<MSSCatalogModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -55,7 +54,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   const [formListPrice, setFormListPrice] = useState<number | ''>('');
   const [formPurchaseDate, setFormPurchaseDate] = useState(getTodayLocalDateString());
   const [formCondition, setFormCondition] = useState('فرز أول ممتاز');
-  const [formLocation, setFormLocation] = useState<MSSStockLocation>(availableLocations[0] || 'محل 1');
+  const [formLocation, setFormLocation] = useState<MSSStockLocation>(availableLocations[0] || '');
   const [formStatus, setFormStatus] = useState<MSSDeviceStatus>('AVAILABLE');
   const [formNotes, setFormNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -88,7 +87,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
       setFormCost('');
       setFormPurchaseDate(getTodayLocalDateString());
       setFormCondition('فرز أول ممتاز');
-      setFormLocation(availableLocations[0] || 'محل 1');
+      setFormLocation(availableLocations[0] || '');
       setFormStatus('AVAILABLE');
       setFormNotes('');
       setFormError('');

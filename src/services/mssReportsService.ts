@@ -490,7 +490,7 @@ export const mssReportsService = {
 
       for (const it of items) {
         // Authoritative warehouse from transaction line item
-        const itemWarehouse = it.source_branch || inv.source_branch || inv.selling_branch || activeLocations[0] || 'محل 1';
+        const itemWarehouse = it.source_branch || inv.source_branch || inv.selling_branch || activeLocations[0] || '';
 
         // Filter by warehouse if a specific warehouse was chosen
         if (warehouse !== 'ALL' && itemWarehouse !== warehouse) {

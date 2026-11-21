@@ -134,17 +134,25 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 
   const handleExportPdf = async () => {
     if (!data) return;
-    showNotification({
-      type: 'info',
-      title: 'استخراج التقرير الموحد كـ PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند الرسمي بجودة عالية.',
-    });
-    await documentPrintService.exportToPdf('unified-report-document-root', {
-      title: `تقرير_تنفيذي_موحد_${new Date().toISOString().slice(0, 10)}`,
-      format: 'report',
-      orientation: 'portrait',
-      exportType: scope === 'mss' ? 'mss_reports' : 'accessories_reports',
-    });
+    try {
+      await documentPrintService.exportToPdf('unified-report-document-root', {
+        title: `تقرير_تنفيذي_موحد_${new Date().toISOString().slice(0, 10)}`,
+        format: 'report',
+        orientation: 'portrait',
+        exportType: scope === 'mss' ? 'mss_reports' : 'accessories_reports',
+      });
+      showNotification({
+        type: 'success',
+        title: 'استخراج التقرير الموحد كـ PDF',
+        message: 'تم تصدير وتحميل التقرير المالي والتنفيذي الموحد بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل استخراج PDF',
+        message: err?.message || 'تعذر تصدير ملف PDF للتقرير الموحد.',
+      });
+    }
   };
 
   const navigateToAccessories = (route: any = 'dashboard', params?: Record<string, any>) => {
@@ -625,25 +633,18 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-slate-700 pt-0.5">
-                      {data.mss.locationAvailableUnits && Object.keys(data.mss.locationAvailableUnits).length > 0
-                        ? Object.entries(data.mss.locationAvailableUnits).map(([loc, count]) => (
-                            <div key={loc} className="bg-white p-2.5 rounded-lg border border-slate-200">
-                              <span className="font-semibold text-xs">{loc}:</span>{' '}
-                              <span className="font-bold text-slate-900 tabular-nums text-sm">{count} جهاز</span>
-                            </div>
-                          ))
-                        : (
-                          <>
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                              <span className="font-semibold text-xs">محل 1:</span>{' '}
-                              <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop1AvailableUnits} جهاز</span>
-                            </div>
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                              <span className="font-semibold text-xs">محل 2:</span>{' '}
-                              <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop2AvailableUnits} جهاز</span>
-                            </div>
-                          </>
-                        )}
+                      {data.mss.locationAvailableUnits && Object.keys(data.mss.locationAvailableUnits).length > 0 ? (
+                        Object.entries(data.mss.locationAvailableUnits).map(([loc, count]) => (
+                          <div key={loc} className="bg-white p-2.5 rounded-lg border border-slate-200">
+                            <span className="font-semibold text-xs">{loc}:</span>{' '}
+                            <span className="font-bold text-slate-900 tabular-nums text-sm">{count} جهاز</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 col-span-2 text-center text-xs text-slate-500">
+                          لا توجد فروع مسجلة حالياً
+                        </div>
+                      )}
                     </div>
                     <div className="flex justify-between text-slate-700 pt-1 font-medium">
                       <span>تكلفة الأجهزة المتوفرة بالمخازن:</span>

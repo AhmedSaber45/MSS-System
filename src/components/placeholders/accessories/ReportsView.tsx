@@ -140,17 +140,25 @@ export const ReportsView: React.FC = () => {
   // Dedicated PDF Export (Phase 6)
   const handleExportPdf = async () => {
     if (!summary) return;
-    showNotification({
-      type: 'info',
-      title: 'استخراج تقرير الأرباح كـ PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لتنزيل التقرير المالي المعتمد.',
-    });
-    await documentPrintService.exportToPdf('profit-report-document-root', {
-      title: `تقرير_الأرباح_${getTodayLocalDateString()}`,
-      format: 'report',
-      orientation: 'portrait',
-      exportType: 'accessories_reports',
-    });
+    try {
+      await documentPrintService.exportToPdf('profit-report-document-root', {
+        title: `تقرير_الأرباح_${getTodayLocalDateString()}`,
+        format: 'report',
+        orientation: 'portrait',
+        exportType: 'accessories_reports',
+      });
+      showNotification({
+        type: 'success',
+        title: 'استخراج تقرير الأرباح كـ PDF',
+        message: 'تم استخراج وتحميل كشف الأرباح بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل استخراج PDF',
+        message: err?.message || 'تعذر استخراج تقرير الأرباح بتنسيق PDF.',
+      });
+    }
   };
 
   return (
@@ -504,7 +512,7 @@ export const ReportsView: React.FC = () => {
               <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
                 <Wallet className="w-5 h-5 text-amber-700" />
                 <h3 className="text-base font-bold text-slate-900">
-                  تقرير المديونيات ومستحقات العملاء المعلقة (Customer Receivables)
+                  تقرير المديونيات ومستحقات العملاء المعلقة 
                 </h3>
               </div>
 

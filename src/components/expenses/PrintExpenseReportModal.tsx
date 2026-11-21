@@ -108,17 +108,17 @@ export const PrintExpenseReportModal: React.FC<PrintExpenseReportModalProps> = (
 
     try {
       if (asPdf) {
-        showNotification({
-          type: 'info',
-          title: 'استخراج تقرير المصروفات كـ PDF',
-          message: 'تم تجهيز تقرير المصروفات وحفظه في مجلد التقارير المعتمد.',
-        });
-
         await documentPrintService.exportToPdf('printable-expenses-report-root', {
           title: filename,
           format: 'report',
           orientation: 'portrait',
           exportType: moduleName === 'accessories' ? 'accessories_reports' : 'mss_reports',
+        });
+
+        showNotification({
+          type: 'success',
+          title: 'استخراج تقرير المصروفات كـ PDF',
+          message: 'تم استخراج وتحميل تقرير المصروفات بتنسيق PDF بنجاح.',
         });
       } else {
         await documentPrintService.printElement('printable-expenses-report-root', {
@@ -143,15 +143,10 @@ export const PrintExpenseReportModal: React.FC<PrintExpenseReportModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={moduleName === 'accessories' ? 'طباعة تقرير مصروفات المحل' : 'طباعة تقرير مصروفات MSS'}
+      title={moduleName === 'accessories' ? 'طباعة تقرير مصروفات المحل' : 'طباعة تقرير مصروفات Compu MSS'}
       size="md"
     >
       <div className="space-y-4 text-sm" dir="rtl">
-        <p className="text-xs text-slate-600 leading-relaxed">
-          {moduleName === 'accessories'
-            ? 'حدد نطاق فترة التقرير لاستخراج بيان تفصيلي بمصروفات المحل التشغيلية بصيغة PDF وتوثيقها رسمياً.'
-            : 'حدد نطاق فترة التقرير والفرع لاستخراج بيان تفصيلي بمصروفات MSS بصيغة PDF وتوثيقها رسمياً.'}
-        </p>
 
         {/* Period Selection */}
         <div className="space-y-1.5">
@@ -169,11 +164,10 @@ export const PrintExpenseReportModal: React.FC<PrintExpenseReportModalProps> = (
                 key={opt.id}
                 type="button"
                 onClick={() => setPeriod(opt.id as ExpenseReportPeriodOption)}
-                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border ${
-                  period === opt.id
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border ${period === opt.id
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>

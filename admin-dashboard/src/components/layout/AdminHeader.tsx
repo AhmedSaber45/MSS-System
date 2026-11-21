@@ -14,12 +14,12 @@ interface AdminHeaderProps {
 
 const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
   overview: {
-    title: 'نظرة عامة على النظام',
-    subtitle: 'مؤشرات الأداء، توزيع الحسابات، والنشاط الإداري الأخير',
+    title: 'نظرة عامة  ',
+    subtitle: '  ',
   },
   users: {
-    title: 'إدارة مستخدمي الفروع',
-    subtitle: 'إنشاء حسابات المستخدمين، إدارة الصلاحيات، وتعيين رموز الدخول',
+    title: 'إدارة المستخدمين ',
+    subtitle: '',
   },
 };
 
@@ -50,26 +50,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Supabase Connection Status Badge */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs">
-          <Database className="w-3.5 h-3.5 text-blue-400" />
-          <span>Supabase متصل</span>
-        </div>
-
-        {/* Admin User Badge */}
-        <div className="flex items-center gap-2 pl-2 border-l border-brand-border">
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 font-bold text-xs">
-            <User className="w-4 h-4 text-blue-400" />
-          </div>
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-semibold text-slate-200">{adminName}</div>
-            <div className="text-[10px] text-blue-400 font-medium flex items-center gap-1">
-              <Shield className="w-2.5 h-2.5" />
-              {adminRole === 'superadmin' ? 'مدير عام للنظام' : 'مشرف إداري'}
-            </div>
-          </div>
-        </div>
-
         {/* Logout Button */}
         <button
           onClick={onLogout}

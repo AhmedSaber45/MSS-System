@@ -60,20 +60,14 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               {scope === 'accessories'
                 ? 'Compu MSS — تقرير الأداء المالي لقسم الإكسسوارات'
                 : scope === 'mss'
-                ? 'Compu MSS — تقرير الأداء المالي والتشغيلي'
-                : 'Compu MSS — تقرير مجمع'}
+                ? 'Compu MSS — تقرير الأداء المالي '
+                : 'Compu MSS — تقرير الأداء المالي المجمع'}
             </h1>
-            <p className="text-sm font-semibold text-slate-700 mt-1">
-              {scope === 'accessories'
-                ? 'تقرير الأداء المالي لموديول الإكسسوارات ومراقبة المخزون'
-                : scope === 'mss'
-                ? 'تقرير الأداء المالي لموديول Compu MSS ومراقبة الأصول والمخزون'
-                : 'تقرير الأداء المالي المجمع — نشاط الإكسسوارات و Compu MSS المشترك'}
-            </p>
+
             <div className="flex items-center gap-3 text-xs text-slate-600 mt-2">
               <span>تاريخ الاستخراج: {currentDate} ({currentTime})</span>
-              <span>•</span>
-              <span>العملة: الجنيه المصري (EGP)</span>
+          
+              
             </div>
           </div>
 
@@ -92,10 +86,10 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
       <div className="space-y-2 avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
         <h3 className="font-bold text-sm text-slate-900 border-r-4 border-slate-900 pr-2">
           {scope === 'accessories'
-            ? 'أولاً: الأداء المالي لقسم الإكسسوارات'
+            ? 'أولاً: الأداء المالي  '
             : scope === 'mss'
-            ? 'أولاً: الأداء المالي لقسم Compu MSS'
-            : 'أولاً: الأداء المالي المجمع (الإكسسوارات + Compu MSS)'}
+            ? 'أولاً: الأداء المالي   '
+            : 'أولاً: الأداء المالي  '}
         </h3>
 
         <div className="border border-slate-300 rounded-xl overflow-hidden">
@@ -144,10 +138,10 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <tr className="bg-slate-100 border-t-2 border-slate-900 font-bold print:bg-slate-50">
                 <td className="py-3 px-4 text-slate-950 text-base">
                   {scope === 'accessories'
-                    ? 'مجمل أرباح الإكسسوارات (Gross Profit)'
+                    ? 'مجمل أرباح الإكسسوارات '
                     : scope === 'mss'
-                    ? 'مجمل أرباح Compu MSS المشتركة (Gross Profit)'
-                    : 'مجمل الأرباح المجمعة (Gross Profit)'}
+                    ? 'مجمل أرباح Compu MSS  '
+                    : 'مجمل الأرباح المجمعة '}
                 </td>
                 <td className="py-3 px-4 text-center font-mono text-sm text-slate-900">
                   هامش الربح العام: {combined.profitMarginPercent.toFixed(1)}%
@@ -178,10 +172,10 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
                   <tr className="bg-emerald-50 border-t-2 border-emerald-900 font-bold print:bg-slate-50">
                     <td className="py-3 px-4 text-emerald-950 text-base print:text-slate-950">
                       {scope === 'accessories'
-                        ? 'صافي أرباح الإكسسوارات بعد المصروفات (Net Profit)'
+                        ? 'صافي أرباح الإكسسوارات بعد المصروفات '
                         : scope === 'mss'
-                        ? 'صافي أرباح Compu MSS بعد المصروفات (Net Profit)'
-                        : 'صافي الأرباح المجمعة بعد المصروفات (Net Profit)'}
+                        ? 'صافي أرباح Compu MSS بعد المصروفات '
+                        : 'صافي الأرباح المجمعة بعد المصروفات '}
                     </td>
                     <td className="py-3 px-4 text-center font-mono text-sm text-emerald-900 print:text-slate-900">
                       هامش صافي: {(combined.netProfitMarginPercent ?? 0).toFixed(1)}%

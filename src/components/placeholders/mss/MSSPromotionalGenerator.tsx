@@ -16,6 +16,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
+import { Pagination } from '@/components/common/Pagination';
 import { useNotification } from '@/context/NotificationContext';
 import {
   PROMOTIONAL_HEADER_ICONS,
@@ -25,7 +26,7 @@ import {
 } from '@/assets/promotional/promotionalAssets';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
 import {
-  Sparkles,
+  Share2,
   Download,
   FileDown,
   Image as ImageIcon,
@@ -314,12 +315,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
             صفحة {pageIndex + 1} من {totalPages}
           </div>
         )}
-        <p className="text-xs sm:text-sm font-bold text-slate-900">
-          COMPU MSS — أجهزة أصلية معتمدة مع الضمان الشامل
-        </p>
-        <p className="text-[11px] text-slate-500">
-          للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: {locations.length > 0 ? locations.join(' • ') : 'محل 1 • محل 2'}
-        </p>
+
       </div>
     </div>
   );
@@ -480,7 +476,31 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
     setMinPrice('');
     setMaxPrice('');
     setSearchQuery('');
+    setTablePage(1);
   };
+
+  // Table Pagination State
+  const [tablePage, setTablePage] = useState<number>(1);
+  const tablePageSize = 9;
+
+  // Reset page to 1 when filter inputs change
+  useEffect(() => {
+    setTablePage(1);
+  }, [selectedBrands, selectedModelIds, minPrice, maxPrice, searchQuery, priceSortOrder]);
+
+  // Ensure current tablePage is within valid bounds
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(sortedVisibleItems.length / tablePageSize));
+    if (tablePage > maxPage) {
+      setTablePage(1);
+    }
+  }, [sortedVisibleItems.length, tablePage, tablePageSize]);
+
+  // Paginated visible items for the table
+  const paginatedTableItems = useMemo(() => {
+    const start = (tablePage - 1) * tablePageSize;
+    return sortedVisibleItems.slice(start, start + tablePageSize);
+  }, [sortedVisibleItems, tablePage, tablePageSize]);
 
   // Selected items within visible filter scope
   const selectedVisibleCount = useMemo(() => {
@@ -789,45 +809,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       {/* Hidden high-res canvas used for raster export */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* Hero Banner: Social Media Generator */}
-      <div className="bg-gradient-to-l from-blue-900 via-indigo-900 to-slate-950 p-6 rounded-2xl text-white shadow-md border border-indigo-900/60 flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1.5 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>مولد التصاميم الترويجية المعتمدة لمواقع التواصل</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            إنشاء بوستر عروض الأجهزة المتاحة (فيسبوك / واتساب)
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            تصميم إعلاني أنيق يطابق هوية COMPU MSS الرسمية. قم بتحديد الأجهزة المطلوبة ثم عاين
-            وخصص المواصفات بحرية قبل التصدير كصورة عالية الدقة PNG أو مستند PDF.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleOpenPreviewModal}
-            disabled={selectedVisibleCount === 0}
-            leftIcon={<Eye className="w-5 h-5 text-amber-300" />}
-            className="font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            معاينة وتخصيص التصميم ({selectedVisibleCount})
-          </Button>
-        </div>
-      </div>
-
       {/* Advanced Filter Toolbar: Brand, Model, Price Range, Search */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-300 shadow-2xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Filter className="w-4.5 h-4.5 text-blue-600" />
             <h3 className="font-bold text-sm text-slate-900">فلاتر تخصيص واختيار الأجهزة</h3>
-            <span className="text-xs text-slate-500">
-              (الفلاتر تحكم بدقة الأجهزة القابلة للإضافة والتصدير)
-            </span>
+  
           </div>
 
           <div className="flex items-center gap-3">
@@ -855,6 +843,17 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
               className="text-xs font-semibold border-slate-300 hover:bg-slate-50"
             >
               إعادة تعيين الفلاتر
+            </Button>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenPreviewModal}
+              disabled={selectedVisibleCount === 0}
+              leftIcon={<Eye className="w-4 h-4 text-white" />}
+              className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-all disabled:opacity-50"
+            >
+              معاينة التصميم ({selectedVisibleCount})
             </Button>
           </div>
         </div>
@@ -976,7 +975,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
           {/* Price Range & Quick Search */}
           <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-800 block">نطاق السعر (ج.م):</label>
+              <label className="text-xs font-bold text-slate-800 block">نطاق السعر :</label>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -1047,37 +1046,16 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
               onChange={e => setPriceSortOrder(e.target.value as 'asc' | 'desc')}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 cursor-pointer"
             >
-              <option value="asc">من الأقل إلى الأعلى سعراً (تصاعدي)</option>
-              <option value="desc">من الأعلى إلى الأقل سعراً (تنازلي)</option>
+              <option value="asc">من الأقل إلى الأعلى  </option>
+              <option value="desc">من الأعلى إلى الأقل  </option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* PDF Recommendation Warning Banner When > 12 Devices Selected */}
-      {selectedVisibleCount > 12 && (
-        <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs flex items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="w-4.5 h-4.5 text-blue-600 shrink-0" />
-            <span className="font-bold">
-              لقد قمت بتحديد عدد كبير من الأجهزة. يُنصح بالتصدير بصيغة PDF لتجربة عرض ومشاركة أفضل. ({selectedVisibleCount} جهاز محدد)
-            </span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenPreviewModal}
-            leftIcon={<FileDown className="w-3.5 h-3.5 text-blue-700" />}
-            className="font-bold border-blue-300 text-blue-950 hover:bg-blue-100 text-xs shrink-0"
-          >
-            معاينة وتصدير PDF
-          </Button>
-        </div>
-      )}
-
       {/* Device Selection Table */}
       <div className="bg-white rounded-2xl border border-slate-300 shadow-2xs overflow-hidden">
-        <div className="p-3.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+        <div className="p-3.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1096,36 +1074,34 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
             </button>
           </div>
 
-          <span className="text-xs text-slate-500 font-medium">
-            اختر الأجهزة المراد تضمينها في التصميم الإعلاني
-          </span>
+
         </div>
 
-        <div className="overflow-x-auto max-h-[50vh]">
+        <div className="overflow-x-auto">
           <table className="w-full text-xs text-right border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold sticky top-0 z-10 whitespace-nowrap">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold sticky top-0 z-10">
               <tr>
-                <th className="p-2.5 text-center w-12">تحديد</th>
-                <th className="p-2.5">الماركة والموديل</th>
-                <th className="p-2.5">المعالج</th>
-                <th className="p-2.5">الجيل</th>
-                <th className="p-2.5">الرام</th>
-                <th className="p-2.5">التخزين</th>
-                <th className="p-2.5">كارت الشاشة</th>
-                <th className="p-2.5">الشاشة</th>
-                <th className="p-2.5 text-center">الكمية المتاحة</th>
-                <th className="p-2.5 text-left">السعر</th>
+                <th className="p-2.5 text-center w-12 shrink-0">تحديد</th>
+                <th className="p-2.5 text-right min-w-[170px]">الماركة والموديل</th>
+                <th className="p-2.5 text-right min-w-[120px] max-w-[170px]">المعالج</th>
+                <th className="p-2.5 text-center w-20">الجيل</th>
+                <th className="p-2.5 text-center w-20">الرام</th>
+                <th className="p-2.5 text-center w-24">التخزين</th>
+                <th className="p-2.5 text-right min-w-[110px] max-w-[160px]">كارت الشاشة</th>
+                <th className="p-2.5 text-center w-24">الشاشة</th>
+                <th className="p-2.5 text-center w-24">الكمية المتاحة</th>
+                <th className="p-2.5 text-left w-28">السعر</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedVisibleItems.length === 0 ? (
+              {paginatedTableItems.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-500">
                     لا توجد أجهزة مطابقة للفلاتر المحددة حالياً.
                   </td>
                 </tr>
               ) : (
-                sortedVisibleItems.map(item => {
+                paginatedTableItems.map(item => {
                   const isChecked = selectedItemIds.has(item.id);
                   return (
                     <tr
@@ -1135,7 +1111,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                         isChecked ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-slate-50'
                       }`}
                     >
-                      <td className="p-2.5 text-center" onClick={e => e.stopPropagation()}>
+                      <td className="p-2.5 text-center w-12 shrink-0" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -1143,38 +1119,38 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                           className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                         />
                       </td>
-                      <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">
+                      <td className="p-2.5 font-bold text-slate-900 min-w-[170px]">
                         <div className="flex items-center gap-2">
                           <BrandBadgePreview brand={item.brand} />
-                          <span>
+                          <span className="truncate">
                             {item.brand} {item.model_name}
                           </span>
                         </div>
                       </td>
-                      <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                        {item.processor}
+                      <td className="p-2.5 font-mono text-slate-700 min-w-[120px] max-w-[170px] truncate" title={item.processor}>
+                        {item.processor || '---'}
                       </td>
-                      <td className="p-2.5 font-semibold text-slate-700 whitespace-nowrap">
+                      <td className="p-2.5 font-semibold text-slate-700 text-center w-20">
                         {item.generation || '---'}
                       </td>
-                      <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                        {item.ram}
+                      <td className="p-2.5 font-mono text-slate-700 text-center w-20">
+                        {item.ram || '---'}
                       </td>
-                      <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                        {item.storage}
+                      <td className="p-2.5 font-mono text-slate-700 text-center w-24">
+                        {item.storage || '---'}
                       </td>
-                      <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                        {item.gpu}
+                      <td className="p-2.5 font-mono text-slate-700 min-w-[110px] max-w-[160px] truncate" title={item.gpu}>
+                        {item.gpu || '---'}
                       </td>
-                      <td className="p-2.5 font-mono text-slate-700 whitespace-nowrap">
-                        {item.screen}
+                      <td className="p-2.5 font-mono text-slate-700 text-center w-24">
+                        {item.screen || '---'}
                       </td>
-                      <td className="p-2.5 text-center whitespace-nowrap">
+                      <td className="p-2.5 text-center w-24">
                         <Badge variant="default" size="sm">
                           {item.available_quantity || item.quantity || 1} جهاز
                         </Badge>
                       </td>
-                      <td className="p-2.5 text-left font-mono font-bold text-emerald-700 whitespace-nowrap">
+                      <td className="p-2.5 text-left font-mono font-bold text-emerald-700 w-28 whitespace-nowrap">
                         {item.price ? formatCurrency(item.price) : '---'}
                       </td>
                     </tr>
@@ -1184,6 +1160,16 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
             </tbody>
           </table>
         </div>
+
+        {sortedVisibleItems.length > 0 && (
+          <Pagination
+            currentPage={tablePage}
+            totalItems={sortedVisibleItems.length}
+            pageSize={tablePageSize}
+            onPageChange={setTablePage}
+            showItemCount={true}
+          />
+        )}
       </div>
 
       {/* =====================================================================
@@ -1193,8 +1179,8 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         <Modal
           isOpen={isPreviewOpen}
           onClose={() => setIsPreviewOpen(false)}
-          title="معاينة وتخصيص البوستر الترويجي — COMPU MSS"
-          subtitle="تصميم إعلاني أنيق يطابق بوستر المتجر الرسمي مع إمكانية تعديل المواصفات مؤقتاً قبل التصدير"
+          title="معاينة  البوستر  — COMPU MSS"
+          subtitle=""
           size="3xl"
           footer={
             <div className="flex items-center justify-between w-full flex-wrap gap-3">
@@ -1205,7 +1191,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                   onClick={() => setIsPreviewOpen(false)}
                   className="border-slate-300 font-semibold"
                 >
-                  إغلاق النافذة
+                  إغلاق 
                 </Button>
               </div>
 
@@ -1259,7 +1245,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                     leftIcon={<Download className="w-4.5 h-4.5" />}
                     className="font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs"
                   >
-                    تحميل التصميم كصورة (PNG)
+                    تحميل التصميم  (PNG)
                   </Button>
                 )}
               </div>
@@ -1286,7 +1272,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
             {totalPages > 1 && !exportProgress && (
               <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-xs flex items-center justify-between gap-3 shadow-2xs">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                  <Share2 className="w-4 h-4 text-amber-600 shrink-0" />
                   <span className="font-bold">
                     لقد قمت بتحديد عدد أجهزة ({previewItems.length} جهاز على {totalPages} صفحات). يُنصح بالتصدير بصيغة PDF لتجربة عرض ومشاركة متناسقة بدون أي اقتصاص.
                   </span>
@@ -1306,37 +1292,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
 
             {/* Modal Controls Bar: Headlines, Pagination & Sorting */}
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    العنوان الرئيسي (أبيض عريض):
-                  </label>
-                  <input
-                    type="text"
-                    value={displayOptions.headline || ''}
-                    onChange={e =>
-                      setDisplayOptions(prev => ({ ...prev, headline: e.target.value }))
-                    }
-                    placeholder="متوفر بفضل الله"
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    العنوان الثانوي (ذهبي مع خط تموج):
-                  </label>
-                  <input
-                    type="text"
-                    value={displayOptions.subHeadline || ''}
-                    onChange={e =>
-                      setDisplayOptions(prev => ({ ...prev, subHeadline: e.target.value }))
-                    }
-                    placeholder="أعلى جودة بأقل سعر"
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
 
               <div className="flex items-center justify-between border-t border-slate-200 pt-2.5 flex-wrap gap-2 text-xs">
                 {/* Pagination Controls */}
@@ -1382,8 +1338,8 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                       onChange={e => handleSortOrderChange(e.target.value as 'asc' | 'desc')}
                       className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 cursor-pointer"
                     >
-                      <option value="asc">من الأقل للأعلى سعراً</option>
-                      <option value="desc">من الأعلى للأقل سعراً</option>
+                      <option value="asc">من الأقل للأعلى </option>
+                      <option value="desc">من الأعلى للأقل </option>
                     </select>
                   </div>
 
@@ -1399,7 +1355,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                       className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 cursor-pointer"
                     >
                       <option value={8}>8 أجهزة</option>
-                      <option value={10}>10 أجهزة (الحد القياسي الأنسب)</option>
+                      <option value={10}>10 أجهزة </option>
                       <option value={12}>12 جهاز</option>
                       <option value={14}>14 جهاز</option>
                     </select>
@@ -1462,9 +1418,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                   <Edit3 className="w-4 h-4 text-blue-600" />
                   <span>تعديل المواصفات أو الأسعار مؤقتاً قبل التصدير:</span>
                 </span>
-                <span className="text-[11px] text-slate-500">
-                  (التعديلات هنا لا تؤثر على قاعدة البيانات بأي شكل)
-                </span>
+    
               </div>
 
               {/* Items Table for Quick Editing */}

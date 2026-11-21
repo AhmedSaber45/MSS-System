@@ -30,7 +30,7 @@ export function useMSSLocations(): UseMSSLocationsResult {
       const active = await mssOperationalService.getActiveStores();
       setStores(active);
       const names = active.map(s => s.name.trim()).filter(Boolean);
-      setLocations(names.length > 0 ? names : ['محل 1', 'محل 2']);
+      setLocations(names);
     } catch {
       setLocations(mssOperationalService.getActiveLocationNamesSync());
       setStores(mssOperationalService.getActiveStoresSync());

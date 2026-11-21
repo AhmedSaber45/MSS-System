@@ -233,42 +233,32 @@ export const documentPrintService = {
 
   /**
    * Dedicated Save as PDF / Export PDF handler:
-   * Captures the document and saves it directly to the assigned subfolder (MSS System Files/<subfolder>).
-   * If no destination has been chosen yet, prompts the user to select one once, then remembers it permanently.
-   * Does NOT silently fall back to print dialog or an unrelated directory.
+   * Captures the document and saves/downloads it directly to the assigned subfolder or default Downloads directory.
+   * Does NOT open the browser print dialog or system print window.
    */
   async exportToPdf(elementId: string, options: PrintDocumentOptions): Promise<void> {
     const finalTitle = options.title.endsWith('.pdf') ? options.title : `${options.title}.pdf`;
-    const pdfOptions: PrintDocumentOptions = {
-      ...options,
-      title: finalTitle,
-    };
 
-    if (options.exportType) {
-      try {
-        const result = await exportStorageService.exportElementToPdf({
-          elementId,
-          filename: finalTitle,
-          exportType: options.exportType,
-          orientation: options.orientation,
-          format: options.format as any,
-        });
-
-        if (result.savedToCustomLocation) {
-          return;
-        }
-
-        // If export was cancelled by user or path is invalid, do not silently print!
-        if (!result.success) {
-          console.warn('PDF export not completed:', result.error);
-          return;
-        }
-      } catch (err) {
-        console.warn('Direct exportElementToPdf failed:', err);
-        return;
+    // Deduce exportType if omitted
+    let exportType = options.exportType;
+    if (!exportType) {
+      if (elementId.includes('mss') || options.title.includes('MSS') || options.title.includes('أجهزة')) {
+        exportType = elementId.includes('invoice') ? 'mss_invoices' : 'mss_reports';
+      } else {
+        exportType = elementId.includes('invoice') ? 'accessories_invoices' : 'accessories_reports';
       }
     }
 
-    await this.printElement(elementId, pdfOptions);
+    const result = await exportStorageService.exportElementToPdf({
+      elementId,
+      filename: finalTitle,
+      exportType,
+      orientation: options.orientation,
+      format: options.format as any,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'تعذر استخراج وتحميل ملف PDF.');
+    }
   },
 };

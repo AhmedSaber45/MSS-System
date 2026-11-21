@@ -230,7 +230,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <FolderDown className="w-4 h-4 text-emerald-600" />
-                <h4 className="font-bold text-slate-900 text-sm">Export Files Storage Location</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Export Files Storage Path</h4>
                 <Badge
                   variant={!exportLocation ? 'default' : locationValidation?.valid ? 'success' : 'danger'}
                   size="sm"
@@ -239,9 +239,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
                   {!exportLocation ? 'غير محدد' : locationValidation?.valid ? 'مفعل وجاهز' : 'غير متاح'}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                تحديد مسار مجلد مخصص لحفظ وتنظيم ملفات الفواتير، التقارير المالية، شيتات الإكسل، والصور الترويجية تلقائياً داخل مجلد <strong>MSS System Files</strong>.
-              </p>
+  
             </div>
           </div>
 
@@ -276,7 +274,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
                   type="button"
                   onClick={handleClearExportLocation}
                   className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                  title="إزالة وتفريغ المسار"
+                  title="إزالة  المسار"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -284,7 +282,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
             </div>
           ) : (
             <div className="p-3 bg-white rounded-lg border border-dashed border-slate-300 text-center text-xs text-slate-500">
-              لم يتم تعيين مسار لحفظ ملفات التصدير بعد. اكتب المسار أدناه واضغط &quot;إضافة المسار&quot;.
+              لم يتم تعيين مسار لحفظ الملفات  .   
             </div>
           )}
 
@@ -314,7 +312,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
                   setInputPath(e.target.value);
                   setPathError('');
                 }}
-                placeholder="مثال: C:\Users\Administrator\Desktop أو D:\MSS Exports"
+                placeholder="مثال:D:\MSS Exports"
                 className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800 dir-ltr text-left"
                 dir="ltr"
               />

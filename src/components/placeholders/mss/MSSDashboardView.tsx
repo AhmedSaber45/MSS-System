@@ -48,8 +48,6 @@ export const MSSDashboardView: React.FC = () => {
 
   // MSS Data States
   const [locationStockMap, setLocationStockMap] = useState<Record<string, number>>({});
-  const [shop1Available, setShop1Available] = useState<number>(0);
-  const [shop2Available, setShop2Available] = useState<number>(0);
   const [activeReservationsCount, setActiveReservationsCount] = useState<number>(0);
   const [sharedProfit, setSharedProfit] = useState<number>(0);
   const [syncStatusText, setSyncStatusText] = useState<string>('جاري الفحص...');
@@ -78,8 +76,6 @@ export const MSSDashboardView: React.FC = () => {
         }
       });
       setLocationStockMap(locMap);
-      setShop1Available(locMap['محل 1'] || 0);
-      setShop2Available(locMap['محل 2'] || 0);
       setActiveReservationsCount(reservations.length);
       setSharedProfit(finSummary.grossProfit);
 
@@ -362,9 +358,7 @@ export const MSSDashboardView: React.FC = () => {
                           {item.brand} {item.model_name}
                         </td>
                         {locations.map(loc => {
-                          const val =
-                            item.branch_availability?.[loc] ??
-                            (loc === 'محل 1' ? item.shop_1_count : loc === 'محل 2' ? item.shop_2_count : 0);
+                          const val = item.branch_availability?.[loc] ?? 0;
                           return (
                             <td
                               key={loc}

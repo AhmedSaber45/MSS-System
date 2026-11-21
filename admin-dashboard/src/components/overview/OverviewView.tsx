@@ -535,36 +535,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
   // =========================================================================
   return (
     <div className="space-y-6">
-      {/* Top Welcome & Quick Actions */}
-      <div className="p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-xs font-semibold text-emerald-400">نظام الإدارة المركزي جاهز ونشط</span>
-          </div>
-          <h2 className="text-lg font-bold text-white">مرحباً بك في لوحة تحكم Compu MSS</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            إدارة الحسابات الإدارية، صلاحيات مستخدمي المحلات، وتشفير رموز الدخول وسياسات الأمان المركزية.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <button
-            onClick={() => onNavigate('users')}
-            className="flex-1 md:flex-none px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Users className="w-4 h-4" />
-            <span>إدارة المستخدمين</span>
-          </button>
-        </div>
-      </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total App Users */}
         <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">مستخدمو التطبيق</span>
+            <span className="text-xs font-medium text-slate-400">المستخدمين </span>
             <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-brand-primary flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
@@ -576,25 +554,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
               {stats.activeAppUsers} نشط
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">حسابات الفروع المصرح لها بتسجيل الدخول</p>
+   
         </div>
 
-        {/* Stores & Warehouses */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">الفروع والمخازن</span>
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <Store className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-white">{stats.totalStores + stats.totalWarehouses}</span>
-            <span className="text-xs text-slate-400">
-              {stats.activeStores} محل • {stats.totalWarehouses} مخزن
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-2">الوحدات التنظيمية المرتبطة بالنظام</p>
-        </div>
 
         {/* Module Permissions Distribution */}
         <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
@@ -613,20 +575,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
           </p>
         </div>
 
-        {/* Security & Audit Status */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">الأمان والتشفير</span>
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-base font-bold text-emerald-400">تشفير Bcrypt</span>
-            <span className="text-xs text-slate-400">RLS مفعل</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-2">عزل كامل لبيانات الإكسسوارات المحلية</p>
-        </div>
       </div>
 
       {/* Module Permissions Breakdown & Architecture Status */}
@@ -634,13 +582,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
         {/* Module breakdown progress */}
         <div className="lg:col-span-1 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-white mb-1">صلاحيات الوحدات (Modules)</h3>
-            <p className="text-xs text-slate-400 mb-4">توزيع صلاحيات الحسابات بين النشاطين</p>
+            <h3 className="text-sm font-bold text-white mb-1">صلاحيات المستخدمين </h3>
+     
 
             <div className="space-y-3.5">
               <div>
                 <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className="text-slate-300">كلا النشاطين (Accessories + MSS)</span>
+                  <span className="text-slate-300">Accessories + MSS</span>
                   <span className="text-brand-primary font-bold">{stats.modulesBreakdown.both} مستخدم</span>
                 </div>
                 <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -655,7 +603,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
 
               <div>
                 <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className="text-slate-300">إكسسوارات فقط (Accessories Only)</span>
+                  <span className="text-slate-300">  Accessories Only</span>
                   <span className="text-amber-400 font-bold">{stats.modulesBreakdown.accessoriesOnly} مستخدم</span>
                 </div>
                 <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -670,7 +618,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
 
               <div>
                 <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className="text-slate-300">Compu MSS فقط</span>
+                  <span className="text-slate-300">Compu MSS Only</span>
                   <span className="text-emerald-400 font-bold">{stats.modulesBreakdown.mssOnly} مستخدم</span>
                 </div>
                 <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -702,11 +650,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold text-white">آخر النشاطات الإدارية</h3>
-                <p className="text-xs text-slate-400">سجل العمليات الإدارية المنفذة مؤخراً</p>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                (سجل التدقيق الشامل متاح بتطبيق المكتبي)
-              </span>
             </div>
 
             <div className="space-y-2.5 overflow-y-auto max-h-[220px]">

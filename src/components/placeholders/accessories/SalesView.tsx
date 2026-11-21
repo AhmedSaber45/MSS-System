@@ -1338,16 +1338,24 @@ export const SalesView: React.FC = () => {
                   size="md"
                   onClick={async () => {
                     const elementId = printFormat === 'a4' ? 'printable-invoice-a4' : 'printable-invoice-thermal';
-                    showNotification({
-                      type: 'info',
-                      title: 'حفظ الفاتورة بتنسيق PDF',
-                      message: 'تم فتح نافذة الطباعة. اختر الوجهة "حفظ بتنسيق PDF" لحفظ المستند بجودة عالية.',
-                    });
-                    await documentPrintService.exportToPdf(elementId, {
-                      title: `فاتورة_${completedInvoice.invoice_number}`,
-                      format: printFormat,
-                      exportType: 'accessories_invoices',
-                    });
+                    try {
+                      await documentPrintService.exportToPdf(elementId, {
+                        title: `فاتورة_${completedInvoice.invoice_number}`,
+                        format: printFormat,
+                        exportType: 'accessories_invoices',
+                      });
+                      showNotification({
+                        type: 'success',
+                        title: 'حفظ الفاتورة بتنسيق PDF',
+                        message: 'تم حفظ وتحميل الفاتورة بتنسيق PDF بنجاح.',
+                      });
+                    } catch (err: any) {
+                      showNotification({
+                        type: 'error',
+                        title: 'فشل حفظ الفاتورة',
+                        message: err?.message || 'تعذر حفظ الفاتورة بتنسيق PDF.',
+                      });
+                    }
                   }}
                   leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}
                   className="font-bold border-slate-300 hover:bg-slate-50 text-slate-800"

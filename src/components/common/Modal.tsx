@@ -7,11 +7,12 @@ export interface ModalProps {
   onClose: () => void;
   title: string;
   subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | 'full';
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
   zIndexClassName?: string;
+  className?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -24,6 +25,7 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   closeOnBackdrop = true,
   zIndexClassName,
+  className,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,6 +46,9 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
     '2xl': 'max-w-5xl',
     '3xl': 'max-w-6xl',
+    '4xl': 'max-w-7xl',
+    '5xl': 'max-w-[1400px]',
+    '6xl': 'max-w-[94vw]',
     full: 'max-w-[96vw] h-[92vh]',
   };
 
@@ -60,7 +65,8 @@ export const Modal: React.FC<ModalProps> = ({
         <div
           className={cn(
             'relative w-full max-w-[calc(100vw-1rem)] bg-white rounded-2xl shadow-modal border border-slate-300 overflow-hidden transition-all min-w-0',
-            sizeClasses[size]
+            sizeClasses[size],
+            className
           )}
           onClick={e => e.stopPropagation()}
         >

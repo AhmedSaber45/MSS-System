@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Table, Column } from '@/components/common/Table';
@@ -7,6 +7,7 @@ import { Alert } from '@/components/common/Alert';
 import { Card } from '@/components/common/Card';
 import { Modal } from '@/components/common/Modal';
 import { Spinner } from '@/components/common/Spinner';
+import { Pagination } from '@/components/common/Pagination';
 import {
   RefreshCw,
   AlertTriangle,
@@ -45,6 +46,28 @@ export const SyncStatusView: React.FC = () => {
   const [selectedConflict, setSelectedConflict] = useState<MSSConflict | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState<string>('تمت التسوية والمراجعة مع العميل والفرع الآخر');
   const [isResolving, setIsResolving] = useState<boolean>(false);
+
+  // Pending Conflicts Pagination State
+  const [conflictPage, setConflictPage] = useState<number>(1);
+  const conflictPageSize = 10;
+
+  const pendingConflicts = useMemo(() => {
+    return conflicts.filter(c => c.resolution_status === 'PENDING');
+  }, [conflicts]);
+
+  // Adjust page safely when conflict records change or records are removed/resolved
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(pendingConflicts.length / conflictPageSize));
+    if (conflictPage > maxPage) {
+      setConflictPage(maxPage);
+    }
+  }, [pendingConflicts.length, conflictPage, conflictPageSize]);
+
+  // Sliced conflict items for current page
+  const paginatedConflicts = useMemo(() => {
+    const start = (conflictPage - 1) * conflictPageSize;
+    return pendingConflicts.slice(start, start + conflictPageSize);
+  }, [pendingConflicts, conflictPage, conflictPageSize]);
 
   // Load Sync State
   const loadData = useCallback(async () => {
@@ -188,7 +211,7 @@ export const SyncStatusView: React.FC = () => {
       key: 'branch',
       header: 'الفرع',
       render: (item: OutboxOperation) => (
-        <Badge variant={item.branch === 'محل 1' ? 'primary' : 'default'} size="sm">
+        <Badge variant="default" size="sm">
           {item.branch}
         </Badge>
       ),
@@ -338,54 +361,63 @@ export const SyncStatusView: React.FC = () => {
       {/* ========================================================================= */}
       {/* SECTION: Pending Conflicts (If Any) */}
       {/* ========================================================================= */}
-      {conflicts.filter(c => c.resolution_status === 'PENDING').length > 0 && (
+      {pendingConflicts.length > 0 && (
         <Card className="p-4 bg-white border-amber-300 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-amber-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                تعارضات   تم رصدها بحاجة  لمزامنة 
+                تعارضات تم رصدها بحاجة للمزامنة
               </h3>
             </div>
             <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-300">
-              {conflicts.filter(c => c.resolution_status === 'PENDING').length} تعارض
+              {pendingConflicts.length} تعارض
             </span>
           </div>
 
           <div className="space-y-3">
-            {conflicts
-              .filter(c => c.resolution_status === 'PENDING')
-              .map(cnf => (
-                <div
-                  key={cnf.id}
-                  className="p-4 bg-slate-50 border border-slate-300 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="danger" size="sm">{cnf.conflict_type}</Badge>
-                      <span className="font-mono text-xs font-bold bg-slate-100 text-slate-900 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
-                        {cnf.serial_number}
-                      </span>
-                      <span className="text-slate-600 font-semibold text-xs">تم في: {cnf.branch}</span>
-                    </div>
-                    <p className="font-bold text-slate-900 text-sm">{cnf.conflict_description}</p>
+            {paginatedConflicts.map(cnf => (
+              <div
+                key={cnf.id}
+                className="p-4 bg-slate-50 border border-slate-300 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="danger" size="sm">{cnf.conflict_type}</Badge>
+                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-900 px-2.5 py-1 rounded-md border border-slate-300 tabular-nums">
+                      {cnf.serial_number}
+                    </span>
+                    <span className="text-slate-600 font-semibold text-xs">تم في: {cnf.branch}</span>
                   </div>
-
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      setSelectedConflict(cnf);
-                      setResolutionNotes('تمت التسوية والمراجعة المباشرة مع العميل');
-                    }}
-                    className="shrink-0 font-bold"
-                    leftIcon={<ArrowRightLeft className="w-4 h-4" />}
-                  >
-                    مراجعة ومزامنة التعارض
-                  </Button>
+                  <p className="font-bold text-slate-900 text-sm">{cnf.conflict_description}</p>
                 </div>
-              ))}
+
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    setSelectedConflict(cnf);
+                    setResolutionNotes('تمت التسوية والمراجعة المباشرة مع العميل');
+                  }}
+                  className="shrink-0 font-bold"
+                  leftIcon={<ArrowRightLeft className="w-4 h-4" />}
+                >
+                  مراجعة ومزامنة التعارض
+                </Button>
+              </div>
+            ))}
           </div>
+
+          {pendingConflicts.length > 0 && (
+            <Pagination
+              currentPage={conflictPage}
+              totalItems={pendingConflicts.length}
+              pageSize={conflictPageSize}
+              onPageChange={setConflictPage}
+              showItemCount={true}
+              className="rounded-xl border border-slate-200 bg-slate-50 mt-2"
+            />
+          )}
         </Card>
       )}
 
@@ -489,7 +521,7 @@ export const SyncStatusView: React.FC = () => {
               <textarea
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900 transition-colors"
                 rows={3}
-                placeholder="اكتب تفاصيل الاتفاق (مثال: تم تسليم عميل محل 1 جهازاً بديلاً بنفس المواصفات أو استرداد المبلغ)..."
+                placeholder="اكتب تفاصيل الاتفاق (مثال: تم تسليم العميل جهازاً بديلاً بنفس المواصفات أو استرداد المبلغ)..."
                 value={resolutionNotes}
                 onChange={e => setResolutionNotes(e.target.value)}
                 required

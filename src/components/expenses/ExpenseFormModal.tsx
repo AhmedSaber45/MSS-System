@@ -41,14 +41,14 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
       if (initialData) {
         setTitle(initialData.title);
         setAmount(String(initialData.amount));
-        setBranch(initialData.branch || (availableBranches[0] || 'محل 1'));
+        setBranch(initialData.branch || (availableBranches[0] || ''));
         setExpenseDate(initialData.expense_date);
         setDescription(initialData.description || '');
       } else {
         // Reset to clean defaults
         setTitle('');
         setAmount('');
-        setBranch(availableBranches[0] || 'محل 1');
+        setBranch(availableBranches[0] || '');
         setExpenseDate(getTodayLocalDateString());
         setDescription('');
       }
@@ -126,7 +126,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             : 'تعديل بيانات المصروف التشغيلي — MSS'
           : isAccessories
           ? 'تسجيل مصروف جديد'
-          : 'تسجيل مصروف تشغيلي جديد — MSS'
+          : 'تسجيل مصروف  جديد — Compu MSS'
       }
       size="lg"
     >
@@ -142,7 +142,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             {/* 1. Expense Title */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                اسم أو بيان المصروف <span className="text-rose-500">*</span>
+                الاسم     <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Input
@@ -180,7 +180,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  تاريخ المصروف <span className="text-rose-500">*</span>
+                   التاريخ <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -217,7 +217,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             {/* 1. Expense Title */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                اسم أو بيان المصروف <span className="text-rose-500">*</span>
+                الاسم    <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Input
@@ -255,7 +255,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  تاريخ المصروف <span className="text-rose-500">*</span>
+                  التاريخ  <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -309,13 +309,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
           </>
         )}
 
-        {/* Accounting Notice */}
-        <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-900">
-          <FileText className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong>تنبيه محاسبي:</strong> يتم استقطاع مبالغ المصروفات التشغيلية من <strong>صافي الأرباح</strong> للنشاط للفترة المحددة، ولا تُعد تكاليف شراء مخزون بضاعة أو مدفوعات عملاء.
-          </p>
-        </div>
+
 
         {/* Modal Actions */}
         <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">

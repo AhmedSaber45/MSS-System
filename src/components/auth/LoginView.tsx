@@ -39,7 +39,7 @@ export const LoginView: React.FC = () => {
       }
     } catch {
       setAccessCode('');
-      setLocalError('حدث خطأ غير متوقع أثناء تسجيل الدخول');
+      setLocalError('حدث خطأ   أثناء تسجيل الدخول');
     } finally {
       setIsSubmitting(false);
     }
@@ -60,15 +60,17 @@ export const LoginView: React.FC = () => {
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight font-mono">Compu MSS</h1>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            نظام إدارة المبيعات والمخزون الموحد
+            نظام إدارة المبيعات
           </p>
         </div>
 
         {/* Login Form Box */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-sm">
           <div className="border-b border-slate-100 pb-3 mb-5">
-            <h2 className="text-sm font-semibold text-slate-900">تسجيل الدخول للمنظومة</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h2 className="text-sm font-semibold text-slate-900 text-center">
+              تسجيل الدخول
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5 text-center">
               أدخل اسم المستخدم ورمز الدخول المصرح به
             </p>
           </div>
@@ -117,7 +119,7 @@ export const LoginView: React.FC = () => {
                 htmlFor="accessCode"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                رمز الدخول (Access Code)
+                رمز الدخول
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
@@ -160,31 +162,15 @@ export const LoginView: React.FC = () => {
                   <span>جارٍ التحقق من الهوية...</span>
                 </>
               ) : (
-                <span>دخول النظام</span>
+                <span>دخول </span>
               )}
             </button>
-
-            {/* Quick Fill Default Credentials */}
-            <div className="pt-1 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('ahmed');
-                  setAccessCode('1234');
-                  clearError();
-                  setLocalError(null);
-                }}
-                className="text-xs text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg py-1.5 px-3 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-medium"
-              >
-                <span>⚡ تعبئة بيانات الدخول الافتراضية (ahmed / 1234)</span>
-              </button>
-            </div>
           </form>
 
           {/* Security Notice */}
           <div className="mt-5 pt-4 border-t border-slate-100 text-center">
             <p className="text-[11px] text-slate-400 font-medium">
-              الوصول مقتصر على الموظفين المصرح لهم فقط • يتم تشفير الجلسات محلياً عبر Windows DPAPI
+              جميع الحقوق محفوظة © 2026 – Compu MSS. تم التطوير بواسطة Ahmed Saber.
             </p>
           </div>
         </div>

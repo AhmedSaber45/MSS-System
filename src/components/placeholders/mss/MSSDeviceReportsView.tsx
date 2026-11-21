@@ -26,7 +26,7 @@ import {
   Building2,
   FolderTree,
   Monitor,
-  Sparkles,
+  Share2,
   CheckSquare,
   Square,
   SlidersHorizontal,
@@ -438,17 +438,25 @@ export const MSSDeviceReportsView: React.FC = () => {
   const handleExportSoldReportPdf = async () => {
     if (!soldReport) return;
     const title = formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_${soldWarehouse}_${soldDateLabel || 'فترة'}`, 'pdf');
-    showNotification({
-      type: 'info',
-      title: 'استخراج تقرير الأجهزة المباعة كـ PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند.',
-    });
-    await documentPrintService.exportToPdf('mss-device-sold-report-print', {
-      title,
-      format: 'report',
-      orientation: 'portrait',
-      exportType: 'mss_reports',
-    });
+    try {
+      await documentPrintService.exportToPdf('mss-device-sold-report-print', {
+        title,
+        format: 'report',
+        orientation: 'portrait',
+        exportType: 'mss_reports',
+      });
+      showNotification({
+        type: 'success',
+        title: 'استخراج تقرير الأجهزة المباعة كـ PDF',
+        message: 'تم استخراج وتحميل تقرير الأجهزة المباعة بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل استخراج PDF',
+        message: err?.message || 'تعذر استخراج تقرير الأجهزة المباعة بتنسيق PDF.',
+      });
+    }
   };
 
   // =========================================================================
@@ -558,8 +566,8 @@ export const MSSDeviceReportsView: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="تقارير الأجهزة ومخزون الجملة — Compu MSS"
-        subtitle="ملخص كميات الموديلات بالمخزون، تقارير الأجهزة المباعة، وتصدير قوائم المخزون المتاح للجملة (Excel)"
+        title="تقارير الأجهزة   — Compu MSS"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -569,7 +577,7 @@ export const MSSDeviceReportsView: React.FC = () => {
               isLoading={isRefreshing || isLoading}
               leftIcon={<RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
             >
-              تحديث البيانات
+              Refresh
             </Button>
           </div>
         }
@@ -587,10 +595,8 @@ export const MSSDeviceReportsView: React.FC = () => {
           }`}
         >
           <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-400" />
-          <span>تصدير مخزون الجملة (Excel)</span>
-          <Badge variant="primary" size="sm" className="mr-1">
-            {wholesaleData.length}
-          </Badge>
+          <span>تصدير شيت  (Excel)</span>
+
         </button>
 
         <button
@@ -602,8 +608,8 @@ export const MSSDeviceReportsView: React.FC = () => {
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <Sparkles className="w-4.5 h-4.5 text-amber-400" />
-          <span>تصميم عروض السوشيال ميديا (Promotional Images)</span>
+          <Share2 className="w-4.5 h-4.5 text-blue-400" />
+          <span>تصميم عروض السوشيال ميديا </span>
         </button>
 
         <button
@@ -617,9 +623,7 @@ export const MSSDeviceReportsView: React.FC = () => {
         >
           <Layers className="w-4.5 h-4.5 text-blue-400" />
           <span>ملخص كميات الموديلات</span>
-          <Badge variant="default" size="sm" className="mr-1">
-            {modelSummaries.length}
-          </Badge>
+
         </button>
 
         <button
@@ -633,9 +637,7 @@ export const MSSDeviceReportsView: React.FC = () => {
         >
           <ShoppingBag className="w-4.5 h-4.5 text-purple-400" />
           <span>تقرير الأجهزة المباعة</span>
-          <Badge variant="default" size="sm" className="mr-1">
-            {soldReport?.total_sold_units || 0} مباع
-          </Badge>
+
         </button>
       </div>
 
@@ -651,7 +653,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
                   <CardTitle className="text-base font-bold text-slate-900">
-                    إعدادات تصدير ملف مخزون الجملة (Excel)
+                    إعدادات تصدير شيت   (Excel)
                   </CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
@@ -664,7 +666,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                     leftIcon={<Download className="w-4.5 h-4.5" />}
                     className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    تصدير ملف إكسل للجملة (XLSX)
+                    تصدير ملف إكسل  (XLSX)
                   </Button>
                 </div>
               </div>
@@ -685,10 +687,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <DollarSign className="w-4 h-4 text-emerald-600" />
-                      إدراج الأسعار (Prices)
-                    </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includePrices ? 'الأسعار ظاهرة في ملف الإكسل' : 'إخفاء عمود الأسعار بالكامل'}
+                       الأسعار 
                     </span>
                   </div>
                 </label>
@@ -713,15 +712,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <Hash className="w-4 h-4 text-blue-600" />
-                      إدراج الكمية (Quantity)
+                       الكمية 
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeSerialNumbers
-                        ? 'محجوب تلقائياً في نمط الأجهزة المسلسلة'
-                        : wholesaleOptions.includeQuantity
-                        ? 'عرض إجمالي الكمية المتاحة لكل موديل'
-                        : 'إخفاء عمود الكمية من الملف'}
-                    </span>
+      
                   </div>
                 </label>
 
@@ -741,13 +734,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <Laptop className="w-4 h-4 text-purple-600" />
-                      إدراج السيريال (Serials)
+                       السيريال نمبر 
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeSerialNumbers
-                        ? 'نمط Mode B: أجهزة فردية مسلسلة فقط'
-                        : 'نمط Mode A: تجميعي حسب الموديل'}
-                    </span>
+                    
                   </div>
                 </label>
 
@@ -766,14 +755,10 @@ export const MSSDeviceReportsView: React.FC = () => {
                   />
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
-                      <FolderTree className="w-4 h-4 text-amber-600" />
-                      إدراج عمود الفئة
+                      
+                        الفئة
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeCategory !== false
-                        ? 'عمود الفئة ظاهر في ملف الإكسل'
-                        : 'إخفاء عمود الفئة تماماً من الملف'}
-                    </span>
+
                   </div>
                 </label>
 
@@ -793,13 +778,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <Monitor className="w-4 h-4 text-blue-600" />
-                      إدراج عمود الشاشة (Screen)
+                        الشاشة 
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeScreen !== false
-                        ? 'عمود مواصفات الشاشة ظاهر في الملف'
-                        : 'إخفاء عمود الشاشة تماماً من الملف'}
-                    </span>
+   
                   </div>
                 </label>
 
@@ -819,13 +800,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                      إدراج عمود الحالة (Status)
+                        الحالة 
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeStatus !== false
-                        ? 'عمود الحالة ظاهر في الملف'
-                        : 'إخفاء عمود الحالة تماماً من الملف'}
-                    </span>
+    
                   </div>
                 </label>
 
@@ -845,13 +822,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div>
                     <span className="text-sm font-bold text-slate-900 block flex items-center gap-1.5">
                       <Building2 className="w-4 h-4 text-indigo-600" />
-                      تحديد الفرع والمخزون (Branch)
+                       الفرع  
                     </span>
-                    <span className="text-xs text-slate-500 block mt-0.5">
-                      {wholesaleOptions.includeBranch !== false
-                        ? 'تصدير عمود الفرع والمخزن في ملف الإكسل'
-                        : 'عدم تصدير عمود الفرع والمخزن (إخفاء بالكامل)'}
-                    </span>
+          
                   </div>
                 </label>
 
@@ -859,7 +832,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                 <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                   <label className="text-sm font-bold text-slate-900 block flex items-center gap-1.5 mb-1.5">
                     <Store className="w-4 h-4 text-blue-600" />
-                    فرع المخزون المستهدف للتصدير:
+                    الفرع  المستهدف للتصدير:
                   </label>
                   <select
                     value={wholesaleOptions.branchFilter}
@@ -869,16 +842,12 @@ export const MSSDeviceReportsView: React.FC = () => {
                     aria-label="تحديد الفرع / المخزن لتصدير مخزون الجملة"
                     className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    <option value="ALL">كافة الفروع والمخازن</option>
+                    <option value="ALL">الكل  </option>
                     {locations.map(loc => (
                       <option key={loc} value={loc}>{loc} فقط</option>
                     ))}
                   </select>
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    {wholesaleOptions.branchFilter && wholesaleOptions.branchFilter !== 'ALL'
-                      ? `تصدير مخزون ${wholesaleOptions.branchFilter} فقط`
-                      : 'تصدير مخزون كافة الفروع والمخازن'}
-                  </span>
+   
                 </div>
 
                 {/* 9. Price Sort Order */}
@@ -898,48 +867,14 @@ export const MSSDeviceReportsView: React.FC = () => {
                     aria-label="ترتيب الأسعار في التصدير"
                     className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    <option value="asc">من الأقل للأعلى (تصاعدي)</option>
-                    <option value="desc">من الأعلى للأقل (تنازلي)</option>
+                    <option value="asc">من الأقل للأعلى </option>
+                    <option value="desc">من الأعلى للأقل </option>
                   </select>
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    {(wholesaleOptions.priceSortOrder || 'asc') === 'asc'
-                      ? 'يبدأ بالأجهزة الأقل سعراً'
-                      : 'يبدأ بالأجهزة الأعلى سعراً'}
-                  </span>
+                    
                 </div>
               </div>
 
-              {/* Mode Explanation Notice Banner */}
-              <div
-                className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
-                  wholesaleOptions.includeSerialNumbers
-                    ? 'bg-purple-50/80 border-purple-200 text-purple-950'
-                    : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                }`}
-              >
-                <div className="shrink-0 mt-0.5">
-                  {wholesaleOptions.includeSerialNumbers ? (
-                    <Laptop className="w-4.5 h-4.5 text-purple-700" />
-                  ) : (
-                    <Layers className="w-4.5 h-4.5 text-emerald-700" />
-                  )}
-                </div>
-                <div className="space-y-0.5">
-                  <div className="font-bold text-sm">
-                    {wholesaleOptions.includeSerialNumbers
-                      ? 'النمط الفردي المسلسل (Mode B): أجهزة مفردة مع السيريال — مرتبة تصاعدياً حسب السعر'
-                      : 'النمط التجميعي حسب الموديل (Mode A): سطر واحد لكل موديل لابتوب'}
-                  </div>
-                  <p>
-                    {wholesaleOptions.includeSerialNumbers
-                      ? 'يتم استخراج الأجهزة المسلسلة المتاحة فقط (سطر واحد لكل جهاز فعلي مع رقم السيريال). يتم فرز وترتيب الأجهزة تصاعدياً من الأقل سعراً إلى الأعلى سعراً، حتى وإن تم إخفاء عمود السعر. يُستبعد المخزون غير المسلسل (المجمع) تلقائياً لتجنب اختلاق أرقام سيريال وهمية.'
-                      : 'يتم استخراج سطر واحد لكل موديل متاح، مدمجاً إجمالي الكميات المتاحة من الأجهزة المسلسلة والمخزون المجمع في فرع العرض المختار. المواصفات الفنية معروضة في أعمدة مستقلة تماماً.'}
-                  </p>
-                  <div className="font-semibold text-[11px] pt-1">
-                    اسم ورقة الإكسل: <span className="font-mono underline">المخزون المتاح للجملة</span> • أي معلومة غير متوفرة تُستبدل تلقائياً برمز <span className="font-mono bg-white/70 px-1 rounded">---</span>
-                  </div>
-                </div>
-              </div>
+  
 
               {/* Advanced Filtering & Selection Controls */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -947,7 +882,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <SlidersHorizontal className="w-4 h-4 text-slate-700" />
                     <span className="text-sm font-bold text-slate-900">
-                      تصفية وتخصيص الأجهزة المحددة للتصدير (Advanced Selection)
+                        الأجهزة المحددة للتصدير 
                     </span>
                   </div>
                   {(selectedCategories.length < availableCategories.length || selectedBrands.length > 0 || selectedModelIds.length > 0 || wholesaleMinPrice || wholesaleMaxPrice || wholesaleSearch || selectedCount < filteredWholesaleRows.length) && (
@@ -964,7 +899,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                       }}
                       className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer underline"
                     >
-                      إعادة ضبط التصفية المتقدمة
+                      إعادة ضبط الفلاتر 
                     </button>
                   )}
                 </div>
@@ -974,7 +909,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                       <label className="text-xs font-bold text-slate-800">
-                        تصفية حسب الفئة ({selectedCategories.length > 0 ? `${selectedCategories.length} محددة` : 'كافة الفئات'}):
+                         حسب الفئة ({selectedCategories.length > 0 ? `${selectedCategories.length} محددة` : 'كافة الفئات'}):
                       </label>
                       <div className="flex items-center gap-2 text-[11px]">
                         <button
@@ -1034,7 +969,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                       <label className="text-xs font-bold text-slate-800">
-                        تصفية حسب الماركة ({selectedBrands.length > 0 ? `${selectedBrands.length} محددة` : 'كافة الماركات'}):
+                         حسب الماركة ({selectedBrands.length > 0 ? `${selectedBrands.length} محددة` : 'كافة الماركات'}):
                       </label>
                       <div className="flex items-center gap-2 text-[11px]">
                         <button
@@ -1094,7 +1029,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                       <label className="text-xs font-bold text-slate-800">
-                        تصفية حسب الموديل ({selectedModelIds.length > 0 ? `${selectedModelIds.length} محدد` : 'كافة الموديلات'}):
+                         حسب الموديل ({selectedModelIds.length > 0 ? `${selectedModelIds.length} محدد` : 'كافة الموديلات'}):
                       </label>
                       <div className="flex items-center gap-2 text-[11px]">
                         <button
@@ -1159,7 +1094,7 @@ export const MSSDeviceReportsView: React.FC = () => {
                   {/* Price Range Filter */}
                   <div className="space-y-1.5 p-3 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                      <label className="text-xs font-bold text-slate-800">نطاق السعر (Price Range):</label>
+                      <label className="text-xs font-bold text-slate-800">نطاق السعر :</label>
                       {(wholesaleMinPrice || wholesaleMaxPrice) && (
                         <button
                           type="button"

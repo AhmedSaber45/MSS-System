@@ -353,7 +353,7 @@ export function preparePromotionalItems(
   return Array.from(grouped.values()).map((g, index) => {
     const m = g.model;
     const screenText = formatScreenSummary(m?.screen_size, m?.specifications);
-    const locDisplay = g.locations.size > 0 ? Array.from(g.locations).join(' و ') : 'محل 1';
+    const locDisplay = g.locations.size > 0 ? Array.from(g.locations).join(' و ') : '';
     const condDisplay = g.conditions.size > 0 ? Array.from(g.conditions).join(' / ') : 'ممتازة';
     const genInfo = extractGenerationAndShortProcessor(m?.processor, m?.specifications);
 
@@ -1083,13 +1083,15 @@ export function renderPromotionalToCanvas(
   // Slogan & Info
   ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
   ctx.fillStyle = '#0f172a';
-  ctx.fillText('COMPU MSS — أجهزة أصلية معتمدة مع الضمان الشامل', width / 2, footY + 34);
+  ctx.fillText('', width / 2, footY + 34);
 
   ctx.font = '14px "Segoe UI", Cairo, Arial, sans-serif';
   ctx.fillStyle = '#64748b';
   const activeBranches = mssOperationalService.getActiveLocationNamesSync();
-  const branchesText = activeBranches.length > 0 ? activeBranches.join(' • ') : 'محل 1 • محل 2';
-  ctx.fillText(`للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: ${branchesText}`, width / 2, footY + 56);
+  const branchesText = activeBranches.length > 0 ? activeBranches.join(' • ') : '';
+  if (branchesText) {
+    ctx.fillText(`${branchesText}`, width / 2, footY + 56);
+  }
   ctx.restore();
 }
 
@@ -1104,23 +1106,18 @@ export async function exportPromotionalAsPng(canvasOrDataUrl: HTMLCanvasElement 
     ? canvasOrDataUrl
     : canvasOrDataUrl.toDataURL('image/png', 1.0);
 
-  if (exportStorageService.isDestinationConfigured() || exportStorageService.isPickerSupported()) {
-    const res = await exportStorageService.saveExportedFile({
-      exportType: 'mss_images',
-      filename: finalFilename,
-      data: dataUrl,
-      mimeType: 'image/png',
-      skipFallbackDownload: true,
-    });
+  const res = await exportStorageService.saveExportedFile({
+    exportType: 'mss_images',
+    filename: finalFilename,
+    data: dataUrl,
+    mimeType: 'image/png',
+  });
 
-    if (!res.success) {
-      throw new Error(res.error || 'تم إلغاء أو تعذر حفظ الصورة الترويجية.');
-    }
-
-    return res;
+  if (!res.success) {
+    throw new Error(res.error || 'تم إلغاء أو تعذر حفظ الصورة الترويجية.');
   }
 
-  return { success: true, savedToCustomLocation: false, filename: finalFilename };
+  return res;
 }
 
 /**
@@ -1260,18 +1257,15 @@ export async function exportPromotionalAsPdf(
   const buffer = new Uint8Array(rawArrayBuffer);
 
   // Route saving through centralized export storage service (Folder: MSS System Files/MSS Images)
-  if (exportStorageService.isDestinationConfigured() || exportStorageService.isPickerSupported()) {
-    const saveResult = await exportStorageService.saveExportedFile({
-      exportType: 'mss_images',
-      filename: finalPdfName,
-      data: buffer,
-      mimeType: 'application/pdf',
-      skipFallbackDownload: true,
-    });
+  const saveResult = await exportStorageService.saveExportedFile({
+    exportType: 'mss_images',
+    filename: finalPdfName,
+    data: buffer,
+    mimeType: 'application/pdf',
+  });
 
-    if (!saveResult.success) {
-      throw new Error(saveResult.error || 'تم إلغاء أو تعذر حفظ كتالوج الصور بتنسيق PDF.');
-    }
+  if (!saveResult.success) {
+    throw new Error(saveResult.error || 'تم إلغاء أو تعذر حفظ كتالوج الصور بتنسيق PDF.');
   }
 
   return {

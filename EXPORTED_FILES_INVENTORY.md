@@ -23,7 +23,7 @@ Every entry has been audited directly against the production codebase implementa
 | 11 | Accessories | DB / JSON | `MSS_Backup_${YYYY-MM-DD_HH-mm-ss}.db` أو `Export-${filename}`<br>*(Fallback: `accessories_backup_${timestamp}_${type}.db` / `backup_${timestamp}.json`)* | إدارة النسخ الاحتياطي (Backup Management & Export) |
 | 12 | Unified Dashboard | PDF | `تقرير_تنفيذي_موحد_${dateStr}.pdf`<br>*(e.g., `تقرير_تنفيذي_موحد_2026-11-21.pdf`)* | النظرة العامة الموحدة (Unified Cross-Module Executive Overview) |
 | 13 | Accessories | PDF | `تقرير_مصروفات_المحل_${periodLabel}_${dateStr}.pdf`<br>*(e.g., `تقرير_مصروفات_المحل_هذا_الشهر_2026-11-21.pdf`)* | مصروفات المحل (Accessories Operating Expenses Report) |
-| 14 | Compu MSS | PDF | `تقرير_مصروفات_MSS_${periodLabel}_${dateStr}.pdf`<br>*(e.g., `تقرير_مصروفات_MSS_هذا_الشهر_2026-11-21.pdf`)* | مصروفات MSS (Compu MSS Operating Expenses Report) |
+| 14 | Compu MSS | PDF | `تقرير_مصروفات_MSS_${periodLabel}_${dateStr}.pdf`<br>*(e.g., `تقرير_مصروفات_MSS_هذا_الشهر_2026-11-21.pdf`)* | مصروفات Compu MSS (Compu MSS Operating Expenses Report) |
 
 ---
 

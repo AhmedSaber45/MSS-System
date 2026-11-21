@@ -106,7 +106,7 @@ export const mssNavItems: NavItemConfig[] = [
   {
     id: 'inventory',
     label: 'المخزون ',
-    description: 'تتبع كل جهاز بسيرياله في محل 1 ومحل 2',
+    description: 'تتبع كل جهاز بسيرياله عبر كافة الفروع والمخازن',
     icon: Layers,
   },
   {
@@ -147,7 +147,7 @@ export const mssNavItems: NavItemConfig[] = [
   },
   {
     id: 'expenses',
-    label: 'مصروفات MSS',
+    label: 'مصروفات Compu MSS',
     description: 'إدارة المصروفات التشغيلية لـ Compu MSS وخصمها من صافي الأرباح',
     icon: ReceiptText,
   },

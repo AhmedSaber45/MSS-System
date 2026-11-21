@@ -41,8 +41,10 @@ import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useNotification } from '@/context/NotificationContext';
 import { formatArabicExportFilename } from '@/services/mssWholesaleExportService';
 import { documentPrintService } from '@/lib/documentPrintService';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 
 export const MSSReportsView: React.FC = () => {
+  const { locations } = useMSSLocations();
   const { setRoute } = useNavigation();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
@@ -125,32 +127,48 @@ export const MSSReportsView: React.FC = () => {
 
   const handleExportSoldLaptopsPdf = async () => {
     if (!soldLaptopsReport) return;
-    showNotification({
-      type: 'info',
-      title: 'استخراج تقرير مبيعات الأجهزة كـ PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند.',
-    });
-    await documentPrintService.exportToPdf('mss-sold-laptops-report-print', {
-      title: formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`, 'pdf'),
-      format: 'report',
-      orientation: 'portrait',
-      exportType: 'mss_reports',
-    });
+    try {
+      await documentPrintService.exportToPdf('mss-sold-laptops-report-print', {
+        title: formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`, 'pdf'),
+        format: 'report',
+        orientation: 'portrait',
+        exportType: 'mss_reports',
+      });
+      showNotification({
+        type: 'success',
+        title: 'استخراج تقرير مبيعات الأجهزة كـ PDF',
+        message: 'تم استخراج وتحميل تقرير مبيعات الأجهزة بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل استخراج PDF',
+        message: err?.message || 'تعذر استخراج تقرير مبيعات الأجهزة بتنسيق PDF.',
+      });
+    }
   };
 
   const handleExportPdf = async () => {
     if (!summary) return;
-    showNotification({
-      type: 'info',
-      title: 'استخراج تقرير أرباح Compu MSS كـ PDF',
-      message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند المالي الرسمي.',
-    });
-    await documentPrintService.exportToPdf('mss-report-document-root', {
-      title: formatArabicExportFilename(`تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`, 'pdf'),
-      format: 'report',
-      orientation: 'portrait',
-      exportType: 'mss_reports',
-    });
+    try {
+      await documentPrintService.exportToPdf('mss-report-document-root', {
+        title: formatArabicExportFilename(`تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`, 'pdf'),
+        format: 'report',
+        orientation: 'portrait',
+        exportType: 'mss_reports',
+      });
+      showNotification({
+        type: 'success',
+        title: 'استخراج تقرير أرباح Compu MSS كـ PDF',
+        message: 'تم استخراج وتحميل تقرير الأرباح المعتمد بتنسيق PDF بنجاح.',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل استخراج PDF',
+        message: err?.message || 'تعذر استخراج تقرير أرباح Compu MSS بتنسيق PDF.',
+      });
+    }
   };
 
   return (
@@ -158,9 +176,17 @@ export const MSSReportsView: React.FC = () => {
       {/* Header */}
       <PageHeader
         title="تقارير المبيعات والأرباح — Compu MSS"
-        subtitle="مؤشرات الأرباح الصافية، الإيرادات، وتوزيع المبيعات بين الفروع ومستحقات العملاء"
+        subtitle=""
         actions={
           <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setRoute('device-reports')}
+              className="font-semibold text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-50"
+            >
+              تقارير الأجهزة ومخزون الجملة &larr;
+            </Button>
             <Button
               variant="outline"
               size="md"
@@ -196,28 +222,6 @@ export const MSSReportsView: React.FC = () => {
         }
       />
 
-      {/* Banner Shortcut to Device Reports */}
-      <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2.5">
-          <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0" />
-          <div>
-            <span className="font-bold text-slate-900 block">
-              تقارير الأجهزة ومخزون الجملة (Excel Export)
-            </span>
-            <span className="text-slate-600">
-              تم تخصيص صفحة مستقلة لتقارير كميات الموديلات، الأجهزة المباعة، وتصدير قوائم المخزون المتاح للجملة بصيغة Excel.
-            </span>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setRoute('device-reports')}
-          className="font-bold border-emerald-300 hover:bg-emerald-100 text-emerald-900 shrink-0"
-        >
-          الانتقال إلى تقارير الأجهزة →
-        </Button>
-      </div>
 
       {/* Date Filter Bar */}
       <Card className="bg-white border-slate-300 shadow-2xs">
@@ -240,9 +244,8 @@ export const MSSReportsView: React.FC = () => {
                 <button
                   key={p.id}
                   type="button"
-                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    period === p.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${period === p.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   onClick={() => setPeriod(p.id as ReportPeriod)}
                 >
                   {p.label}
@@ -304,7 +307,7 @@ export const MSSReportsView: React.FC = () => {
             <StatsCard
               title="المصروفات التشغيلية"
               value={formatCurrency(summary.totalOperatingExpenses || 0)}
-              subtitle="مصروفات MSS للفترة"
+              subtitle="مصروفات Compu MSS للفترة"
               icon={ReceiptText}
             />
             <StatsCard
@@ -478,47 +481,36 @@ export const MSSReportsView: React.FC = () => {
                 <Laptop className="w-5 h-5 text-blue-700" />
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    تقرير مبيعات الأجهزة حسب الموديل والمخزن (Sold Laptops by Model & Warehouse)
+                    تقرير مبيعات الأجهزة حسب الموديل والمخزن
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    تقرير معتمد لحصر الأجهزة والكميات المباعة لكل موديل وفقاً للفرع البائع الأصلي
-                  </p>
+
                 </div>
               </div>
 
               {/* Warehouse Selection & Print Actions */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
+                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
                   <button
                     onClick={() => setSelectedWarehouse('ALL')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      selectedWarehouse === 'ALL'
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedWarehouse === 'ALL'
                         ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     كافة الفروع
                   </button>
-                  <button
-                    onClick={() => setSelectedWarehouse('محل 1')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      selectedWarehouse === 'محل 1'
-                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    محل 1
-                  </button>
-                  <button
-                    onClick={() => setSelectedWarehouse('محل 2')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      selectedWarehouse === 'محل 2'
-                        ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    محل 2
-                  </button>
+                  {locations.map(loc => (
+                    <button
+                      key={loc}
+                      onClick={() => setSelectedWarehouse(loc)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedWarehouse === loc
+                          ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
+                          : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                      {loc}
+                    </button>
+                  ))}
                 </div>
 
                 <Button
@@ -569,29 +561,19 @@ export const MSSReportsView: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
-                  <span className="text-xs font-semibold text-slate-500 block mb-1">
-                    مبيعات محل 1
-                  </span>
-                  <span className="font-mono text-xl font-bold text-blue-800 tabular-nums">
-                    {soldLaptopsReport.warehouse_totals['محل 1'] || 0} جهاز
-                  </span>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">
-                    الفرع الأول
-                  </span>
-                </div>
-
-                <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
-                  <span className="text-xs font-semibold text-slate-500 block mb-1">
-                    مبيعات محل 2
-                  </span>
-                  <span className="font-mono text-xl font-bold text-purple-800 tabular-nums">
-                    {soldLaptopsReport.warehouse_totals['محل 2'] || 0} جهاز
-                  </span>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">
-                    الفرع الثاني
-                  </span>
-                </div>
+                {locations.map(loc => (
+                  <div key={loc} className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                    <span className="text-xs font-semibold text-slate-500 block mb-1">
+                      مبيعات {loc}
+                    </span>
+                    <span className="font-mono text-xl font-bold text-slate-800 tabular-nums">
+                      {soldLaptopsReport.warehouse_totals[loc] || 0} جهاز
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">
+                      إجمالي مبيعات الموقع
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -613,10 +595,9 @@ export const MSSReportsView: React.FC = () => {
                       <th className="py-2.5 px-3">الموديل والماركة</th>
                       <th className="py-2.5 px-3">التصنيف</th>
                       {selectedWarehouse === 'ALL' ? (
-                        <>
-                          <th className="py-2.5 px-3 text-center bg-blue-50/30">مبيعات محل 1</th>
-                          <th className="py-2.5 px-3 text-center bg-purple-50/30">مبيعات محل 2</th>
-                        </>
+                        locations.map(loc => (
+                          <th key={loc} className="py-2.5 px-3 text-center bg-slate-50/50">مبيعات {loc}</th>
+                        ))
                       ) : (
                         <th className="py-2.5 px-3 text-center">المخزن / الفرع</th>
                       )}
@@ -627,7 +608,7 @@ export const MSSReportsView: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {!soldLaptopsReport || soldLaptopsReport.items.length === 0 ? (
                       <tr>
-                        <td colSpan={selectedWarehouse === 'ALL' ? 7 : 6} className="py-8 text-center text-slate-500">
+                        <td colSpan={selectedWarehouse === 'ALL' ? (5 + locations.length) : 6} className="py-8 text-center text-slate-500">
                           لا توجد مبيعات مسجلة لأجهزة اللابتوب في هذه الفترة {selectedWarehouse !== 'ALL' ? `لهذا الفرع (${selectedWarehouse})` : ''}
                         </td>
                       </tr>
@@ -649,17 +630,14 @@ export const MSSReportsView: React.FC = () => {
                             </Badge>
                           </td>
                           {selectedWarehouse === 'ALL' ? (
-                            <>
-                              <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-900 bg-blue-50/10">
-                                {it.warehouse_breakdown['محل 1'] || 0}
+                            locations.map(loc => (
+                              <td key={loc} className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 bg-slate-50/20">
+                                {it.warehouse_breakdown[loc] || 0}
                               </td>
-                              <td className="py-2.5 px-3 text-center font-mono font-bold text-purple-900 bg-purple-50/10">
-                                {it.warehouse_breakdown['محل 2'] || 0}
-                              </td>
-                            </>
+                            ))
                           ) : (
                             <td className="py-2.5 px-3 text-center">
-                              <Badge variant={selectedWarehouse === 'محل 1' ? 'primary' : 'default'} size="sm">
+                              <Badge variant="default" size="sm">
                                 {selectedWarehouse}
                               </Badge>
                             </td>
@@ -683,14 +661,11 @@ export const MSSReportsView: React.FC = () => {
                           الإجمالي الكلي لتقرير المبيعات ({soldLaptopsReport.items.length} موديل):
                         </td>
                         {selectedWarehouse === 'ALL' ? (
-                          <>
-                            <td className="py-3 px-3 text-center font-mono text-blue-900">
-                              {soldLaptopsReport.warehouse_totals['محل 1'] || 0} جهاز
+                          locations.map(loc => (
+                            <td key={loc} className="py-3 px-3 text-center font-mono text-slate-900">
+                              {soldLaptopsReport.warehouse_totals[loc] || 0} جهاز
                             </td>
-                            <td className="py-3 px-3 text-center font-mono text-purple-900">
-                              {soldLaptopsReport.warehouse_totals['محل 2'] || 0} جهاز
-                            </td>
-                          </>
+                          ))
                         ) : (
                           <td className="py-3 px-3 text-center font-mono">
                             {selectedWarehouse}
@@ -806,7 +781,7 @@ export const MSSReportsView: React.FC = () => {
                               <span className="font-mono text-[10px] text-slate-500">{d.serialNumber}</span>
                             </td>
                             <td className="py-2.5 px-3">
-                              <Badge variant={d.sellingBranch === 'محل 1' ? 'primary' : 'default'} size="sm">
+                              <Badge variant="default" size="sm">
                                 {d.sellingBranch}
                               </Badge>
                             </td>
@@ -824,13 +799,12 @@ export const MSSReportsView: React.FC = () => {
                             </td>
                             <td className="py-2.5 px-3 text-center">
                               <span
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                  d.isOverdue
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${d.isOverdue
                                     ? 'bg-rose-100 text-rose-900'
                                     : d.paymentStatus === 'PARTIALLY_PAID'
                                       ? 'bg-amber-100 text-amber-900'
                                       : 'bg-slate-100 text-slate-800'
-                                }`}
+                                  }`}
                               >
                                 {d.isOverdue
                                   ? 'متأخر'
@@ -1025,7 +999,7 @@ export const MSSReportsView: React.FC = () => {
                   <div>
                     <span className="text-slate-600 block">تفصيل الفروع:</span>
                     <span className="font-mono font-bold text-slate-800">
-                      محل 1: {soldLaptopsReport.warehouse_totals['محل 1'] || 0} • محل 2: {soldLaptopsReport.warehouse_totals['محل 2'] || 0}
+                      {locations.map(loc => `${loc}: ${soldLaptopsReport.warehouse_totals[loc] || 0}`).join(' • ')}
                     </span>
                   </div>
                 </div>
@@ -1040,10 +1014,9 @@ export const MSSReportsView: React.FC = () => {
                       <th className="py-2 px-2.5 text-right">الموديل والماركة</th>
                       <th className="py-2 px-2.5 text-right">التصنيف</th>
                       {selectedWarehouse === 'ALL' ? (
-                        <>
-                          <th className="py-2 px-2.5 text-center">محل 1</th>
-                          <th className="py-2 px-2.5 text-center">محل 2</th>
-                        </>
+                        locations.map(loc => (
+                          <th key={loc} className="py-2 px-2.5 text-center">{loc}</th>
+                        ))
                       ) : (
                         <th className="py-2 px-2.5 text-center">الفرع</th>
                       )}
@@ -1054,7 +1027,7 @@ export const MSSReportsView: React.FC = () => {
                   <tbody className="divide-y divide-slate-200">
                     {!soldLaptopsReport || soldLaptopsReport.items.length === 0 ? (
                       <tr>
-                        <td colSpan={selectedWarehouse === 'ALL' ? 6 : 5} className="py-6 text-center text-slate-500">
+                        <td colSpan={selectedWarehouse === 'ALL' ? (4 + locations.length) : 5} className="py-6 text-center text-slate-500">
                           لا توجد مبيعات في هذه الفترة
                         </td>
                       </tr>
@@ -1068,10 +1041,9 @@ export const MSSReportsView: React.FC = () => {
                           </td>
                           <td className="py-2 px-2.5">{it.category}</td>
                           {selectedWarehouse === 'ALL' ? (
-                            <>
-                              <td className="py-2 px-2.5 text-center font-mono">{it.warehouse_breakdown['محل 1'] || 0}</td>
-                              <td className="py-2 px-2.5 text-center font-mono">{it.warehouse_breakdown['محل 2'] || 0}</td>
-                            </>
+                            locations.map(loc => (
+                              <td key={loc} className="py-2 px-2.5 text-center font-mono">{it.warehouse_breakdown[loc] || 0}</td>
+                            ))
                           ) : (
                             <td className="py-2 px-2.5 text-center">{selectedWarehouse}</td>
                           )}
@@ -1086,10 +1058,9 @@ export const MSSReportsView: React.FC = () => {
                       <tr>
                         <td colSpan={3} className="py-2.5 px-2.5 text-right">المجموع الكلي:</td>
                         {selectedWarehouse === 'ALL' ? (
-                          <>
-                            <td className="py-2.5 px-2.5 text-center font-mono">{soldLaptopsReport.warehouse_totals['محل 1'] || 0}</td>
-                            <td className="py-2.5 px-2.5 text-center font-mono">{soldLaptopsReport.warehouse_totals['محل 2'] || 0}</td>
-                          </>
+                          locations.map(loc => (
+                            <td key={loc} className="py-2.5 px-2.5 text-center font-mono">{soldLaptopsReport.warehouse_totals[loc] || 0}</td>
+                          ))
                         ) : (
                           <td className="py-2.5 px-2.5 text-center">{selectedWarehouse}</td>
                         )}

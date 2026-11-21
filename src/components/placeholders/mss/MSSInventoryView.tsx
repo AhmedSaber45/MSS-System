@@ -88,8 +88,8 @@ export const MSSInventoryView: React.FC = () => {
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
   const [isMultiTransferWizardOpen, setIsMultiTransferWizardOpen] = useState<boolean>(false);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
-  const [wizardSource, setWizardSource] = useState<string>('محل 1');
-  const [wizardDest, setWizardDest] = useState<string>('محل 2');
+  const [wizardSource, setWizardSource] = useState<string>('');
+  const [wizardDest, setWizardDest] = useState<string>('');
   const [wizardNotes, setWizardNotes] = useState<string>('تحويل مخزون محدد');
   const [wizardPreview, setWizardPreview] = useState<TransferPreviewResponse | null>(null);
   const [wizardResult, setWizardResult] = useState<ExecuteTransferResult | null>(null);
@@ -115,7 +115,7 @@ export const MSSInventoryView: React.FC = () => {
   const [formListPrice, setFormListPrice] = useState<number | ''>(0);
   const [formPurchaseDate, setFormPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [formCondition, setFormCondition] = useState<string>('فرز أول ممتاز');
-  const [formLocation, setFormLocation] = useState<MSSStockLocation>('محل 1');
+  const [formLocation, setFormLocation] = useState<MSSStockLocation>('');
   const [formStatus, setFormStatus] = useState<MSSDeviceStatus>('AVAILABLE');
   const [formNotes, setFormNotes] = useState<string>('');
   const [formError, setFormError] = useState<string>('');
@@ -143,7 +143,7 @@ export const MSSInventoryView: React.FC = () => {
   const [isAssigningSerials, setIsAssigningSerials] = useState<boolean>(false);
 
   // Transfer Form State
-  const [transferTargetLocation, setTransferTargetLocation] = useState<MSSStockLocation>('محل 2');
+  const [transferTargetLocation, setTransferTargetLocation] = useState<MSSStockLocation>('');
   const [transferNotes, setTransferNotes] = useState<string>('');
   const [transferError, setTransferError] = useState<string>('');
 
@@ -197,22 +197,19 @@ export const MSSInventoryView: React.FC = () => {
     }
   }, [loadData]);
 
-  // Dynamic location options from system stores or fallback
+  // Dynamic location options from system stores
   const locationOptions = useMemo(() => {
-    if (systemStores.length > 0) {
-      return systemStores.map(s => s.name);
-    }
-    return ['محل 1', 'محل 2'];
+    return systemStores.map(s => s.name);
   }, [systemStores]);
 
   // Bulk Transfer Handlers
   const handleOpenBulkTransfer = () => {
     if (selectedDeviceIds.length === 0) return;
     const selectedDevs = devices.filter(d => selectedDeviceIds.includes(d.id));
-    const firstLoc = selectedDevs[0]?.stock_location || 'محل 1';
+    const firstLoc = selectedDevs[0]?.stock_location || (systemStores[0]?.name || '');
     setWizardSource(firstLoc);
     const otherStore =
-      systemStores.find(s => s.name !== firstLoc)?.name || (firstLoc === 'محل 1' ? 'محل 2' : 'محل 1');
+      systemStores.find(s => s.name !== firstLoc)?.name || '';
     setWizardDest(otherStore);
     setWizardNotes(`تحويل دفعة أجهزة (${selectedDeviceIds.length} جهاز)`);
     setWizardPreview(null);
@@ -520,7 +517,7 @@ export const MSSInventoryView: React.FC = () => {
 
     setSelectedDevice(dev);
     // Suggest the other shop
-    const target = locationOptions.find(l => l !== dev.stock_location) || locationOptions[0] || 'محل 2';
+    const target = locationOptions.find(l => l !== dev.stock_location) || locationOptions[0] || '';
     setTransferTargetLocation(target);
     setTransferNotes('لتعويض النقص فى المخزون الأخر');
     setTransferError('');
@@ -677,6 +674,8 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'select',
       header: 'تحديد',
+      align: 'center',
+      className: 'w-10 min-w-[40px] max-w-[40px] text-center px-1',
       render: (item: MSSDevice) => {
         const isEligible = item.status === 'AVAILABLE';
         const isChecked = selectedDeviceIds.includes(item.id);
@@ -692,7 +691,7 @@ export const MSSInventoryView: React.FC = () => {
                 );
               }}
               title={!isEligible ? 'غير متاح للتحويل (مباع أو محجوز)' : undefined}
-              className="rounded border-slate-300 text-blue-600 disabled:opacity-30 cursor-pointer"
+              className="rounded border-slate-300 text-blue-600 disabled:opacity-30 cursor-pointer h-4 w-4"
             />
           </div>
         );
@@ -701,37 +700,47 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'serial_number',
       header: 'السيريال نمبر',
+      align: 'right',
+      nowrap: true,
+      className: 'w-44 min-w-[150px] max-w-[180px] px-2',
       render: (item: MSSDevice) => (
         item.serial_number ? (
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 tracking-wide select-all tabular-nums">
+          <div className="flex items-center gap-1.5 justify-start">
+            <span
+              className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/70 px-2 py-0.5 rounded border border-slate-300 tracking-tight select-all tabular-nums truncate max-w-[140px] block"
+              title={item.serial_number}
+            >
               {item.serial_number}
             </span>
             <button
-              onClick={() => handleCopySerial(item.serial_number!)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopySerial(item.serial_number!);
+              }}
               title="نسخ السيريال"
-              className="text-slate-400 hover:text-slate-800 p-1 rounded hover:bg-slate-200 transition-colors"
+              className="text-slate-400 hover:text-slate-800 p-1 rounded hover:bg-slate-200 transition-colors shrink-0"
             >
               {copiedSerial === item.serial_number ? (
-                <Check className="w-4 h-4 text-emerald-600" />
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
               ) : (
-                <Copy className="w-4 h-4" />
+                <Copy className="w-3.5 h-3.5" />
               )}
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant="outline" size="sm" className="font-semibold text-slate-600 bg-slate-50 border-dashed">
-              بدون سيريال {item.quantity && item.quantity > 1 ? `(${item.quantity} وحدات)` : ''}
+          <div className="flex items-center gap-1 flex-wrap">
+            <Badge variant="outline" size="sm" className="font-semibold text-slate-500 bg-slate-50 border-dashed text-[11px] px-1.5 py-0.5 whitespace-nowrap">
+              بدون سيريال {item.quantity && item.quantity > 1 ? `(${item.quantity})` : ''}
             </Badge>
             {item.status === 'AVAILABLE' && (
               <button
                 type="button"
                 onClick={() => handleOpenAssignSerials(item)}
-                className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 transition-colors"
+                className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-bold bg-blue-50 px-1 py-0.5 rounded border border-blue-200 transition-colors shrink-0"
                 title="تعيين أرقام سيريال لهذه الوحدات غير المسلسلة"
               >
-                تعيين سيريال
+                تعيين
               </button>
             )}
           </div>
@@ -741,22 +750,25 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'model_name',
       header: 'الموديل والمواصفات',
+      align: 'right',
+      nowrap: false,
+      className: 'w-full min-w-[280px] px-3',
       render: (item: MSSDevice) => (
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+        <div className="min-w-[260px] space-y-0.5 py-0.5">
+          <div className="flex items-center gap-2 font-bold text-slate-900 text-xs sm:text-sm">
             {item.category === 'لابتوب' ? (
-              <Laptop className="w-4 h-4 text-slate-500" />
+              <Laptop className="w-4 h-4 text-slate-500 shrink-0" />
             ) : item.category === 'شاشة' ? (
-              <Monitor className="w-4 h-4 text-slate-500" />
+              <Monitor className="w-4 h-4 text-slate-500 shrink-0" />
             ) : (
-              <Box className="w-4 h-4 text-slate-500" />
+              <Box className="w-4 h-4 text-slate-500 shrink-0" />
             )}
-            <span>
+            <span className="leading-snug">
               {item.brand} {item.model_name}
             </span>
           </div>
           {item.model && (
-            <p className="text-xs text-slate-500 font-mono font-medium">
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               {[item.model.processor, item.model.gpu, item.model.ram, item.model.storage, item.model.screen_size]
                 .filter(x => x && x !== '-')
                 .join(' • ')}
@@ -768,10 +780,13 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'stock_location',
       header: 'موقع التخزين',
+      align: 'center',
+      nowrap: true,
+      className: 'w-24 min-w-[85px] max-w-[100px] text-center px-1.5',
       render: (item: MSSDevice) => (
-        <div className="flex items-center gap-2">
-          <Store className="w-4 h-4 text-slate-500" />
-          <Badge variant={item.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm" className="font-semibold">
+        <div className="flex items-center justify-center gap-1">
+          <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <Badge variant="default" size="sm" className="font-semibold text-xs whitespace-nowrap">
             {item.stock_location}
           </Badge>
         </div>
@@ -780,8 +795,14 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'physical_condition',
       header: 'الحالة',
+      align: 'center',
+      nowrap: false,
+      className: 'w-32 min-w-[110px] max-w-[140px] text-center px-1.5',
       render: (item: MSSDevice) => (
-        <span className="text-xs font-medium text-slate-700">
+        <span
+          className="text-xs font-medium text-slate-700 leading-tight block text-center line-clamp-2"
+          title={item.physical_condition}
+        >
           {item.physical_condition}
         </span>
       ),
@@ -789,28 +810,34 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'status',
       header: 'حالة الجهاز',
+      align: 'center',
+      nowrap: true,
+      className: 'w-24 min-w-[85px] max-w-[100px] text-center px-1.5',
       render: (item: MSSDevice) => {
         switch (item.status) {
           case 'AVAILABLE':
-            return <Badge variant="success" size="sm" className="font-semibold">متاح للبيع</Badge>;
+            return <Badge variant="success" size="sm" className="font-semibold text-xs whitespace-nowrap">متاح للبيع</Badge>;
           case 'RESERVED':
-            return <Badge variant="warning" size="sm" className="font-semibold">محجوز</Badge>;
+            return <Badge variant="warning" size="sm" className="font-semibold text-xs whitespace-nowrap">محجوز</Badge>;
           case 'SOLD':
-            return <Badge variant="default" size="sm" className="font-semibold">تم البيع</Badge>;
+            return <Badge variant="default" size="sm" className="font-semibold text-xs whitespace-nowrap">تم البيع</Badge>;
           case 'MAINTENANCE':
-            return <Badge variant="danger" size="sm" className="font-semibold">صيانة</Badge>;
+            return <Badge variant="danger" size="sm" className="font-semibold text-xs whitespace-nowrap">صيانة</Badge>;
           case 'RETURNED':
-            return <Badge variant="info" size="sm" className="font-semibold">مرتجع</Badge>;
+            return <Badge variant="info" size="sm" className="font-semibold text-xs whitespace-nowrap">مرتجع</Badge>;
           default:
-            return <Badge variant="default" size="sm" className="font-semibold">{item.status}</Badge>;
+            return <Badge variant="default" size="sm" className="font-semibold text-xs whitespace-nowrap">{item.status}</Badge>;
         }
       },
     },
     {
       key: 'purchase_cost',
       header: 'التكلفة',
+      align: 'left',
+      nowrap: true,
+      className: 'w-28 min-w-[90px] max-w-[110px] text-left px-2',
       render: (item: MSSDevice) => (
-        <span className="font-mono text-sm text-slate-600 font-medium tabular-nums">
+        <span className="font-mono text-xs sm:text-sm text-slate-600 font-medium tabular-nums block text-left whitespace-nowrap">
           {formatCurrency(item.purchase_cost)}
         </span>
       ),
@@ -818,8 +845,11 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'listPrice',
       header: 'سعر العرض',
+      align: 'left',
+      nowrap: true,
+      className: 'w-28 min-w-[90px] max-w-[110px] text-left px-2',
       render: (item: MSSDevice) => (
-        <span className="font-bold text-slate-900 text-sm font-mono tabular-nums">
+        <span className="font-bold text-slate-900 text-xs sm:text-sm font-mono tabular-nums block text-left whitespace-nowrap">
           {formatCurrency(item.list_price)}
         </span>
       ),
@@ -827,16 +857,19 @@ export const MSSInventoryView: React.FC = () => {
     {
       key: 'actions',
       header: 'إجراءات',
+      align: 'center',
+      nowrap: true,
+      className: 'w-24 min-w-[85px] max-w-[100px] text-center px-1',
       render: (item: MSSDevice) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center gap-0.5">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleOpenDetails(item)}
             title="تفاصيل الجهاز وسجل التنقلات"
-            className="p-1.5 text-slate-600 hover:text-slate-900"
+            className="p-1 text-slate-600 hover:text-slate-900 h-7 w-7"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           </Button>
 
           <Button
@@ -844,10 +877,10 @@ export const MSSInventoryView: React.FC = () => {
             size="sm"
             onClick={() => handleOpenTransfer(item)}
             title="نقل الجهاز للفرع الآخر"
-            className="p-1.5 text-slate-600 hover:text-slate-900"
+            className="p-1 text-slate-600 hover:text-slate-900 h-7 w-7"
             disabled={item.status === 'SOLD'}
           >
-            <ArrowLeftRight className="w-4 h-4" />
+            <ArrowLeftRight className="w-3.5 h-3.5" />
           </Button>
 
           <Button
@@ -855,9 +888,9 @@ export const MSSInventoryView: React.FC = () => {
             size="sm"
             onClick={() => handleOpenEdit(item)}
             title="تعديل بيانات الجهاز"
-            className="p-1.5 text-slate-600 hover:text-slate-900"
+            className="p-1 text-slate-600 hover:text-slate-900 h-7 w-7"
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-3.5 h-3.5" />
           </Button>
 
           {item.status !== 'SOLD' && (
@@ -866,9 +899,9 @@ export const MSSInventoryView: React.FC = () => {
               size="sm"
               onClick={() => handleOpenDelete(item)}
               title="حذف الجهاز من المخزون"
-              className="p-1.5 text-slate-400 hover:text-rose-700"
+              className="p-1 text-slate-400 hover:text-rose-700 h-7 w-7"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           )}
         </div>
@@ -940,7 +973,7 @@ export const MSSInventoryView: React.FC = () => {
         </Card>
 
         {locationOptions.map(loc => {
-          const count = summary?.location_breakdown?.[loc] ?? (loc === 'محل 1' ? summary?.available_shop1 : loc === 'محل 2' ? summary?.available_shop2 : 0) ?? 0;
+          const count = summary?.location_breakdown?.[loc] ?? 0;
           return (
             <Card key={loc} className="p-4 bg-white border border-slate-300 shadow-2xs">
               <p className="text-xs text-slate-600 font-bold mb-1">متوفر بـ {loc}</p>
@@ -1130,7 +1163,7 @@ export const MSSInventoryView: React.FC = () => {
                             </td>
 
                             <td className="p-3">
-                              <Badge variant={m.branch === 'محل 1' ? 'primary' : 'default'} size="sm">
+                              <Badge variant="default" size="sm">
                                 {m.branch}
                               </Badge>
                             </td>
@@ -1550,12 +1583,14 @@ export const MSSInventoryView: React.FC = () => {
               </Button>
             </Card>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
+            <div className="rounded-xl overflow-hidden shadow-2xs">
               <Table
                 columns={columns}
                 data={filteredDevices}
                 keyExtractor={(item: MSSDevice) => item.id}
                 pagination={{ pageSize: 9 }}
+                density="compact"
+                className="w-full text-right"
                 rowClassName={(item: MSSDevice) =>
                   item.status === 'SOLD'
                     ? 'opacity-60 bg-slate-50/80 text-slate-500 hover:bg-slate-100/80 transition-opacity'
@@ -1788,8 +1823,8 @@ export const MSSInventoryView: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="text-center">
                 <span className="text-[11px] text-slate-500 block mb-1">الموقع الحالي</span>
-                <Badge variant={selectedDevice?.stock_location === 'محل 1' ? 'primary' : 'default'}>
-                  {selectedDevice?.stock_location || 'محل 1'}
+                <Badge variant="default">
+                  {selectedDevice?.stock_location || '—'}
                 </Badge>
               </div>
 
@@ -1800,8 +1835,8 @@ export const MSSInventoryView: React.FC = () => {
 
               <div className="text-center">
                 <span className="text-[11px] text-slate-500 block mb-1">المحل المستلم</span>
-                <Badge variant={transferTargetLocation === 'محل 1' ? 'primary' : 'default'}>
-                  {transferTargetLocation}
+                <Badge variant="default">
+                  {transferTargetLocation || '—'}
                 </Badge>
               </div>
             </div>
@@ -1889,7 +1924,7 @@ export const MSSInventoryView: React.FC = () => {
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[10px] mb-0.5">الموقع :</span>
-                  <Badge variant={selectedDevice.stock_location === 'محل 1' ? 'primary' : 'default'}>
+                  <Badge variant="default">
                     {selectedDevice.stock_location}
                   </Badge>
                 </div>
@@ -2310,7 +2345,7 @@ export const MSSInventoryView: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <span className="text-[11px] text-slate-500 block">الموقع</span>
-                  <Badge variant={assignStockTarget.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+                  <Badge variant="default" size="sm">
                     {assignStockTarget.stock_location}
                   </Badge>
                 </div>
@@ -2398,14 +2433,12 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isCrossWarehouseModalOpen}
         onClose={() => setIsCrossWarehouseModalOpen(false)}
-        title="ملخص كميات الموديلات الشامل — كافة الفروع والمخازن"
-        subtitle="تقرير شامل يضمن تطبيق المعادلة: إجمالي الوحدات = الموجود بالمخزون + الوحدات المباعة"
-        size="xl"
+        title=" كميات الموديلات الشامل — كافة الفروع "
+        subtitle=""
+        size="6xl"
+        className="max-w-[95vw] 2xl:max-w-[1550px]"
         footer={
           <div className="flex justify-between items-center w-full">
-            <span className="text-xs text-slate-500 font-medium">
-              * يتم احتساب كافة الأجهزة المسلسلة والكميات المجمعة والمبيعات المعتمدة تلقائياً
-            </span>
             <Button variant="outline" size="sm" onClick={() => setIsCrossWarehouseModalOpen(false)}>
               إغلاق
             </Button>
@@ -2423,65 +2456,53 @@ export const MSSInventoryView: React.FC = () => {
             const isStrictMatch = grandTotal === grandExisting + grandSold;
 
             return (
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-300 text-xs">
-                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
-                  <span className="text-slate-500 block mb-0.5">الموجود بالمخزون (Existing)</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 p-3.5 bg-slate-50 rounded-xl border border-slate-300 text-xs">
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-slate-500 block mb-0.5">الموجود بالمخزون</span>
                   <span className="font-mono text-base font-bold text-emerald-800">{grandExisting} وحدة</span>
                   <span className="text-[10px] text-slate-500 block mt-0.5">
-                    ({grandSerial} مسلسل • {grandBulk} مجمع)
+                    ({grandSerial} مسلسل • {grandBulk} غير مسلسل)
                   </span>
                 </div>
 
-                <div className="p-2.5 bg-white rounded-lg border border-slate-200">
-                  <span className="text-slate-500 block mb-0.5">الوحدات المباعة (Sold)</span>
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-slate-500 block mb-0.5">الوحدات المباعة</span>
                   <span className="font-mono text-base font-bold text-slate-800">{grandSold} وحدة</span>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">مبيعات معتمدة من الفروع</span>
                 </div>
 
-                <div className="p-2.5 bg-blue-50/70 rounded-lg border border-blue-200">
-                  <span className="text-blue-900 font-bold block mb-0.5">إجمالي الوحدات (Total)</span>
+                <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200">
+                  <span className="text-blue-900 font-bold block mb-0.5">إجمالي الوحدات</span>
                   <span className="font-mono text-base font-bold text-blue-900">{grandTotal} وحدة</span>
-                  <span className="text-[10px] text-blue-700 block mt-0.5 font-medium">
-                    Total = Existing + Sold
-                  </span>
-                </div>
-
-                <div className="p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-200 flex flex-col justify-center">
-                  <span className="text-emerald-900 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>صحة المعادلة المحاسبية</span>
-                  </span>
-                  <span className="text-[11px] text-emerald-800 mt-1">
-                    {isStrictMatch ? '✓ المعادلة مطابقة 100% لكافة الموديلات' : 'تنبيه: يوجد فرق غير مطابق'}
-                  </span>
                 </div>
               </div>
             );
           })()}
 
           {/* Cross Warehouse Table */}
-          <div className="border border-slate-300 rounded-xl overflow-hidden bg-white">
-            <div className="overflow-x-auto max-h-[55vh]">
+          <div className="border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
+            <div className="overflow-x-auto max-h-[60vh]">
               <table className="w-full text-xs text-right border-collapse">
-                <thead className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold sticky top-0 z-10">
+                <thead className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold sticky top-0 z-10 select-none">
                   <tr>
-                    <th className="p-2.5">#</th>
-                    <th className="p-2.5">الموديل والماركة</th>
-                    <th className="p-2.5">التصنيف</th>
+                    <th className="p-3 text-center w-12 text-slate-600 font-bold">#</th>
+                    <th className="p-3 text-right min-w-[260px] font-bold text-slate-800">الموديل والماركة</th>
+                    <th className="p-3 text-center w-24 font-bold text-slate-800">التصنيف</th>
                     {locationOptions.map((loc, locIdx) => (
                       <th
                         key={loc}
-                        className={`p-2.5 text-center ${locIdx % 2 === 0 ? 'bg-blue-50/40' : 'bg-emerald-50/40'}`}
+                        className={`p-3 text-center min-w-[180px] font-bold ${
+                          locIdx % 2 === 0 ? 'bg-blue-50/50 text-blue-900' : 'bg-emerald-50/50 text-emerald-900'
+                        }`}
                       >
                         {loc} (موجود / مباع / إجمالي)
                       </th>
                     ))}
-                    <th className="p-2.5 text-center">الموجود الكلي</th>
-                    <th className="p-2.5 text-center">المباع الكلي</th>
-                    <th className="p-2.5 text-center font-bold text-blue-950">إجمالي الوحدات (Total)</th>
+                    <th className="p-3 text-center w-36 font-bold text-slate-800">الموجود الكلي</th>
+                    <th className="p-3 text-center w-28 font-bold text-slate-800">المباع الكلي</th>
+                    <th className="p-3 text-center w-32 font-bold text-blue-950 bg-blue-50/40">إجمالي الوحدات (Total)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {crossWarehouseSummaries.length === 0 ? (
                     <tr>
                       <td colSpan={6 + locationOptions.length} className="py-8 text-center text-slate-500">
@@ -2491,23 +2512,23 @@ export const MSSInventoryView: React.FC = () => {
                   ) : (
                     crossWarehouseSummaries.map((item, idx) => {
                       return (
-                        <tr key={item.model_id} className="hover:bg-slate-50/80">
-                          <td className="p-2.5 text-slate-500 font-mono text-[11px]">{idx + 1}</td>
-                          <td className="p-2.5 font-bold text-slate-900">
-                            <div>
-                              <span>{item.brand} {item.model_name}</span>
+                        <tr key={item.model_id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3 text-center text-slate-500 font-mono text-xs">{idx + 1}</td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-slate-900 text-xs sm:text-sm">{item.brand} {item.model_name}</span>
                               {item.model_code && (
-                                <span className="mr-1.5 font-mono text-[10px] text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">
+                                <span className="font-mono text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 font-semibold">
                                   {item.model_code}
                                 </span>
                               )}
                             </div>
                             {item.specifications && (
-                              <p className="text-[10px] text-slate-500 font-normal truncate max-w-xs">{item.specifications}</p>
+                              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">{item.specifications}</p>
                             )}
                           </td>
-                          <td className="p-2.5">
-                            <Badge variant="default" size="sm" className="text-[10px]">
+                          <td className="p-3 text-center">
+                            <Badge variant="default" size="sm" className="text-[11px] font-semibold">
                               {item.category}
                             </Badge>
                           </td>
@@ -2516,33 +2537,33 @@ export const MSSInventoryView: React.FC = () => {
                             return (
                               <td
                                 key={loc}
-                                className={`p-2.5 text-center font-mono text-[11px] ${
+                                className={`p-3 text-center font-mono text-xs whitespace-nowrap ${
                                   locIdx % 2 === 0 ? 'bg-blue-50/20' : 'bg-emerald-50/20'
                                 }`}
                               >
-                                <span className="text-emerald-800 font-semibold">{br.existing_units} موجود</span>
-                                <span className="mx-1 text-slate-400">/</span>
-                                <span className="text-slate-700 font-semibold">{br.sold_units} مباع</span>
-                                <span className="mx-1 text-slate-400">=</span>
-                                <span className="font-bold text-slate-900">{br.total_units}</span>
+                                <span className="text-emerald-700 font-bold">{br.existing_units} موجود</span>
+                                <span className="mx-1 text-slate-300">•</span>
+                                <span className="text-slate-600 font-medium">{br.sold_units} مباع</span>
+                                <span className="mx-1 text-slate-300">=</span>
+                                <span className="font-bold text-slate-900 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">{br.total_units}</span>
                               </td>
                             );
                           })}
-                          <td className="p-2.5 text-center">
-                            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                          <td className="p-3 text-center">
+                            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-300 text-xs inline-block">
                               {item.existing_units}
                             </span>
-                            <span className="block text-[9px] text-slate-500 font-mono mt-0.5">
-                              ({item.existing_serialized} مس / {item.existing_non_serialized} مج)
+                            <span className="block text-[10px] text-slate-500 font-mono mt-1 font-medium whitespace-nowrap">
+                              ({item.existing_serialized} مسلسل • {item.existing_non_serialized} غير مسلسل)
                             </span>
                           </td>
-                          <td className="p-2.5 text-center">
-                            <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-xs">
+                          <td className="p-3 text-center">
+                            <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-300 text-xs inline-block">
                               {item.sold_units}
                             </span>
                           </td>
-                          <td className="p-2.5 text-center">
-                            <span className="font-mono font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-300 text-xs">
+                          <td className="p-3 text-center">
+                            <span className="font-mono font-bold text-blue-900 bg-blue-100/80 px-3 py-1 rounded-full border border-blue-300 text-xs inline-block">
                               {item.total_units}
                             </span>
                           </td>
@@ -2554,13 +2575,13 @@ export const MSSInventoryView: React.FC = () => {
                 {crossWarehouseSummaries.length > 0 && (
                   <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs sticky bottom-0">
                     <tr>
-                      <td colSpan={3} className="p-2.5 text-right">
+                      <td colSpan={3} className="p-3 text-right font-bold text-slate-800">
                         الإجمالي الكلي لكافة الموديلات والفروع ({crossWarehouseSummaries.length} موديل):
                       </td>
                       {locationOptions.map((loc, locIdx) => (
                         <td
                           key={loc}
-                          className={`p-2.5 text-center font-mono ${
+                          className={`p-3 text-center font-mono ${
                             locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
                           }`}
                         >
@@ -2571,13 +2592,13 @@ export const MSSInventoryView: React.FC = () => {
                           وحدة
                         </td>
                       ))}
-                      <td className="p-2.5 text-center font-mono text-emerald-800">
+                      <td className="p-3 text-center font-mono text-emerald-800">
                         {crossWarehouseSummaries.reduce((s, it) => s + it.existing_units, 0)}
                       </td>
-                      <td className="p-2.5 text-center font-mono text-slate-800">
+                      <td className="p-3 text-center font-mono text-slate-800">
                         {crossWarehouseSummaries.reduce((s, it) => s + it.sold_units, 0)}
                       </td>
-                      <td className="p-2.5 text-center font-mono text-blue-900 text-sm">
+                      <td className="p-3 text-center font-mono text-blue-900 text-sm">
                         {crossWarehouseSummaries.reduce((s, it) => s + it.total_units, 0)}
                       </td>
                     </tr>

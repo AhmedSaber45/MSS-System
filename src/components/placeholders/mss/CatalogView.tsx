@@ -229,9 +229,7 @@ export const CatalogView: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2 mt-2.5 flex-wrap">
             {locations.map((loc, locIdx) => {
-              const count =
-                stats.locationTotals[loc] ??
-                (loc === 'محل 1' ? stats.totalAvailShop1 : loc === 'محل 2' ? stats.totalAvailShop2 : 0);
+              const count = stats.locationTotals[loc] ?? 0;
               return (
                 <span
                   key={loc}
@@ -391,9 +389,7 @@ export const CatalogView: React.FC = () => {
                       <td className="p-3.5 text-center">
                         <div className="inline-flex items-center gap-2 font-mono text-xs font-bold flex-wrap justify-center">
                           {locations.map((loc, locIdx) => {
-                            const count =
-                              (avail as any).branch_availability?.[loc] ??
-                              (loc === 'محل 1' ? avail.available_shop1 : loc === 'محل 2' ? avail.available_shop2 : 0);
+                            const count = (avail as any).branch_availability?.[loc] ?? 0;
                             return (
                               <span
                                 key={loc}
@@ -533,13 +529,15 @@ export const CatalogView: React.FC = () => {
                     <strong className="text-slate-900 font-bold font-mono text-sm">{formatCurrency(m.default_list_price)}</strong>
                   </div>
 
-                  <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold">
-                    <span className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300">
-                      م1: {avail.available_shop1}
-                    </span>
-                    <span className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300">
-                      م2: {avail.available_shop2}
-                    </span>
+                  <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold flex-wrap justify-end">
+                    {locations.map(loc => {
+                      const count = (avail as any).branch_availability?.[loc] || 0;
+                      return (
+                        <span key={loc} className="px-2 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300" title={`المتاح في ${loc}`}>
+                          {loc}: {count}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               </Card>

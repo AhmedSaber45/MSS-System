@@ -136,7 +136,7 @@ export const MSSAuditLogView: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title="سجل النشاط والتدقيق الإداري"
-        subtitle="سجل موثق محمي ضد التعديل"
+        subtitle="    "
         actions={
           <Button
             variant="outline"

@@ -1,128 +1,234 @@
-# Add Configurable Export Storage Location and Automatic File Organization
+# Final Production Cleanup & Version Release – Compu MSS System v1.0.2
 
-## Objective
-
-Add a new setting that allows the user to choose a custom destination folder for all exported and generated files from both modules:
+The development phase is complete. Prepare the entire application for its first clean production release by removing all dummy, demo, test, and development data from BOTH modules:
 
 - Accessories
-- Compu MSS (MSS)
+- Compu MSS
 
-## 1. Storage Location Setting
+Also update the application version to **1.0.2** everywhere it is referenced, including the Admin Dashboard.
 
-Add a new setting under the existing application Settings page:
+This is a comprehensive production cleanup, not a UI-only change.
 
-**Setting name:** Export Files Storage Location
+## 1. Comprehensive Data Audit
 
-- Allow the user to select a destination folder using the native Windows folder picker.
-- Display the currently selected path.
-- Allow changing the destination at any time.
-- Persist the selected path across application restarts.
-- Use the existing Tauri v2 architecture and secure filesystem APIs.
+Before making any deletion, inspect all data sources used by the application:
 
-## 2. Automatic Root Folder Creation
+- Supabase database.
+- Local SQLite database.
+- Local Storage.
+- Session Storage.
+- IndexedDB, if used.
+- Local synchronization queues and pending outbox records.
+- Any other local persistence mechanism.
 
-Inside the selected destination, create a root folder named:
+Identify all development, demo, placeholder, and test data created during development.
 
-`MSS System Files`
+Inspect both modules independently and identify all related tables, relationships, foreign keys, and dependencies.
 
-Create it automatically during the first export operation, not immediately when the user selects the destination.
+## 2. Remove Development and Dummy Business Data
 
-## 3. Exact Subfolder Names and Structure
+Remove all development/demo business records from BOTH Accessories and Compu MSS, including but not limited to:
 
-Use the following folder names **exactly as written**, including capitalization, spaces, and Arabic spelling:
+### Branches and Warehouses
+- Dummy shops and branches.
+- Dummy warehouses.
+- Placeholder branch and warehouse records.
+- Any development locations.
 
-```text
-MSS System Files/
-│
-├── فواتير الاكسسوارات/
-│
-├── فواتير MSS/
-│
-├── تقارير الاكسسوارات/
-│
-├── تقارير MSS/
-│
-├── MSS Excel Sheets/
-│
-├── MSS Images/
-│
-└── Accessories Excel sheets/
-```
+### Products and Inventory
+- Accessories products.
+- Accessories stock and inventory records.
+- Device products and models.
+- Device specifications and configurations.
+- Device inventory and stock distribution.
+- Dummy product images and related development records.
+- Any other dummy merchandise or inventory data.
 
-### Folder Mapping
+### Business Transactions
+- Sales and invoices.
+- Invoice items and details.
+- Returns and return records.
+- Device reservations.
+- Expenses.
+- Payments and payment records.
+- Customer records created for testing.
+- Supplier records created for testing.
+- Any other development transactions.
 
-| Export Type | Destination Folder |
-|---|---|
-| Accessories Invoices | فواتير الاكسسوارات |
-| Compu MSS Invoices | فواتير MSS |
-| Accessories Reports | تقارير الاكسسوارات |
-| Compu MSS Reports | تقارير MSS |
-| Compu MSS Excel Exports | MSS Exel Sheets |
-| Compu MSS Promotional Images (PNG/PDF) | MSS Images |
-| Accessories Excel Exports | Accessories Exel sheets |
+### Additional Development Data
+- Dummy reports or saved report records.
+- Test synchronization records.
+- Development notifications.
+- Demo settings or placeholder records.
+- Any other records that were added solely for development or testing.
 
-**Important:**
-- Do not translate, rename, or automatically correct any of the specified folder names.
-- Do not create all subfolders at startup or when the destination is selected.
-- Create each subfolder only when its corresponding export type is used for the first time.
-- Reuse existing folders for subsequent exports.
-- Do not create duplicate folders.
+Inspect the complete database schema instead of relying only on this list. Include all dependent and child records that belong to the development data.
 
-## 4. Integrate with All Existing Export Operations
+## 3. Remove All Existing Application Users
 
-Inspect the existing export implementations and route every relevant operation to its assigned folder.
+Remove all existing application users, including development accounts and test accounts.
 
-Cover both modules:
+Inspect both the authentication provider and any application-specific user tables.
 
-**Accessories:**
-- Invoices → `فواتير الاكسسوارات`
-- Reports → `تقارير الاكسسوارات`
-- Excel sheets → `Accessories Exel sheets`
+Important requirements:
 
-**Compu MSS:**
-- Invoices → `فواتير MSS`
-- Reports → `تقارير MSS`
-- Excel sheets → `MSS Exel Sheets`
-- Promotional PNG and PDF files → `MSS Images`
+- If Supabase Auth is used, delete users through the supported Supabase Auth Admin API or a secure administrative script.
+- Do NOT directly delete records from Supabase internal `auth` tables using ordinary SQL.
+- Remove related user profiles, roles, permissions, and development-specific associations where appropriate.
+- Remove local development user records and cached authentication state.
+- Never expose the Supabase service-role key or administrative credentials in frontend code, desktop bundles, logs, or committed files.
 
-Do not modify file contents, formatting, or existing filename conventions.
+### First Super Admin Bootstrap
 
-Use one centralized export-storage service instead of implementing separate destination logic in individual pages.
+Since all existing users will be deleted, prepare a secure procedure to create the first production Super Admin after cleanup.
 
-## 5. Error Handling and Data Safety
+- Do not create a fake default administrator.
+- Do not hardcode credentials.
+- Do not weaken authentication or authorization.
+- Document the exact secure steps required to create the first Super Admin.
+- Ensure the application can be accessed and initialized safely after the cleanup.
+- Preserve all existing permission and role logic.
 
-- If no custom destination is configured, preserve the existing export behavior or use a sensible default.
-- If the selected destination becomes unavailable, show a clear error and allow the user to choose another location.
-- Never silently lose an exported file.
-- Avoid unintentionally overwriting existing files.
-- Changing the destination must affect future exports without moving or deleting previously exported files.
-- Ensure multi-file and multi-page exports save all generated files in the correct folder.
+## 4. Local Data Cleanup
 
-## 6. Verification
+Clean the local application data as well:
 
-Verify that:
+- Remove development records from SQLite.
+- Clear dummy Accessories and Compu MSS data.
+- Remove development-only Local Storage and Session Storage entries.
+- Clear relevant IndexedDB data if present.
+- Remove stale synchronization queues and dummy pending operations.
+- Clear cached demo products, branches, warehouses, and users.
 
-1. The destination folder can be selected and saved from Settings.
-2. The selected path persists after restarting the application.
-3. `MSS System Files` is created on the first export.
-4. Each subfolder is created only when its corresponding export type is used.
-5. All seven folder names match the specified names exactly.
-6. Every export type saves files in the correct folder.
-7. Existing folders are reused without duplication.
-8. Changing the destination affects future exports.
-9. Existing file naming and generation behavior remain unchanged.
-10. Both Accessories and Compu MSS exports continue working.
+Do not blindly clear all browser storage or operating-system application data. Identify the exact keys, databases, and records owned by this application.
 
-## Execution Instructions
+Ensure the application starts with a genuinely clean state after the reset.
 
-1. Read the relevant `AGENTS.md` instructions.
-2. Inspect the existing Tauri filesystem architecture and export implementations.
-3. Implement the setting and centralized export-storage service directly.
-4. Integrate all existing export operations with the new service.
-5. Avoid unrelated refactoring or UI redesign.
-6. Run relevant tests, type checks, linting, and production build.
-7. Report the exact files changed, folder mappings, and verification results.
+## 5. Preserve the Database Schema and Application Structure
 
-If any database or Supabase schema change is genuinely necessary, provide one complete, consolidated, safe SQL migration file with its exact project path, thoroughly verified and ready for execution in Supabase SQL Editor. Do not execute it.
+This is a data cleanup, NOT a database redesign.
 
-Implement directly and stop for my review.
+- Preserve all existing production tables and their schemas.
+- Preserve columns, indexes, constraints, foreign keys, triggers, functions, RLS policies, and permissions.
+- Preserve essential application settings and configuration.
+- Preserve the existing application architecture and module separation.
+- Do not delete migrations or schema definitions.
+- Do not remove real application features or business logic.
+- Do not modify the Accessories/Compu MSS separation.
+- Do not introduce dummy fallback data after cleanup.
+
+The goal is an empty production-ready business database, not an empty or broken application.
+
+## 6. Backup and Destructive Operation Safety
+
+This cleanup is destructive and must be handled carefully.
+
+Before deleting anything:
+
+1. Identify the exact Supabase project and environment currently configured.
+2. Identify the local SQLite database file and its actual location.
+3. Generate a complete backup of the relevant database data.
+4. Preserve the backup outside the databases being cleaned.
+5. Report the number of records identified for deletion, grouped by module and data source.
+6. Identify any records that cannot confidently be classified as development data.
+
+Do not delete anything if the target database/environment is ambiguous or if the operation could unintentionally affect another project.
+
+### Execution Requirements
+
+- Prepare a controlled, repeatable cleanup procedure.
+- Avoid placing destructive deletion logic in normal application startup.
+- Do not automatically wipe data whenever the application launches.
+- Make the cleanup a deliberate one-time release operation.
+- Use dependency-aware deletion ordering and handle foreign keys correctly.
+- Make the operation safe against partial execution and document recovery steps.
+
+For Supabase:
+- If database cleanup requires SQL, generate ONE complete, consolidated, safe SQL cleanup file.
+- Include the exact file path.
+- Verify the complete SQL against the actual existing schema and relationships.
+- Make it ready for execution in the Supabase SQL Editor.
+- Do not claim that the SQL has been executed.
+- Handle Supabase Auth user deletion separately through the supported secure administrative process.
+
+For local SQLite:
+- Provide the appropriate verified cleanup script or migration procedure.
+- Preserve the database schema.
+- Ensure the correct database file is targeted.
+
+## 7. Update Application Version to 1.0.2 Everywhere
+
+Perform a comprehensive search across the entire project for the current application version and update all relevant version references to:
+
+**1.0.2**
+
+Inspect and update all applicable locations, including:
+
+- `package.json`.
+- `package-lock.json` or the existing package manager lockfile, where applicable.
+- `src-tauri/tauri.conf.json`.
+- Tauri application metadata and updater configuration.
+- Frontend application version constants.
+- About dialogs and application information screens.
+- Login screen or other visible version labels.
+- Admin Dashboard version display.
+- Admin Dashboard system information.
+- Update-related configuration.
+- Release metadata and documentation.
+- Any other location where the application version is displayed or consumed.
+
+### Version Consistency Rules
+- The Admin Dashboard must display `1.0.2`.
+- The desktop application metadata must identify the release as `1.0.2`.
+- Internal version constants must not conflict.
+- Do not change unrelated text, labels, or branding.
+- Do not accidentally modify dependency versions that are unrelated to the application's own version.
+
+## 8. Final Production Readiness Verification
+
+After preparing the cleanup and version changes, verify:
+
+### Data
+- No dummy branches or warehouses remain.
+- No dummy Accessories products or inventory records remain.
+- No dummy Compu MSS devices, models, or inventory records remain.
+- No development invoices, sales, returns, reservations, or expenses remain.
+- No development users remain after the approved cleanup procedure is executed.
+- No dummy data is recreated automatically by the application.
+- All database schemas and security policies remain intact.
+
+### Application
+- Accessories opens correctly with an empty initial business dataset.
+- Compu MSS opens correctly with an empty initial business dataset.
+- Both modules handle empty states correctly.
+- Branches and warehouses can be created normally.
+- Products, devices, and models can be added normally.
+- Authentication and Super Admin bootstrap work according to the documented procedure.
+- Offline behavior and synchronization remain functional.
+- No existing application functionality is broken.
+
+### Version
+- All relevant version references consistently show `1.0.2`.
+- The Admin Dashboard displays `1.0.2`.
+- The Tauri application metadata is updated correctly.
+
+Run available tests, type checks, linting, and production build checks.
+
+## 9. Final Report – Mandatory
+
+Provide a structured final report containing:
+
+1. All data sources inspected.
+2. Exact tables, storage keys, and local databases containing development data.
+3. Record counts identified for deletion, grouped by module.
+4. Exact files modified.
+5. Exact paths of the generated SQL cleanup file and local cleanup script.
+6. Backup locations and recovery instructions.
+7. The secure first Super Admin creation procedure.
+8. Every location where the application version was updated.
+9. Test and build results.
+10. Any remaining manual steps that require my approval or execution.
+
+**Important execution boundary:** Do not silently execute irreversible Supabase cleanup operations. Prepare the verified SQL and secure Auth cleanup procedure, clearly identify what I must execute, and distinguish prepared changes from changes actually applied.
+
+The final result must be a clean, production-ready Compu MSS application at version **1.0.2**, with no development/demo business data or development users remaining after the approved cleanup is completed.

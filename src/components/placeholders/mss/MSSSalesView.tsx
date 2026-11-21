@@ -80,7 +80,7 @@ export const MSSSalesView: React.FC = () => {
   const [itemError, setItemError] = useState<string>('');
 
   const { locations } = useMSSLocations();
-  const [sellingBranch, setSellingBranch] = useState<MSSStockLocation>(() => locations[0] || 'محل 1');
+  const [sellingBranch, setSellingBranch] = useState<MSSStockLocation>(() => locations[0] || '');
 
   useEffect(() => {
     if (locations.length > 0 && !locations.includes(sellingBranch)) {
@@ -400,7 +400,7 @@ export const MSSSalesView: React.FC = () => {
     <div className="space-y-5">
       <PageHeader
         title="بيع أجهزة Compu MSS"
-        subtitle="إصدار فواتير بيع وضمان (تدعم بيع جهاز واحد أو أجهزة متعددة ومخزون مجمع في فاتورة واحدة)"
+        subtitle=""
         actions={
           <Button
             variant="outline"
@@ -412,7 +412,7 @@ export const MSSSalesView: React.FC = () => {
             }
             className="border-slate-300 font-semibold"
           >
-            تحديث المخزون
+            Refresh 
           </Button>
         }
       />
@@ -425,7 +425,7 @@ export const MSSSalesView: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Laptop className="w-4.5 h-4.5 text-slate-600" />
-                <span>1. اختيار الأجهزة وإضافتها إلى الفاتورة (تحديد متعدد عبر مربعات الاختيار)</span>
+                <span>1. اختيار الأجهزة وإضافتها إلى الفاتورة     </span>
               </span>
               <span className="text-xs font-semibold text-slate-500">
                 المتاح: {availableDevices.length} جهاز/موديل
@@ -435,7 +435,7 @@ export const MSSSalesView: React.FC = () => {
             {/* Searchable multi-select with Checkboxes */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                اختر الأجهزة والموديلات المراد إدراجها في الفاتورة (حدد المربع بجانب كل جهاز):
+                اختر الأجهزة والموديلات المراد إدراجها في الفاتورة    :
               </label>
               <SearchableItemSelect<MSSDevice>
                 items={availableDevices}
@@ -502,7 +502,7 @@ export const MSSSalesView: React.FC = () => {
                           </div>
                         )}
 
-                        <Badge variant={d.stock_location === 'محل 1' ? 'primary' : 'default'} size="sm">
+                        <Badge variant="default" size="sm">
                           {d.stock_location}
                         </Badge>
                         <strong className="text-slate-900 font-mono text-xs font-bold tabular-nums">
@@ -526,7 +526,7 @@ export const MSSSalesView: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Layers className="w-4.5 h-4.5 text-slate-600" />
                 <span>
-                  2. قائمة الأجهزة بالفاتورة ({cartItems.length} بند / {totalUnits} جهاز)
+                  2. قائمة الأجهزة بالفاتورة  {totalUnits} جهاز
                 </span>
               </h3>
               {cartItems.length > 0 && (
@@ -547,9 +547,7 @@ export const MSSSalesView: React.FC = () => {
               <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-2">
                 <Laptop className="w-10 h-10 text-slate-400 mx-auto" />
                 <p className="text-sm font-semibold text-slate-700">لم يتم اختيار أي جهاز للفاتورة بعد</p>
-                <p className="text-xs text-slate-500">
-                  قم بتحديد الأجهزة المراد بيعها عبر وضع علامة (✓) في مربعات الاختيار أعلاه. يمكنك تحديد أكثر من جهاز وإدخال كمية للمخزون غير المسلسل.
-                </p>
+
               </div>
             ) : (
               <div className="space-y-3">
@@ -595,7 +593,7 @@ export const MSSSalesView: React.FC = () => {
                           </td>
                           <td className="p-2.5">
                             <Badge
-                              variant={item.source_branch === 'محل 1' ? 'primary' : 'default'}
+                              variant="default"
                               size="sm"
                             >
                               {item.source_branch}
