@@ -89,28 +89,28 @@ export const PrintableExpenseReportDocument: React.FC<PrintableExpenseReportProp
         </div>
       </div>
 
-      {/* 3. Category & Branch Breakdown */}
-      <div className="grid grid-cols-2 gap-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-
-
-        {/* Branch Breakdown */}
-        <div className="border border-slate-300 rounded-lg overflow-hidden">
-          <div className="bg-slate-100 px-3 py-2 font-bold text-xs text-slate-800 border-b border-slate-300">
-            توزيع المصروفات حسب الفرع
+      {/* 3. Branch Breakdown (Compu MSS only) */}
+      {moduleName === 'mss' && branchBreakdown && branchBreakdown.length > 0 && (
+        <div className="grid grid-cols-2 gap-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          {/* Branch Breakdown */}
+          <div className="border border-slate-300 rounded-lg overflow-hidden">
+            <div className="bg-slate-100 px-3 py-2 font-bold text-xs text-slate-800 border-b border-slate-300">
+              توزيع المصروفات حسب الفرع
+            </div>
+            <table className="w-full text-xs text-right">
+              <tbody className="divide-y divide-slate-200">
+                {branchBreakdown.map((b, i) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    <td className="py-1.5 px-3 font-medium text-slate-900">{b.branch}</td>
+                    <td className="py-1.5 px-3 text-center text-slate-500 font-mono">{b.count}</td>
+                    <td className="py-1.5 px-3 text-left font-bold font-mono text-slate-900">{formatCurrency(b.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <table className="w-full text-xs text-right">
-            <tbody className="divide-y divide-slate-200">
-              {branchBreakdown.map((b, i) => (
-                <tr key={i} className="hover:bg-slate-50">
-                  <td className="py-1.5 px-3 font-medium text-slate-900">{b.branch}</td>
-                  <td className="py-1.5 px-3 text-center text-slate-500 font-mono">{b.count}</td>
-                  <td className="py-1.5 px-3 text-left font-bold font-mono text-slate-900">{formatCurrency(b.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      </div>
+      )}
 
       {/* 4. Detailed Expenses Table */}
       <div className="space-y-2">
