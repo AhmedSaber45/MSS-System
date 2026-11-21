@@ -586,7 +586,7 @@ export function applyStyledExcelFormatting(
   // 2. Format Data Rows (Row 1 to rowCount)
   for (let r = 1; r <= rowCount; r++) {
     const isEvenRow = (r - 1) % 2 === 0;
-    const bgRgb = isEvenRow ? 'FFFFFF' : 'E2E8F0';
+    const bgRgb = isEvenRow ? 'FFFFFF' : 'F1F5F9';
     const rowData = rows[r - 1];
 
     for (let c = 0; c < colCount; c++) {
@@ -773,7 +773,7 @@ export const mssWholesaleExportService = {
     if (options.minPrice !== undefined && options.minPrice !== null && !isNaN(options.minPrice) && options.minPrice > 0) {
       allDevices = allDevices.filter(d => {
         const m = d.model || modelMap.get(d.model_id);
-        const p = Number(d.list_price) || Number(m?.default_list_price) || 0;
+        const p = Number(d.list_price ?? (d as any).price) || Number(m?.default_list_price) || 0;
         return p >= options.minPrice!;
       });
     }
@@ -782,7 +782,7 @@ export const mssWholesaleExportService = {
     if (options.maxPrice !== undefined && options.maxPrice !== null && !isNaN(options.maxPrice) && options.maxPrice > 0) {
       allDevices = allDevices.filter(d => {
         const m = d.model || modelMap.get(d.model_id);
-        const p = Number(d.list_price) || Number(m?.default_list_price) || 0;
+        const p = Number(d.list_price ?? (d as any).price) || Number(m?.default_list_price) || 0;
         return p <= options.maxPrice!;
       });
     }

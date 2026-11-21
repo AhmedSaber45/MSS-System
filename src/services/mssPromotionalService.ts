@@ -439,6 +439,42 @@ export function filterPromotionalItems(
 }
 
 /**
+ * Creates a mock canvas for non-browser/SSR/Node environments.
+ */
+function createFallbackCanvas(width = 1000, height = 1000): HTMLCanvasElement {
+  const noop = () => { };
+  const grad = { addColorStop: noop };
+  const mockCtx = new Proxy(
+    {
+      measureText: (text: string) => ({ width: (text || '').length * 8 }),
+      createLinearGradient: () => grad,
+      createRadialGradient: () => grad,
+      setLineDash: noop,
+      getLineDash: () => [],
+    },
+    {
+      get(target, prop) {
+        if (prop in target) {
+          return (target as any)[prop];
+        }
+        return noop;
+      },
+      set() {
+        return true;
+      },
+    }
+  );
+
+  return {
+    width,
+    height,
+    getContext: () => mockCtx,
+    toDataURL: () =>
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  } as any;
+}
+
+/**
  * Draws rounded rectangle helper for HTML5 Canvas.
  */
 function drawRoundedRect(
@@ -730,7 +766,7 @@ export function renderPromotionalToCanvas(
   const maxRows = itemsPerPage;
   const rowHeight = 56;
   const tableHeaderHeight = 64;
-  const headerSectionHeight = 270;
+  const headerSectionHeight = 280;
   const footerSectionHeight = 90;
 
   // Use uniform canvas height based on maxRows so every page has identical dimensions across PNG and PDF
@@ -743,134 +779,25 @@ export function renderPromotionalToCanvas(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, totalHeight);
 
-  // 2. Realistic Commercial Electronics Header Section: Deep Royal Blue Gradient with Radial Glow
-  const headerGrad = ctx.createLinearGradient(0, 0, width, headerSectionHeight);
-  headerGrad.addColorStop(0, '#04102e');
-  headerGrad.addColorStop(0.4, '#071c4d');
-  headerGrad.addColorStop(1, '#0c3582');
-  ctx.fillStyle = headerGrad;
+  // 2. Static Commercial Header Banner Section (Official COMPU MSS Header)
+  // Deep navy background matching banner edge lighting
+  ctx.fillStyle = '#040e24';
   ctx.fillRect(0, 0, width, headerSectionHeight);
 
-  // Central Electric Radial Studio Glow
-  const glowGrad = ctx.createRadialGradient(width / 2, 15, 10, width / 2, 70, 480);
-  glowGrad.addColorStop(0, 'rgba(37, 99, 235, 0.40)');
-  glowGrad.addColorStop(0.6, 'rgba(12, 53, 130, 0.15)');
-  glowGrad.addColorStop(1, 'rgba(4, 16, 46, 0)');
-  ctx.fillStyle = glowGrad;
-  ctx.fillRect(0, 0, width, headerSectionHeight);
-
-  // Studio floor sheen at bottom of header
-  const floorGrad = ctx.createLinearGradient(0, headerSectionHeight - 45, 0, headerSectionHeight);
-  floorGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  floorGrad.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
-  ctx.fillStyle = floorGrad;
-  ctx.fillRect(0, headerSectionHeight - 45, width, 45);
-
-  // Left Photorealistic Laptop (Dell XPS Studio Product Render)
-  const leftImg = getCachedImage(PROMOTIONAL_HEADER_ASSETS.laptopLeft);
-  if (leftImg && leftImg.complete && leftImg.naturalWidth > 0) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(175, headerSectionHeight - 22, 135, 14, -0.05, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fill();
-    ctx.restore();
-    ctx.drawImage(leftImg, 22, headerSectionHeight - 200, 290, 192);
+  // Draw the static COMPU MSS header banner asset, horizontally centered with aspect ratio preserved
+  const bannerImg = getCachedImage(PROMOTIONAL_HEADER_ASSETS.banner);
+  if (bannerImg && bannerImg.complete && bannerImg.naturalWidth > 0) {
+    const imgAspect = bannerImg.naturalWidth / bannerImg.naturalHeight || (1024 / 317);
+    let bannerW = width;
+    let bannerH = width / imgAspect;
+    if (bannerH > headerSectionHeight) {
+      bannerH = headerSectionHeight;
+      bannerW = bannerH * imgAspect;
+    }
+    const bannerX = (width - bannerW) / 2;
+    const bannerY = (headerSectionHeight - bannerH) / 2;
+    ctx.drawImage(bannerImg, bannerX, bannerY, bannerW, bannerH);
   }
-
-  // Right Photorealistic Laptop (Apple MacBook Pro Studio Product Render)
-  const rightImg = getCachedImage(PROMOTIONAL_HEADER_ASSETS.laptopRight);
-  if (rightImg && rightImg.complete && rightImg.naturalWidth > 0) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(width - 175, headerSectionHeight - 22, 135, 14, 0.05, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fill();
-    ctx.restore();
-    ctx.drawImage(rightImg, width - 312, headerSectionHeight - 200, 290, 192);
-  }
-
-  // Center Brand Identity & Commercial Typography
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.direction = 'rtl';
-
-  // Official COMPU MSS Company Circular Logo
-  const logoImg = getCachedImage(PROMOTIONAL_HEADER_ASSETS.logo);
-  const logoRadius = 26;
-  const logoX = width / 2;
-  const logoY = 36;
-  if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(logoX, logoY, logoRadius + 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(37, 99, 235, 0.4)';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(logoX, logoY, logoRadius, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(logoImg, logoX - logoRadius, logoY - logoRadius, logoRadius * 2, logoRadius * 2);
-    ctx.restore();
-
-    ctx.beginPath();
-    ctx.arc(logoX, logoY, logoRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  // Store Title Pill below Logo
-  const storeTitle = options.storeName || 'COMPU MSS';
-  ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
-  const stWidth = ctx.measureText(storeTitle).width + 24;
-  drawRoundedRect(ctx, (width - stWidth) / 2, 68, stWidth, 22, 11);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText(storeTitle, width / 2, 83);
-
-  // Main Arabic Headline (Line 1): "متوفر بفضل الله"
-  const mainHeadline = options.headline || 'متوفر بفضل الله';
-  ctx.font = 'bold 38px "Segoe UI", Cairo, Arial, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 2;
-  ctx.fillText(mainHeadline, width / 2, 130);
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Secondary Arabic Headline (Line 2): "أعلى جودة بأقل سعر"
-  const subHeadline = options.subHeadline || 'أعلى جودة بأقل سعر';
-  ctx.font = 'bold 34px "Segoe UI", Cairo, Arial, sans-serif';
-  ctx.fillStyle = '#facc15'; // Bright golden yellow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-  ctx.shadowBlur = 6;
-  ctx.fillText(subHeadline, width / 2, 176);
-  ctx.shadowBlur = 0;
-
-  // Elegant Curved Gold Accent Underline beneath Headline 2
-  const swooshW = ctx.measureText(subHeadline).width + 60;
-  const swooshStartX = (width - swooshW) / 2;
-  const swooshY = 192;
-
-  ctx.beginPath();
-  ctx.moveTo(swooshStartX, swooshY);
-  ctx.quadraticCurveTo(width / 2, swooshY + 10, swooshStartX + swooshW, swooshY - 2);
-  ctx.strokeStyle = '#facc15';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-
-  // Trust Badges from Official Brand Identity
-  ctx.font = 'bold 13px "Segoe UI", Cairo, Arial, sans-serif';
-  ctx.fillStyle = '#bae6fd';
-  ctx.fillText('جودة معتمدة  •  ضمان شامل  •  أقل سعر', width / 2, 224);
-  ctx.restore();
 
   // 3. Structured Specifications Table
   // Table margins: width 1140px, centered (left = 30)
@@ -1255,27 +1182,7 @@ export async function exportPromotionalAsPdf(
         if (typeof document !== 'undefined' && document.createElement) {
           canvas = document.createElement('canvas');
         } else {
-          canvas = {
-            width: PAGE_WIDTH,
-            height: PAGE_HEIGHT,
-            getContext: () => ({
-              fillRect: () => {},
-              fillText: () => {},
-              strokeText: () => {},
-              drawImage: () => {},
-              beginPath: () => {},
-              arc: () => {},
-              ellipse: () => {},
-              fill: () => {},
-              stroke: () => {},
-              save: () => {},
-              restore: () => {},
-              measureText: (text: string) => ({ width: text.length * 8 }),
-              createLinearGradient: () => ({ addColorStop: () => {} }),
-              createRadialGradient: () => ({ addColorStop: () => {} }),
-            }),
-            toDataURL: () => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-          } as any;
+          canvas = createFallbackCanvas(PAGE_WIDTH, PAGE_HEIGHT);
         }
 
         if (canvas) {
@@ -1379,27 +1286,7 @@ export async function exportPromotionalAllPagesAsPng(
         if (typeof document !== 'undefined' && document.createElement) {
           canvas = document.createElement('canvas');
         } else {
-          canvas = {
-            width: 1200,
-            height: 1000,
-            getContext: () => ({
-              fillRect: () => {},
-              fillText: () => {},
-              strokeText: () => {},
-              drawImage: () => {},
-              beginPath: () => {},
-              arc: () => {},
-              ellipse: () => {},
-              fill: () => {},
-              stroke: () => {},
-              save: () => {},
-              restore: () => {},
-              measureText: (text: string) => ({ width: text.length * 8 }),
-              createLinearGradient: () => ({ addColorStop: () => {} }),
-              createRadialGradient: () => ({ addColorStop: () => {} }),
-            }),
-            toDataURL: () => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-          } as any;
+          canvas = createFallbackCanvas(1200, 1000);
         }
 
         if (canvas) {

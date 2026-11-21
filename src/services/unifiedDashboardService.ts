@@ -99,21 +99,20 @@ export const unifiedDashboardService = {
         const session = await desktopAuthService.loadSecureSession();
         if (session && session.user) {
           const user = session.user;
-          const isSuperAdmin =
-            user.username === 'admin' ||
-            user.username === 'ahmed' ||
-            (user as any).role === 'superadmin' ||
-            (user as any).role === 'admin';
-
-          if (isSuperAdmin) {
-            scope = 'both';
-          } else if (
+          // 1. Strict source of truth: user's actual assigned module permission
+          if (
             user.allowedModules === 'accessories' ||
             user.allowedModules === 'mss' ||
             user.allowedModules === 'both' ||
             user.allowedModules === 'none'
           ) {
             scope = user.allowedModules;
+          } else if (
+            (user as any).role === 'superadmin' ||
+            user.username === 'admin' ||
+            user.username === 'ahmed'
+          ) {
+            scope = 'both';
           }
         }
       } catch (err) {

@@ -71,14 +71,24 @@ export const MSSDeviceReportsView: React.FC = () => {
   // =========================================================================
   // 1. WHOLESALE EXPORT CONTROLS & PREVIEW STATE
   // =========================================================================
+  // Default selection state matching canonical configuration:
+  // - includePrices: true (Checked)
+  // - includeQuantity: true (Checked)
+  // - includeSerialNumbers: false (Unchecked)
+  // - includeCategory: false (Unchecked)
+  // - includeScreen: false (Unchecked)
+  // - includeStatus: false (Unchecked)
+  // - includeBranch: false (Unchecked)
+  // - branchFilter: 'ALL' (كافة الفروع والمخازن)
+  // - priceSortOrder: 'asc' (من الأقل للأعلى)
   const [wholesaleOptions, setWholesaleOptions] = useState<WholesaleExportOptions>({
     includePrices: true,
     includeQuantity: true,
     includeSerialNumbers: false,
-    includeStatus: true,
-    includeBranch: true,
-    includeCategory: true,
-    includeScreen: true,
+    includeStatus: false,
+    includeBranch: false,
+    includeCategory: false,
+    includeScreen: false,
     branchFilter: 'ALL',
     priceSortOrder: 'asc',
   });
@@ -224,49 +234,47 @@ export const MSSDeviceReportsView: React.FC = () => {
     return list;
   }, [allModels, selectedCategories, selectedBrands]);
 
-  // Automatically prune selectedBrands if they are no longer in availableBrands
+  // Safely prune selectedBrands ONLY if a previously selected brand is genuinely no longer in availableBrands.
+  // Never prune while data is loading (allDevices.length === 0) and preserve identical array reference if unchanged.
   useEffect(() => {
-    if (selectedCategories.length > 0 && selectedBrands.length > 0) {
-      const validBrands = new Set(availableBrands);
-      setSelectedBrands(prev => prev.filter(b => validBrands.has(b)));
-    }
-  }, [selectedCategories, availableBrands]);
+    if (allDevices.length === 0 || availableBrands.length === 0) return;
+    setSelectedBrands(prev => {
+      if (prev.length === 0) return prev;
+      const validBrandNormalizedSet = new Set(availableBrands.map(b => b.trim().toLowerCase()));
+      const filtered = prev.filter(b => validBrandNormalizedSet.has(b.trim().toLowerCase()));
+      return filtered.length !== prev.length ? filtered : prev;
+    });
+  }, [availableBrands, allDevices.length]);
 
-  // Automatically prune selectedModelIds if they are no longer in availableModels
+  // Safely prune selectedModelIds ONLY if a previously selected model is genuinely no longer in availableModels.
+  // Never prune while data is loading (allModels.length === 0) and preserve identical array reference if unchanged.
   useEffect(() => {
-    if (selectedBrands.length > 0 || selectedCategories.length > 0) {
+    if (allModels.length === 0 || availableModels.length === 0) return;
+    setSelectedModelIds(prev => {
+      if (prev.length === 0) return prev;
       const validIds = new Set(availableModels.map(m => m.id));
-      setSelectedModelIds(prev => prev.filter(id => validIds.has(id)));
-    }
-  }, [selectedBrands, selectedCategories, availableModels]);
+      const filtered = prev.filter(id => validIds.has(id));
+      return filtered.length !== prev.length ? filtered : prev;
+    });
+  }, [availableModels, allModels.length]);
+
+  // Refs for stable, non-reactive access inside data loaders to prevent infinite re-fetching loops
+  const activeWholesaleFilterOptionsRef = useRef(activeWholesaleFilterOptions);
+  activeWholesaleFilterOptionsRef.current = activeWholesaleFilterOptions;
+
+  const activeFilterSignatureRef = useRef(activeFilterSignature);
+  activeFilterSignatureRef.current = activeFilterSignature;
+
+  const isFetchingRef = useRef<boolean>(false);
+  const isInitialMountRef = useRef<boolean>(true);
 
   // =========================================================================
-  // DATA LOADING
+  // DATA LOADING LIFECYCLE (Decoupled from client filter selections)
   // =========================================================================
-  const loadAllData = useCallback(async () => {
-    setIsLoading(true);
+
+  // Dedicated Sold Devices Report loader: only re-queries sold report when period/warehouse changes
+  const loadSoldReport = useCallback(async () => {
     try {
-      // 0. Load raw devices and models for promotional image generator and advanced filters
-      const [devices, models] = await Promise.all([
-        mssInventoryService.getDevices({ status: 'AVAILABLE' }),
-        mssCatalogService.getModels(),
-      ]);
-      setAllDevices(devices || []);
-      setAllModels(models || []);
-
-      // 1. Build wholesale export preview data using loaded devices
-      const { rows: previewRows } = await mssWholesaleExportService.buildWholesaleData(
-        activeWholesaleFilterOptions,
-        devices || []
-      );
-      setWholesaleData(previewRows || []);
-      setLoadedFilterSignature(activeFilterSignature);
-
-      // 2. Load model stock quantity summary
-      const crossSummaries = await mssInventoryService.getModelStockQuantitySummary();
-      setModelSummaries(crossSummaries);
-
-      // 3. Load sold devices report
       const dateFilter = unifiedDashboardService.calculateDateRange(
         soldPeriod,
         soldCustomStart,
@@ -280,6 +288,49 @@ export const MSSDeviceReportsView: React.FC = () => {
       });
       setSoldReport(soldData);
     } catch (err: any) {
+      console.warn('Failed to load sold devices report:', err);
+    }
+  }, [soldPeriod, soldCustomStart, soldCustomEnd, soldWarehouse]);
+
+  // Master data loader: queries all master inventory devices, catalog models, cross summaries, and sold report.
+  // Entirely decoupled from active wholesale filters to guarantee zero re-fetch cycles when filters change.
+  const loadAllData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setIsLoading(true);
+    try {
+      const dateFilter = unifiedDashboardService.calculateDateRange(
+        soldPeriod,
+        soldCustomStart,
+        soldCustomEnd
+      );
+      setSoldDateLabel(dateFilter.label);
+
+      // 0. Load raw devices, models, model summary, and sold report in parallel
+      const [devices, models, crossSummaries, soldData] = await Promise.all([
+        mssInventoryService.getDevices({ status: 'AVAILABLE' }),
+        mssCatalogService.getModels(),
+        mssInventoryService.getModelStockQuantitySummary(),
+        mssReportsService.getSoldLaptopsByModelReport({
+          warehouse: soldWarehouse,
+          startDate: dateFilter.startDate,
+          endDate: dateFilter.endDate,
+        }),
+      ]);
+
+      setAllDevices(devices || []);
+      setAllModels(models || []);
+      setModelSummaries(crossSummaries || []);
+      setSoldReport(soldData || null);
+
+      // 1. Build wholesale export preview data with loaded devices and active filters (without resetting filter selections)
+      const { rows: previewRows } = await mssWholesaleExportService.buildWholesaleData(
+        activeWholesaleFilterOptionsRef.current,
+        devices || []
+      );
+      setWholesaleData(previewRows || []);
+      setLoadedFilterSignature(activeFilterSignatureRef.current);
+    } catch (err: any) {
       console.warn('Failed to load device reports data:', err);
       showNotification({
         type: 'error',
@@ -288,12 +339,23 @@ export const MSSDeviceReportsView: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [activeWholesaleFilterOptions, activeFilterSignature, soldPeriod, soldCustomStart, soldCustomEnd, soldWarehouse, showNotification]);
+  }, [soldPeriod, soldCustomStart, soldCustomEnd, soldWarehouse, showNotification]);
 
+  // Initial master data load on component mount only (never on filter changes)
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
+
+  // Re-fetch sold report only when sold period or warehouse changes (after initial mount)
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+    loadSoldReport();
+  }, [loadSoldReport]);
 
   // Re-run wholesale preview instantaneously in-memory when activeWholesaleFilterOptions change
   useEffect(() => {
@@ -418,8 +480,8 @@ export const MSSDeviceReportsView: React.FC = () => {
       return;
     }
 
-    // If fullFilterSignature didn't change but filteredWholesaleRows changed:
-    // Retain only selections that still match active filters
+    // If fullFilterSignature didn't change but filteredWholesaleRows changed (e.g. background data refresh):
+    // Retain only selections that still match active filters without triggering unnecessary re-renders
     setSelectedRowKeys(prev => {
       const next = new Set<string>();
       prev.forEach(key => {
@@ -430,6 +492,10 @@ export const MSSDeviceReportsView: React.FC = () => {
       // If previous selections no longer match anything but matching items exist, auto-select all
       if (next.size === 0 && matchingKeys.length > 0) {
         return new Set(matchingKeys);
+      }
+      // Preserve identical Set reference if selections did not change to prevent re-render cascade
+      if (prev.size === next.size && Array.from(prev).every(k => next.has(k))) {
+        return prev;
       }
       return next;
     });

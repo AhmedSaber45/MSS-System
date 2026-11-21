@@ -288,7 +288,57 @@ describe('Fix Overview Statistics Page — Strict Module-Based Permissions', () 
       assert.ok(accData.accessories);
       assert.strictEqual(accData.mss, null);
 
-      // 3. Super Admin account preservation
+      // 3. Admin user with explicit accessories-only permission MUST resolve to accessories, NEVER both
+      await desktopAuthService.saveSecureSession({
+        sessionToken: 'test-token-admin-acc',
+        user: {
+          id: 'admin-acc-01',
+          username: 'admin',
+          role: 'admin',
+          displayName: 'Admin Accessories Only',
+          allowedModules: 'accessories',
+          assignedStoreIds: [],
+          credentialVersion: 1,
+          permissionVersion: 1,
+        },
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        lastOnlineValidationAt: new Date().toISOString(),
+        offlineMaxDays: 7,
+      });
+
+      const adminAccData = await unifiedDashboardService.getUnifiedDashboardData('all');
+      assert.strictEqual(adminAccData.moduleScope, 'accessories', 'Admin with allowedModules=accessories must resolve strictly to accessories');
+      assert.ok(adminAccData.accessories, 'Accessories summary must be present');
+      assert.strictEqual(adminAccData.mss, null, 'MSS summary must be null for admin with allowedModules=accessories');
+      assert.strictEqual(adminAccData.branchOperationalSales.length, 0, 'MSS branch sales must be empty');
+      assert.strictEqual(adminAccData.locationStockValuation.length, 0, 'MSS stock table must be empty');
+      assert.strictEqual(adminAccData.alerts.hasSyncAlerts, false, 'MSS sync alerts must be false');
+
+      // 4. Admin user with explicit mss-only permission MUST resolve to mss, NEVER both
+      await desktopAuthService.saveSecureSession({
+        sessionToken: 'test-token-admin-mss',
+        user: {
+          id: 'admin-mss-01',
+          username: 'admin',
+          role: 'admin',
+          displayName: 'Admin MSS Only',
+          allowedModules: 'mss',
+          assignedStoreIds: [],
+          credentialVersion: 1,
+          permissionVersion: 1,
+        },
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        lastOnlineValidationAt: new Date().toISOString(),
+        offlineMaxDays: 7,
+      });
+
+      const adminMssData = await unifiedDashboardService.getUnifiedDashboardData('all');
+      assert.strictEqual(adminMssData.moduleScope, 'mss', 'Admin with allowedModules=mss must resolve strictly to mss');
+      assert.strictEqual(adminMssData.accessories, null, 'Accessories summary must be null for admin with allowedModules=mss');
+      assert.ok(adminMssData.mss, 'MSS summary must be present');
+      assert.strictEqual(adminMssData.alerts.hasStockAlerts, false, 'Accessories stock alerts must be false');
+
+      // 5. Super Admin unconstrained account preservation
       await desktopAuthService.saveSecureSession({
         sessionToken: 'test-token-admin',
         user: {

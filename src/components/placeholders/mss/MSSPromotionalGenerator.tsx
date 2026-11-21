@@ -160,85 +160,15 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
       dir="rtl"
     >
       <div>
-        {/* 1. Realistic Commercial Electronics Header Section */}
-      <div className="relative bg-gradient-to-b from-[#04102e] via-[#071c4d] to-[#0c3582] px-6 pt-5 pb-6 text-center text-white overflow-hidden border-b border-sky-400/20">
-        {/* Realistic Studio Lighting Overlays */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.35)_0%,transparent_65%)] pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
-
-        {/* Left Photorealistic Laptop (Dell XPS Studio Product Render) */}
-        <div className="absolute left-4 bottom-1 w-56 h-36 hidden sm:block pointer-events-none select-none z-10 drop-shadow-[0_12px_16px_rgba(0,0,0,0.6)]">
+        {/* 1. Static Commercial Header Banner Section (Official COMPU MSS Header) */}
+        <div className="relative bg-[#040e24] text-center overflow-hidden border-b border-sky-400/20 flex items-center justify-center">
           <img
-            src={PROMOTIONAL_HEADER_ASSETS.laptopLeft}
-            alt="Commercial Laptop Display Left"
-            className="w-full h-full object-contain filter contrast-[1.03] brightness-[1.02]"
+            src={PROMOTIONAL_HEADER_ASSETS.banner}
+            alt="COMPU MSS Promotional Header"
+            className="w-full max-h-[280px] object-contain mx-auto block"
             loading="eager"
           />
         </div>
-
-        {/* Right Photorealistic Laptop (Apple MacBook Pro Studio Product Render) */}
-        <div className="absolute right-4 bottom-1 w-56 h-36 hidden sm:block pointer-events-none select-none z-10 drop-shadow-[0_12px_16px_rgba(0,0,0,0.6)]">
-          <img
-            src={PROMOTIONAL_HEADER_ASSETS.laptopRight}
-            alt="Commercial Laptop Display Right"
-            className="w-full h-full object-contain filter contrast-[1.03] brightness-[1.02]"
-            loading="eager"
-          />
-        </div>
-
-        {/* Center Brand Identity & Commercial Typography */}
-        <div className="relative z-20 flex flex-col items-center justify-center max-w-xl mx-auto">
-          {/* Official COMPU MSS Company Logo & Brand Badge */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden shadow-[0_0_15px_rgba(37,99,235,0.5)] border-2 border-slate-300/80 bg-[#04102e] shrink-0">
-              <img
-                src={PROMOTIONAL_HEADER_ASSETS.logo}
-                alt="COMPU MSS Official Logo"
-                className="w-full h-full object-cover"
-                loading="eager"
-              />
-            </div>
-            <div className="flex flex-col items-start text-right">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/10 border border-sky-400/35 text-sky-300 text-xs font-black tracking-wider uppercase">
-                {displayOptions.storeName || 'COMPU MSS'}
-              </div>
-              <span className="text-[10px] text-sky-200/75 font-semibold tracking-wide pr-1">
-                لاستيراد الكمبيوتر واللاب توب
-              </span>
-            </div>
-          </div>
-
-          {/* Primary Headline */}
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] font-cairo">
-            {displayOptions.headline || 'متوفر بفضل الله'}
-          </h1>
-
-          {/* Secondary Headline & Elegant Golden Underline Arc */}
-          <div className="relative inline-block mt-1">
-            <h2 className="text-2xl sm:text-3xl font-black text-[#facc15] tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] font-cairo">
-              {displayOptions.subHeadline || 'أعلى جودة بأقل سعر'}
-            </h2>
-            <svg viewBox="0 0 280 14" className="w-56 sm:w-64 h-3 mx-auto mt-0.5 text-[#facc15]" fill="none" stroke="currentColor">
-              <path d="M10,8 Q140,16 270,4" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Value Badges from Official Brand Identity */}
-          <div className="flex items-center gap-2 mt-1.5 text-[11px] font-bold text-sky-200/90 tracking-wide">
-            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
-              <span className="text-sky-400">✓</span> جودة معتمدة
-            </span>
-            <span className="text-sky-500/60">•</span>
-            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
-              <span className="text-sky-400">✓</span> ضمان شامل
-            </span>
-            <span className="text-sky-500/60">•</span>
-            <span className="inline-flex items-center gap-1 bg-sky-950/60 border border-sky-400/20 px-2 py-0.5 rounded-md">
-              <span className="text-sky-400">✓</span> أقل سعر
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5">
@@ -429,11 +359,15 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
     return models.filter(m => brandSet.has((m.brand || '').trim().toLowerCase()));
   }, [models, selectedBrands]);
 
-  // Automatically prune selectedModelIds when selectedBrands changes
+  // Safely prune selectedModelIds ONLY when selectedBrands changes and some selected model is no longer valid
   useEffect(() => {
-    if (selectedBrands.length > 0) {
+    if (selectedBrands.length > 0 && filteredModels.length > 0) {
       const validIds = new Set(filteredModels.map(m => m.id));
-      setSelectedModelIds(prev => prev.filter(id => validIds.has(id)));
+      setSelectedModelIds(prev => {
+        if (prev.length === 0) return prev;
+        const filtered = prev.filter(id => validIds.has(id));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
     }
   }, [selectedBrands, filteredModels]);
 
@@ -816,9 +750,9 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
           ...displayOptions,
           itemsPerPage,
           filename,
-        },
-        (curr, total) => {
-          setExportProgress({ isExporting: true, type: 'pdf', currentPage: curr, totalPages: total });
+          onProgress: (curr, total) => {
+            setExportProgress({ isExporting: true, type: 'pdf', currentPage: curr, totalPages: total });
+          },
         }
       );
 

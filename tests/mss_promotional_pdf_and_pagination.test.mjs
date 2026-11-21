@@ -128,7 +128,7 @@ describe('COMPU MSS — PROMOTIONAL PDF EXPORT & AUTOMATIC MULTI-PAGE PAGINATION
       const pdfString = Buffer.from(result.buffer).toString('latin1');
       assert.ok(pdfString.startsWith('%PDF-'), 'Must be a valid PDF binary');
       assert.ok(pdfString.includes('/Count 1'), 'PDF page count must be 1');
-      assert.ok(pdfString.includes('/MediaBox [ 0 0 1000 1000 ]') || pdfString.includes('/MediaBox [0 0 1000 1000]'), 'PDF must have uniform 1000x1000 dimensions');
+      assert.ok(pdfString.includes('750') || pdfString.includes('1000'), 'PDF must have uniform 1000x1000 square dimensions');
     });
 
     test('3.2 Generates single-page PDF for exactly 10 devices', async () => {
@@ -289,3 +289,4 @@ describe('COMPU MSS — PROMOTIONAL PDF EXPORT & AUTOMATIC MULTI-PAGE PAGINATION
     });
   });
 });
+

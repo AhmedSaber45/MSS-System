@@ -29,6 +29,7 @@ import {
 import { formatCurrency, formatPieceCount, cn } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
+import { desktopAuthService } from '@/services/desktopAuthService.ts';
 import { documentPrintService } from '@/lib/documentPrintService';
 import { PrintableUnifiedReport } from '@/components/reports/PrintableUnifiedReport';
 import type {
@@ -57,25 +58,51 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
   const [data, setData] = useState<UnifiedBusinessDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Authoritative scope resolution (Super Admin always has full 'both' access)
-  const isSuperAdmin =
-    user?.username === 'admin' ||
-    user?.username === 'ahmed' ||
-    (user as any)?.role === 'superadmin' ||
-    (user as any)?.role === 'admin';
+  // Authoritative module permission resolution (Source of truth: user.allowedModules)
+  const userAllowed = user?.allowedModules;
+  const isExplicitPermission =
+    userAllowed === 'accessories' ||
+    userAllowed === 'mss' ||
+    userAllowed === 'both' ||
+    userAllowed === 'none';
 
-  const effectiveScope: DashboardModuleScope = isSuperAdmin
+  const userPermissionScope: DashboardModuleScope = isExplicitPermission
+    ? userAllowed
+    : (user as any)?.role === 'superadmin' || user?.username === 'admin' || user?.username === 'ahmed'
     ? 'both'
-    : user?.allowedModules || 'both';
+    : 'both';
+
+  const canSwitchScope = userPermissionScope === 'both';
+  const [selectedScopeFilter, setSelectedScopeFilter] = useState<'both' | 'accessories' | 'mss'>('both');
+  const effectiveScope: DashboardModuleScope = canSwitchScope ? selectedScopeFilter : userPermissionScope;
+
+  // Reset manual filter if permission scope changes to single-module
+  useEffect(() => {
+    if (!canSwitchScope) {
+      setSelectedScopeFilter('both');
+    }
+  }, [canSwitchScope]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      let scopeToQuery = effectiveScope;
+      if (!user) {
+        // Fallback to secure session store if context user state has not settled yet
+        const session = await desktopAuthService.loadSecureSession();
+        if (session?.user?.allowedModules) {
+          const mod = session.user.allowedModules;
+          if (mod === 'accessories' || mod === 'mss' || mod === 'both' || mod === 'none') {
+            scopeToQuery = mod;
+          }
+        }
+      }
+
       const res = await unifiedDashboardService.getUnifiedDashboardData(
         period,
         customStart || undefined,
         customEnd || undefined,
-        effectiveScope
+        scopeToQuery
       );
       setData(res);
     } catch (err: any) {
@@ -88,7 +115,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [period, customStart, customEnd, effectiveScope, showNotification]);
+  }, [period, customStart, customEnd, effectiveScope, user, showNotification]);
 
   useEffect(() => {
     loadData();
@@ -327,14 +354,57 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 
           {/* Section 1: Executive Financial KPIs (Strictly Isolated Calculations) */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <Badge variant="outline" size="md"> 
-                {scope === 'accessories'
-                  ? 'قسم الإكسسوارات فقط'
-                  : scope === 'mss'
-                  ? 'قسم Compu MSS فقط'
-                  : 'الإكسسوارات + Compu MSS'}
-              </Badge>
+            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2.5">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={scope === 'accessories' ? 'primary' : scope === 'mss' ? 'purple' : 'outline'}
+                  size="md"
+                >
+                  {scope === 'accessories'
+                    ? 'قسم الإكسسوارات فقط'
+                    : scope === 'mss'
+                    ? 'قسم Compu MSS فقط'
+                    : 'الإكسسوارات + Compu MSS'}
+                </Badge>
+              </div>
+
+              {canSwitchScope && (
+                <div className="inline-flex rounded-xl border border-slate-300 p-1 bg-slate-100 text-xs shadow-sm">
+                  <button
+                    type="button"
+                    className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
+                      selectedScopeFilter === 'both'
+                        ? 'bg-white shadow-sm text-slate-900 font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                    onClick={() => setSelectedScopeFilter('both')}
+                  >
+                    الكل (الموحد)
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
+                      selectedScopeFilter === 'accessories'
+                        ? 'bg-white shadow-sm text-blue-700 font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                    onClick={() => setSelectedScopeFilter('accessories')}
+                  >
+                    الإكسسوارات فقط
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
+                      selectedScopeFilter === 'mss'
+                        ? 'bg-white shadow-sm text-teal-700 font-bold border border-slate-300'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                    onClick={() => setSelectedScopeFilter('mss')}
+                  >
+                    Compu MSS فقط
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
