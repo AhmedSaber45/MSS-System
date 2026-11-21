@@ -14,8 +14,13 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
+  FolderDown,
+  FolderOpen,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { autostartService } from '../../services/autostartService';
+import { exportStorageService } from '../../services/exportStorageService';
 import { useNotification } from '../../context/NotificationContext';
 import { isTauri } from '@tauri-apps/api/core';
 
@@ -32,9 +37,27 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
   const [startupMsg, setStartupMsg] = useState<string>('');
   const [hasCopiedPhone, setHasCopiedPhone] = useState<boolean>(false);
 
+  // Export Storage Location State (Single Editable Path Input)
+  const [exportLocation, setExportLocation] = useState<string | null>(exportStorageService.getStorageLocation());
+  const [inputPath, setInputPath] = useState<string>('');
+  const [isSavingPath, setIsSavingPath] = useState<boolean>(false);
+  const [pathError, setPathError] = useState<string>('');
+  const [locationValidation, setLocationValidation] = useState<{ valid: boolean; error?: string } | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       loadStartupStatus();
+      const loc = exportStorageService.getStorageLocation();
+      setExportLocation(loc);
+      setInputPath(loc || '');
+      setPathError('');
+      if (loc) {
+        exportStorageService.validateDestination(loc).then(res => {
+          setLocationValidation(res);
+        });
+      } else {
+        setLocationValidation(null);
+      }
     }
   }, [isOpen]);
 
@@ -50,6 +73,65 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
       console.warn('Failed to load startup status:', err);
     } finally {
       setIsLoadingStartup(false);
+    }
+  };
+
+  const handleSavePath = async () => {
+    setPathError('');
+    const trimmed = inputPath.trim();
+    if (!trimmed) {
+      setPathError('يرجى كتابة أو لصق مسار المجلد أولاً.');
+      return;
+    }
+
+    setIsSavingPath(true);
+    try {
+      const validation = await exportStorageService.validateDestination(trimmed);
+      if (!validation.valid) {
+        setPathError(validation.error || 'المسار غير صالح أو غير متاح للكتابة.');
+        return;
+      }
+
+      exportStorageService.setStorageLocation(trimmed);
+      setExportLocation(trimmed);
+      setInputPath(trimmed);
+      setLocationValidation(validation);
+      setPathError('');
+
+      showNotification({
+        type: 'success',
+        title: 'تم حفظ مسار التصدير بنجاح',
+        message: `تم تعيين مسار حفظ وتصدير ملفات النظام: ${trimmed}`,
+      });
+    } catch (err: any) {
+      setPathError(err?.message || 'فشل التحقق من المسار.');
+    } finally {
+      setIsSavingPath(false);
+    }
+  };
+
+  const handleClearExportLocation = () => {
+    exportStorageService.clearStorageLocation();
+    setExportLocation(null);
+    setInputPath('');
+    setLocationValidation(null);
+    setPathError('');
+    showNotification({
+      type: 'info',
+      title: 'تمت إزالة مسار التصدير',
+      message: 'تم تفريغ مسار التصدير بنجاح. يمكنك كتابة وإضافة مسار جديد في أي وقت.',
+    });
+  };
+
+  const handleOpenInExplorer = async () => {
+    try {
+      await exportStorageService.openFolderInExplorer();
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'تعذر فتح المجلد',
+        message: err.message || 'المسار غير موجود أو تعذر الوصول إليه.',
+      });
     }
   };
 
@@ -140,6 +222,122 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
           </div>
 
 
+        </div>
+
+        {/* Export Files Storage Location Feature */}
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-300 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <FolderDown className="w-4 h-4 text-emerald-600" />
+                <h4 className="font-bold text-slate-900 text-sm">Export Files Storage Location</h4>
+                <Badge
+                  variant={!exportLocation ? 'default' : locationValidation?.valid ? 'success' : 'danger'}
+                  size="sm"
+                  className="font-mono"
+                >
+                  {!exportLocation ? 'غير محدد' : locationValidation?.valid ? 'مفعل وجاهز' : 'غير متاح'}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                تحديد مسار مجلد مخصص لحفظ وتنظيم ملفات الفواتير، التقارير المالية، شيتات الإكسل، والصور الترويجية تلقائياً داخل مجلد <strong>MSS System Files</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* Current Saved Path display (if a path is saved) */}
+          {exportLocation ? (
+            <div className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 overflow-hidden flex-1">
+                <FolderOpen className="w-4 h-4 text-slate-400 shrink-0" />
+                <span
+                  className={`font-mono truncate dir-ltr text-left font-semibold ${
+                    locationValidation && !locationValidation.valid
+                      ? 'text-rose-700 line-through'
+                      : 'text-slate-800'
+                  }`}
+                  title={exportLocation}
+                >
+                  {exportLocation}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {locationValidation?.valid && (
+                  <button
+                    type="button"
+                    onClick={handleOpenInExplorer}
+                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                    title="فتح هذا المجلد في Windows Explorer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleClearExportLocation}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                  title="إزالة وتفريغ المسار"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-white rounded-lg border border-dashed border-slate-300 text-center text-xs text-slate-500">
+              لم يتم تعيين مسار لحفظ ملفات التصدير بعد. اكتب المسار أدناه واضغط &quot;إضافة المسار&quot;.
+            </div>
+          )}
+
+          {/* Inaccessible Warning Alert */}
+          {exportLocation && locationValidation && !locationValidation.valid && (
+            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold">المسار المحفوظ غير متاح أو تم نقله</p>
+                <p className="text-[11px] text-rose-600 leading-normal">
+                  {locationValidation.error || 'تعذر العثور على المجلد على القرص'}. يرجى إدخال مسار بديل أدناه والضغط على &quot;إضافة المسار&quot;.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Single Editable Path Input with Action Button ("إضافة المسار") */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-200">
+            <label className="font-semibold text-slate-700 block text-xs">
+              {exportLocation ? 'تعديل أو استبدال مسار التصدير:' : 'إضافة مسار التصدير:'}
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputPath}
+                onChange={e => {
+                  setInputPath(e.target.value);
+                  setPathError('');
+                }}
+                placeholder="مثال: C:\Users\Administrator\Desktop أو D:\MSS Exports"
+                className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-800 dir-ltr text-left"
+                dir="ltr"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleSavePath}
+                disabled={isSavingPath || !inputPath.trim()}
+                leftIcon={isSavingPath ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
+                className="shrink-0 text-xs font-bold"
+              >
+                إضافة المسار
+              </Button>
+            </div>
+
+            {pathError && (
+              <p className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-1">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{pathError}</span>
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Ownership and Copyright Section */}

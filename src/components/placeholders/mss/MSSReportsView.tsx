@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileSpreadsheet,
+  ReceiptText,
 } from 'lucide-react';
 import { useNavigation } from '@/context/NavigationContext';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -129,7 +130,12 @@ export const MSSReportsView: React.FC = () => {
       title: 'استخراج تقرير مبيعات الأجهزة كـ PDF',
       message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند.',
     });
-    await handlePrintSoldLaptopsReport();
+    await documentPrintService.exportToPdf('mss-sold-laptops-report-print', {
+      title: formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_حسب_الموديل_${selectedWarehouse}_${dateLabel || 'فترة'}`, 'pdf'),
+      format: 'report',
+      orientation: 'portrait',
+      exportType: 'mss_reports',
+    });
   };
 
   const handleExportPdf = async () => {
@@ -143,6 +149,7 @@ export const MSSReportsView: React.FC = () => {
       title: formatArabicExportFilename(`تقرير_أرباح_Compu_MSS_${dateLabel || 'فترة'}`, 'pdf'),
       format: 'report',
       orientation: 'portrait',
+      exportType: 'mss_reports',
     });
   };
 
@@ -269,7 +276,7 @@ export const MSSReportsView: React.FC = () => {
       ) : (
         <>
           {/* Financial KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <StatsCard
               title="إجمالي المبيعات"
               value={formatCurrency(summary.totalRevenue)}
@@ -289,10 +296,22 @@ export const MSSReportsView: React.FC = () => {
               icon={Laptop}
             />
             <StatsCard
-              title="مجمل الربح  "
+              title="مجمل الربح المشترك"
               value={formatCurrency(summary.grossProfit)}
               subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}% `}
               icon={TrendingUp}
+            />
+            <StatsCard
+              title="المصروفات التشغيلية"
+              value={formatCurrency(summary.totalOperatingExpenses || 0)}
+              subtitle="مصروفات MSS للفترة"
+              icon={ReceiptText}
+            />
+            <StatsCard
+              title="صافي الربح بعد المصروفات"
+              value={formatCurrency(summary.netProfit ?? (summary.grossProfit - (summary.totalOperatingExpenses || 0)))}
+              subtitle={`هامش صافي ${(summary.netProfitMarginPercent ?? 0).toFixed(1)}%`}
+              icon={Wallet}
             />
           </div>
 
@@ -880,9 +899,19 @@ export const MSSReportsView: React.FC = () => {
                       <td className="py-2 px-3.5 text-xs text-slate-600">تكلفة شراء الأجهزة المحفوظة تاريخياً</td>
                     </tr>
                     <tr className="bg-slate-50 font-bold">
-                      <td className="py-3 px-3.5 text-base text-emerald-900">مجمل الربح المشترك </td>
+                      <td className="py-3 px-3.5 text-base text-emerald-900">مجمل الربح المشترك (Gross Profit)</td>
                       <td className="py-3 px-3.5 font-mono text-base font-bold text-left text-emerald-800 tabular-nums">{formatCurrency(summary.grossProfit)}</td>
                       <td className="py-3 px-3.5 text-xs text-emerald-900 font-semibold">هامش ربح {summary.profitMarginPercent.toFixed(1)}% </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3.5 font-bold">المصروفات التشغيلية (Operating Expenses)</td>
+                      <td className="py-2 px-3.5 font-mono font-bold text-left text-rose-700 tabular-nums">- {formatCurrency(summary.totalOperatingExpenses || 0)}</td>
+                      <td className="py-2 px-3.5 text-xs text-slate-600">إجمالي مصروفات تشغيل MSS للفترة</td>
+                    </tr>
+                    <tr className="bg-emerald-50 border-t-2 border-emerald-900 font-bold">
+                      <td className="py-3 px-3.5 text-base text-emerald-950">صافي الربح بعد المصروفات (Net Profit)</td>
+                      <td className="py-3 px-3.5 font-mono text-lg font-bold text-left text-emerald-950 tabular-nums">{formatCurrency(summary.netProfit ?? (summary.grossProfit - (summary.totalOperatingExpenses || 0)))}</td>
+                      <td className="py-3 px-3.5 text-xs text-emerald-950 font-bold">هامش صافي {(summary.netProfitMarginPercent ?? 0).toFixed(1)}%</td>
                     </tr>
                   </tbody>
                 </table>

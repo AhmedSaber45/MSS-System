@@ -425,6 +425,7 @@ export const backupService = {
           returns: localStorage.getItem('shop_accessories_returns_v1'),
           return_items: localStorage.getItem('shop_accessories_return_items_v1'),
           movements: localStorage.getItem('shop_accessories_movements_v1'),
+          expenses: localStorage.getItem('shop_accessories_expenses_v1'),
         },
       };
 
@@ -842,6 +843,7 @@ export const backupService = {
     if (parsed.data.returns) localStorage.setItem('shop_accessories_returns_v1', parsed.data.returns);
     if (parsed.data.return_items) localStorage.setItem('shop_accessories_return_items_v1', parsed.data.return_items);
     if (parsed.data.movements) localStorage.setItem('shop_accessories_movements_v1', parsed.data.movements);
+    if (parsed.data.expenses) localStorage.setItem('shop_accessories_expenses_v1', parsed.data.expenses);
   },
 
   /**

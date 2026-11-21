@@ -399,6 +399,7 @@ export const mssCatalogService = {
           model_id: modelId,
           available_shop1: 0,
           available_shop2: 0,
+          branch_availability: {},
           total_available: 0,
           reserved_count: 0,
           sold_count: 0,
@@ -406,6 +407,13 @@ export const mssCatalogService = {
       }
 
       if (d.status === 'AVAILABLE') {
+        if (d.stock_location) {
+          if (!availabilityMap[modelId].branch_availability) {
+            availabilityMap[modelId].branch_availability = {};
+          }
+          availabilityMap[modelId].branch_availability![d.stock_location] =
+            (availabilityMap[modelId].branch_availability![d.stock_location] || 0) + 1;
+        }
         if (d.stock_location === 'محل 1') {
           availabilityMap[modelId].available_shop1++;
         } else if (d.stock_location === 'محل 2') {

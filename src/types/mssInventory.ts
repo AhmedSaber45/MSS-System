@@ -5,7 +5,7 @@ export type MSSModel = MSSCatalogModel;
 
 export type MSSDeviceStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD' | 'MAINTENANCE' | 'RETURNED';
 
-export type MSSStockLocation = 'محل 1' | 'محل 2';
+export type MSSStockLocation = string;
 
 export type MSSMovementStatus = 'COMPLETED' | 'PENDING' | 'IN_TRANSIT' | 'CANCELLED';
 
@@ -124,6 +124,7 @@ export interface MSSInventorySummary {
   available_non_serialized_total?: number;
   available_shop1: number;
   available_shop2: number;
+  location_breakdown?: Record<string, number>;
   reserved_total: number;
   sold_total: number;
   maintenance_total: number;

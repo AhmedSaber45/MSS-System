@@ -7,10 +7,13 @@
  * 3. Formal Profit & Financial Reports (multi-page financial statements with zero app-shell pollution)
  */
 
+import { exportStorageService, type ExportType, EXPORT_SUBFOLDERS } from '../services/exportStorageService.ts';
+
 export interface PrintDocumentOptions {
   title: string;
   format: 'a4' | 'thermal' | 'report' | 'promotional';
   orientation?: 'portrait' | 'landscape';
+  exportType?: ExportType;
   onBeforePrint?: () => void;
   onAfterPrint?: () => void;
 }
@@ -230,13 +233,42 @@ export const documentPrintService = {
 
   /**
    * Dedicated Save as PDF / Export PDF handler:
-   * Sets document title for auto-naming, then opens the print dialog configured for PDF export.
+   * Captures the document and saves it directly to the assigned subfolder (MSS System Files/<subfolder>).
+   * If no destination has been chosen yet, prompts the user to select one once, then remembers it permanently.
+   * Does NOT silently fall back to print dialog or an unrelated directory.
    */
   async exportToPdf(elementId: string, options: PrintDocumentOptions): Promise<void> {
+    const finalTitle = options.title.endsWith('.pdf') ? options.title : `${options.title}.pdf`;
     const pdfOptions: PrintDocumentOptions = {
       ...options,
-      title: options.title.endsWith('.pdf') ? options.title : `${options.title}`,
+      title: finalTitle,
     };
+
+    if (options.exportType) {
+      try {
+        const result = await exportStorageService.exportElementToPdf({
+          elementId,
+          filename: finalTitle,
+          exportType: options.exportType,
+          orientation: options.orientation,
+          format: options.format as any,
+        });
+
+        if (result.savedToCustomLocation) {
+          return;
+        }
+
+        // If export was cancelled by user or path is invalid, do not silently print!
+        if (!result.success) {
+          console.warn('PDF export not completed:', result.error);
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct exportElementToPdf failed:', err);
+        return;
+      }
+    }
+
     await this.printElement(elementId, pdfOptions);
   },
 };

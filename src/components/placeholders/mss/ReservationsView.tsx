@@ -25,6 +25,7 @@ import type {
   NewMSSReservationItemInput,
 } from '@/types/mssCommerce';
 import type { MSSDevice } from '@/types/mssInventory';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import {
   Plus,
   Search,
@@ -78,7 +79,14 @@ export const ReservationsView: React.FC = () => {
   const [pendingAgreedPrice, setPendingAgreedPrice] = useState<number | ''>(0);
   const [itemError, setItemError] = useState<string>('');
 
-  const [branch, setBranch] = useState<MSSStockLocation>('محل 1');
+  const { locations } = useMSSLocations();
+  const [branch, setBranch] = useState<MSSStockLocation>(() => locations[0] || 'محل 1');
+
+  useEffect(() => {
+    if (locations.length > 0 && !locations.includes(branch)) {
+      setBranch(locations[0]);
+    }
+  }, [locations, branch]);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [depositAmount, setDepositAmount] = useState<number | ''>(500);
@@ -137,7 +145,7 @@ export const ReservationsView: React.FC = () => {
     setPendingDevice(null);
     setPendingQuantity(1);
     setPendingAgreedPrice(0);
-    setBranch('محل 1');
+    setBranch(locations[0] || 'محل 1');
     setDepositAmount(500);
     setCustomerName('');
     setCustomerPhone('');
@@ -848,28 +856,21 @@ export const ReservationsView: React.FC = () => {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  كلا الفرعين
+                  كافة الفروع
                 </button>
-                <button
-                  onClick={() => setBranchFilter('محل 1')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    branchFilter === 'محل 1'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  محل 1
-                </button>
-                <button
-                  onClick={() => setBranchFilter('محل 2')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    branchFilter === 'محل 2'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  محل 2
-                </button>
+                {locations.map(loc => (
+                  <button
+                    key={loc}
+                    onClick={() => setBranchFilter(loc)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                      branchFilter === loc
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -1241,10 +1242,10 @@ export const ReservationsView: React.FC = () => {
             <Select
               value={branch}
               onChange={e => setBranch(e.target.value as MSSStockLocation)}
-              options={[
-                { value: 'محل 1', label: 'محل 1' },
-                { value: 'محل 2', label: 'محل 2' },
-              ]}
+              options={locations.map(loc => ({
+                value: loc,
+                label: loc,
+              }))}
             />
           </div>
 

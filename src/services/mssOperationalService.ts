@@ -24,7 +24,7 @@ const STORES_CACHE_KEY = 'shop_mss_stores_cache_v1';
 const AUDIT_CACHE_KEY = 'shop_mss_audit_cache_v1';
 const TRANSFERS_CACHE_KEY = 'shop_mss_transfers_cache_v1';
 
-// Initial seed stores for offline preview
+// Initial seed stores for offline preview - only actual locations (محل 1, محل 2)
 const DEFAULT_SEED_STORES: SystemStore[] = [
   {
     id: 'store-00000000-0000-0000-0000-000000000001',
@@ -56,22 +56,20 @@ const DEFAULT_SEED_STORES: SystemStore[] = [
     deviceCount: 0,
     assignedUsersCount: 1,
   },
-  {
-    id: 'store-00000000-0000-0000-0000-000000000003',
-    code: 'WH01',
-    name: 'المخزن المركزي',
-    type: 'warehouse',
-    description: 'مستودع الأجهزة الواردة والشاشات',
-    address: 'مدينة نصر - المنطقة الصناعية',
-    phone: '01030137637',
-    isActive: true,
-    isArchived: false,
-    createdAt: '2024-02-01T00:00:00Z',
-    updatedAt: '2024-02-01T00:00:00Z',
-    deviceCount: 0,
-    assignedUsersCount: 1,
-  },
 ];
+
+const FICTIONAL_STORE_CODES = ['WH01', 'WH_MAIN'];
+const FICTIONAL_STORE_NAMES = ['المخزن المركزي', 'المخزن الرئيسي (المركزي)'];
+
+function sanitizeStoresList(stores: SystemStore[]): SystemStore[] {
+  return stores.filter(s => {
+    const code = s.code?.toUpperCase?.() || '';
+    const name = s.name?.trim?.() || '';
+    if (FICTIONAL_STORE_CODES.includes(code) || FICTIONAL_STORE_NAMES.includes(name)) return false;
+    if (name.includes('تجريبي') || code.includes('TEST') || code.includes('TAG_') || /\d{10,}/.test(name)) return false;
+    return true;
+  });
+}
 
 function getCachedStores(): SystemStore[] {
   try {
@@ -81,7 +79,15 @@ function getCachedStores(): SystemStore[] {
       return DEFAULT_SEED_STORES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_SEED_STORES;
+    const sanitized = Array.isArray(parsed) ? sanitizeStoresList(parsed) : [];
+    if (sanitized.length === 0) {
+      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(DEFAULT_SEED_STORES));
+      return DEFAULT_SEED_STORES;
+    }
+    if (sanitized.length !== parsed.length) {
+      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(sanitized));
+    }
+    return sanitized;
   } catch {
     return DEFAULT_SEED_STORES;
   }
@@ -96,6 +102,41 @@ function saveCachedStores(stores: SystemStore[]): void {
 }
 
 export const mssOperationalService = {
+  // ==========================================================================
+  // 1. DYNAMIC SOURCE OF TRUTH HELPERS & EVENTS
+  // ==========================================================================
+
+  notifyStoresChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mss-stores-changed'));
+    }
+  },
+
+  getActiveStoresSync(): SystemStore[] {
+    return getCachedStores().filter(s => s.isActive && !s.isArchived);
+  },
+
+  async getActiveStores(): Promise<SystemStore[]> {
+    const stores = await this.getStores({ status: 'active', includeArchived: false });
+    return stores.filter(s => s.isActive && !s.isArchived);
+  },
+
+  getActiveLocationNamesSync(): string[] {
+    const active = this.getActiveStoresSync();
+    const names = active.map(s => s.name.trim()).filter(Boolean);
+    return names.length > 0 ? names : ['محل 1', 'محل 2'];
+  },
+
+  async getActiveLocationNames(): Promise<string[]> {
+    try {
+      const active = await this.getActiveStores();
+      const names = active.map(s => s.name.trim()).filter(Boolean);
+      return names.length > 0 ? names : ['محل 1', 'محل 2'];
+    } catch {
+      return this.getActiveLocationNamesSync();
+    }
+  },
+
   // ==========================================================================
   // 1. STORES & WAREHOUSES
   // ==========================================================================
@@ -118,7 +159,7 @@ export const mssOperationalService = {
 
       const { data, error } = await query;
       if (!error && Array.isArray(data) && data.length > 0) {
-        stores = data.map((row: any) => ({
+        stores = sanitizeStoresList(data.map((row: any) => ({
           id: row.id,
           code: row.code,
           name: row.name,
@@ -132,7 +173,7 @@ export const mssOperationalService = {
           mergedIntoId: row.merged_into_id || undefined,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-        }));
+        })));
         saveCachedStores(stores);
         isCloudFetched = true;
       }
@@ -281,6 +322,7 @@ export const mssOperationalService = {
       metadata: { code: newStore.code, name: newStore.name, type: newStore.type },
     });
 
+    this.notifyStoresChanged();
     return newStore;
   },
 
@@ -350,6 +392,7 @@ export const mssOperationalService = {
       metadata: { name: updated.name, type: updated.type, isActive: updated.isActive },
     });
 
+    this.notifyStoresChanged();
     return updated;
   },
 
@@ -397,6 +440,8 @@ export const mssOperationalService = {
       targetId: storeId,
       metadata: { action: 'ARCHIVE', isArchived: true },
     });
+
+    this.notifyStoresChanged();
   },
 
   async assignUserToStore(
@@ -561,6 +606,8 @@ export const mssOperationalService = {
         destinationStoreId: targetDest.id,
       },
     });
+
+    this.notifyStoresChanged();
 
     return {
       success: true,

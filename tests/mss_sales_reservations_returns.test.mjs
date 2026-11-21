@@ -233,7 +233,7 @@ describe('Phase 08 — MSS Commercial Operations (Sales, Reservations & Returns)
       customer_phone: '01200001111',
       deposit_amount: 500,
       agreed_price: 9200,
-      expiry_date: '2026-11-20',
+      expiry_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
     });
 
     // Cancel the reservation

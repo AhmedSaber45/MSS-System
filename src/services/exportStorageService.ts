@@ -1,0 +1,898 @@
+import { isTauri } from '@tauri-apps/api/core';
+
+export type ExportType =
+  | 'accessories_invoices'
+  | 'mss_invoices'
+  | 'accessories_reports'
+  | 'mss_reports'
+  | 'mss_excel'
+  | 'mss_images'
+  | 'accessories_excel';
+
+export const ROOT_EXPORT_FOLDER = 'MSS System Files';
+
+export const EXPORT_FOLDERS = {
+  ROOT: ROOT_EXPORT_FOLDER,
+  ACCESSORIES_INVOICES: 'فواتير الاكسسوارات',
+  MSS_INVOICES: 'فواتير MSS',
+  ACCESSORIES_REPORTS: 'تقارير الاكسسوارات',
+  MSS_REPORTS: 'تقارير MSS',
+  MSS_EXCEL: 'MSS Exel Sheets',
+  MSS_IMAGES: 'MSS Images',
+  ACCESSORIES_EXCEL: 'Accessories Exel sheets',
+} as const;
+
+export const EXPORT_SUBFOLDERS: Record<ExportType, string> = {
+  accessories_invoices: EXPORT_FOLDERS.ACCESSORIES_INVOICES,
+  mss_invoices: EXPORT_FOLDERS.MSS_INVOICES,
+  accessories_reports: EXPORT_FOLDERS.ACCESSORIES_REPORTS,
+  mss_reports: EXPORT_FOLDERS.MSS_REPORTS,
+  mss_excel: EXPORT_FOLDERS.MSS_EXCEL,
+  mss_images: EXPORT_FOLDERS.MSS_IMAGES,
+  accessories_excel: EXPORT_FOLDERS.ACCESSORIES_EXCEL,
+};
+
+export const EXPORT_SUBFOLDER_ALIASES: Record<string, string[]> = {
+  mss_excel: ['MSS Exel Sheets', 'MSS Excel Sheets'],
+  accessories_excel: ['Accessories Exel sheets', 'Accessories Excel sheets'],
+};
+
+export const EXPORT_STORAGE_LOCATION_KEY = 'mss_export_storage_location_v1';
+export const EXPORT_FILES_REGISTRY_KEY = 'mss_export_files_registry_v1';
+export const EXPORT_CONFIG_FILE_NAME = 'export_storage_config.json';
+
+export interface SaveExportFileParams {
+  exportType: ExportType;
+  filename: string;
+  data: Uint8Array | ArrayBuffer | Blob | string; // Buffer, Blob, or base64 data URL
+  mimeType?: string;
+  skipFallbackDownload?: boolean;
+  interactive?: boolean;
+  allowDirectDownloadFallback?: boolean;
+}
+
+export interface SaveExportResult {
+  success: boolean;
+  savedToCustomLocation: boolean;
+  filePath?: string;
+  folderPath?: string;
+  filename: string;
+  error?: string;
+}
+
+export interface ExportElementPdfParams {
+  elementId: string;
+  filename: string;
+  exportType: ExportType;
+  orientation?: 'portrait' | 'landscape';
+  format?: 'a4' | 'thermal' | 'report';
+}
+
+export interface EnsureStorageLocationResult {
+  valid: boolean;
+  path: string | null;
+  error?: string;
+  newlySelected?: boolean;
+}
+
+type StorageChangeListener = (newPath: string | null) => void;
+const listeners = new Set<StorageChangeListener>();
+
+let cachedStorageLocation: string | null | undefined = undefined;
+let customFolderPicker: ((options?: { title?: string }) => Promise<string | null>) | null = null;
+
+let nodeFsInstance: any = null;
+let nodePathInstance: any = null;
+
+async function getNodeFs() {
+  if (nodeFsInstance) return { fs: nodeFsInstance, path: nodePathInstance };
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    try {
+      nodeFsInstance = await import('node:fs');
+      nodePathInstance = await import('node:path');
+      return { fs: nodeFsInstance, path: nodePathInstance };
+    } catch {
+      return { fs: null, path: null };
+    }
+  }
+  return { fs: null, path: null };
+}
+
+function getDiskConfigFilePath(): string | null {
+  if (typeof process === 'undefined' || !process.env) return null;
+  const base = process.env.LOCALAPPDATA || process.env.APPDATA || process.env.USERPROFILE || process.env.HOME;
+  if (!base) return null;
+  const sep = base.includes('/') ? '/' : '\\';
+  return `${base.replace(/[\\/]+$/, '')}${sep}CompuMSS${sep}${EXPORT_CONFIG_FILE_NAME}`;
+}
+
+function readDiskConfigSync(): string | null {
+  if (typeof process === 'undefined' || !process.versions?.node) return null;
+  try {
+    const configPath = getDiskConfigFilePath();
+    if (!configPath) return null;
+
+    let fsMod = nodeFsInstance;
+    if (!fsMod && typeof (globalThis as any).process?.getBuiltinModule === 'function') {
+      fsMod = (globalThis as any).process.getBuiltinModule('node:fs');
+    }
+
+    if (fsMod && fsMod.existsSync(configPath)) {
+      const raw = fsMod.readFileSync(configPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.storageLocation === 'string' && parsed.storageLocation.trim()) {
+        return parsed.storageLocation.trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+async function readDiskConfigAsync(): Promise<string | null> {
+  const { fs: fsMod } = await getNodeFs();
+  if (!fsMod) return null;
+  try {
+    const configPath = getDiskConfigFilePath();
+    if (configPath && fsMod.existsSync(configPath)) {
+      const raw = fsMod.readFileSync(configPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.storageLocation === 'string' && parsed.storageLocation.trim()) {
+        return parsed.storageLocation.trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+async function writeDiskConfigAsync(locationPath: string | null): Promise<void> {
+  const { fs: fsMod, path: pathMod } = await getNodeFs();
+  if (!fsMod || !pathMod) return;
+  try {
+    const configPath = getDiskConfigFilePath();
+    if (!configPath) return;
+    const dir = pathMod.dirname(configPath);
+    if (!fsMod.existsSync(dir)) {
+      fsMod.mkdirSync(dir, { recursive: true });
+    }
+    const data = {
+      storageLocation: locationPath,
+      updatedAt: new Date().toISOString(),
+      appName: 'Compu MSS',
+      version: '1.0.1',
+    };
+    fsMod.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to write export config file to disk:', err);
+  }
+}
+
+export const exportStorageService = {
+  /**
+   * Checks whether a native or custom folder picker is supported in the current environment.
+   */
+  isPickerSupported(): boolean {
+    if (customFolderPicker) return true;
+    if (isTauri()) return true;
+    if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) return true;
+    return false;
+  },
+
+  /**
+   * Sets a custom folder picker function (e.g. for testing or custom host integration).
+   */
+  setCustomFolderPicker(picker: ((options?: { title?: string }) => Promise<string | null>) | null): void {
+    customFolderPicker = picker;
+  },
+
+  /**
+   * Emits a user-facing notification via the global decoupled event bus.
+   */
+  dispatchNotification(item: { type: 'success' | 'error' | 'warning' | 'info'; title: string; message: string }): void {
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('mss-notification', { detail: item }));
+      } catch {
+        // ignore
+      }
+    }
+  },
+
+  /**
+   * Returns the currently configured export storage location path, or null if none.
+   * Reads from localStorage cache and persistent disk configuration.
+   */
+  getStorageLocation(): string | null {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const val = localStorage.getItem(EXPORT_STORAGE_LOCATION_KEY);
+      if (val && val.trim()) {
+        cachedStorageLocation = val.trim();
+        return cachedStorageLocation;
+      }
+    }
+    if (cachedStorageLocation !== undefined && cachedStorageLocation !== null) {
+      return cachedStorageLocation;
+    }
+    // Attempt reading from disk config
+    const diskPath = readDiskConfigSync();
+    if (diskPath) {
+      cachedStorageLocation = diskPath;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(EXPORT_STORAGE_LOCATION_KEY, diskPath);
+      }
+      return diskPath;
+    }
+    cachedStorageLocation = null;
+    return null;
+  },
+
+  /**
+   * Asynchronous check for storage location, attempting disk configuration read if localStorage is empty.
+   */
+  async getStorageLocationAsync(): Promise<string | null> {
+    const syncVal = this.getStorageLocation();
+    if (syncVal) return syncVal;
+    const diskVal = await readDiskConfigAsync();
+    if (diskVal && diskVal.trim()) {
+      const clean = diskVal.trim();
+      cachedStorageLocation = clean;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(EXPORT_STORAGE_LOCATION_KEY, clean);
+      }
+      return clean;
+    }
+    return null;
+  },
+
+  /**
+   * Sets or updates the custom export storage location path.
+   * Persists across application restarts, Windows reboots, and app rebuilds.
+   */
+  setStorageLocation(path: string | null): void {
+    let cleanPath: string | null = null;
+    if (path && path.trim()) {
+      const trimmed = path.trim();
+      // Handle Windows drive roots like C:\ or D:\, otherwise strip trailing slashes
+      if (/^[a-zA-Z]:[\\/]*$/.test(trimmed)) {
+        cleanPath = trimmed.slice(0, 2).toUpperCase() + '\\';
+      } else {
+        cleanPath = trimmed.replace(/[\\/]+$/, '');
+      }
+    }
+    cachedStorageLocation = cleanPath;
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (cleanPath) {
+        localStorage.setItem(EXPORT_STORAGE_LOCATION_KEY, cleanPath);
+      } else {
+        localStorage.removeItem(EXPORT_STORAGE_LOCATION_KEY);
+      }
+    }
+
+    // Persist to disk configuration file asynchronously
+    writeDiskConfigAsync(cleanPath);
+
+    listeners.forEach(fn => fn(cleanPath));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mss-export-storage-changed', { detail: { path: cleanPath } }));
+    }
+  },
+
+  /**
+   * Clears the custom export storage location.
+   */
+  clearStorageLocation(): void {
+    this.setStorageLocation(null);
+  },
+
+  /**
+   * Checks whether a custom destination is configured and non-empty.
+   */
+  isDestinationConfigured(): boolean {
+    return !!this.getStorageLocation();
+  },
+
+  /**
+   * Subscribe to changes to the export storage location.
+   */
+  subscribe(listener: StorageChangeListener): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
+  /**
+   * Open the native folder picker to select a destination folder.
+   * If a folder is chosen, immediately persists it permanently.
+   */
+  async selectDestinationFolder(options?: { title?: string }): Promise<string | null> {
+    const title = options?.title || 'اختر مجلد حفظ وتصدير ملفات النظام (Export Files Storage Location)';
+
+    // 0. Check custom picker hook (e.g. for testing)
+    if (customFolderPicker) {
+      const selected = await customFolderPicker({ title });
+      if (selected && typeof selected === 'string' && selected.trim()) {
+        const trimmed = selected.trim();
+        this.setStorageLocation(trimmed);
+        return trimmed;
+      }
+      return null;
+    }
+
+    if (isTauri()) {
+      // 1. Try official Tauri dialog plugin
+      try {
+        const dialogPlugin = await import('@tauri-apps/plugin-dialog');
+        if (dialogPlugin && typeof dialogPlugin.open === 'function') {
+          const selected = await dialogPlugin.open({
+            directory: true,
+            multiple: false,
+            title,
+          });
+          if (typeof selected === 'string' && selected.trim()) {
+            const trimmed = selected.trim();
+            this.setStorageLocation(trimmed);
+            return trimmed;
+          }
+          if (Array.isArray(selected) && selected.length > 0 && typeof selected[0] === 'string') {
+            const trimmed = selected[0].trim();
+            this.setStorageLocation(trimmed);
+            return trimmed;
+          }
+          if (selected === null) {
+            return null; // user cancelled
+          }
+        }
+      } catch (pluginErr) {
+        console.warn('Tauri @tauri-apps/plugin-dialog open failed, falling back to backend command:', pluginErr);
+      }
+
+      // 2. Fallback to Tauri custom backend command
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const path = await invoke<string | null>('select_backup_folder');
+        if (path && typeof path === 'string' && path.trim()) {
+          const trimmed = path.trim();
+          this.setStorageLocation(trimmed);
+          return trimmed;
+        }
+        return null;
+      } catch (err) {
+        console.warn('Tauri select_backup_folder invoke failed:', err);
+      }
+    }
+
+    // 3. Modern browser HTML5 File System Access API
+    if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          mode: 'readwrite',
+        });
+        if (dirHandle && dirHandle.name) {
+          const pseudoPath = `Folder: ${dirHandle.name}`;
+          (window as any).__mss_export_dir_handle = dirHandle;
+          this.setStorageLocation(pseudoPath);
+          return pseudoPath;
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return null;
+        console.warn('HTML5 showDirectoryPicker failed:', err);
+      }
+    }
+
+    return null;
+  },
+
+  /**
+   * Validate destination path accessibility and writability.
+   */
+  async validateDestination(destPath: string): Promise<{ valid: boolean; error?: string }> {
+    const trimmed = (destPath || '').trim();
+    if (!trimmed) {
+      return { valid: false, error: 'المسار المحدد فارغ.' };
+    }
+
+    // HTML5 pseudo-path validation
+    if (trimmed.startsWith('Folder:')) {
+      if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
+        return { valid: true };
+      }
+      return { valid: false, error: 'صلاحية الوصول إلى المجلد عبر المتصفح منتهية أو غير متاحة.' };
+    }
+
+    if (isTauri()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const valid = await invoke<boolean>('validate_backup_destination', { path: trimmed });
+        return { valid: !!valid, error: valid ? undefined : 'المسار غير متاح أو لا يملك صلاحيات الكتابة.' };
+      } catch (err: any) {
+        return { valid: false, error: typeof err === 'string' ? err : err?.message || 'المسار غير متاح.' };
+      }
+    }
+
+    // Node.js test environment validation
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      try {
+        const { fs: fsMod } = await getNodeFs();
+        if (fsMod && fsMod.existsSync(trimmed)) {
+          return { valid: true };
+        }
+        return { valid: false, error: 'المجلد غير موجود على القرص.' };
+      } catch (e: any) {
+        return { valid: false, error: e?.message };
+      }
+    }
+
+    return { valid: true };
+  },
+
+  /**
+   * Ensures that a valid storage destination is configured before any export operation.
+   *
+   * Single Editable Path Input Rules:
+   * 1. If NO path has been configured:
+   *    - Halts export immediately with clear Arabic error (NO silent fallback).
+   *    - Does NOT open any folder picker dialog.
+   *    - Instructs user to enter and set the path in Settings modal.
+   * 2. If a path is configured and valid:
+   *    - Immediately uses the saved path without prompting.
+   * 3. If the saved path is invalid or unavailable (deleted, moved, unplugged):
+   *    - Halts export immediately with clear Arabic error (NO silent fallback).
+   *    - Does NOT open any folder picker dialog.
+   *    - Alerts user to update the path in Settings modal.
+   */
+  async ensureValidStorageLocation(options?: {
+    interactive?: boolean;
+    title?: string;
+  }): Promise<EnsureStorageLocationResult> {
+    const interactive = options?.interactive !== false;
+    let currentPath = await this.getStorageLocationAsync();
+
+    // 1. If NO path has ever been configured
+    if (!currentPath) {
+      const errorMsg = 'لم يتم تحديد مسار لحفظ ملفات التصدير. يرجى كتابة وتعيين المسار في إعدادات النظام (إعدادات النظام ← Export Files Storage Location).';
+      if (interactive) {
+        this.dispatchNotification({
+          type: 'error',
+          title: 'مسار التصدير غير محدد',
+          message: 'يرجى كتابة وتعيين مسار مجلد التصدير من خلال إعدادات النظام أولاً.',
+        });
+      }
+      return {
+        valid: false,
+        path: null,
+        error: errorMsg,
+      };
+    }
+
+    // 2. A path is configured: Validate it
+    const validation = await this.validateDestination(currentPath);
+    if (validation.valid) {
+      return {
+        valid: true,
+        path: currentPath,
+        newlySelected: false,
+      };
+    }
+
+    // 3. Saved folder is invalid or unavailable (deleted, moved, unplugged, inaccessible)
+    const errorMsg = `مجلد التصدير المحفوظ (${currentPath}) غير متاح أو تعذر الوصول إليه (${validation.error || 'غير موجود على القرص'}). يرجى مراجعة وتعديل المسار في إعدادات النظام.`;
+    if (interactive) {
+      this.dispatchNotification({
+        type: 'error',
+        title: 'مجلد التصدير غير متاح',
+        message: `مجلد الحفظ المحفوظ (${currentPath}) غير متاح. يرجى إدخال مسار بديل من خلال إعدادات النظام.`,
+      });
+    }
+
+    return {
+      valid: false,
+      path: currentPath,
+      error: errorMsg,
+    };
+  },
+
+  /**
+   * Returns the expected root folder path: `<storageLocation>/MSS System Files`
+   */
+  getRootFolderPath(): string | null {
+    const loc = this.getStorageLocation();
+    if (!loc) return null;
+    const sep = loc.includes('/') ? '/' : '\\';
+    return `${loc.replace(/[\\/]+$/, '')}${sep}${ROOT_EXPORT_FOLDER}`;
+  },
+
+  /**
+   * Returns the expected subfolder path for an export type: `<storageLocation>/MSS System Files/<subfolder>`
+   */
+  getExpectedFolderPath(exportType: ExportType): string | null {
+    const root = this.getRootFolderPath();
+    if (!root) return null;
+    const sep = root.includes('/') ? '/' : '\\';
+    const subfolder = EXPORT_SUBFOLDERS[exportType] || 'تقارير عامة';
+    return `${root}${sep}${subfolder}`;
+  },
+
+  /**
+   * Ensures the root folder `MSS System Files` and the assigned subfolder exist on disk.
+   * Creates them ONLY on demand (first export operation), never prematurely.
+   */
+  async ensureSubfolder(exportType: ExportType): Promise<{ rootPath: string; subfolderPath: string }> {
+    const rootPath = this.getRootFolderPath();
+    if (!rootPath) {
+      throw new Error('لم يتم تحديد مجلد حفظ وتصدير الملفات.');
+    }
+    const sep = rootPath.includes('/') ? '/' : '\\';
+    const canonicalSubfolder = EXPORT_SUBFOLDERS[exportType];
+
+    // Node.js / filesystem creation
+    const { fs: fsMod, path: pathMod } = await getNodeFs();
+    if (fsMod && pathMod) {
+      // 1. Ensure root directory exists
+      if (!fsMod.existsSync(rootPath)) {
+        fsMod.mkdirSync(rootPath, { recursive: true });
+      }
+
+      // Check if an alias folder already exists (e.g. "MSS Excel Sheets" vs "MSS Exel Sheets")
+      let targetSubfolderName = canonicalSubfolder;
+      const aliases = EXPORT_SUBFOLDER_ALIASES[exportType] || [canonicalSubfolder];
+      for (const alias of aliases) {
+        const aliasPath = pathMod.join(rootPath, alias);
+        if (fsMod.existsSync(aliasPath)) {
+          targetSubfolderName = alias;
+          break;
+        }
+      }
+
+      const subfolderPath = pathMod.join(rootPath, targetSubfolderName);
+      if (!fsMod.existsSync(subfolderPath)) {
+        fsMod.mkdirSync(subfolderPath, { recursive: true });
+      }
+
+      return { rootPath, subfolderPath };
+    }
+
+    // HTML5 File System Access API
+    if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
+      try {
+        const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
+          create: true,
+        });
+        await rootHandle.getDirectoryHandle(canonicalSubfolder, { create: true });
+      } catch (err) {
+        console.warn('HTML5 directory handle creation warning:', err);
+      }
+    }
+
+    const subfolderPath = `${rootPath}${sep}${canonicalSubfolder}`;
+    return { rootPath, subfolderPath };
+  },
+
+  /**
+   * Resolves a non-colliding filename if a file with the same name already exists in target directory.
+   */
+  async resolveUniqueFilename(targetDir: string, filename: string): Promise<string> {
+    const { fs: fsMod, path: pathMod } = await getNodeFs();
+    if (fsMod && pathMod) {
+      try {
+        let fullPath = pathMod.join(targetDir, filename);
+        if (!fsMod.existsSync(fullPath)) {
+          return filename;
+        }
+
+        const ext = pathMod.extname(filename);
+        const base = pathMod.basename(filename, ext);
+        let counter = 1;
+        while (fsMod.existsSync(pathMod.join(targetDir, `${base} (${counter})${ext}`))) {
+          counter++;
+        }
+        return `${base} (${counter})${ext}`;
+      } catch {
+        return filename;
+      }
+    }
+    return filename;
+  },
+
+  /**
+   * Centralized method to save an exported file into the configured destination folder.
+   *
+   * Guarantees:
+   * 1. Automatic destination retrieval: Uses saved path permanently without re-prompting.
+   * 2. Lazy folder creation: Root folder and subfolder are created on demand.
+   * 3. Clear errors and prompt on missing/invalid path: Never silently dumps to an unrelated directory.
+   */
+  async saveExportedFile(params: SaveExportFileParams): Promise<SaveExportResult> {
+    const {
+      exportType,
+      filename,
+      data,
+      mimeType,
+      interactive = true,
+      skipFallbackDownload = true,
+      allowDirectDownloadFallback = false,
+    } = params;
+
+    // 1. Ensure valid destination location
+    const locationRes = await this.ensureValidStorageLocation({ interactive });
+    if (!locationRes.valid || !locationRes.path) {
+      // Do NOT silently replace the saved path or fall back to an unrelated default directory!
+      if (!skipFallbackDownload && allowDirectDownloadFallback) {
+        this.triggerDirectDownload(data, filename, mimeType);
+      }
+      return {
+        success: false,
+        savedToCustomLocation: false,
+        filename,
+        error: locationRes.error || 'تعذر إتمام عملية التصدير نظراً لعدم توفر مجلد وجهة صالح.',
+      };
+    }
+
+    const destLoc = locationRes.path;
+
+    try {
+      // 2. Lazy creation of Root Folder & Subfolder
+      const { subfolderPath } = await this.ensureSubfolder(exportType);
+      const uniqueFilename = await this.resolveUniqueFilename(subfolderPath, filename);
+      const sep = subfolderPath.includes('/') ? '/' : '\\';
+      const fullFilePath = `${subfolderPath}${sep}${uniqueFilename}`;
+
+      // 3. Physical write in Node.js environment
+      if (typeof process !== 'undefined' && process.versions?.node) {
+        const { fs: fsMod } = await getNodeFs();
+        if (fsMod) {
+          let bufferToWrite: Buffer;
+
+          if (typeof data === 'string') {
+            if (data.startsWith('data:')) {
+              const base64Str = data.split(',')[1] || '';
+              bufferToWrite = Buffer.from(base64Str, 'base64');
+            } else {
+              bufferToWrite = Buffer.from(data, 'utf-8');
+            }
+          } else if (data instanceof Uint8Array) {
+            bufferToWrite = Buffer.from(data);
+          } else if (data instanceof ArrayBuffer) {
+            bufferToWrite = Buffer.from(new Uint8Array(data));
+          } else {
+            bufferToWrite = Buffer.from(data as any);
+          }
+
+          fsMod.writeFileSync(fullFilePath, bufferToWrite);
+        }
+      }
+
+      // 4. HTML5 File System Access API write
+      if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
+        try {
+          const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
+            create: true,
+          });
+          const subHandle = await rootHandle.getDirectoryHandle(EXPORT_SUBFOLDERS[exportType], { create: true });
+          const fileHandle = await subHandle.getFileHandle(uniqueFilename, { create: true });
+          const writable = await fileHandle.createWritable();
+
+          if (typeof data === 'string' && data.startsWith('data:')) {
+            const res = await fetch(data);
+            const blob = await res.blob();
+            await writable.write(blob);
+          } else {
+            await writable.write(data as any);
+          }
+          await writable.close();
+        } catch (dirErr) {
+          console.warn('Failed writing to FileSystemDirectoryHandle:', dirErr);
+          throw dirErr;
+        }
+      }
+
+      // 5. Register export history metadata
+      this.registerExportedFile({
+        exportType,
+        filename: uniqueFilename,
+        fullFilePath,
+        subfolderPath,
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        success: true,
+        savedToCustomLocation: true,
+        filePath: fullFilePath,
+        folderPath: subfolderPath,
+        filename: uniqueFilename,
+      };
+    } catch (err: any) {
+      console.error('Failed saving to export destination folder:', err);
+      return {
+        success: false,
+        savedToCustomLocation: false,
+        filename,
+        error: `تعذر حفظ الملف في مجلد الوجهة: ${err?.message || err}.`,
+      };
+    }
+  },
+
+  /**
+   * Helper to trigger standard browser download when in web fallback mode or when explicitly allowed.
+   */
+  triggerDirectDownload(data: Uint8Array | ArrayBuffer | Blob | string, filename: string, mimeType = 'application/octet-stream'): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    try {
+      let url: string;
+      let shouldRevoke = false;
+
+      if (typeof data === 'string') {
+        if (data.startsWith('data:')) {
+          url = data;
+        } else {
+          const blob = new Blob([data], { type: mimeType });
+          url = URL.createObjectURL(blob);
+          shouldRevoke = true;
+        }
+      } else if (data instanceof Blob) {
+        url = URL.createObjectURL(data);
+        shouldRevoke = true;
+      } else {
+        const blob = new Blob([data as any], { type: mimeType });
+        url = URL.createObjectURL(blob);
+        shouldRevoke = true;
+      }
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      if (shouldRevoke) {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (e) {
+      console.warn('Direct browser download failed:', e);
+    }
+  },
+
+  /**
+   * Converts a DOM element to PDF and automatically routes it to the designated subfolder.
+   */
+  async exportElementToPdf(params: ExportElementPdfParams): Promise<SaveExportResult> {
+    const { elementId, filename, exportType, orientation = 'portrait' } = params;
+    const finalFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+
+    // Ensure valid storage location first before rendering
+    const locationRes = await this.ensureValidStorageLocation({ interactive: true });
+    if (!locationRes.valid || !locationRes.path) {
+      return {
+        success: false,
+        savedToCustomLocation: false,
+        filename: finalFilename,
+        error: locationRes.error || 'تعذر إتمام تصدير ملف PDF لعدم توفر مجلد حفظ صالح.',
+      };
+    }
+
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById(elementId);
+      if (el) {
+        try {
+          const { toPng } = await import('html-to-image');
+          const { jsPDF } = await import('jspdf');
+
+          if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+          }
+
+          const imgs = el.querySelectorAll('img');
+          await Promise.all(
+            Array.from(imgs).map(img => {
+              if (img.complete) return Promise.resolve();
+              return new Promise(res => {
+                img.onload = res;
+                img.onerror = res;
+              });
+            })
+          );
+
+          const dataUrl = await toPng(el, {
+            quality: 1.0,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+            cacheBust: true,
+          });
+
+          const rect = el.getBoundingClientRect();
+          const elW = rect.width || 800;
+          const elH = rect.height || 1100;
+
+          const pdf = new jsPDF({
+            orientation,
+            unit: 'px',
+            format: [elW, elH],
+            hotfixes: ['px_scaling'],
+          });
+
+          pdf.addImage(dataUrl, 'PNG', 0, 0, elW, elH, undefined, 'FAST');
+          const rawBuffer = pdf.output('arraybuffer');
+          const buffer = new Uint8Array(rawBuffer);
+
+          return await this.saveExportedFile({
+            exportType,
+            filename: finalFilename,
+            data: buffer,
+            mimeType: 'application/pdf',
+          });
+        } catch (err: any) {
+          console.warn('DOM element PDF capture failed:', err);
+          return {
+            success: false,
+            savedToCustomLocation: false,
+            filename: finalFilename,
+            error: `فشل التقاط وتصدير المستند بتنسيق PDF: ${err?.message || err}`,
+          };
+        }
+      }
+    }
+
+    return await this.saveExportedFile({
+      exportType,
+      filename: finalFilename,
+      data: '',
+      mimeType: 'application/pdf',
+    });
+  },
+
+  /**
+   * Opens the destination root folder or specific subfolder in Windows Explorer.
+   */
+  async openFolderInExplorer(exportType?: ExportType): Promise<void> {
+    const target = exportType ? this.getExpectedFolderPath(exportType) : this.getRootFolderPath() || this.getStorageLocation();
+    if (!target) {
+      throw new Error('لم يتم تحديد مجلد حفظ وتصدير الملفات.');
+    }
+
+    if (isTauri()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('open_folder_in_explorer', { path: target });
+        return;
+      } catch (err) {
+        console.warn('Failed opening folder via Tauri command:', err);
+      }
+    }
+
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      try {
+        const { exec } = await import('node:child_process');
+        exec(`explorer "${target}"`);
+      } catch {
+        // ignore
+      }
+    }
+  },
+
+  /**
+   * Registers metadata of an exported file for auditability and history tracking.
+   */
+  registerExportedFile(entry: {
+    exportType: ExportType;
+    filename: string;
+    fullFilePath: string;
+    subfolderPath: string;
+    timestamp: string;
+  }): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const raw = localStorage.getItem(EXPORT_FILES_REGISTRY_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      list.unshift(entry);
+      if (list.length > 100) list.pop();
+      localStorage.setItem(EXPORT_FILES_REGISTRY_KEY, JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+  },
+};

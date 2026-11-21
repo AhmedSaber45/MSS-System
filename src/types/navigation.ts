@@ -12,7 +12,8 @@ export type AccessoriesRoute =
   | 'returns'
   | 'reports'
   | 'history'
-  | 'backup';
+  | 'backup'
+  | 'expenses';
 
 export type MSSRoute =
   | 'dashboard'
@@ -27,7 +28,8 @@ export type MSSRoute =
   | 'audit'
   | 'reports'
   | 'device-reports'
-  | 'sync';
+  | 'sync'
+  | 'expenses';
 
 export type ActiveRoute = AccessoriesRoute | MSSRoute;
 

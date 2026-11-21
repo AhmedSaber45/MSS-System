@@ -1,6 +1,8 @@
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
+import { mssOperationalService } from './mssOperationalService.ts';
+import { mssExpensesService } from './mssExpensesService.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
 import {
   roundMoney,
@@ -85,11 +87,22 @@ export const mssReportsService = {
       ? roundMoney(metrics.grossProfit / netDevicesCount)
       : 0;
 
+    // Compu MSS Operating Expenses & Net Profit After Expenses
+    const totalOperatingExpenses = await mssExpensesService.getTotalExpenses(
+      dateVal.sanitizedStart,
+      dateVal.sanitizedEnd
+    );
+    const netProfit = roundMoney(metrics.grossProfit - totalOperatingExpenses);
+    const netProfitMarginPercent = metrics.netSales > 0 ? roundMoney((netProfit / metrics.netSales) * 100) : 0;
+
     return {
       totalRevenue: metrics.grossSales,
       costOfGoodsSold: metrics.netCogs,
       grossProfit: metrics.grossProfit,
       profitMarginPercent: metrics.profitMarginPercent,
+      totalOperatingExpenses,
+      netProfit,
+      netProfitMarginPercent,
       totalDiscounts: roundMoney(totalDiscounts),
       totalRefunds: metrics.totalReturns,
       netSales: metrics.netSales,
@@ -115,7 +128,15 @@ export const mssReportsService = {
     const totalSalesCount = activeInvoices.length;
     const totalRevenue = activeInvoices.reduce((sum, inv) => sum + (inv.actual_sale_price || 0), 0);
 
-    const branches: MSSStockLocation[] = ['محل 1', 'محل 2'];
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    const historicalBranches: string[] = Array.from(
+      new Set(
+        activeInvoices
+          .map(inv => inv.selling_branch?.trim())
+          .filter((b): b is string => Boolean(b && !b.includes('تجريبي') && !/\d{10,}/.test(b)))
+      )
+    );
+    const branches: string[] = Array.from(new Set([...activeLocations, ...historicalBranches]));
 
     return branches.map(branch => {
       const branchInvoices = activeInvoices.filter(inv => inv.selling_branch === branch);
@@ -147,7 +168,15 @@ export const mssReportsService = {
   async getInventoryValuationByLocation(): Promise<LocationStockValuation[]> {
     const devices = await mssInventoryService.getDevices();
 
-    const branches: MSSStockLocation[] = ['محل 1', 'محل 2'];
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    const historicalBranches: string[] = Array.from(
+      new Set(
+        devices
+          .map(d => d.stock_location?.trim())
+          .filter((b): b is string => Boolean(b && !b.includes('تجريبي') && !/\d{10,}/.test(b)))
+      )
+    );
+    const branches: string[] = Array.from(new Set([...activeLocations, ...historicalBranches]));
 
     const perBranch: LocationStockValuation[] = branches.map(loc => {
       const branchDevices = devices.filter(
@@ -436,10 +465,11 @@ export const mssReportsService = {
 
     // Map: model_id -> SoldLaptopsByModelWarehouseItem
     const itemMap = new Map<string, SoldLaptopsByModelWarehouseItem>();
-    const warehouseTotals: Record<string, number> = {
-      'محل 1': 0,
-      'محل 2': 0,
-    };
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    const warehouseTotals: Record<string, number> = {};
+    activeLocations.forEach(loc => {
+      warehouseTotals[loc] = 0;
+    });
     let totalSoldUnits = 0;
     let totalRevenue = 0;
 
@@ -460,7 +490,7 @@ export const mssReportsService = {
 
       for (const it of items) {
         // Authoritative warehouse from transaction line item
-        const itemWarehouse = it.source_branch || inv.source_branch || inv.selling_branch || 'محل 1';
+        const itemWarehouse = it.source_branch || inv.source_branch || inv.selling_branch || activeLocations[0] || 'محل 1';
 
         // Filter by warehouse if a specific warehouse was chosen
         if (warehouse !== 'ALL' && itemWarehouse !== warehouse) {

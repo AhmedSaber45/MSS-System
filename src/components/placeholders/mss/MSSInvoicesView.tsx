@@ -29,6 +29,7 @@ import { useDateRangeFilter } from '@/lib/dateValidation';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { useNotification } from '@/context/NotificationContext';
 import { documentPrintService } from '@/lib/documentPrintService';
@@ -40,6 +41,7 @@ import {
 } from '@/components/common/PaymentHistorySection';
 
 export const MSSInvoicesView: React.FC = () => {
+  const { locations } = useMSSLocations();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
   const { showNotification } = useNotification();
   const [invoices, setInvoices] = useState<MSSInvoice[]>([]);
@@ -463,8 +465,9 @@ export const MSSInvoicesView: React.FC = () => {
               onChange={e => setSellingBranchFilter(e.target.value as any)}
             >
               <option value="ALL">جميع الفروع</option>
-              <option value="محل 1">محل 1</option>
-              <option value="محل 2">محل 2</option>
+              {locations.map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
             </Select>
           </div>
 

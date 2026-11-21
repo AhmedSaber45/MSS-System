@@ -25,6 +25,8 @@ import {
   FileDown,
   ChevronLeft,
   ShieldAlert,
+  ReceiptText,
+  Wallet,
 } from 'lucide-react';
 import { formatCurrency, formatPieceCount, cn } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
@@ -141,6 +143,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
       title: `تقرير_تنفيذي_موحد_${new Date().toISOString().slice(0, 10)}`,
       format: 'report',
       orientation: 'portrait',
+      exportType: scope === 'mss' ? 'mss_reports' : 'accessories_reports',
     });
   };
 
@@ -407,7 +410,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
               <StatsCard
                 title="إجمالي الإيرادات"
                 value={formatCurrency(data.combined.combinedRevenue)}
@@ -437,6 +440,18 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                 value={formatCurrency(data.combined.combinedGrossProfit)}
                 subtitle={`هامش ربح إجمالي ${data.combined.profitMarginPercent.toFixed(1)}%`}
                 icon={TrendingUp}
+              />
+              <StatsCard
+                title="المصروفات التشغيلية"
+                value={formatCurrency(data.combined.combinedOperatingExpenses || 0)}
+                subtitle="إجمالي المصروفات للفترة"
+                icon={ReceiptText}
+              />
+              <StatsCard
+                title="صافي الربح بعد المصروفات"
+                value={formatCurrency(data.combined.combinedNetProfit ?? (data.combined.combinedGrossProfit - (data.combined.combinedOperatingExpenses || 0)))}
+                subtitle={`هامش صافي ${(data.combined.netProfitMarginPercent ?? 0).toFixed(1)}%`}
+                icon={Wallet}
               />
               <StatsCard
                 title="إجمالي الحركات المنفذة"
@@ -475,24 +490,34 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   </Button>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-xs text-slate-600 font-semibold">صافي المبيعات</span>
-                      <div className="text-xl font-bold text-slate-900 mt-1 tabular-nums">
+                      <div className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
                         {formatCurrency(data.accessories.netSales)}
                       </div>
-                      <span className="text-xs text-slate-500 tabular-nums font-medium">
+                      <span className="text-[11px] text-slate-500 tabular-nums font-medium">
                         {data.accessories.invoicesCount} فاتورة بيع
                       </span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-xs text-slate-600 font-semibold">مجمل الأرباح </span>
-                      <div className="text-xl font-bold text-emerald-800 mt-1 tabular-nums">
+                      <div className="text-lg font-bold text-emerald-800 mt-1 tabular-nums">
                         {formatCurrency(data.accessories.grossProfit)}
                       </div>
-                      <span className="text-xs text-emerald-700 tabular-nums font-semibold">
+                      <span className="text-[11px] text-emerald-700 tabular-nums font-semibold">
                         هامش {data.accessories.profitMarginPercent.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-xs text-slate-600 font-semibold">صافي الربح</span>
+                      <div className="text-lg font-bold text-emerald-900 mt-1 tabular-nums">
+                        {formatCurrency(data.accessories.netProfit ?? (data.accessories.grossProfit - (data.accessories.operatingExpenses || 0)))}
+                      </div>
+                      <span className="text-[11px] text-rose-600 tabular-nums font-medium">
+                        مصروفات: {formatCurrency(data.accessories.operatingExpenses || 0)}
                       </span>
                     </div>
                   </div>
@@ -555,27 +580,40 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   </Button>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-xs text-slate-600 font-semibold">إجمالي المبيعات </span>
-                      <div className="text-xl font-bold text-slate-900 mt-1 tabular-nums">
+                      <div className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
                         {formatCurrency(data.mss.netSales)}
                       </div>
-                      <span className="text-xs text-slate-500 tabular-nums font-medium">
-                        {data.mss.soldDevicesCount} جهاز مباع بالسيريال
+                      <span className="text-[11px] text-slate-500 tabular-nums font-medium">
+                        {data.mss.soldDevicesCount} جهاز مباع
                       </span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-600 font-semibold">مجمل الربح </span>
                         <Badge variant="purple" size="sm">
                           مشترك
                         </Badge>
                       </div>
-                      <div className="text-xl font-bold text-emerald-800 mt-1 tabular-nums">
+                      <div className="text-lg font-bold text-emerald-800 mt-1 tabular-nums">
                         {formatCurrency(data.mss.sharedGrossProfit)}
                       </div>
+                      <span className="text-[11px] text-emerald-700 tabular-nums font-semibold">
+                        هامش {data.mss.profitMarginPercent.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-xs text-slate-600 font-semibold">صافي الربح</span>
+                      <div className="text-lg font-bold text-emerald-900 mt-1 tabular-nums">
+                        {formatCurrency(data.mss.netProfit ?? (data.mss.sharedGrossProfit - (data.mss.operatingExpenses || 0)))}
+                      </div>
+                      <span className="text-[11px] text-rose-600 tabular-nums font-medium">
+                        مصروفات: {formatCurrency(data.mss.operatingExpenses || 0)}
+                      </span>
                     </div>
                   </div>
 
@@ -587,14 +625,25 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-slate-700 pt-0.5">
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                        <span className="font-semibold text-xs">محل 1:</span>{' '}
-                        <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop1AvailableUnits} جهاز</span>
-                      </div>
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                        <span className="font-semibold text-xs">محل 2:</span>{' '}
-                        <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop2AvailableUnits} جهاز</span>
-                      </div>
+                      {data.mss.locationAvailableUnits && Object.keys(data.mss.locationAvailableUnits).length > 0
+                        ? Object.entries(data.mss.locationAvailableUnits).map(([loc, count]) => (
+                            <div key={loc} className="bg-white p-2.5 rounded-lg border border-slate-200">
+                              <span className="font-semibold text-xs">{loc}:</span>{' '}
+                              <span className="font-bold text-slate-900 tabular-nums text-sm">{count} جهاز</span>
+                            </div>
+                          ))
+                        : (
+                          <>
+                            <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                              <span className="font-semibold text-xs">محل 1:</span>{' '}
+                              <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop1AvailableUnits} جهاز</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                              <span className="font-semibold text-xs">محل 2:</span>{' '}
+                              <span className="font-bold text-slate-900 tabular-nums text-sm">{data.mss.shop2AvailableUnits} جهاز</span>
+                            </div>
+                          </>
+                        )}
                     </div>
                     <div className="flex justify-between text-slate-700 pt-1 font-medium">
                       <span>تكلفة الأجهزة المتوفرة بالمخازن:</span>
@@ -721,7 +770,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                               {isGrand ? (
                                 <span className="text-slate-900 font-bold">{row.location}</span>
                               ) : (
-                                <Badge variant={row.location === 'محل 1' ? 'primary' : 'purple'} size="sm">
+                                <Badge variant="primary" size="sm">
                                   {row.location}
                                 </Badge>
                               )}

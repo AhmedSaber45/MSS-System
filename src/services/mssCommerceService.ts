@@ -5,6 +5,7 @@ import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
+import { mssOperationalService } from './mssOperationalService.ts';
 import type { MSSDevice } from '../types/mssInventory.ts';
 import type {
   MSSInvoice,
@@ -532,8 +533,9 @@ export const mssCommerceService = {
    * - Atomic inventory status/quantity deductions
    */
   async confirmSale(input: NewMSSSaleInput): Promise<MSSInvoice> {
-    if (!['محل 1', 'محل 2'].includes(input.selling_branch)) {
-      throw new Error('فرع البيع غير صالح. يجب اختيار "محل 1" أو "محل 2"');
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(input.selling_branch)) {
+      throw new Error(`فرع البيع غير صالح (${input.selling_branch}). الفروع المتاحة: ${activeLocations.join('، ')}`);
     }
 
     // 1. Normalize line items: single-device vs multi-device
@@ -2045,8 +2047,9 @@ export const mssCommerceService = {
     if (!input.invoice_id) throw new Error('معرف الفاتورة الأصلية مطلوب');
     if (!input.return_reason?.trim()) throw new Error('سبب الإرجاع مطلوب لتوثيق العملية');
     if (input.refund_amount < 0) throw new Error('المبلغ المسترد لا يمكن أن يكون سالباً');
-    if (!['محل 1', 'محل 2'].includes(input.restock_location)) {
-      throw new Error('موقع استلام الجهاز المرتجع غير صالح');
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(input.restock_location)) {
+      throw new Error(`موقع استلام الجهاز المرتجع غير صالح (${input.restock_location}). المواقع المتاحة: ${activeLocations.join('، ')}`);
     }
 
     const invoice = await this.getInvoiceById(input.invoice_id);

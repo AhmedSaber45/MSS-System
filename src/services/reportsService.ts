@@ -8,6 +8,7 @@ import type { InvoiceItem } from '../types/sale.ts';
 import { salesService } from './salesService.ts';
 import { returnsService } from './returnsService.ts';
 import { productsService } from './productsService.ts';
+import { accessoriesExpensesService } from './accessoriesExpensesService.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
 import {
   roundMoney,
@@ -96,11 +97,22 @@ export const reportsService = {
 
     const avgInvoiceValue = invoices.length > 0 ? roundMoney(grossSales / invoices.length) : 0;
 
+    // Operating Expenses & Net Profit After Expenses
+    const totalOperatingExpenses = await accessoriesExpensesService.getTotalExpenses(
+      dateVal.sanitizedStart,
+      dateVal.sanitizedEnd
+    );
+    const netProfit = roundMoney(metrics.grossProfit - totalOperatingExpenses);
+    const netProfitMarginPercent = metrics.netSales > 0 ? roundMoney((netProfit / metrics.netSales) * 100) : 0;
+
     return {
       totalRevenue: metrics.grossSales,
       costOfGoodsSold: metrics.netCogs,
       grossProfit: metrics.grossProfit,
       profitMarginPercent: metrics.profitMarginPercent,
+      totalOperatingExpenses,
+      netProfit,
+      netProfitMarginPercent,
       totalDiscounts,
       totalRefunds: metrics.totalReturns,
       netSales: metrics.netSales,

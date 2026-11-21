@@ -27,14 +27,17 @@ import { mssReportsService } from '@/services/mssReportsService.ts';
 import type { MSSInvoice } from '@/types/mssCommerce.ts';
 import type { MSSCatalogModel } from '@/types/mssCatalog.ts';
 import { UnifiedDashboardView } from '@/components/dashboard/UnifiedDashboardView.tsx';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 
 interface ModelStockItem extends MSSCatalogModel {
   shop_1_count: number;
   shop_2_count: number;
+  branch_availability?: Record<string, number>;
   total_available: number;
 }
 
 export const MSSDashboardView: React.FC = () => {
+  const { locations } = useMSSLocations();
   const { setRoute } = useNavigation();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
@@ -44,6 +47,7 @@ export const MSSDashboardView: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // MSS Data States
+  const [locationStockMap, setLocationStockMap] = useState<Record<string, number>>({});
   const [shop1Available, setShop1Available] = useState<number>(0);
   const [shop2Available, setShop2Available] = useState<number>(0);
   const [activeReservationsCount, setActiveReservationsCount] = useState<number>(0);
@@ -67,19 +71,25 @@ export const MSSDashboardView: React.FC = () => {
           mssReportsService.getMSSFinancialSummary(),
         ]);
 
-      const s1 = devices.filter(d => d.stock_location === 'محل 1' && d.status === 'AVAILABLE').length;
-      const s2 = devices.filter(d => d.stock_location === 'محل 2' && d.status === 'AVAILABLE').length;
-      setShop1Available(s1);
-      setShop2Available(s2);
+      const locMap: Record<string, number> = {};
+      devices.forEach(d => {
+        if (d.status === 'AVAILABLE' && d.stock_location) {
+          locMap[d.stock_location] = (locMap[d.stock_location] || 0) + (d.quantity || 1);
+        }
+      });
+      setLocationStockMap(locMap);
+      setShop1Available(locMap['محل 1'] || 0);
+      setShop2Available(locMap['محل 2'] || 0);
       setActiveReservationsCount(reservations.length);
       setSharedProfit(finSummary.grossProfit);
 
       const mappedModels: ModelStockItem[] = models.map(m => {
-        const avail = availMap[m.id] || { available_shop1: 0, available_shop2: 0, total_available: 0 };
+        const avail: any = availMap[m.id] || { available_shop1: 0, available_shop2: 0, total_available: 0 };
         return {
           ...m,
           shop_1_count: avail.available_shop1,
           shop_2_count: avail.available_shop2,
+          branch_availability: avail.branch_availability || {},
           total_available: avail.total_available,
         };
       });
@@ -281,20 +291,17 @@ export const MSSDashboardView: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Top 5 KPI Cards */}
+          {/* Top KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatsCard
-              title="مخزون محل 1 "
-              value={`${shop1Available} جهاز`}
-              subtitle=""
-              icon={Store}
-            />
-            <StatsCard
-              title="مخزون محل 2  "
-              value={`${shop2Available} جهاز`}
-              subtitle=""
-              icon={Store}
-            />
+            {locations.map(loc => (
+              <StatsCard
+                key={loc}
+                title={`مخزون ${loc}`}
+                value={`${locationStockMap[loc] || 0} جهاز`}
+                subtitle=""
+                icon={Store}
+              />
+            ))}
             <StatsCard
               title="أجهزة محجوزة "
               value={`${activeReservationsCount} أجهزة`}
@@ -335,15 +342,16 @@ export const MSSDashboardView: React.FC = () => {
                 <thead className="bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-300">
                   <tr>
                     <th className="py-3 px-3.5">موديل الجهاز</th>
-                    <th className="py-3 px-3.5 text-center">محل 1</th>
-                    <th className="py-3 px-3.5 text-center">محل 2</th>
+                    {locations.map(loc => (
+                      <th key={loc} className="py-3 px-3.5 text-center">{loc}</th>
+                    ))}
                     <th className="py-3 px-3.5 text-center">الإجمالي </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {modelsWithStock.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-500 text-sm">
+                      <td colSpan={2 + locations.length} className="py-8 text-center text-slate-500 text-sm">
                         لا توجد موديلات مسجلة
                       </td>
                     </tr>
@@ -353,12 +361,19 @@ export const MSSDashboardView: React.FC = () => {
                         <td className="py-3 px-3.5 font-bold text-slate-900">
                           {item.brand} {item.model_name}
                         </td>
-                        <td className="py-3 px-3.5 text-center font-mono font-bold tabular-nums text-slate-800">
-                          {item.shop_1_count}
-                        </td>
-                        <td className="py-3 px-3.5 text-center font-mono font-bold tabular-nums text-slate-800">
-                          {item.shop_2_count}
-                        </td>
+                        {locations.map(loc => {
+                          const val =
+                            item.branch_availability?.[loc] ??
+                            (loc === 'محل 1' ? item.shop_1_count : loc === 'محل 2' ? item.shop_2_count : 0);
+                          return (
+                            <td
+                              key={loc}
+                              className="py-3 px-3.5 text-center font-mono font-bold tabular-nums text-slate-800"
+                            >
+                              {val}
+                            </td>
+                          );
+                        })}
                         <td className="py-3 px-3.5 text-center">
                           <span className="font-mono tabular-nums font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md border border-slate-300">
                             {item.total_available}

@@ -28,6 +28,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import { MSSModelModal } from './MSSModelModal';
 import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
 import type {
@@ -42,6 +43,7 @@ const CATEGORIES: { id: string; label: string }[] = [
 ];
 
 export const CatalogView: React.FC = () => {
+  const { locations } = useMSSLocations();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
 
@@ -139,12 +141,19 @@ export const CatalogView: React.FC = () => {
 
     let totalAvailShop1 = 0;
     let totalAvailShop2 = 0;
+    const locationTotals: Record<string, number> = {};
     Object.values(availability).forEach(a => {
       totalAvailShop1 += a.available_shop1;
       totalAvailShop2 += a.available_shop2;
+      const bAvail = (a as any).branch_availability;
+      if (bAvail && typeof bAvail === 'object') {
+        Object.entries(bAvail).forEach(([loc, cnt]) => {
+          locationTotals[loc] = (locationTotals[loc] || 0) + (Number(cnt) || 0);
+        });
+      }
     });
 
-    return { totalCount, laptops, monitors, totalAvailShop1, totalAvailShop2 };
+    return { totalCount, laptops, monitors, totalAvailShop1, totalAvailShop2, locationTotals };
   }, [models, availability]);
 
   return (
@@ -215,13 +224,25 @@ export const CatalogView: React.FC = () => {
 
         <Card className="p-4 bg-white border-slate-300 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">الأجهزة المتاحة (محل 1 / محل 2)</span>
+            <span className="text-xs font-bold text-slate-600">الأجهزة المتاحة بالفروع</span>
             <Store className="w-5 h-5 text-slate-500" />
           </div>
-          <div className="flex items-baseline gap-2 mt-2.5">
-            <span className="text-lg font-bold text-blue-600 font-mono tabular-nums">{stats.totalAvailShop1}</span>
-            <span className="text-slate-400">/</span>
-            <span className="text-lg font-bold text-emerald-600 font-mono tabular-nums">{stats.totalAvailShop2}</span>
+          <div className="flex items-baseline gap-2 mt-2.5 flex-wrap">
+            {locations.map((loc, locIdx) => {
+              const count =
+                stats.locationTotals[loc] ??
+                (loc === 'محل 1' ? stats.totalAvailShop1 : loc === 'محل 2' ? stats.totalAvailShop2 : 0);
+              return (
+                <span
+                  key={loc}
+                  className={`text-base font-bold font-mono tabular-nums ${
+                    locIdx % 2 === 0 ? 'text-blue-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {loc}: {count}
+                </span>
+              );
+            })}
           </div>
         </Card>
       </div>
@@ -368,27 +389,27 @@ export const CatalogView: React.FC = () => {
                       </td>
 
                       <td className="p-3.5 text-center">
-                        <div className="inline-flex items-center gap-2 font-mono text-xs font-bold">
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              avail.available_shop1 > 0
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-slate-50 text-slate-400 border-slate-200'
-                            }`}
-                            title="المتاح في محل 1"
-                          >
-                            محل 1: {avail.available_shop1}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              avail.available_shop2 > 0
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-slate-50 text-slate-400 border-slate-200'
-                            }`}
-                            title="المتاح في محل 2"
-                          >
-                            محل 2: {avail.available_shop2}
-                          </span>
+                        <div className="inline-flex items-center gap-2 font-mono text-xs font-bold flex-wrap justify-center">
+                          {locations.map((loc, locIdx) => {
+                            const count =
+                              (avail as any).branch_availability?.[loc] ??
+                              (loc === 'محل 1' ? avail.available_shop1 : loc === 'محل 2' ? avail.available_shop2 : 0);
+                            return (
+                              <span
+                                key={loc}
+                                className={`px-2 py-0.5 rounded border ${
+                                  count > 0
+                                    ? locIdx % 2 === 0
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-slate-50 text-slate-400 border-slate-200'
+                                }`}
+                                title={`المتاح في ${loc}`}
+                              >
+                                {loc}: {count}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
 

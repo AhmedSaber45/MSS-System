@@ -1,119 +1,128 @@
-# COMPU MSS — QUICK MODEL CREATION & INVENTORY ACTIONS
+# Add Configurable Export Storage Location and Automatic File Organization
 
-Implement the following improvements exclusively within the Compu MSS module.
+## Objective
 
-## 1. Add New Model Directly From the Add Device Modal
+Add a new setting that allows the user to choose a custom destination folder for all exported and generated files from both modules:
 
-Inside the existing Add New Device modal, add a clearly visible **Add New Model** button next to or near the model selection field.
+- Accessories
+- Compu MSS (MSS)
 
-### Required behavior
-- When clicking Add New Model, open the Add Model modal above the currently open Add Device modal.
-- The Add Model modal must appear as a secondary overlay/modal without closing, resetting, or replacing the Add Device modal.
-- Preserve all data already entered in Add Device, including:
-  - Selected warehouse/branch.
-  - Selected model, if any.
-  - Device information.
-  - Serial number.
-  - Price and cost fields.
-  - Any other entered values or selections.
-- Follow the same modal layering and behavior already implemented in the Accessories module for creating a model while adding a product.
-- Reuse the existing implementation or modal pattern from Accessories where applicable, but adapt it properly to Compu MSS architecture and data flow.
-- After successfully creating the new model:
-  - Close only the Add Model modal.
-  - Keep the Add Device modal open.
-  - Refresh the model selection list immediately.
-  - Automatically select the newly created model in the Add Device modal.
-  - Allow the user to continue completing and saving the device without re-entering any previously typed data.
+## 1. Storage Location Setting
 
-### Important
-Do not navigate away from the Add Device modal.
+Add a new setting under the existing application Settings page:
 
-Do not reload the page.
+**Setting name:** Export Files Storage Location
 
-Do not reset the parent modal state.
+- Allow the user to select a destination folder using the native Windows folder picker.
+- Display the currently selected path.
+- Allow changing the destination at any time.
+- Persist the selected path across application restarts.
+- Use the existing Tauri v2 architecture and secure filesystem APIs.
 
-Do not create duplicate model records.
+## 2. Automatic Root Folder Creation
 
-Ensure the new model is saved using the existing Compu MSS model creation logic and appears correctly in all relevant model lists.
+Inside the selected destination, create a root folder named:
 
----
+`MSS System Files`
 
-## 2. Add New Device & Add New Model Buttons to Both Pages
+Create it automatically during the first export operation, not immediately when the user selects the destination.
 
-Both the **Inventory** page and the **Devices** page must provide access to the following two actions:
+## 3. Exact Subfolder Names and Structure
 
-- Add New Device.
-- Add New Model.
+Use the following folder names **exactly as written**, including capitalization, spaces, and Arabic spelling:
 
-### Inventory Page
-Ensure both buttons are available and accessible:
-- Add New Device.
-- Add New Model.
+```text
+MSS System Files/
+│
+├── فواتير الاكسسوارات/
+│
+├── فواتير MSS/
+│
+├── تقارير الاكسسوارات/
+│
+├── تقارير MSS/
+│
+├── MSS Excel Sheets/
+│
+├── MSS Images/
+│
+└── Accessories Excel sheets/
+```
 
-### Devices Page
-Ensure both buttons are available and accessible:
-- Add New Device.
-- Add New Model.
+### Folder Mapping
 
-The buttons should use the existing Compu MSS creation workflows and must not introduce duplicate forms or separate creation logic.
+| Export Type | Destination Folder |
+|---|---|
+| Accessories Invoices | فواتير الاكسسوارات |
+| Compu MSS Invoices | فواتير MSS |
+| Accessories Reports | تقارير الاكسسوارات |
+| Compu MSS Reports | تقارير MSS |
+| Compu MSS Excel Exports | MSS Exel Sheets |
+| Compu MSS Promotional Images (PNG/PDF) | MSS Images |
+| Accessories Excel Exports | Accessories Exel sheets |
 
-### Behavior
-- Add New Device opens the existing Add Device modal.
-- Add New Model opens the existing Add Model modal.
-- Both actions should be available without requiring navigation to another page.
-- Maintain the current page context and existing filters/search state whenever the modal is closed.
-- After successfully creating a model, refresh the relevant model lists so the new model becomes immediately available throughout Compu MSS.
+**Important:**
+- Do not translate, rename, or automatically correct any of the specified folder names.
+- Do not create all subfolders at startup or when the destination is selected.
+- Create each subfolder only when its corresponding export type is used for the first time.
+- Reuse existing folders for subsequent exports.
+- Do not create duplicate folders.
 
-## 3. UI & UX Requirements
+## 4. Integrate with All Existing Export Operations
 
-- Follow the existing Compu MSS design system, spacing, colors, button styles, and modal behavior.
-- Keep the actions clearly distinguishable without cluttering the page header.
-- Use the existing reusable modal and button components.
-- Ensure modal stacking works correctly when Add Model is opened from inside Add Device.
-- The secondary modal must appear above the primary modal and handle backdrop/close interactions correctly.
-- Avoid duplicate buttons if the page already has a working equivalent; reposition or reuse existing actions where necessary.
-- Ensure the layout remains responsive and works correctly at different desktop window sizes.
+Inspect the existing export implementations and route every relevant operation to its assigned folder.
 
-## 4. Implementation Rules
+Cover both modules:
 
-Before coding:
-- Read AGENTS.md and applicable project rules.
-- Inspect the existing Compu MSS Add Device, Add Model, Inventory, and Devices implementations.
-- Inspect the Accessories implementation for the nested Add Model modal pattern.
-- Focus only on the files and dependencies relevant to this feature.
-- Implement directly without lengthy audits or repeated exploration.
+**Accessories:**
+- Invoices → `فواتير الاكسسوارات`
+- Reports → `تقارير الاكسسوارات`
+- Excel sheets → `Accessories Exel sheets`
 
-Preserve:
-- Existing inventory logic.
-- Model/device relationships.
-- Branch and warehouse selection.
-- Serialized and non-serialized inventory behavior.
-- Offline storage and synchronization.
-- Existing validation and permissions.
-- All unrelated functionality.
+**Compu MSS:**
+- Invoices → `فواتير MSS`
+- Reports → `تقارير MSS`
+- Excel sheets → `MSS Exel Sheets`
+- Promotional PNG and PDF files → `MSS Images`
 
-Do not modify the Accessories module. Use it only as a reference for the modal behavior.
+Do not modify file contents, formatting, or existing filename conventions.
 
-## 5. Verification
+Use one centralized export-storage service instead of implementing separate destination logic in individual pages.
 
-Verify:
-- Opening Add New Model from Add Device keeps the parent modal open.
-- Parent form values remain intact after closing the child modal.
-- Creating a model automatically selects it in the parent form.
-- The model list updates immediately.
-- Add New Device is accessible from both Inventory and Devices pages.
-- Add New Model is accessible from both Inventory and Devices pages.
-- No duplicate creation logic or duplicate buttons are introduced.
-- Existing device/model creation still works normally.
+## 5. Error Handling and Data Safety
 
-Run the relevant typecheck, lint, tests, and build.
+- If no custom destination is configured, preserve the existing export behavior or use a sensible default.
+- If the selected destination becomes unavailable, show a clear error and allow the user to choose another location.
+- Never silently lose an exported file.
+- Avoid unintentionally overwriting existing files.
+- Changing the destination must affect future exports without moving or deleting previously exported files.
+- Ensure multi-file and multi-page exports save all generated files in the correct folder.
 
-## 6. Completion
+## 6. Verification
 
-At completion, provide a concise report:
-1. What changed.
-2. Files modified.
-3. Tests and verification results.
-4. Any remaining issues.
+Verify that:
 
-Implement this feature completely, then STOP and wait for my approval before proceeding to anything else.
+1. The destination folder can be selected and saved from Settings.
+2. The selected path persists after restarting the application.
+3. `MSS System Files` is created on the first export.
+4. Each subfolder is created only when its corresponding export type is used.
+5. All seven folder names match the specified names exactly.
+6. Every export type saves files in the correct folder.
+7. Existing folders are reused without duplication.
+8. Changing the destination affects future exports.
+9. Existing file naming and generation behavior remain unchanged.
+10. Both Accessories and Compu MSS exports continue working.
+
+## Execution Instructions
+
+1. Read the relevant `AGENTS.md` instructions.
+2. Inspect the existing Tauri filesystem architecture and export implementations.
+3. Implement the setting and centralized export-storage service directly.
+4. Integrate all existing export operations with the new service.
+5. Avoid unrelated refactoring or UI redesign.
+6. Run relevant tests, type checks, linting, and production build.
+7. Report the exact files changed, folder mappings, and verification results.
+
+If any database or Supabase schema change is genuinely necessary, provide one complete, consolidated, safe SQL migration file with its exact project path, thoroughly verified and ready for execution in Supabase SQL Editor. Do not execute it.
+
+Implement directly and stop for my review.

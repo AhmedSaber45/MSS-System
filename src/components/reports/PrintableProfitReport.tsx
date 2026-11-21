@@ -151,7 +151,7 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
               </tr>
               {/* Gross Profit Highlight Row */}
               <tr className="bg-slate-100 border-t-2 border-slate-900 font-bold print:bg-slate-50">
-                <td className="py-3 px-4 text-slate-950 text-base">مجمل الأرباح التشغيلية (Gross Profit)</td>
+                <td className="py-3 px-4 text-slate-950 text-base">مجمل الأرباح التجارية (Gross Profit)</td>
                 <td className="py-3 px-4 text-center font-mono text-sm text-slate-900">
                   هامش الربح: {summary.profitMarginPercent.toFixed(1)}%
                 </td>
@@ -159,9 +159,33 @@ export const PrintableProfitReport: React.FC<PrintableProfitReportProps> = ({
                   {formatCurrency(summary.grossProfit)}
                 </td>
                 <td className="py-3 px-4 text-left text-xs font-bold text-emerald-800 print:text-slate-900">
-                  صافي الربح التشغيلي المحقق
+                  مجمل الربح قبل خصم المصروفات
                 </td>
               </tr>
+              {summary.totalOperatingExpenses !== undefined && (
+                <>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">المصروفات التشغيلية (Operating Expenses)</td>
+                    <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">مصروفات المحل للفترة</td>
+                    <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-rose-700">
+                      - {formatCurrency(summary.totalOperatingExpenses)}
+                    </td>
+                    <td className="py-2.5 px-4 text-left text-xs font-medium text-rose-700">خصم من مجمل الأرباح</td>
+                  </tr>
+                  <tr className="bg-emerald-50 border-t-2 border-emerald-900 font-bold print:bg-slate-50">
+                    <td className="py-3 px-4 text-emerald-950 text-base print:text-slate-950">صافي الربح بعد المصروفات (Net Profit)</td>
+                    <td className="py-3 px-4 text-center font-mono text-sm text-emerald-900 print:text-slate-900">
+                      هامش صافي: {(summary.netProfitMarginPercent ?? 0).toFixed(1)}%
+                    </td>
+                    <td className="py-3 px-4 text-left font-mono tabular-nums text-emerald-950 text-lg print:text-slate-950">
+                      {formatCurrency(summary.netProfit ?? (summary.grossProfit - summary.totalOperatingExpenses))}
+                    </td>
+                    <td className="py-3 px-4 text-left text-xs font-bold text-emerald-900 print:text-slate-950">
+                      صافي الربح النهائي بعد استقطاع المصروفات
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>

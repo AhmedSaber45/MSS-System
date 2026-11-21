@@ -16,6 +16,7 @@ import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCommerceService } from '@/services/mssCommerceService';
 import type { MSSReturn, MSSInvoice, MSSStockLocation } from '@/types/mssCommerce';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 
 export const MSSReturnsView: React.FC = () => {
   const { showNotification } = useNotification();
@@ -35,7 +36,14 @@ export const MSSReturnsView: React.FC = () => {
   // Return Form State
   const [refundAmount, setRefundAmount] = useState<number | ''>(0);
   const [returnReason, setReturnReason] = useState<string>('طلب العميل استبدال أو استرجاع الجهاز');
-  const [restockLocation, setRestockLocation] = useState<MSSStockLocation>('محل 1');
+  const { locations } = useMSSLocations();
+  const [restockLocation, setRestockLocation] = useState<MSSStockLocation>(() => locations[0] || 'محل 1');
+
+  useEffect(() => {
+    if (locations.length > 0 && !locations.includes(restockLocation)) {
+      setRestockLocation(locations[0]);
+    }
+  }, [locations, restockLocation]);
   const [newCondition, setNewCondition] = useState<string>('فرز أول ممتاز');
   const [newStatus, setNewStatus] = useState<'AVAILABLE' | 'MAINTENANCE'>('AVAILABLE');
   const [notes, setNotes] = useState<string>('');
@@ -358,10 +366,10 @@ export const MSSReturnsView: React.FC = () => {
                     <Select
                       value={restockLocation}
                       onChange={e => setRestockLocation(e.target.value as MSSStockLocation)}
-                      options={[
-                        { value: 'محل 1', label: 'محل 1' },
-                        { value: 'محل 2', label: 'محل 2' },
-                      ]}
+                      options={locations.map(loc => ({
+                        value: loc,
+                        label: loc,
+                      }))}
                     />
                   </div>
 

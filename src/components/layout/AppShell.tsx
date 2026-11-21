@@ -19,6 +19,7 @@ import { SalesView } from '../placeholders/accessories/SalesView';
 import { InvoicesView } from '../placeholders/accessories/InvoicesView';
 import { ReturnsView } from '../placeholders/accessories/ReturnsView';
 import { ReportsView } from '../placeholders/accessories/ReportsView';
+import { AccessoriesExpensesView } from '../placeholders/accessories/AccessoriesExpensesView';
 import { HistoryView } from '../placeholders/accessories/HistoryView';
 import { BackupView } from '../placeholders/accessories/BackupView';
 
@@ -34,6 +35,7 @@ import { MovementsView } from '../placeholders/mss/MovementsView';
 import { MSSStoresView } from '../placeholders/mss/MSSStoresView';
 import { MSSAuditLogView } from '../placeholders/mss/MSSAuditLogView';
 import { MSSReportsView } from '../placeholders/mss/MSSReportsView';
+import { MSSExpensesView } from '../placeholders/mss/MSSExpensesView';
 import { MSSDeviceReportsView } from '../placeholders/mss/MSSDeviceReportsView';
 import { SyncStatusView } from '../placeholders/mss/SyncStatusView';
 
@@ -62,6 +64,8 @@ export const AppShell: React.FC = () => {
           return <ReturnsView />;
         case 'reports':
           return <ReportsView />;
+        case 'expenses':
+          return <AccessoriesExpensesView />;
         case 'history':
           return <HistoryView />;
         case 'backup':
@@ -93,6 +97,8 @@ export const AppShell: React.FC = () => {
           return <MSSAuditLogView />;
         case 'reports':
           return <MSSReportsView />;
+        case 'expenses':
+          return <MSSExpensesView />;
         case 'device-reports':
           return <MSSDeviceReportsView />;
         case 'sync':

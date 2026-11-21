@@ -88,6 +88,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
     await documentPrintService.exportToPdf(elementId, {
       title: formatArabicExportFilename(`فاتورة_${invoice.invoice_number}`, 'pdf'),
       format,
+      exportType: 'mss_invoices',
     });
   };
 

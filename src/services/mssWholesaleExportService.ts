@@ -3,6 +3,7 @@ import type { WorkBook, WorkSheet } from 'xlsx-js-style';
 const XLSX: any = (XLSXStyle as any).default || XLSXStyle;
 import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
+import { exportStorageService } from './exportStorageService.ts';
 import type { WholesaleExportOptions, WholesaleExportRow } from '@/types/mssReports';
 import type { MSSStockLocation, MSSDevice } from '@/types/mssInventory';
 
@@ -50,8 +51,8 @@ export function sanitizeArabicFilename(name: string): string {
  * Formats an Arabic export filename with today's export generation date (YYYY-MM-DD),
  * ensuring Windows-safe characters and avoiding duplicate dates.
  *
- * Example: formatArabicExportFilename('تقرير_مخزون_الأجهزة_المتاحة', 'xlsx')
- *          -> 'تقرير_مخزون_الأجهزة_المتاحة_2026-11-19.xlsx'
+ * Example: formatArabicExportFilename('الاجهزة_المتاحة', 'xlsx')
+ *          -> 'الاجهزة_المتاحة_2026-11-19.xlsx'
  */
 export function formatArabicExportFilename(baseName: string, ext: string = 'xlsx'): string {
   const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
@@ -1090,8 +1091,8 @@ export const mssWholesaleExportService = {
     const brandSuffix = options.selectedBrands && options.selectedBrands.length === 1 ? `_${options.selectedBrands[0]}` : '';
     const categorySuffix = options.selectedCategories && options.selectedCategories.length === 1 ? `_${options.selectedCategories[0].replace(/\s+/g, '_')}` : '';
     const baseTitle = options.includeSerialNumbers
-      ? 'تقرير_الأجهزة_المسلسلة_المتاحة_للجملة'
-      : 'تقرير_مخزون_الأجهزة_المتاحة_للجملة';
+      ? 'الاجهزة_المسلسلة_المتاحة'
+      : 'الاجهزة_المتاحة';
     const filename = sanitizeArabicFilename(`${baseTitle}${categorySuffix}${brandSuffix}${branchSuffix}_${dateStr}.xlsx`);
 
     return {
@@ -1121,9 +1122,17 @@ export const mssWholesaleExportService = {
     const rawBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     const buffer = new Uint8Array(rawBuffer);
 
-    // If running in browser/Tauri frontend, trigger file download
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      XLSX.writeFile(wb, filename);
+    // Route saving through centralized export storage service (Folder: MSS System Files/MSS Exel Sheets)
+    const saveResult = await exportStorageService.saveExportedFile({
+      exportType: 'mss_excel',
+      filename,
+      data: buffer,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      skipFallbackDownload: true,
+    });
+
+    if (!saveResult.success) {
+      throw new Error(saveResult.error || 'تم إلغاء أو تعذر حفظ وتصدير ملف الإكسل.');
     }
 
     return {

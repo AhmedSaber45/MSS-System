@@ -18,6 +18,7 @@ import {
   Store,
   ShieldCheck,
   FileSpreadsheet,
+  ReceiptText,
 } from 'lucide-react';
 
 export const accessoriesNavItems: NavItemConfig[] = [
@@ -62,6 +63,12 @@ export const accessoriesNavItems: NavItemConfig[] = [
     label: 'المرتجعات ',
     description: 'استرجاع الأصناف وإلغاء العمليات بأمان',
     icon: RotateCcw,
+  },
+  {
+    id: 'expenses',
+    label: 'مصروفات المحل',
+    description: 'تسجيل المصروفات التشغيلية اليومية وخصمها من صافي الأرباح',
+    icon: ReceiptText,
   },
   {
     id: 'reports',
@@ -137,6 +144,12 @@ export const mssNavItems: NavItemConfig[] = [
     label: 'الفروع والمخازن',
     description: 'إدارة الفروع، المخازن، تعيينات الشركاء وعمليات الدمج',
     icon: Store,
+  },
+  {
+    id: 'expenses',
+    label: 'مصروفات MSS',
+    description: 'إدارة المصروفات التشغيلية لـ Compu MSS وخصمها من صافي الأرباح',
+    icon: ReceiptText,
   },
   {
     id: 'audit',

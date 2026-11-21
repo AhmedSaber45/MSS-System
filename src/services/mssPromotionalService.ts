@@ -16,6 +16,8 @@ import {
   PROMOTIONAL_HEADER_ASSETS,
   getBrandLogoConfig,
 } from '../assets/promotional/promotionalAssets.ts';
+import { mssOperationalService } from './mssOperationalService.ts';
+import { exportStorageService } from './exportStorageService.ts';
 
 export { PROMOTIONAL_MAX_DEVICES_PER_PAGE };
 
@@ -248,7 +250,7 @@ export function generatePromotionalArabicFilename(
         prefix = `عروض_لابتوبات_${brandName}`;
       }
     } else if (distinctBrands.length > 1) {
-      prefix = 'أجهزة_كومبي_ام_اس_اس';
+      prefix = format === 'pdf' ? 'عروض_لابتوبات_مختارة_Compu_MSS' : 'أجهزة_Compu_MSS';
     }
   }
 
@@ -805,8 +807,8 @@ export function renderPromotionalToCanvas(
   const tableY = headerSectionHeight + 15;
   const tableW = 1140;
 
-  // Define Columns in RTL orientation from left-to-right on canvas:
-  // Leftmost is Price (or Quantity), Rightmost is Brand (where Arabic starts)
+  // Define Columns in LTR orientation from left-to-right on canvas:
+  // Leftmost is Brand, Rightmost is Price (or Quantity / GPU)
   const showPrice = options.showPrice;
   const showQty = options.showQuantity;
 
@@ -814,51 +816,51 @@ export function renderPromotionalToCanvas(
 
   if (showPrice && showQty) {
     colWidths = [
-      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 140 },
-      { id: 'quantity', label: 'الكمية', icon: 'box', width: 75 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 115 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 115 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 80 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 125 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 90 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 185 },
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 90 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 185 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 90 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 125 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 80 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 115 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 115 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
+      { id: 'quantity', label: 'الكمية', icon: 'box', width: 75 },
+      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 140 },
     ];
   } else if (showPrice && !showQty) {
     colWidths = [
-      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 145 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 135 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 125 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 125 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 95 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 95 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 125 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 125 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 135 },
+      { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 145 },
     ];
   } else if (!showPrice && showQty) {
     colWidths = [
-      { id: 'quantity', label: 'الكمية', icon: 'box', width: 80 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 145 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 135 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 135 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 105 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 105 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 135 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 135 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 145 },
+      { id: 'quantity', label: 'الكمية', icon: 'box', width: 80 },
     ];
   } else {
     colWidths = [
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 150 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 155 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 110 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 240 },
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 105 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 240 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 110 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 155 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 150 },
     ];
   }
 
@@ -877,10 +879,15 @@ export function renderPromotionalToCanvas(
   let curX = tableX;
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.direction = 'rtl';
 
-  colWidths.forEach(col => {
+  colWidths.forEach((col, cIdx) => {
     const colCenterX = curX + col.width / 2;
+
+    // Price column background highlight
+    if (col.id === 'price') {
+      ctx.fillStyle = '#05163b';
+      ctx.fillRect(curX, tableY, col.width, tableHeaderHeight);
+    }
 
     // Flaticon table header icons
     const headerIconMap: Record<string, string> = {
@@ -915,18 +922,21 @@ export function renderPromotionalToCanvas(
       ctx.fill();
     }
 
-    // Header label text
+    // Header label text (Arabic with proper RTL text rendering)
     ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = col.id === 'price' ? '#facc15' : '#ffffff';
+    ctx.direction = 'rtl';
     ctx.fillText(col.label, colCenterX, tableY + 46);
 
-    // Column border divider in header
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(curX + col.width, tableY + 8);
-    ctx.lineTo(curX + col.width, tableY + tableHeaderHeight - 8);
-    ctx.stroke();
+    // Column border divider in header (between columns)
+    if (cIdx < colWidths.length - 1) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(curX + col.width, tableY + 8);
+      ctx.lineTo(curX + col.width, tableY + tableHeaderHeight - 8);
+      ctx.stroke();
+    }
 
     curX += col.width;
   });
@@ -951,50 +961,67 @@ export function renderPromotionalToCanvas(
 
     // Render cells in row
     let cellX = tableX;
-    colWidths.forEach(col => {
+    colWidths.forEach((col, cIdx) => {
       const cellCenterX = cellX + col.width / 2;
       const cellCenterY = rowY + rowHeight / 2;
 
-      // Vertical column divider
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cellX + col.width, rowY);
-      ctx.lineTo(cellX + col.width, rowY + rowHeight);
-      ctx.stroke();
+      // Vertical column divider between cells
+      if (cIdx < colWidths.length - 1) {
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cellX + col.width, rowY);
+        ctx.lineTo(cellX + col.width, rowY + rowHeight);
+        ctx.stroke();
+      }
 
       ctx.save();
-      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.direction = 'rtl';
 
       if (col.id === 'brand') {
+        ctx.textAlign = 'center';
         drawBrandBadge(ctx, cellCenterX, cellCenterY, item.brand);
       } else if (col.id === 'model') {
+        ctx.textAlign = 'left';
+        ctx.direction = 'ltr';
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
-        drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 12);
+        drawFittedText(ctx, item.model_name || '---', cellX + 12, cellCenterY, col.width - 24);
       } else if (col.id === 'processor') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'generation') {
+        ctx.textAlign = 'center';
+        const genText = item.generation || '---';
+        const hasArabic = /[\u0600-\u06FF]/.test(genText);
+        ctx.direction = hasArabic ? 'rtl' : 'ltr';
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
-        drawFittedText(ctx, item.generation || '---', cellCenterX, cellCenterY, col.width - 8);
+        drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'ram') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'storage') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'screen') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         ctx.font = '600 13px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'gpu') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         const gpuUpper = (item.gpu || '').toUpperCase();
         if (gpuUpper.includes('NVIDIA') || gpuUpper.includes('RTX') || gpuUpper.includes('GTX')) {
           ctx.fillStyle = '#16a34a'; // NVIDIA Green
@@ -1008,10 +1035,14 @@ export function renderPromotionalToCanvas(
         ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
         drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'quantity') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         ctx.fillText(String(item.quantity || 1), cellCenterX, cellCenterY);
       } else if (col.id === 'price') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
         const priceNum = Number(item.price) || 0;
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
         ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
@@ -1056,25 +1087,40 @@ export function renderPromotionalToCanvas(
 
   ctx.font = '14px "Segoe UI", Cairo, Arial, sans-serif';
   ctx.fillStyle = '#64748b';
-  ctx.fillText('للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: محل 1 • محل 2', width / 2, footY + 56);
+  const activeBranches = mssOperationalService.getActiveLocationNamesSync();
+  const branchesText = activeBranches.length > 0 ? activeBranches.join(' • ') : 'محل 1 • محل 2';
+  ctx.fillText(`للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: ${branchesText}`, width / 2, footY + 56);
   ctx.restore();
 }
 
 /**
  * Downloads the rendered canvas or data URL as a high quality PNG file.
  * Automatically ensures the filename has the export date _YYYY-MM-DD.png without duplication.
+ * Routes directly to custom export folder (MSS System Files/MSS Images) if configured.
  */
-export function exportPromotionalAsPng(canvasOrDataUrl: HTMLCanvasElement | string, filename: string): void {
+export async function exportPromotionalAsPng(canvasOrDataUrl: HTMLCanvasElement | string, filename: string): Promise<any> {
   const finalFilename = formatArabicExportFilename(filename, 'png');
   const dataUrl = typeof canvasOrDataUrl === 'string'
     ? canvasOrDataUrl
     : canvasOrDataUrl.toDataURL('image/png', 1.0);
-  const link = document.createElement('a');
-  link.download = finalFilename;
-  link.href = dataUrl;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  if (exportStorageService.isDestinationConfigured() || exportStorageService.isPickerSupported()) {
+    const res = await exportStorageService.saveExportedFile({
+      exportType: 'mss_images',
+      filename: finalFilename,
+      data: dataUrl,
+      mimeType: 'image/png',
+      skipFallbackDownload: true,
+    });
+
+    if (!res.success) {
+      throw new Error(res.error || 'تم إلغاء أو تعذر حفظ الصورة الترويجية.');
+    }
+
+    return res;
+  }
+
+  return { success: true, savedToCustomLocation: false, filename: finalFilename };
 }
 
 /**
@@ -1213,9 +1259,19 @@ export async function exportPromotionalAsPdf(
   const rawArrayBuffer = pdf.output('arraybuffer');
   const buffer = new Uint8Array(rawArrayBuffer);
 
-  // Trigger browser download if DOM environment
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    pdf.save(finalPdfName);
+  // Route saving through centralized export storage service (Folder: MSS System Files/MSS Images)
+  if (exportStorageService.isDestinationConfigured() || exportStorageService.isPickerSupported()) {
+    const saveResult = await exportStorageService.saveExportedFile({
+      exportType: 'mss_images',
+      filename: finalPdfName,
+      data: buffer,
+      mimeType: 'application/pdf',
+      skipFallbackDownload: true,
+    });
+
+    if (!saveResult.success) {
+      throw new Error(saveResult.error || 'تم إلغاء أو تعذر حفظ كتالوج الصور بتنسيق PDF.');
+    }
   }
 
   return {

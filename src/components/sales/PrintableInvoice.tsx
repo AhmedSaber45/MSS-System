@@ -49,6 +49,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({
     await documentPrintService.exportToPdf(elementId, {
       title: `فاتورة_مبيعات_${invoice.invoice_number}`,
       format: format,
+      exportType: 'accessories_invoices',
     });
   };
 

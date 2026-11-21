@@ -17,6 +17,9 @@ export interface CombinedFinancials {
   combinedCogs: number;
   combinedGrossProfit: number;
   profitMarginPercent: number;
+  combinedOperatingExpenses?: number;
+  combinedNetProfit?: number;
+  netProfitMarginPercent?: number;
   totalTransactionsCount: number;
 }
 
@@ -25,6 +28,9 @@ export interface AccessoriesSummarySection {
   costOfGoodsSold: number;
   grossProfit: number;
   profitMarginPercent: number;
+  operatingExpenses?: number;
+  netProfit?: number;
+  netProfitMarginPercent?: number;
   invoicesCount: number;
   returnsCount: number;
   totalProducts: number;
@@ -40,12 +46,16 @@ export interface MSSSummarySection {
   costOfGoodsSold: number;
   sharedGrossProfit: number; // Stored and displayed as shared whole-business profit
   profitMarginPercent: number;
+  operatingExpenses?: number;
+  netProfit?: number;
+  netProfitMarginPercent?: number;
   soldDevicesCount: number;
   returnedDevicesCount: number;
   activeReservationsCount: number;
   totalAvailableUnits: number;
   shop1AvailableUnits: number;
   shop2AvailableUnits: number;
+  locationAvailableUnits?: Record<string, number>;
   inventoryCostValuation: number;
   inventoryListValuation: number;
   pendingSyncCount: number;

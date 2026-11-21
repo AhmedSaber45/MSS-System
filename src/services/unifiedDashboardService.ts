@@ -4,6 +4,7 @@ import { mssReportsService } from './mssReportsService.ts';
 import { mssCommerceService } from './mssCommerceService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { desktopAuthService } from './desktopAuthService.ts';
+import { roundMoney } from '../lib/accounting.ts';
 import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidation.ts';
 import type {
   ReportPeriod,
@@ -164,7 +165,10 @@ export const unifiedDashboardService = {
       const combinedRevenue = accFinancials.netSales;
       const combinedCogs = accFinancials.costOfGoodsSold;
       const combinedGrossProfit = accFinancials.grossProfit;
+      const combinedOperatingExpenses = accFinancials.totalOperatingExpenses || 0;
+      const combinedNetProfit = accFinancials.netProfit || 0;
       const profitMarginPercent = combinedRevenue > 0 ? (combinedGrossProfit / combinedRevenue) * 100 : 0;
+      const netProfitMarginPercent = combinedRevenue > 0 ? (combinedNetProfit / combinedRevenue) * 100 : 0;
       const totalTransactionsCount = accFinancials.invoicesCount;
 
       const combined: CombinedFinancials = {
@@ -172,6 +176,9 @@ export const unifiedDashboardService = {
         combinedCogs,
         combinedGrossProfit,
         profitMarginPercent,
+        combinedOperatingExpenses,
+        combinedNetProfit,
+        netProfitMarginPercent,
         totalTransactionsCount,
       };
 
@@ -180,6 +187,9 @@ export const unifiedDashboardService = {
         costOfGoodsSold: accFinancials.costOfGoodsSold,
         grossProfit: accFinancials.grossProfit,
         profitMarginPercent: accFinancials.profitMarginPercent,
+        operatingExpenses: accFinancials.totalOperatingExpenses || 0,
+        netProfit: accFinancials.netProfit || 0,
+        netProfitMarginPercent: accFinancials.netProfitMarginPercent || 0,
         invoicesCount: accFinancials.invoicesCount,
         returnsCount: accFinancials.returnsCount,
         totalProducts: accMetrics.totalProducts,
@@ -255,7 +265,10 @@ export const unifiedDashboardService = {
       const combinedRevenue = mssFinancials.netSales;
       const combinedCogs = mssFinancials.costOfGoodsSold;
       const combinedGrossProfit = mssFinancials.grossProfit;
+      const combinedOperatingExpenses = mssFinancials.totalOperatingExpenses || 0;
+      const combinedNetProfit = mssFinancials.netProfit || 0;
       const profitMarginPercent = combinedRevenue > 0 ? (combinedGrossProfit / combinedRevenue) * 100 : 0;
+      const netProfitMarginPercent = combinedRevenue > 0 ? (combinedNetProfit / combinedRevenue) * 100 : 0;
       const totalTransactionsCount = mssFinancials.soldDevicesCount;
 
       const combined: CombinedFinancials = {
@@ -263,6 +276,9 @@ export const unifiedDashboardService = {
         combinedCogs,
         combinedGrossProfit,
         profitMarginPercent,
+        combinedOperatingExpenses,
+        combinedNetProfit,
+        netProfitMarginPercent,
         totalTransactionsCount,
       };
 
@@ -270,17 +286,28 @@ export const unifiedDashboardService = {
       const shop2Stock = locationStock.find(l => l.location === 'محل 2');
       const grandStock = locationStock.find(l => l.location === 'المجموع الكلي');
 
+      const locationAvailableUnits: Record<string, number> = {};
+      locationStock.forEach(l => {
+        if (l.location !== 'المجموع الكلي') {
+          locationAvailableUnits[l.location] = l.availableUnits;
+        }
+      });
+
       const mss: MSSSummarySection = {
         netSales: mssFinancials.netSales,
         costOfGoodsSold: mssFinancials.costOfGoodsSold,
         sharedGrossProfit: mssFinancials.grossProfit,
         profitMarginPercent: mssFinancials.profitMarginPercent,
+        operatingExpenses: mssFinancials.totalOperatingExpenses || 0,
+        netProfit: mssFinancials.netProfit || 0,
+        netProfitMarginPercent: mssFinancials.netProfitMarginPercent || 0,
         soldDevicesCount: mssFinancials.soldDevicesCount,
         returnedDevicesCount: mssFinancials.returnedDevicesCount,
         activeReservationsCount: activeReservations.length,
         totalAvailableUnits: grandStock?.availableUnits || 0,
         shop1AvailableUnits: shop1Stock?.availableUnits || 0,
         shop2AvailableUnits: shop2Stock?.availableUnits || 0,
+        locationAvailableUnits,
         inventoryCostValuation: grandStock?.totalCostValue || 0,
         inventoryListValuation: grandStock?.totalListValue || 0,
         pendingSyncCount: pendingSyncOps.length,
@@ -360,7 +387,10 @@ export const unifiedDashboardService = {
     const combinedRevenue = accFinancials.netSales + mssFinancials.netSales;
     const combinedCogs = accFinancials.costOfGoodsSold + mssFinancials.costOfGoodsSold;
     const combinedGrossProfit = accFinancials.grossProfit + mssFinancials.grossProfit;
+    const combinedOperatingExpenses = (accFinancials.totalOperatingExpenses || 0) + (mssFinancials.totalOperatingExpenses || 0);
+    const combinedNetProfit = roundMoney(combinedGrossProfit - combinedOperatingExpenses);
     const profitMarginPercent = combinedRevenue > 0 ? (combinedGrossProfit / combinedRevenue) * 100 : 0;
+    const netProfitMarginPercent = combinedRevenue > 0 ? (combinedNetProfit / combinedRevenue) * 100 : 0;
     const totalTransactionsCount = accFinancials.invoicesCount + mssFinancials.soldDevicesCount;
 
     const combined: CombinedFinancials = {
@@ -368,6 +398,9 @@ export const unifiedDashboardService = {
       combinedCogs,
       combinedGrossProfit,
       profitMarginPercent,
+      combinedOperatingExpenses,
+      combinedNetProfit,
+      netProfitMarginPercent,
       totalTransactionsCount,
     };
 
@@ -377,6 +410,9 @@ export const unifiedDashboardService = {
       costOfGoodsSold: accFinancials.costOfGoodsSold,
       grossProfit: accFinancials.grossProfit,
       profitMarginPercent: accFinancials.profitMarginPercent,
+      operatingExpenses: accFinancials.totalOperatingExpenses || 0,
+      netProfit: accFinancials.netProfit || 0,
+      netProfitMarginPercent: accFinancials.netProfitMarginPercent || 0,
       invoicesCount: accFinancials.invoicesCount,
       returnsCount: accFinancials.returnsCount,
       totalProducts: accMetrics.totalProducts,
@@ -392,17 +428,28 @@ export const unifiedDashboardService = {
     const shop2Stock = locationStock.find(l => l.location === 'محل 2');
     const grandStock = locationStock.find(l => l.location === 'المجموع الكلي');
 
+    const mssLocAvailableUnits: Record<string, number> = {};
+    locationStock.forEach(l => {
+      if (l.location !== 'المجموع الكلي') {
+        mssLocAvailableUnits[l.location] = l.availableUnits;
+      }
+    });
+
     const mss: MSSSummarySection = {
       netSales: mssFinancials.netSales,
       costOfGoodsSold: mssFinancials.costOfGoodsSold,
       sharedGrossProfit: mssFinancials.grossProfit, // Whole-business level shared profit
       profitMarginPercent: mssFinancials.profitMarginPercent,
+      operatingExpenses: mssFinancials.totalOperatingExpenses || 0,
+      netProfit: mssFinancials.netProfit || 0,
+      netProfitMarginPercent: mssFinancials.netProfitMarginPercent || 0,
       soldDevicesCount: mssFinancials.soldDevicesCount,
       returnedDevicesCount: mssFinancials.returnedDevicesCount,
       activeReservationsCount: activeReservations.length,
       totalAvailableUnits: grandStock?.availableUnits || 0,
       shop1AvailableUnits: shop1Stock?.availableUnits || 0,
       shop2AvailableUnits: shop2Stock?.availableUnits || 0,
+      locationAvailableUnits: mssLocAvailableUnits,
       inventoryCostValuation: grandStock?.totalCostValue || 0,
       inventoryListValuation: grandStock?.totalListValue || 0,
       pendingSyncCount: pendingSyncOps.length,

@@ -651,6 +651,49 @@ export const mssSyncService = {
             } catch (err) {
               console.warn('Sync INSTALLMENT_SCHEDULE_UPDATE warning:', err);
             }
+          } else if (op.type === 'EXPENSE_CREATE' && op.payload) {
+            const exp = op.payload;
+            try {
+              await supabase.from('mss_expenses').upsert({
+                id: exp.id,
+                title: exp.title,
+                category: exp.category,
+                amount: exp.amount,
+                branch: exp.branch,
+                expense_date: exp.expense_date,
+                payment_source: exp.payment_source,
+                payment_method: exp.payment_method,
+                description: exp.description,
+                created_by: exp.created_by,
+                created_at: exp.created_at,
+                updated_at: exp.updated_at,
+              }, { onConflict: 'id' });
+            } catch (err) {
+              console.warn('Sync EXPENSE_CREATE warning:', err);
+            }
+          } else if (op.type === 'EXPENSE_UPDATE' && op.payload) {
+            const exp = op.payload;
+            try {
+              await supabase.from('mss_expenses').update({
+                title: exp.title,
+                category: exp.category,
+                amount: exp.amount,
+                branch: exp.branch,
+                expense_date: exp.expense_date,
+                payment_source: exp.payment_source,
+                payment_method: exp.payment_method,
+                description: exp.description,
+                updated_at: exp.updated_at,
+              }).eq('id', exp.id);
+            } catch (err) {
+              console.warn('Sync EXPENSE_UPDATE warning:', err);
+            }
+          } else if (op.type === 'EXPENSE_DELETE' && op.payload?.id) {
+            try {
+              await supabase.from('mss_expenses').delete().eq('id', op.payload.id);
+            } catch (err) {
+              console.warn('Sync EXPENSE_DELETE warning:', err);
+            }
           }
 
           // Log to mss_sync_log

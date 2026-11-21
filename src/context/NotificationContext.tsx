@@ -254,6 +254,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [dismissNotification]
   );
 
+  // Global event listener for decoupled services (e.g. exportStorageService)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleCustomNotification = (e: Event) => {
+      const customEvent = e as CustomEvent<Omit<NotificationItem, 'id'>>;
+      if (customEvent.detail && customEvent.detail.title) {
+        showNotification(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('mss-notification', handleCustomNotification);
+    return () => {
+      window.removeEventListener('mss-notification', handleCustomNotification);
+    };
+  }, [showNotification]);
+
   // Mark as read
   const markAsRead = useCallback((id: string) => {
     setReadIds(prev => {

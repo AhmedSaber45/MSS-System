@@ -2,7 +2,10 @@ export interface FinancialSummary {
   totalRevenue: number;         // إجمالي المبيعات الإجمالية
   costOfGoodsSold: number;      // تكلفة البضاعة المباعة (COGS)
   grossProfit: number;          // مجمل الربح (الإيرادات - التكلفة - المرتجعات)
-  profitMarginPercent: number;  // نسبة هامش الربح
+  profitMarginPercent: number;  // نسبة هامش مجمل الربح
+  totalOperatingExpenses?: number; // إجمالي المصروفات التشغيلية
+  netProfit?: number;           // صافي الربح بعد المصروفات (Gross Profit - Operating Expenses)
+  netProfitMarginPercent?: number; // نسبة هامش صافي الربح بعد المصروفات
   totalDiscounts: number;       // إجمالي الخصومات الممنوحة
   totalRefunds: number;         // إجمالي المرتجعات المستردة
   netSales: number;             // صافي المبيعات (المبيعات - المرتجعات)

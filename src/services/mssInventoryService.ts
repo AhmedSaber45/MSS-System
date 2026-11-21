@@ -3,6 +3,7 @@ import { getTodayLocalDateString } from '../lib/dateValidation.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
+import { mssOperationalService } from './mssOperationalService.ts';
 import type {
   MSSDevice,
   NewMSSDeviceInput,
@@ -359,8 +360,9 @@ export const mssInventoryService = {
       throw new Error('سعر العرض لا يمكن أن يكون سالباً');
     }
 
-    if (!['محل 1', 'محل 2'].includes(input.stock_location)) {
-      throw new Error('موقع التخزين غير صالح. يجب اختيار "محل 1" أو "محل 2"');
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(input.stock_location)) {
+      throw new Error(`موقع التخزين غير صالح (${input.stock_location}). المواقع المتاحة: ${activeLocations.join('، ')}`);
     }
 
     const cached = getCachedDevices();
@@ -485,8 +487,9 @@ export const mssInventoryService = {
     if (input.list_price < 0) {
       throw new Error('سعر العرض لا يمكن أن يكون سالباً');
     }
-    if (!['محل 1', 'محل 2'].includes(input.stock_location)) {
-      throw new Error('موقع التخزين غير صالح. يجب اختيار "محل 1" أو "محل 2"');
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(input.stock_location)) {
+      throw new Error(`موقع التخزين غير صالح (${input.stock_location}). المواقع المتاحة: ${activeLocations.join('، ')}`);
     }
 
     const model = await mssCatalogService.getModelById(input.model_id);
@@ -785,8 +788,11 @@ export const mssInventoryService = {
       throw new Error('سعر العرض لا يمكن أن يكون سالباً');
     }
 
-    if (input.stock_location && !['محل 1', 'محل 2'].includes(input.stock_location)) {
-      throw new Error('موقع التخزين غير صالح');
+    if (input.stock_location) {
+      const activeLocations = await mssOperationalService.getActiveLocationNames();
+      if (!activeLocations.includes(input.stock_location)) {
+        throw new Error(`موقع التخزين غير صالح (${input.stock_location}). المواقع المتاحة: ${activeLocations.join('، ')}`);
+      }
     }
 
     if (input.purchase_date) {
@@ -884,8 +890,9 @@ export const mssInventoryService = {
       throw new Error(`الجهاز متواجد بالفعل في (${fromLocation})، ولا يمكن تحويله إلى نفس الموقع`);
     }
 
-    if (!['محل 1', 'محل 2'].includes(toLocation)) {
-      throw new Error('المحل الهدف غير صالح. يجب أن يكون "محل 1" أو "محل 2"');
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(toLocation)) {
+      throw new Error(`المحل أو المخزن الهدف غير صالح (${toLocation}). المواقع المتاحة: ${activeLocations.join('، ')}`);
     }
 
     const now = new Date().toISOString();
@@ -1086,6 +1093,7 @@ export const mssInventoryService = {
     let total_cost_value = 0;
     let total_retail_value = 0;
     let total_units = 0;
+    const location_breakdown: Record<string, number> = {};
 
     devices.forEach(d => {
       const qty = d.quantity && d.quantity > 0 ? d.quantity : 1;
@@ -1099,6 +1107,9 @@ export const mssInventoryService = {
           available_serialized_total += qty;
         } else {
           available_non_serialized_total += qty;
+        }
+        if (d.stock_location) {
+          location_breakdown[d.stock_location] = (location_breakdown[d.stock_location] || 0) + qty;
         }
         if (d.stock_location === 'محل 1') available_shop1 += qty;
         if (d.stock_location === 'محل 2') available_shop2 += qty;
@@ -1126,6 +1137,7 @@ export const mssInventoryService = {
       available_non_serialized_total,
       available_shop1,
       available_shop2,
+      location_breakdown,
       reserved_total,
       sold_total,
       maintenance_total,
@@ -1167,7 +1179,7 @@ export const mssInventoryService = {
 
     for (const d of devices) {
       const model = modelMap.get(d.model_id);
-      const branch = d.stock_location || 'محل 1';
+      const branch = d.stock_location || mssOperationalService.getActiveLocationNamesSync()[0] || 'محل 1';
       const key = `${d.model_id}:::${branch}`;
 
       if (!groupMap.has(key)) {
@@ -1240,7 +1252,7 @@ export const mssInventoryService = {
         const modelId = it.model_id || inv.model_id;
         if (!modelId) continue;
 
-        const branch = it.source_branch || inv.source_branch || inv.selling_branch || 'محل 1';
+        const branch = it.source_branch || inv.source_branch || inv.selling_branch || mssOperationalService.getActiveLocationNamesSync()[0] || 'محل 1';
         const key = `${modelId}:::${branch}`;
 
         if (!groupMap.has(key)) {

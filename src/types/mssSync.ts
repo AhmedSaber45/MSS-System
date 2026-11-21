@@ -9,7 +9,10 @@ export type SyncOperationType =
   | 'DEVICE_TRANSFER'
   | 'PAYMENT_RECORD'
   | 'PAYMENT_REVERSE'
-  | 'INSTALLMENT_SCHEDULE_UPDATE';
+  | 'INSTALLMENT_SCHEDULE_UPDATE'
+  | 'EXPENSE_CREATE'
+  | 'EXPENSE_UPDATE'
+  | 'EXPENSE_DELETE';
 
 export type SyncOperationStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'CONFLICT' | 'FAILED';
 

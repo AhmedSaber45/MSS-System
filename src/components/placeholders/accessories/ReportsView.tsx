@@ -19,6 +19,7 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle2,
+  ReceiptText,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { DateRangeInputs } from '@/components/common/DateRangeInputs';
@@ -148,6 +149,7 @@ export const ReportsView: React.FC = () => {
       title: `تقرير_الأرباح_${getTodayLocalDateString()}`,
       format: 'report',
       orientation: 'portrait',
+      exportType: 'accessories_reports',
     });
   };
 
@@ -259,7 +261,7 @@ export const ReportsView: React.FC = () => {
         </div>
       ) : summary ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <StatsCard
               title="إجمالي المبيعات (Gross Sales)"
               value={formatCurrency(summary.totalRevenue)}
@@ -275,14 +277,26 @@ export const ReportsView: React.FC = () => {
             <StatsCard
               title="صافي المبيعات (Net Sales)"
               value={formatCurrency(summary.netSales)}
-              subtitle="المبيعات الإجمالية مطروحاً منها المرتجعات"
+              subtitle="المبيعات مطروحاً منها المرتجعات"
               icon={ShoppingBag}
             />
             <StatsCard
-              title="إجمالي الأرباح (Gross Profit)"
+              title="مجمل الربح (Gross Profit)"
               value={formatCurrency(summary.grossProfit)}
               subtitle={`هامش ربح ${summary.profitMarginPercent.toFixed(1)}%`}
               icon={TrendingUp}
+            />
+            <StatsCard
+              title="المصروفات التشغيلية"
+              value={formatCurrency(summary.totalOperatingExpenses || 0)}
+              subtitle="مصروفات المحل للفترة"
+              icon={ReceiptText}
+            />
+            <StatsCard
+              title="صافي الربح بعد المصروفات"
+              value={formatCurrency(summary.netProfit ?? (summary.grossProfit - (summary.totalOperatingExpenses || 0)))}
+              subtitle={`هامش صافي ${(summary.netProfitMarginPercent ?? 0).toFixed(1)}%`}
+              icon={Wallet}
             />
           </div>
 

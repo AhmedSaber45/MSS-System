@@ -34,6 +34,7 @@ import { InstallmentScheduleBuilder, PlannedInstallmentItem } from '@/components
 import { SearchableItemSelect } from '@/components/common/SearchableItemSelect';
 import { MSSPrintableInvoice } from '@/components/placeholders/mss/MSSPrintableInvoice';
 import type { MSSDevice, MSSStockLocation } from '@/types/mssInventory';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import type { MSSInvoice, MSSPaymentType, NewMSSSaleItemInput } from '@/types/mssCommerce';
 
 export interface SaleCartItem {
@@ -78,8 +79,14 @@ export const MSSSalesView: React.FC = () => {
   const [pendingDiscount, setPendingDiscount] = useState<number>(0);
   const [itemError, setItemError] = useState<string>('');
 
-  // Invoice & Customer Info
-  const [sellingBranch, setSellingBranch] = useState<MSSStockLocation>('محل 1');
+  const { locations } = useMSSLocations();
+  const [sellingBranch, setSellingBranch] = useState<MSSStockLocation>(() => locations[0] || 'محل 1');
+
+  useEffect(() => {
+    if (locations.length > 0 && !locations.includes(sellingBranch)) {
+      setSellingBranch(locations[0]);
+    }
+  }, [locations, sellingBranch]);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [paymentType, setPaymentType] = useState<MSSPaymentType>('FULL');
@@ -721,10 +728,10 @@ export const MSSSalesView: React.FC = () => {
                 <Select
                   value={sellingBranch}
                   onChange={e => setSellingBranch(e.target.value as MSSStockLocation)}
-                  options={[
-                    { value: 'محل 1', label: 'محل 1 (الفرع الأول)' },
-                    { value: 'محل 2', label: 'محل 2 (الفرع الثاني)' },
-                  ]}
+                  options={locations.map(loc => ({
+                    value: loc,
+                    label: loc,
+                  }))}
                 />
                 <p className="text-xs text-slate-500 mt-1">تُنسب الفاتورة والأرباح لهذا الفرع</p>
               </div>

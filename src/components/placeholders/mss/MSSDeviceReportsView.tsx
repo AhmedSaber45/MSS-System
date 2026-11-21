@@ -38,6 +38,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { mssInventoryService } from '@/services/mssInventoryService.ts';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
 import { mssReportsService } from '@/services/mssReportsService.ts';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import { mssWholesaleExportService, formatArabicExportFilename, matchesCategory } from '@/services/mssWholesaleExportService.ts';
 import { unifiedDashboardService } from '@/services/unifiedDashboardService.ts';
 import { documentPrintService } from '@/lib/documentPrintService';
@@ -54,6 +55,7 @@ import type {
 import type { ReportPeriod } from '@/types/unifiedDashboard.ts';
 
 export const MSSDeviceReportsView: React.FC = () => {
+  const { locations } = useMSSLocations();
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
 
@@ -435,12 +437,18 @@ export const MSSDeviceReportsView: React.FC = () => {
   // Handle Export Sold Devices PDF
   const handleExportSoldReportPdf = async () => {
     if (!soldReport) return;
+    const title = formatArabicExportFilename(`تقرير_مبيعات_الأجهزة_${soldWarehouse}_${soldDateLabel || 'فترة'}`, 'pdf');
     showNotification({
       type: 'info',
       title: 'استخراج تقرير الأجهزة المباعة كـ PDF',
       message: 'تم فتح نافذة الطباعة. اختر "حفظ بتنسيق PDF" (Save as PDF) لحفظ المستند.',
     });
-    await handlePrintSoldReport();
+    await documentPrintService.exportToPdf('mss-device-sold-report-print', {
+      title,
+      format: 'report',
+      orientation: 'portrait',
+      exportType: 'mss_reports',
+    });
   };
 
   // =========================================================================
@@ -862,14 +870,13 @@ export const MSSDeviceReportsView: React.FC = () => {
                     className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     <option value="ALL">كافة الفروع والمخازن</option>
-                    <option value="محل 1">محل 1 فقط</option>
-                    <option value="محل 2">محل 2 فقط</option>
+                    {locations.map(loc => (
+                      <option key={loc} value={loc}>{loc} فقط</option>
+                    ))}
                   </select>
                   <span className="text-[11px] text-slate-500 block mt-1">
-                    {wholesaleOptions.branchFilter === 'محل 1'
-                      ? 'تصدير مخزون محل 1 فقط'
-                      : wholesaleOptions.branchFilter === 'محل 2'
-                      ? 'تصدير مخزون محل 2 فقط'
+                    {wholesaleOptions.branchFilter && wholesaleOptions.branchFilter !== 'ALL'
+                      ? `تصدير مخزون ${wholesaleOptions.branchFilter} فقط`
                       : 'تصدير مخزون كافة الفروع والمخازن'}
                   </span>
                 </div>
@@ -1584,8 +1591,11 @@ export const MSSDeviceReportsView: React.FC = () => {
                     <th className="p-2.5 text-center w-10">#</th>
                     <th className="p-2.5">الموديل والماركة</th>
                     <th className="p-2.5">المواصفات الأساسية</th>
-                    <th className="p-2.5 text-center bg-blue-50/40">محل 1 (موجود / مباع / إجمالي)</th>
-                    <th className="p-2.5 text-center bg-emerald-50/40">محل 2 (موجود / مباع / إجمالي)</th>
+                    {locations.map((loc, locIdx) => (
+                      <th key={loc} className={`p-2.5 text-center ${locIdx % 2 === 0 ? 'bg-blue-50/40' : 'bg-emerald-50/40'}`}>
+                        {loc} (موجود / مباع / إجمالي)
+                      </th>
+                    ))}
                     <th className="p-2.5 text-center bg-emerald-50/20 font-bold text-emerald-950">
                       الموجود الكلي (Existing)
                     </th>
@@ -1600,23 +1610,13 @@ export const MSSDeviceReportsView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {paginatedModelSummaries.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-10 text-center text-slate-500">
+                      <td colSpan={6 + locations.length} className="py-10 text-center text-slate-500">
                         لا توجد موديلات مطابقة لمعايير البحث الحالية
                       </td>
                     </tr>
                   ) : (
                     paginatedModelSummaries.map((item, idx) => {
                       const globalIdx = (summaryPage - 1) * summaryPageSize + idx + 1;
-                      const s1 = item.warehouse_breakdown['محل 1'] || {
-                        existing_units: 0,
-                        sold_units: 0,
-                        total_units: 0,
-                      };
-                      const s2 = item.warehouse_breakdown['محل 2'] || {
-                        existing_units: 0,
-                        sold_units: 0,
-                        total_units: 0,
-                      };
 
                       return (
                         <tr key={item.model_id} className="hover:bg-slate-50/80 transition-colors">
@@ -1642,20 +1642,33 @@ export const MSSDeviceReportsView: React.FC = () => {
                               <span className="text-slate-400 text-xs">---</span>
                             )}
                           </td>
-                          <td className="p-2.5 text-center font-mono bg-blue-50/15 whitespace-nowrap">
-                            <span className="text-emerald-700 font-bold">{s1.existing_units}</span>
-                            <span className="text-slate-400 mx-1">/</span>
-                            <span className="text-slate-600">{s1.sold_units}</span>
-                            <span className="text-slate-400 mx-1">/</span>
-                            <span className="text-blue-900 font-bold">{s1.total_units}</span>
-                          </td>
-                          <td className="p-2.5 text-center font-mono bg-emerald-50/15 whitespace-nowrap">
-                            <span className="text-emerald-700 font-bold">{s2.existing_units}</span>
-                            <span className="text-slate-400 mx-1">/</span>
-                            <span className="text-slate-600">{s2.sold_units}</span>
-                            <span className="text-slate-400 mx-1">/</span>
-                            <span className="text-emerald-900 font-bold">{s2.total_units}</span>
-                          </td>
+                          {locations.map((loc, locIdx) => {
+                            const sb = item.warehouse_breakdown[loc] || {
+                              existing_units: 0,
+                              sold_units: 0,
+                              total_units: 0,
+                            };
+                            return (
+                              <td
+                                key={loc}
+                                className={`p-2.5 text-center font-mono whitespace-nowrap ${
+                                  locIdx % 2 === 0 ? 'bg-blue-50/15' : 'bg-emerald-50/15'
+                                }`}
+                              >
+                                <span className="text-emerald-700 font-bold">{sb.existing_units}</span>
+                                <span className="text-slate-400 mx-1">/</span>
+                                <span className="text-slate-600">{sb.sold_units}</span>
+                                <span className="text-slate-400 mx-1">/</span>
+                                <span
+                                  className={`font-bold ${
+                                    locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
+                                  }`}
+                                >
+                                  {sb.total_units}
+                                </span>
+                              </td>
+                            );
+                          })}
                           <td className="p-2.5 text-center font-mono font-bold text-emerald-800 bg-emerald-50/10 whitespace-nowrap">
                             {item.existing_units}
                             <span className="text-[10px] text-slate-500 font-normal block">
@@ -1679,20 +1692,20 @@ export const MSSDeviceReportsView: React.FC = () => {
                       <td colSpan={3} className="p-3 text-right">
                         الإجمالي الكلي لكافة الموديلات والفروع ({modelSummaries.length} موديل):
                       </td>
-                      <td className="p-3 text-center font-mono text-blue-900">
-                        {modelSummaries.reduce(
-                          (s, it) => s + (it.warehouse_breakdown['محل 1']?.total_units || 0),
-                          0
-                        )}{' '}
-                        وحدة
-                      </td>
-                      <td className="p-3 text-center font-mono text-emerald-900">
-                        {modelSummaries.reduce(
-                          (s, it) => s + (it.warehouse_breakdown['محل 2']?.total_units || 0),
-                          0
-                        )}{' '}
-                        وحدة
-                      </td>
+                      {locations.map((loc, locIdx) => (
+                        <td
+                          key={loc}
+                          className={`p-3 text-center font-mono ${
+                            locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
+                          }`}
+                        >
+                          {modelSummaries.reduce(
+                            (s, it) => s + (it.warehouse_breakdown[loc]?.total_units || 0),
+                            0
+                          )}{' '}
+                          وحدة
+                        </td>
+                      ))}
                       <td className="p-3 text-center font-mono text-emerald-900 text-sm">
                         {grandExisting} وحدة
                       </td>
@@ -1753,7 +1766,7 @@ export const MSSDeviceReportsView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-600">الفرع / المخزن:</span>
                 <div className="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5 text-xs">
-                  {['ALL', 'محل 1', 'محل 2'].map(wh => (
+                  {['ALL', ...locations].map(wh => (
                     <button
                       key={wh}
                       type="button"
@@ -1864,25 +1877,21 @@ export const MSSDeviceReportsView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
-                <span className="text-xs font-semibold text-slate-500 block mb-1">
-                  مبيعات محل 1
-                </span>
-                <span className="font-mono text-xl font-bold text-blue-800 tabular-nums">
-                  {soldReport.warehouse_totals['محل 1'] || 0} جهاز
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">الفرع الأول</span>
-              </div>
-
-              <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
-                <span className="text-xs font-semibold text-slate-500 block mb-1">
-                  مبيعات محل 2
-                </span>
-                <span className="font-mono text-xl font-bold text-purple-800 tabular-nums">
-                  {soldReport.warehouse_totals['محل 2'] || 0} جهاز
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">الفرع الثاني</span>
-              </div>
+              {locations.map((loc, locIdx) => (
+                <div key={loc} className="p-4 bg-white border border-slate-300 rounded-xl shadow-2xs">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">
+                    مبيعات {loc}
+                  </span>
+                  <span
+                    className={`font-mono text-xl font-bold tabular-nums ${
+                      locIdx % 2 === 0 ? 'text-blue-800' : 'text-purple-800'
+                    }`}
+                  >
+                    {soldReport.warehouse_totals[loc] || 0} جهاز
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">فرع {loc}</span>
+                </div>
+              ))}
             </div>
           )}
 
@@ -1905,10 +1914,16 @@ export const MSSDeviceReportsView: React.FC = () => {
                     <th className="py-2.5 px-3">الموديل والماركة</th>
                     <th className="py-2.5 px-3">التصنيف</th>
                     {soldWarehouse === 'ALL' ? (
-                      <>
-                        <th className="py-2.5 px-3 text-center bg-blue-50/30">مبيعات محل 1</th>
-                        <th className="py-2.5 px-3 text-center bg-purple-50/30">مبيعات محل 2</th>
-                      </>
+                      locations.map((loc, locIdx) => (
+                        <th
+                          key={loc}
+                          className={`py-2.5 px-3 text-center ${
+                            locIdx % 2 === 0 ? 'bg-blue-50/30' : 'bg-purple-50/30'
+                          }`}
+                        >
+                          مبيعات {loc}
+                        </th>
+                      ))
                     ) : (
                       <th className="py-2.5 px-3 text-center">المخزن / الفرع</th>
                     )}
@@ -1948,17 +1963,21 @@ export const MSSDeviceReportsView: React.FC = () => {
                             </Badge>
                           </td>
                           {soldWarehouse === 'ALL' ? (
-                            <>
-                              <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-900 bg-blue-50/10">
-                                {it.warehouse_breakdown['محل 1'] || 0}
+                            locations.map((loc, locIdx) => (
+                              <td
+                                key={loc}
+                                className={`py-2.5 px-3 text-center font-mono font-bold ${
+                                  locIdx % 2 === 0
+                                    ? 'text-blue-900 bg-blue-50/10'
+                                    : 'text-purple-900 bg-purple-50/10'
+                                }`}
+                              >
+                                {it.warehouse_breakdown[loc] || 0}
                               </td>
-                              <td className="py-2.5 px-3 text-center font-mono font-bold text-purple-900 bg-purple-50/10">
-                                {it.warehouse_breakdown['محل 2'] || 0}
-                              </td>
-                            </>
+                            ))
                           ) : (
                             <td className="py-2.5 px-3 text-center">
-                              <Badge variant={soldWarehouse === 'محل 1' ? 'primary' : 'default'} size="sm">
+                              <Badge variant="primary" size="sm">
                                 {soldWarehouse}
                               </Badge>
                             </td>
@@ -1983,14 +2002,16 @@ export const MSSDeviceReportsView: React.FC = () => {
                         الإجمالي الكلي لتقرير المبيعات ({soldReport.items.length} موديل):
                       </td>
                       {soldWarehouse === 'ALL' ? (
-                        <>
-                          <td className="py-3 px-3 text-center font-mono text-blue-900">
-                            {soldReport.warehouse_totals['محل 1'] || 0} جهاز
+                        locations.map((loc, locIdx) => (
+                          <td
+                            key={loc}
+                            className={`py-3 px-3 text-center font-mono ${
+                              locIdx % 2 === 0 ? 'text-blue-900' : 'text-purple-900'
+                            }`}
+                          >
+                            {soldReport.warehouse_totals[loc] || 0} جهاز
                           </td>
-                          <td className="py-3 px-3 text-center font-mono text-purple-900">
-                            {soldReport.warehouse_totals['محل 2'] || 0} جهاز
-                          </td>
-                        </>
+                        ))
                       ) : (
                         <td className="py-3 px-3 text-center font-mono">{soldWarehouse}</td>
                       )}
@@ -2069,7 +2090,7 @@ export const MSSDeviceReportsView: React.FC = () => {
 
               {/* Summary KPIs */}
               {soldReport && (
-                <div className="grid grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-300 rounded-xl">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-300 rounded-xl">
                   <div>
                     <span className="text-xs text-slate-500 block">إجمالي الوحدات المباعة:</span>
                     <span className="text-lg font-bold font-mono text-slate-900">
@@ -2082,18 +2103,18 @@ export const MSSDeviceReportsView: React.FC = () => {
                       {formatCurrency(soldReport.total_revenue)}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-xs text-slate-500 block">مبيعات محل 1:</span>
-                    <span className="text-lg font-bold font-mono text-blue-900">
-                      {soldReport.warehouse_totals['محل 1'] || 0} جهاز
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-500 block">مبيعات محل 2:</span>
-                    <span className="text-lg font-bold font-mono text-purple-900">
-                      {soldReport.warehouse_totals['محل 2'] || 0} جهاز
-                    </span>
-                  </div>
+                  {locations.map((loc, locIdx) => (
+                    <div key={loc}>
+                      <span className="text-xs text-slate-500 block">مبيعات {loc}:</span>
+                      <span
+                        className={`text-lg font-bold font-mono ${
+                          locIdx % 2 === 0 ? 'text-blue-900' : 'text-purple-900'
+                        }`}
+                      >
+                        {soldReport.warehouse_totals[loc] || 0} جهاز
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -2104,8 +2125,9 @@ export const MSSDeviceReportsView: React.FC = () => {
                     <th className="p-2 border-l border-slate-300 text-center w-8">#</th>
                     <th className="p-2 border-l border-slate-300">الموديل والماركة</th>
                     <th className="p-2 border-l border-slate-300">التصنيف</th>
-                    <th className="p-2 border-l border-slate-300 text-center">محل 1</th>
-                    <th className="p-2 border-l border-slate-300 text-center">محل 2</th>
+                    {locations.map(loc => (
+                      <th key={loc} className="p-2 border-l border-slate-300 text-center">{loc}</th>
+                    ))}
                     <th className="p-2 border-l border-slate-300 text-center">إجمالي المباع</th>
                     <th className="p-2 text-left">إجمالي الإيراد</th>
                   </tr>
@@ -2118,12 +2140,11 @@ export const MSSDeviceReportsView: React.FC = () => {
                         {it.brand} {it.model_name}
                       </td>
                       <td className="p-2 border-l border-slate-300">{it.category}</td>
-                      <td className="p-2 border-l border-slate-300 text-center font-mono">
-                        {it.warehouse_breakdown['محل 1'] || 0}
-                      </td>
-                      <td className="p-2 border-l border-slate-300 text-center font-mono">
-                        {it.warehouse_breakdown['محل 2'] || 0}
-                      </td>
+                      {locations.map(loc => (
+                        <td key={loc} className="p-2 border-l border-slate-300 text-center font-mono">
+                          {it.warehouse_breakdown[loc] || 0}
+                        </td>
+                      ))}
                       <td className="p-2 border-l border-slate-300 text-center font-mono font-bold">
                         {it.total_sold_units}
                       </td>

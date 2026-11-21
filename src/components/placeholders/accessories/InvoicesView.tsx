@@ -543,6 +543,7 @@ export const InvoicesView: React.FC = () => {
                     await documentPrintService.exportToPdf(elementId, {
                       title: `فاتورة_${selectedInvoice.invoice_number}`,
                       format: printFormat,
+                      exportType: 'accessories_invoices',
                     });
                   }}
                   leftIcon={<FileDown className="w-4.5 h-4.5 text-blue-600" />}

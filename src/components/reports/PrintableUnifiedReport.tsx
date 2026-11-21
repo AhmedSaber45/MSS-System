@@ -144,10 +144,10 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <tr className="bg-slate-100 border-t-2 border-slate-900 font-bold print:bg-slate-50">
                 <td className="py-3 px-4 text-slate-950 text-base">
                   {scope === 'accessories'
-                    ? 'مجمل أرباح الإكسسوارات'
+                    ? 'مجمل أرباح الإكسسوارات (Gross Profit)'
                     : scope === 'mss'
-                    ? 'مجمل أرباح Compu MSS المشتركة'
-                    : 'مجمل الأرباح المجمعة'}
+                    ? 'مجمل أرباح Compu MSS المشتركة (Gross Profit)'
+                    : 'مجمل الأرباح المجمعة (Gross Profit)'}
                 </td>
                 <td className="py-3 px-4 text-center font-mono text-sm text-slate-900">
                   هامش الربح العام: {combined.profitMarginPercent.toFixed(1)}%
@@ -156,9 +156,45 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
                   {formatCurrency(combined.combinedGrossProfit)}
                 </td>
                 <td className="py-3 px-4 text-left text-xs font-bold text-emerald-800 print:text-slate-950">
-                  صافي الأرباح التشغيلية
+                  الأرباح التجارية قبل المصروفات
                 </td>
               </tr>
+              {combined.combinedOperatingExpenses !== undefined && (
+                <>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-900">
+                      {scope === 'accessories'
+                        ? 'مصروفات تشغيل الإكسسوارات'
+                        : scope === 'mss'
+                        ? 'مصروفات تشغيل Compu MSS'
+                        : 'إجمالي المصروفات التشغيلية المجمعة'}
+                    </td>
+                    <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-600">مصروفات النشاط للفترة</td>
+                    <td className="py-2.5 px-4 text-left font-bold font-mono tabular-nums text-rose-700">
+                      - {formatCurrency(combined.combinedOperatingExpenses)}
+                    </td>
+                    <td className="py-2.5 px-4 text-left text-xs font-medium text-rose-700">خصم من مجمل الأرباح</td>
+                  </tr>
+                  <tr className="bg-emerald-50 border-t-2 border-emerald-900 font-bold print:bg-slate-50">
+                    <td className="py-3 px-4 text-emerald-950 text-base print:text-slate-950">
+                      {scope === 'accessories'
+                        ? 'صافي أرباح الإكسسوارات بعد المصروفات (Net Profit)'
+                        : scope === 'mss'
+                        ? 'صافي أرباح Compu MSS بعد المصروفات (Net Profit)'
+                        : 'صافي الأرباح المجمعة بعد المصروفات (Net Profit)'}
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono text-sm text-emerald-900 print:text-slate-900">
+                      هامش صافي: {(combined.netProfitMarginPercent ?? 0).toFixed(1)}%
+                    </td>
+                    <td className="py-3 px-4 text-left font-mono tabular-nums text-emerald-950 text-lg print:text-slate-950">
+                      {formatCurrency(combined.combinedNetProfit ?? (combined.combinedGrossProfit - combined.combinedOperatingExpenses))}
+                    </td>
+                    <td className="py-3 px-4 text-left text-xs font-bold text-emerald-900 print:text-slate-950">
+                      صافي الربح الفعلي بعد استقطاع المصروفات
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>
@@ -190,6 +226,14 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
                 <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(accessories.grossProfit)}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">المصروفات التشغيلية:</span>
+                <span className="font-mono text-rose-700">- {formatCurrency(accessories.operatingExpenses || 0)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
+                <span className="text-slate-900">صافي الربح بعد المصروفات:</span>
+                <span className="font-mono text-emerald-950">{formatCurrency(accessories.netProfit ?? (accessories.grossProfit - (accessories.operatingExpenses || 0)))}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
                 <span className="text-slate-600">فواتير مسددة / مرتجعات:</span>
                 <span className="font-mono">{accessories.invoicesCount} فاتورة / {accessories.returnsCount} مرتجع</span>
               </div>
@@ -217,6 +261,14 @@ export const PrintableUnifiedReport: React.FC<PrintableUnifiedReportProps> = ({
               <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
                 <span className="text-slate-900">أرباح Compu MSS  (هامش {mss.profitMarginPercent.toFixed(1)}%):</span>
                 <span className="font-mono text-emerald-800 print:text-slate-950">{formatCurrency(mss.sharedGrossProfit)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-600">المصروفات التشغيلية:</span>
+                <span className="font-mono text-rose-700">- {formatCurrency(mss.operatingExpenses || 0)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 font-bold">
+                <span className="text-slate-900">صافي الربح بعد المصروفات:</span>
+                <span className="font-mono text-emerald-950">{formatCurrency(mss.netProfit ?? (mss.sharedGrossProfit - (mss.operatingExpenses || 0)))}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200">
                 <span className="text-slate-600">أجهزة مباعة / مرتجعة / محجوزة:</span>

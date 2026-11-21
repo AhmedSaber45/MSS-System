@@ -5,6 +5,9 @@ export interface MSSFinancialSummary {
   costOfGoodsSold: number;
   grossProfit: number;
   profitMarginPercent: number;
+  totalOperatingExpenses?: number;
+  netProfit?: number;
+  netProfitMarginPercent?: number;
   totalDiscounts: number;
   totalRefunds: number;
   netSales: number;
@@ -114,7 +117,7 @@ export interface WholesaleExportOptions {
   includeBranch?: boolean;
   includeCategory?: boolean;
   includeScreen?: boolean;
-  branch?: 'ALL' | 'محل 1' | 'محل 2';
+  branch?: 'ALL' | string;
   branchFilter?: string;
   selectedDeviceIds?: string[];
   selectedModelIds?: string[];

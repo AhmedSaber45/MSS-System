@@ -46,6 +46,7 @@ export interface MSSModelAvailability {
   model_id: string;
   available_shop1: number;
   available_shop2: number;
+  branch_availability?: Record<string, number>;
   total_available: number;
   reserved_count: number;
   sold_count: number;

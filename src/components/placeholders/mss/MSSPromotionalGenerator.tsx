@@ -23,6 +23,7 @@ import {
   PROMOTIONAL_HEADER_ASSETS,
   getBrandLogoConfig,
 } from '@/assets/promotional/promotionalAssets';
+import { useMSSLocations } from '@/hooks/useMSSLocations';
 import {
   Sparkles,
   Download,
@@ -152,6 +153,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
   id,
   className = '',
 }) => {
+  const { locations } = useMSSLocations();
   return (
     <div
       id={id}
@@ -160,7 +162,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
       dir="rtl"
     >
       <div>
-        {/* 1. Static Commercial Header Banner Section (Official COMPU MSS Header) */}
+        {/* 1. Static Commercial Header Banner Section (Official COMPU MSS Header) laptopLeft laptopRight */}
         <div className="relative bg-[#040e24] text-center overflow-hidden border-b border-sky-400/20 flex items-center justify-center">
           <img
             src={PROMOTIONAL_HEADER_ASSETS.banner}
@@ -171,53 +173,53 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
         </div>
 
       {/* 2. Structured Specifications Table */}
-      <div className="p-4 sm:p-5">
-        <table className="w-full text-xs text-right border-collapse border border-slate-300">
+      <div className="p-4 sm:p-5" dir="ltr">
+        <table className="w-full text-xs text-left border-collapse border border-slate-300" dir="ltr">
           <thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400">
             <tr>
-              <th className="py-3 px-2 w-24">
+              <th className="py-3 px-2 w-24 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.brand} alt="الماركة" className="w-4 h-4 object-contain" />
                   <span>الماركة</span>
                 </div>
               </th>
-              <th className="py-3 px-3 text-right">
+              <th className="py-3 px-3 text-left">
                 <div className="flex items-center gap-1 justify-start">
                   <img src={PROMOTIONAL_HEADER_ICONS.model} alt="الموديل" className="w-4 h-4 object-contain" />
                   <span>الموديل</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-20">
+              <th className="py-3 px-2 w-20 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.processor} alt="المعالج" className="w-4 h-4 object-contain" />
                   <span>المعالج</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28">
+              <th className="py-3 px-2 w-28 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.generation} alt="الجيل" className="w-4 h-4 object-contain" />
                   <span>الجيل</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-16">
+              <th className="py-3 px-2 w-16 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.ram} alt="الرام" className="w-4 h-4 object-contain" />
                   <span>الرام</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28">
+              <th className="py-3 px-2 w-28 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.storage} alt="الهارد" className="w-4 h-4 object-contain" />
                   <span>الهارد</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-24">
+              <th className="py-3 px-2 w-24 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.screen} alt="الشاشة" className="w-4 h-4 object-contain" />
                   <span>الشاشة</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28">
+              <th className="py-3 px-2 w-28 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.gpu} alt="كارت الشاشة" className="w-4 h-4 object-contain" />
                   <span>كارت الشاشة</span>
@@ -251,41 +253,49 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
               return (
                 <tr key={item.id} className={`transition-colors ${isEven ? 'bg-white' : 'bg-[#f8faff]'}`}>
-                  <td className="py-2.5 px-2 text-center border-l border-slate-200">
+                  <td className="py-2.5 px-2 text-center border-r border-slate-200">
                     <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td className="py-2.5 px-3 font-bold text-slate-900 border-l border-slate-200">
-                    <div>{item.model_name}</div>
+                  <td className="py-2.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-left">
+                    <div dir="ltr">{item.model_name}</div>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-l border-slate-200 font-mono">
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono" dir="ltr">
                     {item.processor || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-semibold text-slate-700 border-l border-slate-200">
-                    {item.generation || '---'}
+                  <td className="py-2.5 px-2 text-center font-semibold text-slate-700 border-r border-slate-200">
+                    <bdi>{item.generation || '---'}</bdi>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-l border-slate-200">
+                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200" dir="ltr">
                     {item.ram || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono text-slate-800 border-l border-slate-200">
+                  <td className="py-2.5 px-2 text-center font-mono text-slate-800 border-r border-slate-200" dir="ltr">
                     {item.storage || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center text-slate-700 border-l border-slate-200 font-mono">
+                  <td className="py-2.5 px-2 text-center text-slate-700 border-r border-slate-200 font-mono" dir="ltr">
                     {item.screen || '---'}
                   </td>
                   <td
-                    className={`py-2.5 px-2 text-center font-bold border-l border-slate-200 ${
+                    className={`py-2.5 px-2 text-center font-bold ${
+                      displayOptions.showQuantity || displayOptions.showPrice ? 'border-r border-slate-200' : ''
+                    } ${
                       isNvidia ? 'text-emerald-700' : isAmd ? 'text-rose-600' : isIntel ? 'text-blue-700' : 'text-slate-700'
                     }`}
+                    dir="ltr"
                   >
                     {item.gpu || '---'}
                   </td>
                   {displayOptions.showQuantity && (
-                    <td className="py-2.5 px-2 text-center font-bold text-slate-900 border-l border-slate-200">
+                    <td
+                      className={`py-2.5 px-2 text-center font-bold text-slate-900 ${
+                        displayOptions.showPrice ? 'border-r border-slate-200' : ''
+                      }`}
+                      dir="ltr"
+                    >
                       {item.quantity || 1}
                     </td>
                   )}
                   {displayOptions.showPrice && (
-                    <td className="py-2.5 px-3 text-center font-extrabold text-[#0a2558] text-sm tabular-nums">
+                    <td className="py-2.5 px-3 text-center font-extrabold text-[#0a2558] text-sm tabular-nums" dir="ltr">
                       {item.price ? Number(item.price).toLocaleString('en-US') : '---'}
                     </td>
                   )}
@@ -308,7 +318,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
           COMPU MSS — أجهزة أصلية معتمدة مع الضمان الشامل
         </p>
         <p className="text-[11px] text-slate-500">
-          للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: محل 1 • محل 2
+          للحجز والاستفسار يرجى التواصل عبر الرسائل أو الاتصال • الفروع: {locations.length > 0 ? locations.join(' • ') : 'محل 1 • محل 2'}
         </p>
       </div>
     </div>
@@ -737,7 +747,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
     }
   };
 
-  // Automatic multi-page PDF export using genuine jsPDF document engine
+  // Automatic multi-page PDF export using genuine jsPDF document engine: exportPromotionalAsPdf('mss-promotional-pdf-export-container')
   const handleExportPdf = async () => {
     if (previewItems.length === 0) return;
     setIsExportingPdf(true);

@@ -53,6 +53,46 @@ const INTERVAL_OPTIONS = [
   { value: 1440, label: 'كل 24 ساعة ' },
 ];
 
+/**
+ * Formats a time string (e.g., "14:35:20" or "09:15") into 12-hour format with Arabic AM/PM indicators (ص / م).
+ * Midnight (00:xx) -> 12:xx ص
+ * Noon (12:xx) -> 12:xx م
+ */
+export function formatTime12Hour(timeStr: string): string {
+  if (!timeStr) return '';
+  const trimmed = timeStr.trim();
+
+  // If already formatted with ص or م or AM/PM, return as is
+  if (/[\u0635\u0645]|AM|PM/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  let cleanTime = trimmed;
+  if (cleanTime.includes(' ')) {
+    const parts = cleanTime.split(' ');
+    // If the first part looks like a date (e.g. 2026-11-21), take the time part
+    cleanTime = parts.length > 1 && /^\d{4}-\d{2}-\d{2}/.test(parts[0]) ? parts[1] : cleanTime;
+  } else if (cleanTime.includes('T')) {
+    const parts = cleanTime.split('T');
+    cleanTime = parts.length > 1 ? parts[1] : cleanTime;
+  }
+
+  const match = cleanTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return timeStr;
+
+  const rawHours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const seconds = match[3];
+
+  const period = rawHours >= 12 ? 'م' : 'ص';
+  const hours12 = rawHours % 12 || 12;
+  const formattedHours = String(hours12).padStart(2, '0');
+
+  return seconds !== undefined
+    ? `${formattedHours}:${minutes}:${seconds} ${period}`
+    : `${formattedHours}:${minutes} ${period}`;
+}
+
 export const BackupView: React.FC = () => {
   const { showNotification } = useNotification();
   const { isRefreshing, triggerRefresh } = usePageRefresh();
@@ -388,15 +428,16 @@ export const BackupView: React.FC = () => {
       key: 'date',
       header: 'تاريخ الإنشاء',
       align: 'center',
-      className: 'w-24',
+      className: 'w-28',
       render: (item: BackupItem) => {
         const parts = (item.date || '').split(' ');
         const dateStr = parts[0] || item.date;
         const timeStr = parts[1] || '';
+        const formattedTime = timeStr ? formatTime12Hour(timeStr) : '';
         return (
           <div className="font-mono tabular-nums leading-tight text-xs">
             <span className="font-semibold text-slate-800 block">{dateStr}</span>
-            {timeStr && <span className="text-slate-500 text-[11px] block mt-0.5">{timeStr}</span>}
+            {formattedTime && <span className="text-slate-500 text-[11px] block mt-0.5">{formattedTime}</span>}
           </div>
         );
       },

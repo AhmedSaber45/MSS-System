@@ -186,6 +186,15 @@ export const MSSInventoryView: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleStoresChanged = () => {
+      loadData();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mss-stores-changed', handleStoresChanged);
+      return () => {
+        window.removeEventListener('mss-stores-changed', handleStoresChanged);
+      };
+    }
   }, [loadData]);
 
   // Dynamic location options from system stores or fallback
@@ -511,7 +520,8 @@ export const MSSInventoryView: React.FC = () => {
 
     setSelectedDevice(dev);
     // Suggest the other shop
-    setTransferTargetLocation(dev.stock_location === 'محل 1' ? 'محل 2' : 'محل 1');
+    const target = locationOptions.find(l => l !== dev.stock_location) || locationOptions[0] || 'محل 2';
+    setTransferTargetLocation(target);
     setTransferNotes('لتعويض النقص فى المخزون الأخر');
     setTransferError('');
     setIsTransferModalOpen(true);
@@ -929,23 +939,18 @@ export const MSSInventoryView: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-xs text-slate-600 font-bold mb-1">متوفر بمحل 1</p>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.available_shop1 || 0}</span>
-            <Store className="w-5 h-5 text-slate-500" />
-          </div>
-
-        </Card>
-
-        <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
-          <p className="text-xs text-slate-600 font-bold mb-1">متوفر بمحل 2</p>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{summary?.available_shop2 || 0}</span>
-            <Store className="w-5 h-5 text-slate-500" />
-          </div>
-
-        </Card>
+        {locationOptions.map(loc => {
+          const count = summary?.location_breakdown?.[loc] ?? (loc === 'محل 1' ? summary?.available_shop1 : loc === 'محل 2' ? summary?.available_shop2 : 0) ?? 0;
+          return (
+            <Card key={loc} className="p-4 bg-white border border-slate-300 shadow-2xs">
+              <p className="text-xs text-slate-600 font-bold mb-1">متوفر بـ {loc}</p>
+              <div className="flex items-baseline justify-between">
+                <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{count}</span>
+                <Store className="w-5 h-5 text-slate-500" />
+              </div>
+            </Card>
+          );
+        })}
 
         <Card className="p-4 bg-white border border-slate-300 shadow-2xs">
           <p className="text-xs text-slate-600 font-bold mb-1">إجمالي المتوفر</p>
@@ -2463,8 +2468,14 @@ export const MSSInventoryView: React.FC = () => {
                     <th className="p-2.5">#</th>
                     <th className="p-2.5">الموديل والماركة</th>
                     <th className="p-2.5">التصنيف</th>
-                    <th className="p-2.5 text-center bg-blue-50/40">محل 1 (موجود / مباع / إجمالي)</th>
-                    <th className="p-2.5 text-center bg-emerald-50/40">محل 2 (موجود / مباع / إجمالي)</th>
+                    {locationOptions.map((loc, locIdx) => (
+                      <th
+                        key={loc}
+                        className={`p-2.5 text-center ${locIdx % 2 === 0 ? 'bg-blue-50/40' : 'bg-emerald-50/40'}`}
+                      >
+                        {loc} (موجود / مباع / إجمالي)
+                      </th>
+                    ))}
                     <th className="p-2.5 text-center">الموجود الكلي</th>
                     <th className="p-2.5 text-center">المباع الكلي</th>
                     <th className="p-2.5 text-center font-bold text-blue-950">إجمالي الوحدات (Total)</th>
@@ -2473,15 +2484,12 @@ export const MSSInventoryView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {crossWarehouseSummaries.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-slate-500">
+                      <td colSpan={6 + locationOptions.length} className="py-8 text-center text-slate-500">
                         لا توجد موديلات مسجلة بالمخزون حالياً
                       </td>
                     </tr>
                   ) : (
                     crossWarehouseSummaries.map((item, idx) => {
-                      const branch1 = item.warehouse_breakdown['محل 1'] || { existing_units: 0, sold_units: 0, total_units: 0 };
-                      const branch2 = item.warehouse_breakdown['محل 2'] || { existing_units: 0, sold_units: 0, total_units: 0 };
-
                       return (
                         <tr key={item.model_id} className="hover:bg-slate-50/80">
                           <td className="p-2.5 text-slate-500 font-mono text-[11px]">{idx + 1}</td>
@@ -2503,20 +2511,23 @@ export const MSSInventoryView: React.FC = () => {
                               {item.category}
                             </Badge>
                           </td>
-                          <td className="p-2.5 text-center font-mono text-[11px] bg-blue-50/20">
-                            <span className="text-emerald-800 font-semibold">{branch1.existing_units} موجود</span>
-                            <span className="mx-1 text-slate-400">/</span>
-                            <span className="text-slate-700 font-semibold">{branch1.sold_units} مباع</span>
-                            <span className="mx-1 text-slate-400">=</span>
-                            <span className="font-bold text-slate-900">{branch1.total_units}</span>
-                          </td>
-                          <td className="p-2.5 text-center font-mono text-[11px] bg-emerald-50/20">
-                            <span className="text-emerald-800 font-semibold">{branch2.existing_units} موجود</span>
-                            <span className="mx-1 text-slate-400">/</span>
-                            <span className="text-slate-700 font-semibold">{branch2.sold_units} مباع</span>
-                            <span className="mx-1 text-slate-400">=</span>
-                            <span className="font-bold text-slate-900">{branch2.total_units}</span>
-                          </td>
+                          {locationOptions.map((loc, locIdx) => {
+                            const br = item.warehouse_breakdown[loc] || { existing_units: 0, sold_units: 0, total_units: 0 };
+                            return (
+                              <td
+                                key={loc}
+                                className={`p-2.5 text-center font-mono text-[11px] ${
+                                  locIdx % 2 === 0 ? 'bg-blue-50/20' : 'bg-emerald-50/20'
+                                }`}
+                              >
+                                <span className="text-emerald-800 font-semibold">{br.existing_units} موجود</span>
+                                <span className="mx-1 text-slate-400">/</span>
+                                <span className="text-slate-700 font-semibold">{br.sold_units} مباع</span>
+                                <span className="mx-1 text-slate-400">=</span>
+                                <span className="font-bold text-slate-900">{br.total_units}</span>
+                              </td>
+                            );
+                          })}
                           <td className="p-2.5 text-center">
                             <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
                               {item.existing_units}
@@ -2546,12 +2557,20 @@ export const MSSInventoryView: React.FC = () => {
                       <td colSpan={3} className="p-2.5 text-right">
                         الإجمالي الكلي لكافة الموديلات والفروع ({crossWarehouseSummaries.length} موديل):
                       </td>
-                      <td className="p-2.5 text-center font-mono">
-                        {crossWarehouseSummaries.reduce((s, it) => s + (it.warehouse_breakdown['محل 1']?.total_units || 0), 0)} وحدة
-                      </td>
-                      <td className="p-2.5 text-center font-mono">
-                        {crossWarehouseSummaries.reduce((s, it) => s + (it.warehouse_breakdown['محل 2']?.total_units || 0), 0)} وحدة
-                      </td>
+                      {locationOptions.map((loc, locIdx) => (
+                        <td
+                          key={loc}
+                          className={`p-2.5 text-center font-mono ${
+                            locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
+                          }`}
+                        >
+                          {crossWarehouseSummaries.reduce(
+                            (s, it) => s + (it.warehouse_breakdown[loc]?.total_units || 0),
+                            0
+                          )}{' '}
+                          وحدة
+                        </td>
+                      ))}
                       <td className="p-2.5 text-center font-mono text-emerald-800">
                         {crossWarehouseSummaries.reduce((s, it) => s + it.existing_units, 0)}
                       </td>
