@@ -413,7 +413,7 @@ export const backupService = {
 
       // Capture complete consistent snapshot of local data
       const snapshot = {
-        version: '1.0.3',
+        version: '1.0.4',
         type: triggerType,
         timestamp: now.toISOString(),
         data: {

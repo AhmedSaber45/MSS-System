@@ -130,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         {!isSidebarCollapsed && (
           <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
             <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
-              AS System v1.0.3
+              AS System v1.0.4
             </span>
             {onOpenSettings && (
               <button

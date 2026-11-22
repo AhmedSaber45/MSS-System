@@ -22,132 +22,9 @@ const ACCESSORIES_PAYMENTS_STORAGE_KEY = 'shop_accessories_payments_v1';
 const ACCESSORIES_SCHEDULES_STORAGE_KEY = 'shop_accessories_installment_schedules_v1';
 
 // Initial seed sales for browser / fallback preview
-const INITIAL_SEED_INVOICES: Invoice[] = [
-  {
-    id: 'inv-seed-001',
-    invoice_number: 'INV-2024-001',
-    invoice_date: '2024-11-10',
-    customer_name: 'أحمد محمود العوضي',
-    customer_phone: '01012345678',
-    subtotal: 340,
-    discount: 20,
-    total_amount: 320,
-    payment_method: 'نقدي',
-    notes: 'عميل دائم - خصم خاص على الفاتورة',
-    status: 'COMPLETED',
-    items_count: 2,
-    created_at: new Date('2024-11-10T16:20:00Z').toISOString(),
-    payment_type: 'FULL',
-    payment_status: 'PAID',
-    paid_amount: 320,
-    remaining_balance: 0,
-    installments_count: 0,
-  },
-  {
-    id: 'inv-seed-002',
-    invoice_number: 'INV-2024-002',
-    invoice_date: '2024-11-12',
-    customer_name: 'سارة خالد الشريف',
-    customer_phone: '01234567890',
-    subtotal: 550,
-    discount: 0,
-    total_amount: 550,
-    payment_method: 'فيزا',
-    notes: 'دفع بالفيزا مع ضمان أسبوعين',
-    status: 'COMPLETED',
-    items_count: 2,
-    created_at: new Date('2024-11-12T18:45:00Z').toISOString(),
-    payment_type: 'FULL',
-    payment_status: 'PAID',
-    paid_amount: 550,
-    remaining_balance: 0,
-    installments_count: 0,
-  },
-];
-
-const INITIAL_SEED_INVOICE_ITEMS: InvoiceItem[] = [
-  {
-    id: 'iitem-seed-001',
-    invoice_id: 'inv-seed-001',
-    product_id: 'prd-001-chg20',
-    product_name: 'شاحن سريع 20 واط Type-C أصلي',
-    product_code: 'CHG-20W-QC',
-    barcode: '622123456001',
-    quantity: 2,
-    original_price: 120,
-    discount: 0,
-    actual_price: 120,
-    cost_snapshot: 65,
-    line_total: 240,
-  },
-  {
-    id: 'iitem-seed-002',
-    invoice_id: 'inv-seed-001',
-    product_id: 'prd-004-hldmg',
-    product_name: 'حامل هاتف مغناطيسي لفتحة مكيف السيارة',
-    product_code: 'HLD-CAR-MAG',
-    barcode: '622123456004',
-    quantity: 1,
-    original_price: 100,
-    discount: 0,
-    actual_price: 100,
-    cost_snapshot: 55,
-    line_total: 100,
-  },
-  {
-    id: 'iitem-seed-003',
-    invoice_id: 'inv-seed-002',
-    product_id: 'prd-003-twsanc',
-    product_name: 'سماعة بلوتوث لاسلكية TWS مع خاصية العزل',
-    product_code: 'TWS-ANC-PRO',
-    barcode: '622123456003',
-    quantity: 1,
-    original_price: 450,
-    discount: 0,
-    actual_price: 450,
-    cost_snapshot: 240,
-    line_total: 450,
-  },
-  {
-    id: 'iitem-seed-004',
-    invoice_id: 'inv-seed-002',
-    product_id: 'prd-004-hldmg',
-    product_name: 'حامل هاتف مغناطيسي لفتحة مكيف السيارة',
-    product_code: 'HLD-CAR-MAG',
-    barcode: '622123456004',
-    quantity: 1,
-    original_price: 100,
-    discount: 0,
-    actual_price: 100,
-    cost_snapshot: 55,
-    line_total: 100,
-  },
-];
-
-const INITIAL_SEED_PAYMENTS: InvoicePayment[] = [
-  {
-    id: 'pay-seed-001',
-    invoice_id: 'inv-seed-001',
-    amount: 320,
-    payment_date: '2024-11-10',
-    payment_method: 'نقدي',
-    notes: 'سداد كامل عند إصدار الفاتورة',
-    recorded_by: 'النظام',
-    is_reversal: false,
-    created_at: new Date('2024-11-10T16:20:00Z').toISOString(),
-  },
-  {
-    id: 'pay-seed-002',
-    invoice_id: 'inv-seed-002',
-    amount: 550,
-    payment_date: '2024-11-12',
-    payment_method: 'فيزا',
-    notes: 'سداد كامل عند إصدار الفاتورة',
-    recorded_by: 'النظام',
-    is_reversal: false,
-    created_at: new Date('2024-11-12T18:45:00Z').toISOString(),
-  },
-];
+const INITIAL_SEED_INVOICES: Invoice[] = [];
+const INITIAL_SEED_INVOICE_ITEMS: InvoiceItem[] = [];
+const INITIAL_SEED_PAYMENTS: InvoicePayment[] = [];
 
 const isTestEnv =
   typeof process !== 'undefined' &&
@@ -161,14 +38,13 @@ function getLocalInvoices(): Invoice[] {
   try {
     const raw = localStorage.getItem(INVOICES_STORAGE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_INVOICES : [];
-      localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICES : []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(inv => !inv.id?.startsWith('inv-seed-'));
   } catch {
-    return isTestEnv ? INITIAL_SEED_INVOICES : [];
+    return [];
   }
 }
 
@@ -179,15 +55,12 @@ function saveLocalInvoices(invoices: Invoice[]): void {
 function getLocalInvoiceItems(): InvoiceItem[] {
   try {
     const raw = localStorage.getItem(INVOICE_ITEMS_STORAGE_KEY);
-    if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : [];
-      localStorage.setItem(INVOICE_ITEMS_STORAGE_KEY, JSON.stringify(defaultData));
-      return defaultData;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(item => !item.id?.startsWith('iitem-seed-') && !item.invoice_id?.startsWith('inv-seed-'));
   } catch {
-    return isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : [];
+    return [];
   }
 }
 
@@ -198,15 +71,12 @@ function saveLocalInvoiceItems(items: InvoiceItem[]): void {
 function getLocalPayments(): InvoicePayment[] {
   try {
     const raw = localStorage.getItem(ACCESSORIES_PAYMENTS_STORAGE_KEY);
-    if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_PAYMENTS : [];
-      localStorage.setItem(ACCESSORIES_PAYMENTS_STORAGE_KEY, JSON.stringify(defaultData));
-      return defaultData;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PAYMENTS : []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(pay => !pay.id?.startsWith('pay-seed-') && !pay.invoice_id?.startsWith('inv-seed-'));
   } catch {
-    return isTestEnv ? INITIAL_SEED_PAYMENTS : [];
+    return [];
   }
 }
 
@@ -317,20 +187,43 @@ export const salesService = {
       const invPayments = allPayments.filter(p => p.invoice_id === inv.id);
       const invSchedules = allSchedules.filter(s => s.invoice_id === inv.id);
 
-      // Dynamically compute payment status and balances
-      const metrics = computeInvoicePaymentStatus(
-        inv.total_amount,
-        invPayments,
-        inv.due_date,
-        invSchedules
-      );
+      // If we have recorded payments in local storage, use them to dynamically compute payment status
+      if (invPayments.length > 0) {
+        const metrics = computeInvoicePaymentStatus(
+          inv.total_amount,
+          invPayments,
+          inv.due_date,
+          invSchedules
+        );
+
+        return {
+          ...inv,
+          payment_type: inv.payment_type || 'FULL',
+          payment_status: metrics.paymentStatus,
+          paid_amount: metrics.paidAmount,
+          remaining_balance: metrics.remainingBalance,
+          installments_count: invSchedules.length > 0 ? invSchedules.length : inv.installments_count || 0,
+          payments: invPayments,
+          installment_schedule: invSchedules,
+        };
+      }
+
+      // If no separate payment records exist, preserve authoritative values from invoice record (e.g. from SQLite)
+      const isDeferred = inv.payment_type === 'DEFERRED';
+      const paid = inv.paid_amount !== undefined && inv.paid_amount !== null
+        ? inv.paid_amount
+        : (isDeferred ? 0 : inv.total_amount);
+      const remaining = inv.remaining_balance !== undefined && inv.remaining_balance !== null
+        ? inv.remaining_balance
+        : (isDeferred ? Math.max(0, inv.total_amount - paid) : 0);
+      const status = inv.payment_status || (remaining <= 0.001 ? 'PAID' : (paid > 0 ? 'PARTIALLY_PAID' : 'UNPAID'));
 
       return {
         ...inv,
         payment_type: inv.payment_type || 'FULL',
-        payment_status: metrics.paymentStatus,
-        paid_amount: metrics.paidAmount,
-        remaining_balance: metrics.remainingBalance,
+        payment_status: status,
+        paid_amount: paid,
+        remaining_balance: remaining,
         installments_count: invSchedules.length > 0 ? invSchedules.length : inv.installments_count || 0,
         payments: invPayments,
         installment_schedule: invSchedules,
@@ -450,7 +343,8 @@ export const salesService = {
    * - Supports FULL payment or DEFERRED / INSTALLMENT payments
    * - Validates invoice header and cart items
    * - Ensures available stock for all items BEFORE any modification
-   * - Atomically deducts stock & logs movements
+   * - On Tauri desktop: Atomically executes through SQLite transaction (create_accessories_sale)
+   * - On browser/test: Atomically deducts stock & logs movements with automatic rollback on error
    * - Preserves price snapshots & creates individual payment transactions
    * - Stores planned installment schedule separately from actual payments
    */
@@ -490,7 +384,97 @@ export const salesService = {
       }
     }
 
-    // Local persistent fallback with strict transactional integrity
+    // --- DESKTOP TAURI ATOMIC EXECUTION ---
+    if (isTauri()) {
+      const sanitizedInput = {
+        invoice_number: invNum,
+        customer_name: input.customer_name?.trim() || null,
+        customer_phone: input.customer_phone?.trim() || null,
+        invoice_discount: Number(input.invoice_discount || 0),
+        payment_method: input.payment_method?.trim() || 'نقدي',
+        notes: input.notes?.trim() || null,
+        payment_type: input.payment_type || 'FULL',
+        initial_payment: input.initial_payment !== undefined ? Number(input.initial_payment) : null,
+        due_date: input.due_date || null,
+        installments: input.installments?.map(inst => ({
+          installment_number: Number(inst.installment_number),
+          due_date: String(inst.due_date),
+          expected_amount: Number(inst.expected_amount),
+          notes: inst.notes || null,
+        })) || null,
+        items: input.items.map(item => ({
+          product_id: item.product_id || null,
+          item_type: item.item_type || 'product',
+          description: item.description || null,
+          price: item.price !== undefined ? Number(item.price) : null,
+          quantity: Math.floor(Number(item.quantity)),
+          discount: Number(item.discount || 0),
+        })),
+      };
+
+      const invoice = await invoke<Invoice>('create_accessories_sale', { input: sanitizedInput });
+
+      // Fetch items recorded in SQLite
+      let items: InvoiceItem[] = [];
+      try {
+        items = await invoke<InvoiceItem[]>('get_accessories_invoice_items', {
+          invoiceId: invoice.id,
+        });
+      } catch (err) {
+        console.warn('Could not fetch inserted invoice items', err);
+      }
+
+      // Sync local storage for caching and offline view
+      try {
+        const localInvs = getLocalInvoices().filter(i => i.id !== invoice.id);
+        localInvs.unshift(invoice);
+        saveLocalInvoices(localInvs);
+
+        if (items.length > 0) {
+          const localItems = getLocalInvoiceItems().filter(i => i.invoice_id !== invoice.id);
+          saveLocalInvoiceItems([...localItems, ...items]);
+        }
+
+        if (invoice.paid_amount && invoice.paid_amount > 0) {
+          const localPayments = getLocalPayments().filter(p => p.invoice_id !== invoice.id);
+          localPayments.push({
+            id: 'pay-' + Math.random().toString(36).substring(2, 9),
+            invoice_id: invoice.id,
+            amount: invoice.paid_amount,
+            payment_date: invoice.invoice_date,
+            payment_method: invoice.payment_method,
+            notes: invoice.payment_type === 'DEFERRED' ? 'دفعة أولى عند البيع بالتقسيط / الأجل' : 'سداد كامل عند إصدار الفاتورة',
+            recorded_by: null,
+            is_reversal: false,
+            created_at: invoice.created_at,
+          });
+          saveLocalPayments(localPayments);
+        }
+
+        if (input.installments && input.installments.length > 0) {
+          const localSchedules = getLocalSchedules().filter(s => s.invoice_id !== invoice.id);
+          for (const inst of input.installments) {
+            localSchedules.push({
+              id: 'sch-' + Math.random().toString(36).substring(2, 9),
+              invoice_id: invoice.id,
+              installment_number: inst.installment_number,
+              due_date: inst.due_date,
+              expected_amount: roundMoney(inst.expected_amount),
+              notes: inst.notes || null,
+              created_at: invoice.created_at,
+            });
+          }
+          saveLocalSchedules(localSchedules);
+        }
+      } catch (err) {
+        console.warn('Failed to sync invoice to local storage', err);
+      }
+
+      backupService.notifyDataChanged(`إصدار فاتورة مبيعات: ${invoice.invoice_number}`);
+      return invoice;
+    }
+
+    // --- BROWSER / TEST PERSISTENT FALLBACK WITH STRICT TRANSACTIONAL INTEGRITY ---
     const allInvoices = getLocalInvoices();
 
     // Check duplicate invoice number
@@ -594,58 +578,73 @@ export const salesService = {
     const todayDate = input.invoice_date || now.substring(0, 10);
     const safePaymentMethod = input.payment_method?.trim() || 'نقدي';
 
-    // Save items, deduct stock, and record inventory movements
+    // Save items, deduct stock, and record inventory movements with rollback protection
     const newItems: InvoiceItem[] = [];
+    const rollbacks: Array<() => Promise<void>> = [];
 
-    for (const p of preparedItems) {
-      const itemRecord: InvoiceItem = {
-        id: 'iitem-' + Math.random().toString(36).substring(2, 9),
-        invoice_id: invoiceId,
-        product_id: p.productId,
-        product_name: p.productName,
-        product_code: p.productCode,
-        barcode: p.barcode || null,
-        quantity: p.quantity,
-        original_price: p.originalPrice,
-        discount: p.discount,
-        actual_price: p.actualPrice,
-        cost_snapshot: p.costSnapshot,
-        line_total: p.lineTotal,
-        item_type: p.itemType,
-      };
-      newItems.push(itemRecord);
+    try {
+      for (const p of preparedItems) {
+        const itemRecord: InvoiceItem = {
+          id: 'iitem-' + Math.random().toString(36).substring(2, 9),
+          invoice_id: invoiceId,
+          product_id: p.productId,
+          product_name: p.productName,
+          product_code: p.productCode,
+          barcode: p.barcode || null,
+          quantity: p.quantity,
+          original_price: p.originalPrice,
+          discount: p.discount,
+          actual_price: p.actualPrice,
+          cost_snapshot: p.costSnapshot,
+          line_total: p.lineTotal,
+          item_type: p.itemType,
+        };
+        newItems.push(itemRecord);
 
-      // Only deduct inventory and record movements for physical products!
-      if (p.itemType === 'product' && p.product) {
-        const previousStock = p.product.stock;
-        const newStock = previousStock - p.quantity;
+        // Only deduct inventory and record movements for physical products!
+        if (p.itemType === 'product' && p.product) {
+          const previousStock = p.product.stock;
+          const newStock = previousStock - p.quantity;
 
-        // 1. Deduct stock from product
-        await productsService.updateProduct(p.product.id, {
-          name: p.product.name,
-          code: p.product.code,
-          barcode: p.product.barcode,
-          category: p.product.category,
-          cost: p.product.cost,
-          price: p.product.price,
-          stock: newStock,
-          low_stock_threshold: p.product.low_stock_threshold,
-          description: p.product.description,
-        });
+          rollbacks.push(async () => {
+            await productsService.updateProduct(p.product.id, {
+              ...p.product,
+              stock: previousStock,
+            });
+          });
 
-        // 2. Record inventory movement as SALE
-        await inventoryService.recordMovementInternal({
-          product_id: p.product.id,
-          product_name: p.product.name,
-          product_code: p.product.code,
-          movement_type: 'SALE',
-          quantity_change: -p.quantity,
-          previous_stock: previousStock,
-          new_stock: newStock,
-          reference_id: invoiceId,
-          reason: `فاتورة مبيعات رقم ${invNum}`,
-        });
+          // 1. Deduct stock from product
+          await productsService.updateProduct(p.product.id, {
+            name: p.product.name,
+            code: p.product.code,
+            barcode: p.product.barcode,
+            category: p.product.category,
+            cost: p.product.cost,
+            price: p.product.price,
+            stock: newStock,
+            low_stock_threshold: p.product.low_stock_threshold,
+            description: p.product.description,
+          });
+
+          // 2. Record inventory movement as SALE
+          await inventoryService.recordMovementInternal({
+            product_id: p.product.id,
+            product_name: p.product.name,
+            product_code: p.product.code,
+            movement_type: 'SALE',
+            quantity_change: -p.quantity,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            reference_id: invoiceId,
+            reason: `فاتورة مبيعات رقم ${invNum}`,
+          });
+        }
       }
+    } catch (err) {
+      for (const rollback of rollbacks) {
+        try { await rollback(); } catch {}
+      }
+      throw err;
     }
 
     // Phase 2: Deferred & Installment Calculation
@@ -792,13 +791,11 @@ export const salesService = {
       throw new Error('قيمة الدفعة المحصلة يجب أن تكون أكبر من صفر');
     }
 
-    const allInvoices = getLocalInvoices();
-    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
-    if (invIndex < 0) {
+    const invoice = await this.getInvoiceById(invoiceId);
+    if (!invoice) {
       throw new Error('الفاتورة غير موجودة');
     }
 
-    const invoice = allInvoices[invIndex];
     const existingPayments = await this.getPayments(invoiceId);
     const existingSchedules = await this.getInstallmentSchedule(invoiceId);
 
@@ -870,9 +867,14 @@ export const salesService = {
       installment_schedule: existingSchedules,
     };
 
-    allInvoices[invIndex] = updatedInvoice;
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
+    if (invIndex >= 0) {
+      allInvoices[invIndex] = updatedInvoice;
+    } else {
+      allInvoices.unshift(updatedInvoice);
+    }
     saveLocalInvoices(allInvoices);
-
     backupService.notifyDataChanged(`تسجيل دفعة بقيمة ${amount} EGP لفاتورة ${invoice.invoice_number}`);
 
     return { invoice: updatedInvoice, payment: newPayment };
@@ -908,13 +910,11 @@ export const salesService = {
       throw new Error('تم إلغاء وعكس هذه الدفعة مسبقاً.');
     }
 
-    const allInvoices = getLocalInvoices();
-    const invIndex = allInvoices.findIndex(inv => inv.id === payment.invoice_id);
-    if (invIndex < 0) {
+    const invoice = await this.getInvoiceById(payment.invoice_id);
+    if (!invoice) {
       throw new Error('الفاتورة المرتبطة بالدفعة غير موجودة.');
     }
 
-    const invoice = allInvoices[invIndex];
     const now = new Date().toISOString();
 
     const reversalPayment: InvoicePayment = {
@@ -952,9 +952,14 @@ export const salesService = {
       installment_schedule: invSchedules,
     };
 
-    allInvoices[invIndex] = updatedInvoice;
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === payment.invoice_id);
+    if (invIndex >= 0) {
+      allInvoices[invIndex] = updatedInvoice;
+    } else {
+      allInvoices.unshift(updatedInvoice);
+    }
     saveLocalInvoices(allInvoices);
-
     backupService.notifyDataChanged(`عكس دفعة لفاتورة ${invoice.invoice_number}: ${safeReason}`);
 
     return { invoice: updatedInvoice, reversalPayment };
@@ -982,13 +987,11 @@ export const salesService = {
       }
     }
 
-    const allInvoices = getLocalInvoices();
-    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
-    if (invIndex < 0) {
+    const invoice = await this.getInvoiceById(invoiceId);
+    if (!invoice) {
       throw new Error('الفاتورة غير موجودة');
     }
 
-    const invoice = allInvoices[invIndex];
     const now = new Date().toISOString();
 
     const newSchedules: InstallmentScheduleItem[] = installments.map(inst => ({
@@ -1043,9 +1046,14 @@ export const salesService = {
       payments: invPayments,
     };
 
-    allInvoices[invIndex] = updatedInvoice;
+    const allInvoices = getLocalInvoices();
+    const invIndex = allInvoices.findIndex(inv => inv.id === invoiceId);
+    if (invIndex >= 0) {
+      allInvoices[invIndex] = updatedInvoice;
+    } else {
+      allInvoices.unshift(updatedInvoice);
+    }
     saveLocalInvoices(allInvoices);
-
     backupService.notifyDataChanged(`تحديث جدول أقساط فاتورة ${invoice.invoice_number}`);
 
     return newSchedules;

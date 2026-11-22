@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsCard, Card, CardHeader, CardTitle } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -48,6 +48,10 @@ export const ReportsView: React.FC = () => {
   const [dailySummaries, setDailySummaries] = useState<DailySalesSummary[]>([]);
   const [topProducts, setTopProducts] = useState<TopSellingProduct[]>([]);
   const [valuation, setValuation] = useState<InventoryValuation | null>(null);
+
+  const activeDailySummaries = useMemo(() => {
+    return dailySummaries.filter(d => d.invoicesCount > 0 || d.refunds > 0 || d.revenue > 0);
+  }, [dailySummaries]);
   const [receivables, setReceivables] = useState<{
     totalReceivables: number;
     totalPaidReceivables: number;
@@ -359,14 +363,14 @@ export const ReportsView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {dailySummaries.length === 0 ? (
+                      {activeDailySummaries.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-slate-500 text-sm">
                             لا توجد بيانات مسجلة في هذه الفترة
                           </td>
                         </tr>
                       ) : (
-                        dailySummaries.map(d => (
+                        activeDailySummaries.map(d => (
                           <tr key={d.date} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3 px-3.5 text-slate-800 font-mono text-sm font-semibold tabular-nums">
                               {d.date}

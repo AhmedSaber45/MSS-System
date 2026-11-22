@@ -163,7 +163,7 @@ async function writeDiskConfigAsync(locationPath: string | null): Promise<void> 
       storageLocation: locationPath,
       updatedAt: new Date().toISOString(),
       appName: 'Compu MSS',
-      version: '1.0.3',
+      version: '1.0.4',
     };
     fsMod.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
