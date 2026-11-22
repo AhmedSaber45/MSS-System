@@ -16,6 +16,7 @@ export interface StoredSession {
   user: AuthenticatedUser;
   expiresAt: string;
   lastOnlineValidationAt: string;
+  lastActivityAt?: string;
   offlineMaxDays: number;
   deviceInfo?: string;
 }
@@ -28,7 +29,8 @@ export type AuthStatus =
   | 'offline_expired'
   | 'revoked'
   | 'credential_changed'
-  | 'account_disabled';
+  | 'account_disabled'
+  | 'inactivity_expired';
 
 export interface LoginCredentials {
   username: string;

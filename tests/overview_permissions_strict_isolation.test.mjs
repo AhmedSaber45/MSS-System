@@ -343,8 +343,8 @@ describe('Fix Overview Statistics Page — Strict Module-Based Permissions', () 
         sessionToken: 'test-token-admin',
         user: {
           id: 'admin-01',
-          username: 'ahmed',
-          displayName: 'أحمد صابر',
+          username: 'saberadmin',
+          displayName: 'أحمد صابر (Super Admin)',
           allowedModules: 'both',
           assignedStoreIds: [],
           credentialVersion: 1,

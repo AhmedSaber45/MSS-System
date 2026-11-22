@@ -17,7 +17,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sessionToken } = body;
+    const { sessionToken, isUserAction } = body;
 
     if (!sessionToken) {
       return NextResponse.json(
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await adminService.revalidateDesktopSession({ sessionToken });
+    const result = await adminService.revalidateDesktopSession({
+      sessionToken,
+      isUserAction: Boolean(isUserAction),
+    });
 
     if (!result.success) {
       return NextResponse.json(

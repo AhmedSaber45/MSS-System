@@ -6,14 +6,19 @@ import type {
   LoginCredentials,
   LoginResult,
 } from '../types/auth.ts';
+import { webSessionFallback } from './webSessionFallback.ts';
 
 const DEFAULT_OFFLINE_DAYS = 7;
+export const INACTIVITY_TIMEOUT_DAYS = 7;
+export const INACTIVITY_TIMEOUT_MS = INACTIVITY_TIMEOUT_DAYS * 24 * 60 * 60 * 1000; // 168 hours = 604,800,000 ms
+
 const ADMIN_API_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ADMIN_API_URL) ||
   'http://localhost:3000';
 
 // In-memory session store fallback for non-Tauri / test environments
 let memorySession: StoredSession | null = null;
+let lastRecordedUserActivity = 0;
 
 export const desktopAuthService = {
   /**
@@ -24,23 +29,25 @@ export const desktopAuthService = {
   },
 
   /**
-   * Securely save session using Windows DPAPI (or memory fallback in web/test mode)
+   * Securely save session using Windows DPAPI (or web / memory fallback)
    */
   async saveSecureSession(session: StoredSession): Promise<void> {
     const json = JSON.stringify(session);
     if (this.isDesktop()) {
       try {
         await invoke('save_secure_session', { sessionJson: json });
+        memorySession = session;
         return;
       } catch (err) {
         console.warn('DPAPI save_secure_session failed, using memory store:', err);
       }
     }
     memorySession = session;
+    webSessionFallback.save(session);
   },
 
   /**
-   * Securely load session from Windows DPAPI
+   * Securely load session from Windows DPAPI (or web / memory fallback)
    */
   async loadSecureSession(): Promise<StoredSession | null> {
     if (this.isDesktop()) {
@@ -49,7 +56,9 @@ export const desktopAuthService = {
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (parsed && parsed.sessionToken && parsed.user) {
-          return parsed as StoredSession;
+          const loaded = parsed as StoredSession;
+          memorySession = loaded;
+          return loaded;
         }
         return null;
       } catch (err) {
@@ -57,11 +66,17 @@ export const desktopAuthService = {
         return null;
       }
     }
-    return memorySession;
+    if (memorySession) return memorySession;
+    const fallback = webSessionFallback.load();
+    if (fallback) {
+      memorySession = fallback;
+      return fallback;
+    }
+    return null;
   },
 
   /**
-   * Securely clear session from Windows DPAPI
+   * Securely clear session from Windows DPAPI and fallbacks
    */
   async clearSecureSession(): Promise<void> {
     if (this.isDesktop()) {
@@ -72,6 +87,7 @@ export const desktopAuthService = {
       }
     }
     memorySession = null;
+    webSessionFallback.clear();
   },
 
   /**
@@ -83,7 +99,43 @@ export const desktopAuthService = {
   },
 
   /**
-   * Validate local session against offline policy (7-day default window, anti-tampering)
+   * Check 7-day inactivity timeout (168 hours) based on stored last activity timestamp
+   */
+  checkInactivityTimeout(session: StoredSession): {
+    expired: boolean;
+    reason?: 'INACTIVITY_TIMEOUT' | 'CLOCK_TAMPERING';
+    elapsedMs: number;
+    remainingMs: number;
+  } {
+    if (!session) {
+      return { expired: true, elapsedMs: 0, remainingMs: 0 };
+    }
+
+    const now = Date.now();
+    const lastActiveIso = session.lastActivityAt || session.lastOnlineValidationAt;
+    if (!lastActiveIso) {
+      return { expired: false, elapsedMs: 0, remainingMs: INACTIVITY_TIMEOUT_MS };
+    }
+
+    const lastActive = new Date(lastActiveIso).getTime();
+
+    // Anti-tampering check: clock moved backward by more than 1 minute
+    if (now < lastActive - 60000) {
+      return { expired: true, reason: 'CLOCK_TAMPERING', elapsedMs: 0, remainingMs: 0 };
+    }
+
+    const elapsed = now - lastActive;
+    const remaining = INACTIVITY_TIMEOUT_MS - elapsed;
+
+    if (elapsed >= INACTIVITY_TIMEOUT_MS || remaining <= 0) {
+      return { expired: true, reason: 'INACTIVITY_TIMEOUT', elapsedMs: elapsed, remainingMs: 0 };
+    }
+
+    return { expired: false, elapsedMs: elapsed, remainingMs: remaining };
+  },
+
+  /**
+   * Validate local session against offline policy (7-day default window, anti-tampering, inactivity)
    */
   validateOfflineSession(session: StoredSession): {
     valid: boolean;
@@ -100,9 +152,18 @@ export const desktopAuthService = {
       return { valid: false, daysRemaining: 0, reason: 'EXPIRED' };
     }
 
+    // Inactivity check
+    const inactivity = this.checkInactivityTimeout(session);
+    if (inactivity.expired) {
+      if (inactivity.reason === 'CLOCK_TAMPERING') {
+        return { valid: false, daysRemaining: 0, reason: 'CLOCK_TAMPERING' };
+      }
+      return { valid: false, daysRemaining: 0, reason: 'OFFLINE_MAX_EXCEEDED' };
+    }
+
     const lastOnline = new Date(session.lastOnlineValidationAt).getTime();
 
-    // Anti-tampering check: clock moved backward by more than 1 minute
+    // Anti-tampering check on last online validation: clock moved backward by more than 1 minute
     if (now < lastOnline - 60000) {
       return { valid: false, daysRemaining: 0, reason: 'CLOCK_TAMPERING' };
     }
@@ -118,6 +179,28 @@ export const desktopAuthService = {
 
     const daysRemaining = Math.max(1, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
     return { valid: true, daysRemaining };
+  },
+
+  /**
+   * Record meaningful user activity (clicks, keys, navigation)
+   * Throttled to prevent excessive DPAPI disk I/O operations
+   */
+  async recordUserActivity(): Promise<boolean> {
+    const now = Date.now();
+    if (now - lastRecordedUserActivity < 15000) {
+      return false; // Throttled
+    }
+    lastRecordedUserActivity = now;
+
+    const current = await this.loadSecureSession();
+    if (!current) return false;
+
+    const updated: StoredSession = {
+      ...current,
+      lastActivityAt: new Date(now).toISOString(),
+    };
+    await this.saveSecureSession(updated);
+    return true;
   },
 
   /**
@@ -149,7 +232,7 @@ export const desktopAuthService = {
         };
       }
 
-      // Establish authenticated session
+      // Establish authenticated session with 7-day inactivity baseline
       const nowIso = new Date().toISOString();
       const storedSession: StoredSession = {
         sessionToken: data.sessionToken,
@@ -165,6 +248,7 @@ export const desktopAuthService = {
         },
         expiresAt: data.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
         lastOnlineValidationAt: nowIso,
+        lastActivityAt: nowIso,
         offlineMaxDays: DEFAULT_OFFLINE_DAYS,
         deviceInfo: 'Compu MSS Desktop Application (Windows)',
       };
@@ -202,6 +286,7 @@ export const desktopAuthService = {
             },
             expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
             lastOnlineValidationAt: nowIso,
+            lastActivityAt: nowIso,
             offlineMaxDays: DEFAULT_OFFLINE_DAYS,
             deviceInfo: 'Compu MSS Desktop Application (Direct RPC)',
           };
@@ -213,33 +298,7 @@ export const desktopAuthService = {
         // Fallback to local offline admin setup
       }
 
-      // 2. Local fallback for default administrator account on first run / offline mode
-      const norm = username.trim().toLowerCase();
-      if (norm === 'ahmed' && accessCode === '1234') {
-        const nowIso = new Date().toISOString();
-        const storedSession: StoredSession = {
-          sessionToken: `sess_local_${Date.now()}`,
-          user: {
-            id: 'a1111111-1111-1111-1111-111111111100',
-            username: 'ahmed',
-            displayName: 'أحمد صابر',
-            allowedModules: 'both',
-            defaultStoreId: undefined,
-            assignedStoreIds: [],
-            credentialVersion: 1,
-            permissionVersion: 1,
-          },
-          expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-          lastOnlineValidationAt: nowIso,
-          offlineMaxDays: DEFAULT_OFFLINE_DAYS,
-          deviceInfo: 'Compu MSS Desktop Application (Local Setup)',
-        };
-
-        await this.saveSecureSession(storedSession);
-        return { success: true, status: 'authenticated' };
-      }
-
-      // Network failure
+      // Network or connection failure
       return {
         success: false,
         error: 'تعذر الاتصال بخادم المصادقة. يرجى التحقق من اتصال الإنترنت أو تشغيل الخادم.',
@@ -249,8 +308,9 @@ export const desktopAuthService = {
 
   /**
    * Revalidate an existing session with the server
+   * Note: Passive background revalidations pass isUserAction = false so inactivity timer is NOT reset
    */
-  async revalidateSession(sessionToken: string): Promise<{
+  async revalidateSession(sessionToken: string, isUserAction: boolean = false): Promise<{
     success: boolean;
     reason?: 'VALID' | 'SESSION_REVOKED' | 'SESSION_EXPIRED' | 'ACCOUNT_DISABLED' | 'CREDENTIAL_CHANGED' | 'NETWORK_ERROR';
     user?: AuthenticatedUser;
@@ -261,7 +321,7 @@ export const desktopAuthService = {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/desktop-revalidate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionToken }),
+        body: JSON.stringify({ sessionToken, isUserAction }),
       });
 
       const data = await res.json();

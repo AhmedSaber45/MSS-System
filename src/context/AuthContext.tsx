@@ -49,7 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Revalidate session with backend
-  const revalidate = useCallback(async (): Promise<boolean> => {
+  // Note: Passive background revalidation does NOT reset inactivity timer
+  const revalidate = useCallback(async (isUserAction: boolean = false): Promise<boolean> => {
     const currentSession = session || (await desktopAuthService.loadSecureSession());
     if (!currentSession) {
       setUser(null);
@@ -58,7 +59,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    const res = await desktopAuthService.revalidateSession(currentSession.sessionToken);
+    // Check inactivity timeout first
+    const inactivity = desktopAuthService.checkInactivityTimeout(currentSession);
+    if (inactivity.expired) {
+      await desktopAuthService.clearSecureSession();
+      setUser(null);
+      setSession(null);
+      setStatus('inactivity_expired');
+      setErrorMessage(
+        'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة). يرجى تسجيل الدخول مجدداً.'
+      );
+      return false;
+    }
+
+    const res = await desktopAuthService.revalidateSession(currentSession.sessionToken, isUserAction);
 
     if (res.success && res.user) {
       // Case A & B: Session valid or permissions updated
@@ -67,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user: res.user,
         expiresAt: res.expiresAt || currentSession.expiresAt,
         lastOnlineValidationAt: new Date().toISOString(),
+        lastActivityAt: isUserAction ? new Date().toISOString() : currentSession.lastActivityAt,
       };
       await desktopAuthService.saveSecureSession(updatedSession);
       setUser(res.user);
@@ -123,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [session]);
 
-  // Initial startup restoration
+  // Initial startup restoration: check 7-day inactivity before restoring
   useEffect(() => {
     let isMounted = true;
 
@@ -137,19 +152,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        // Evaluate 7-day inactivity before restoring session
+        const inactivity = desktopAuthService.checkInactivityTimeout(stored);
+        if (inactivity.expired) {
+          await desktopAuthService.clearSecureSession();
+          if (!isMounted) return;
+          setUser(null);
+          setSession(null);
+          setStatus('inactivity_expired');
+          setErrorMessage(
+            'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة). يرجى تسجيل الدخول مجدداً.'
+          );
+          return;
+        }
+
+        // Active session within 7-day window: restore and touch activity
+        const nowIso = new Date().toISOString();
+        const activeSession: StoredSession = {
+          ...stored,
+          lastActivityAt: nowIso,
+        };
+        await desktopAuthService.saveSecureSession(activeSession);
+        if (!isMounted) return;
+
+        setUser(activeSession.user);
+        setSession(activeSession);
+
         const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
         setIsOnline(online);
 
         if (online) {
           // Attempt online revalidation
-          const res = await desktopAuthService.revalidateSession(stored.sessionToken);
+          const res = await desktopAuthService.revalidateSession(activeSession.sessionToken, true);
           if (!isMounted) return;
 
           if (res.success && res.user) {
             const updated: StoredSession = {
-              ...stored,
+              ...activeSession,
               user: res.user,
-              expiresAt: res.expiresAt || stored.expiresAt,
+              expiresAt: res.expiresAt || activeSession.expiresAt,
               lastOnlineValidationAt: new Date().toISOString(),
             };
             await desktopAuthService.saveSecureSession(updated);
@@ -159,10 +200,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setOfflineDaysRemaining(updated.offlineMaxDays || 7);
           } else if (res.reason === 'NETWORK_ERROR') {
             // Server down, fallback to offline policy
-            const off = desktopAuthService.validateOfflineSession(stored);
+            const off = desktopAuthService.validateOfflineSession(activeSession);
             if (off.valid) {
-              setUser(stored.user);
-              setSession(stored);
+              setUser(activeSession.user);
+              setSession(activeSession);
               setStatus('offline_authorized');
               setOfflineDaysRemaining(off.daysRemaining);
             } else {
@@ -184,10 +225,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else {
           // Offline startup
-          const off = desktopAuthService.validateOfflineSession(stored);
+          const off = desktopAuthService.validateOfflineSession(activeSession);
           if (off.valid) {
-            setUser(stored.user);
-            setSession(stored);
+            setUser(activeSession.user);
+            setSession(activeSession);
             setStatus('offline_authorized');
             setOfflineDaysRemaining(off.daysRemaining);
           } else {
@@ -208,11 +249,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Meaningful user interaction tracking & inactivity watchdog
+  useEffect(() => {
+    if (status !== 'authenticated' && status !== 'offline_authorized') return;
+
+    // Meaningful user actions reset the activity timestamp
+    const handleUserInteraction = () => {
+      desktopAuthService.recordUserActivity().then((recorded) => {
+        if (recorded) {
+          setSession((prev) =>
+            prev ? { ...prev, lastActivityAt: new Date().toISOString() } : null
+          );
+        }
+      });
+    };
+
+    const events = ['mousedown', 'keydown', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, handleUserInteraction, { passive: true }));
+
+    // Watchdog: evaluate elapsed inactivity time every 30 seconds
+    const watchdogInterval = setInterval(() => {
+      if (!session) return;
+      const check = desktopAuthService.checkInactivityTimeout(session);
+      if (check.expired) {
+        desktopAuthService.clearSecureSession().then(() => {
+          setUser(null);
+          setSession(null);
+          setStatus('inactivity_expired');
+          setErrorMessage(
+            'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة). يرجى تسجيل الدخول مجدداً.'
+          );
+        });
+      }
+    }, 30000);
+
+    // Watchdog on window focus or visibility change (e.g. computer wakes after 7 days)
+    const handleFocusCheck = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && session) {
+        const check = desktopAuthService.checkInactivityTimeout(session);
+        if (check.expired) {
+          desktopAuthService.clearSecureSession().then(() => {
+            setUser(null);
+            setSession(null);
+            setStatus('inactivity_expired');
+            setErrorMessage(
+              'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة). يرجى تسجيل الدخول مجدداً.'
+            );
+          });
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocusCheck);
+    document.addEventListener('visibilitychange', handleFocusCheck);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleUserInteraction));
+      clearInterval(watchdogInterval);
+      window.removeEventListener('focus', handleFocusCheck);
+      document.removeEventListener('visibilitychange', handleFocusCheck);
+    };
+  }, [status, session]);
+
   // Online / Offline window listeners & reconnection auto-revalidation
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      revalidate();
+      revalidate(false);
     };
 
     const handleOffline = () => {
@@ -237,31 +340,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [revalidate, session]);
 
-  // Periodic background revalidation & window focus / visibility change listeners
+  // Periodic passive background revalidation (every 30s)
+  // Note: does NOT pass isUserAction, preserving the inactivity timer
   useEffect(() => {
     if (status !== 'authenticated' || !session) return;
 
-    // Periodic check every 30 seconds when online
     const interval = setInterval(() => {
       if (typeof navigator !== 'undefined' ? navigator.onLine : true) {
-        revalidate();
+        revalidate(false);
       }
     }, 30000);
 
-    // Revalidate when user returns to the app
-    const handleFocus = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        revalidate();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleFocus);
-
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [status, session, revalidate]);
 
@@ -282,7 +373,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             filter: `id=eq.${user.id}`,
           },
           () => {
-            revalidate();
+            revalidate(false);
           }
         )
         .subscribe();

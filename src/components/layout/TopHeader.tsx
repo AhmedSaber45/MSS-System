@@ -123,12 +123,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onOpenShowcase, onOpenSett
           {isOnline ? (
             <>
               <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-              <span>متصل</span>
+              
             </>
           ) : (
             <>
               <WifiOff className="w-3.5 h-3.5 text-amber-600" />
-              <span>أوفلاين ({offlineDaysRemaining} ي)</span>
+              <span> ({offlineDaysRemaining} )</span>
             </>
           )}
         </div>

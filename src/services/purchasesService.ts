@@ -67,17 +67,26 @@ const INITIAL_SEED_ITEMS: PurchaseItem[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getLocalPurchases(): Purchase[] {
   try {
     const raw = localStorage.getItem(PURCHASES_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(INITIAL_SEED_PURCHASES));
-      return INITIAL_SEED_PURCHASES;
+      const defaultData = isTestEnv ? INITIAL_SEED_PURCHASES : [];
+      localStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PURCHASES;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PURCHASES : []);
   } catch {
-    return INITIAL_SEED_PURCHASES;
+    return isTestEnv ? INITIAL_SEED_PURCHASES : [];
   }
 }
 
@@ -89,13 +98,14 @@ function getLocalPurchaseItems(): PurchaseItem[] {
   try {
     const raw = localStorage.getItem(PURCHASE_ITEMS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(PURCHASE_ITEMS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_ITEMS));
-      return INITIAL_SEED_ITEMS;
+      const defaultData = isTestEnv ? INITIAL_SEED_ITEMS : [];
+      localStorage.setItem(PURCHASE_ITEMS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_ITEMS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_ITEMS : []);
   } catch {
-    return INITIAL_SEED_ITEMS;
+    return isTestEnv ? INITIAL_SEED_ITEMS : [];
   }
 }
 

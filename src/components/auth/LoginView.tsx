@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Eye, EyeOff, Lock, User, AlertCircle, ShieldCheck, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, AlertCircle, ShieldCheck, Loader2, Clock } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login, errorMessage, clearError, status } = useAuth();
@@ -75,10 +75,20 @@ export const LoginView: React.FC = () => {
             </p>
           </div>
 
-          {/* Error Banner */}
+          {/* Inactivity Notice or Error Banner */}
           {displayError && (
-            <div className="mb-5 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2.5 text-rose-700 text-xs animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+            <div
+              className={`mb-5 p-3 rounded-lg flex items-start gap-2.5 text-xs animate-in fade-in ${
+                status === 'inactivity_expired'
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-rose-50 border border-rose-200 text-rose-700'
+              }`}
+            >
+              {status === 'inactivity_expired' ? (
+                <Clock className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+              )}
               <span className="leading-relaxed font-medium">{displayError}</span>
             </div>
           )}
@@ -107,7 +117,7 @@ export const LoginView: React.FC = () => {
                     setUsername(e.target.value);
                     if (localError) setLocalError(null);
                   }}
-                  placeholder="مثال: ahmed"
+                  placeholder="أدخل اسم المستخدم المصرح به"
                   className="w-full bg-white border border-slate-300 rounded-lg pr-9 pl-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-colors disabled:opacity-50"
                 />
               </div>

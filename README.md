@@ -144,7 +144,7 @@ Once a release tag is pushed, the build process runs in the cloud on a GitHub-ho
 
 ### 4. Publishing Future Updates (Step-by-Step Workflow)
 
-Follow this standardized 7-step procedure whenever you are ready to ship a new version (for example, version `1.0.1`):
+Follow this standardized 7-step procedure whenever you are ready to ship a new version (for example, version `1.0.2`):
 
 1. **Implement Code Changes:** Develop your bug fixes, UI improvements, or new features.
 2. **Test Locally:** Ensure all automated test suites pass and the frontend compiles cleanly:
@@ -162,25 +162,25 @@ Follow this standardized 7-step procedure whenever you are ready to ship a new v
    git push origin main
    ```
 5. **Update Version Numbers in Project Files:**
-   Open the following files and bump the `"version"` field to your new release version (e.g., `"1.0.1"`):
-   - [`package.json`](package.json) ➔ `"version": "1.0.1"`
-   - [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) ➔ `"version": "1.0.1"`
+   Open the following files and bump the `"version"` field to your new release version (e.g., `"1.0.2"`):
+   - [`package.json`](package.json) ➔ `"version": "1.0.2"`
+   - [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) ➔ `"version": "1.0.2"`
    - Commit this version bump:
      ```powershell
      git add package.json src-tauri/tauri.conf.json
-     git commit -m "chore: bump version to 1.0.1"
+     git commit -m "chore: bump version to 1.0.2"
      git push origin main
      ```
 6. **Create the New Version Tag:**
    ```powershell
-   git tag v1.0.1
+   git tag v1.0.2
    ```
 7. **Push the Tag to Trigger Release:**
    ```powershell
-   git push origin v1.0.1
+   git push origin v1.0.2
    ```
 
-#### Summary Command Example (v1.0.1):
+#### Summary Command Example (v1.0.2):
 ```powershell
 # 1. Commit and push code updates
 git add .
@@ -188,15 +188,15 @@ git commit -m "feat: describe your changes"
 git push origin main
 
 # 2. Tag and publish release
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 > [!IMPORTANT]
 > **Strict Version Tag Matching Rule:**
-> - The Git tag name (e.g., `v1.0.1`) **must strictly match** the version specified in `package.json` and `src-tauri/tauri.conf.json` (`1.0.1`).
+> - The Git tag name (e.g., `v1.0.2`) **must strictly match** the version specified in `package.json` and `src-tauri/tauri.conf.json` (`1.0.2`).
 > - **Do not blindly reuse an existing tag:** Git will reject pushing duplicate tags, and the Tauri updater will refuse to install an update whose version number is not strictly greater than the currently installed version.
-> - Always use a new, unique semantic version (e.g., `v1.0.2`, `v1.1.0`).
+> - Always use a new, unique semantic version (e.g., `v1.0.3`, `v1.1.0`).
 
 ---
 
@@ -206,7 +206,7 @@ It is essential to understand how Tauri updates work and the difference between 
 
 ```mermaid
 flowchart TD
-    A["Push Git Tag (e.g. v1.0.1)"] --> B["GitHub Actions (.github/workflows/release.yml)"]
+    A["Push Git Tag (e.g. v1.0.2)"] --> B["GitHub Actions (.github/workflows/release.yml)"]
     B --> C["Compile Rust & Vite Assets"]
     B --> D["Package Windows Installers (.msi & .exe)"]
     B --> E["Sign Artifacts with Minisign Key (from GitHub Secrets)"]

@@ -99,6 +99,7 @@ export interface AppUserSession {
   deviceInfo?: string;
   ipAddress?: string;
   expiresAt: string;
+  lastActiveAt?: string;
   revokedAt?: string;
   createdAt: string;
 }
@@ -128,6 +129,7 @@ export interface DesktopVerifyResult {
 
 export interface DesktopRevalidateInput {
   sessionToken: string;
+  isUserAction?: boolean;
 }
 
 export interface DesktopRevalidateResult {

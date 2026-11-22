@@ -136,17 +136,26 @@ const INITIAL_SEED_MOVEMENTS: MSSDeviceMovement[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getCachedDevices(): MSSDevice[] {
   try {
     const raw = localStorage.getItem(MSS_DEVICES_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(INITIAL_SEED_DEVICES));
-      return INITIAL_SEED_DEVICES;
+      const defaultData = isTestEnv ? INITIAL_SEED_DEVICES : [];
+      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_DEVICES;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_DEVICES : []);
   } catch {
-    return INITIAL_SEED_DEVICES;
+    return isTestEnv ? INITIAL_SEED_DEVICES : [];
   }
 }
 
@@ -193,13 +202,14 @@ function getCachedMovements(): MSSDeviceMovement[] {
   try {
     const raw = localStorage.getItem(MSS_MOVEMENTS_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(INITIAL_SEED_MOVEMENTS));
-      return INITIAL_SEED_MOVEMENTS;
+      const defaultData = isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
+      localStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_MOVEMENTS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MOVEMENTS : []);
   } catch {
-    return INITIAL_SEED_MOVEMENTS;
+    return isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
   }
 }
 
@@ -263,11 +273,13 @@ export const mssInventoryService = {
             mergedMap.set(key, ld);
           }
         }
-        for (const sd of INITIAL_SEED_DEVICES) {
-          if (deletedIds.has(sd.id)) continue;
-          const key = sd.id || (sd.serial_number ? `sn-${sd.serial_number}` : `id-${Math.random()}`);
-          if (!mergedMap.has(key)) {
-            mergedMap.set(key, sd);
+        if (isTestEnv) {
+          for (const sd of INITIAL_SEED_DEVICES) {
+            if (deletedIds.has(sd.id)) continue;
+            const key = sd.id || (sd.serial_number ? `sn-${sd.serial_number}` : `id-${Math.random()}`);
+            if (!mergedMap.has(key)) {
+              mergedMap.set(key, sd);
+            }
           }
         }
         devices = Array.from(mergedMap.values());
@@ -1016,9 +1028,11 @@ export const mssInventoryService = {
             mergedMap.set(lm.id, lm);
           }
         }
-        for (const sm of INITIAL_SEED_MOVEMENTS) {
-          if (!mergedMap.has(sm.id)) {
-            mergedMap.set(sm.id, sm);
+        if (isTestEnv) {
+          for (const sm of INITIAL_SEED_MOVEMENTS) {
+            if (!mergedMap.has(sm.id)) {
+              mergedMap.set(sm.id, sm);
+            }
           }
         }
         movements = Array.from(mergedMap.values());

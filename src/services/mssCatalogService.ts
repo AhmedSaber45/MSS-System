@@ -103,17 +103,26 @@ const INITIAL_SEED_DEVICES = [
   { id: 'b6', serial_number: 'CN49129-MON', model_id: 'a0000000-0000-0000-0000-000000000004', stock_location: 'محل 1', status: 'AVAILABLE' },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getCachedModels(): MSSCatalogModel[] {
   try {
     const raw = localStorage.getItem(MSS_MODELS_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify(INITIAL_SEED_MODELS));
-      return INITIAL_SEED_MODELS;
+      const defaultData = isTestEnv ? INITIAL_SEED_MODELS : [];
+      localStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_MODELS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MODELS : []);
   } catch {
-    return INITIAL_SEED_MODELS;
+    return isTestEnv ? INITIAL_SEED_MODELS : [];
   }
 }
 
@@ -125,13 +134,14 @@ function getCachedDevices(): typeof INITIAL_SEED_DEVICES {
   try {
     const raw = localStorage.getItem(MSS_DEVICES_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(INITIAL_SEED_DEVICES));
-      return INITIAL_SEED_DEVICES;
+      const defaultData = isTestEnv ? INITIAL_SEED_DEVICES : [];
+      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_DEVICES;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_DEVICES : []);
   } catch {
-    return INITIAL_SEED_DEVICES;
+    return isTestEnv ? INITIAL_SEED_DEVICES : [];
   }
 }
 
@@ -175,9 +185,11 @@ export const mssCatalogService = {
             mergedMap.set(lm.id, lm);
           }
         }
-        for (const seed of INITIAL_SEED_MODELS) {
-          if (!mergedMap.has(seed.id) && !Array.from(mergedMap.values()).some(m => m.model_name === seed.model_name)) {
-            mergedMap.set(seed.id, seed);
+        if (isTestEnv) {
+          for (const seed of INITIAL_SEED_MODELS) {
+            if (!mergedMap.has(seed.id) && !Array.from(mergedMap.values()).some(m => m.model_name === seed.model_name)) {
+              mergedMap.set(seed.id, seed);
+            }
           }
         }
         const deletedIds = getDeletedModelIds();

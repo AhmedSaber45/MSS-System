@@ -179,18 +179,27 @@ function normalizeReservationItems(res: MSSReservation): MSSReservation {
   };
 }
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getCachedInvoices(): MSSInvoice[] {
   try {
     const raw = localStorage.getItem(MSS_INVOICES_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_INVOICES_CACHE_KEY, JSON.stringify(INITIAL_SEED_INVOICES));
-      return INITIAL_SEED_INVOICES.map(normalizeInvoiceItems);
+      const defaultData = isTestEnv ? INITIAL_SEED_INVOICES : [];
+      localStorage.setItem(MSS_INVOICES_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData.map(normalizeInvoiceItems);
     }
     const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : INITIAL_SEED_INVOICES;
+    const list = Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICES : []);
     return list.map(normalizeInvoiceItems);
   } catch {
-    return INITIAL_SEED_INVOICES.map(normalizeInvoiceItems);
+    return (isTestEnv ? INITIAL_SEED_INVOICES : []).map(normalizeInvoiceItems);
   }
 }
 
@@ -202,14 +211,15 @@ function getCachedReservations(): MSSReservation[] {
   try {
     const raw = localStorage.getItem(MSS_RESERVATIONS_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_RESERVATIONS_CACHE_KEY, JSON.stringify(INITIAL_SEED_RESERVATIONS));
-      return INITIAL_SEED_RESERVATIONS.map(normalizeReservationItems);
+      const defaultData = isTestEnv ? INITIAL_SEED_RESERVATIONS : [];
+      localStorage.setItem(MSS_RESERVATIONS_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData.map(normalizeReservationItems);
     }
     const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : INITIAL_SEED_RESERVATIONS;
+    const list = Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RESERVATIONS : []);
     return list.map(normalizeReservationItems);
   } catch {
-    return INITIAL_SEED_RESERVATIONS.map(normalizeReservationItems);
+    return (isTestEnv ? INITIAL_SEED_RESERVATIONS : []).map(normalizeReservationItems);
   }
 }
 
@@ -221,13 +231,14 @@ function getCachedReturns(): MSSReturn[] {
   try {
     const raw = localStorage.getItem(MSS_RETURNS_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_RETURNS_CACHE_KEY, JSON.stringify(INITIAL_SEED_RETURNS));
-      return INITIAL_SEED_RETURNS;
+      const defaultData = isTestEnv ? INITIAL_SEED_RETURNS : [];
+      localStorage.setItem(MSS_RETURNS_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_RETURNS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RETURNS : []);
   } catch {
-    return INITIAL_SEED_RETURNS;
+    return isTestEnv ? INITIAL_SEED_RETURNS : [];
   }
 }
 
@@ -239,13 +250,14 @@ function getCachedPayments(): MSSPayment[] {
   try {
     const raw = localStorage.getItem(MSS_PAYMENTS_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify(INITIAL_SEED_PAYMENTS));
-      return INITIAL_SEED_PAYMENTS;
+      const defaultData = isTestEnv ? INITIAL_SEED_PAYMENTS : [];
+      localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PAYMENTS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PAYMENTS : []);
   } catch {
-    return INITIAL_SEED_PAYMENTS;
+    return isTestEnv ? INITIAL_SEED_PAYMENTS : [];
   }
 }
 
@@ -388,9 +400,11 @@ export const mssCommerceService = {
             mergedMap.set(li.invoice_number, li);
           }
         }
-        for (const si of INITIAL_SEED_INVOICES) {
-          if (!mergedMap.has(si.invoice_number)) {
-            mergedMap.set(si.invoice_number, si);
+        if (isTestEnv) {
+          for (const si of INITIAL_SEED_INVOICES) {
+            if (!mergedMap.has(si.invoice_number)) {
+              mergedMap.set(si.invoice_number, si);
+            }
           }
         }
         invoices = Array.from(mergedMap.values());

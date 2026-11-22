@@ -70,7 +70,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
 
   const userPermissionScope: DashboardModuleScope = isExplicitPermission
     ? userAllowed
-    : (user as any)?.role === 'superadmin' || user?.username === 'admin' || user?.username === 'ahmed'
+    : (user as any)?.role === 'superadmin' || user?.username === 'admin' || user?.username === 'saberadmin'
     ? 'both'
     : 'both';
 
@@ -657,7 +657,7 @@ export const UnifiedDashboardView: React.FC<UnifiedDashboardViewProps> = ({
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
                     <div className="flex gap-2 items-center">
                       {data.mss.isOnline ? (
-                        <Badge variant="success">السحابة متصلة</Badge>
+                        <Badge variant="success">متصل </Badge>
                       ) : (
                         <Badge variant="warning">وضع عدم الاتصال</Badge>
                       )}

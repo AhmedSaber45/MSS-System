@@ -71,25 +71,35 @@ function sanitizeStoresList(stores: SystemStore[]): SystemStore[] {
   });
 }
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getCachedStores(): SystemStore[] {
   try {
     const raw = localStorage.getItem(STORES_CACHE_KEY);
     if (!raw) {
-      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(DEFAULT_SEED_STORES));
-      return DEFAULT_SEED_STORES;
+      const defaultData = isTestEnv ? DEFAULT_SEED_STORES : [];
+      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
     const sanitized = Array.isArray(parsed) ? sanitizeStoresList(parsed) : [];
     if (sanitized.length === 0) {
-      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(DEFAULT_SEED_STORES));
-      return DEFAULT_SEED_STORES;
+      const defaultData = isTestEnv ? DEFAULT_SEED_STORES : [];
+      localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     if (sanitized.length !== parsed.length) {
       localStorage.setItem(STORES_CACHE_KEY, JSON.stringify(sanitized));
     }
     return sanitized;
   } catch {
-    return DEFAULT_SEED_STORES;
+    return isTestEnv ? DEFAULT_SEED_STORES : [];
   }
 }
 

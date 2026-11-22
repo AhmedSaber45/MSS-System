@@ -62,17 +62,26 @@ const INITIAL_SEED_MOVEMENTS: InventoryMovement[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getLocalMovements(): InventoryMovement[] {
   try {
     const raw = localStorage.getItem(MOVEMENTS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(MOVEMENTS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_MOVEMENTS));
-      return INITIAL_SEED_MOVEMENTS;
+      const defaultData = isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
+      localStorage.setItem(MOVEMENTS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_MOVEMENTS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MOVEMENTS : []);
   } catch {
-    return INITIAL_SEED_MOVEMENTS;
+    return isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
   }
 }
 

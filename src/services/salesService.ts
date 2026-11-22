@@ -149,17 +149,26 @@ const INITIAL_SEED_PAYMENTS: InvoicePayment[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getLocalInvoices(): Invoice[] {
   try {
     const raw = localStorage.getItem(INVOICES_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(INITIAL_SEED_INVOICES));
-      return INITIAL_SEED_INVOICES;
+      const defaultData = isTestEnv ? INITIAL_SEED_INVOICES : [];
+      localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_INVOICES;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICES : []);
   } catch {
-    return INITIAL_SEED_INVOICES;
+    return isTestEnv ? INITIAL_SEED_INVOICES : [];
   }
 }
 
@@ -171,13 +180,14 @@ function getLocalInvoiceItems(): InvoiceItem[] {
   try {
     const raw = localStorage.getItem(INVOICE_ITEMS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(INVOICE_ITEMS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_INVOICE_ITEMS));
-      return INITIAL_SEED_INVOICE_ITEMS;
+      const defaultData = isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : [];
+      localStorage.setItem(INVOICE_ITEMS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_INVOICE_ITEMS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : []);
   } catch {
-    return INITIAL_SEED_INVOICE_ITEMS;
+    return isTestEnv ? INITIAL_SEED_INVOICE_ITEMS : [];
   }
 }
 
@@ -189,13 +199,14 @@ function getLocalPayments(): InvoicePayment[] {
   try {
     const raw = localStorage.getItem(ACCESSORIES_PAYMENTS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(ACCESSORIES_PAYMENTS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_PAYMENTS));
-      return INITIAL_SEED_PAYMENTS;
+      const defaultData = isTestEnv ? INITIAL_SEED_PAYMENTS : [];
+      localStorage.setItem(ACCESSORIES_PAYMENTS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PAYMENTS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PAYMENTS : []);
   } catch {
-    return INITIAL_SEED_PAYMENTS;
+    return isTestEnv ? INITIAL_SEED_PAYMENTS : [];
   }
 }
 

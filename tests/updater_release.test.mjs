@@ -24,9 +24,9 @@ describe('Phase 11 — Automatic Updates & Release Preparation Verification', ()
     updaterService.resetState();
   });
 
-  test('1. Version and configuration: Reports current version v1.0.1 matching tauri.conf.json', () => {
+  test('1. Version and configuration: Reports current version v1.0.2 matching tauri.conf.json', () => {
     const currentVersion = updaterService.getCurrentVersion();
-    assert.strictEqual(currentVersion, '1.0.1');
+    assert.strictEqual(currentVersion, '1.0.2');
 
     const tauriConfig = JSON.parse(
       fs.readFileSync(path.resolve('src-tauri/tauri.conf.json'), 'utf8')

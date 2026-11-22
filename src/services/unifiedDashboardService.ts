@@ -111,7 +111,7 @@ export const unifiedDashboardService = {
           } else if (
             (user as any).role === 'superadmin' ||
             user.username === 'admin' ||
-            user.username === 'ahmed'
+            user.username === 'saberadmin'
           ) {
             scope = 'both';
           }

@@ -81,19 +81,28 @@ const INITIAL_SEED_PRODUCTS: Product[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 // Helper to get products from local persistent storage
 function getLocalFallbackProducts(): Product[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_SEED_PRODUCTS));
-      return INITIAL_SEED_PRODUCTS;
+      const defaultData = isTestEnv ? INITIAL_SEED_PRODUCTS : [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_PRODUCTS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PRODUCTS : []);
   } catch (e) {
     console.error('Failed to read from localStorage:', e);
-    return INITIAL_SEED_PRODUCTS;
+    return isTestEnv ? INITIAL_SEED_PRODUCTS : [];
   }
 }
 

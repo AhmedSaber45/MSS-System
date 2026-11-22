@@ -14,8 +14,8 @@ import {
   Laptop,
   ShieldAlert,
   HardDrive,
-  PackageCheck,
-  Check,
+  Database,
+  Activity,
 } from 'lucide-react';
 import type { OverviewStats } from '@/types/admin';
 import type { NavTab } from '../layout/AdminSidebar';
@@ -58,22 +58,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-400 gap-3">
-        <RefreshCw className="w-8 h-8 animate-spin text-brand-primary" />
-        <p className="text-sm">جاري تحميل بيانات لوحة التحكم...</p>
+        <RefreshCw className="w-6 h-6 animate-spin text-sky-400" />
+        <p className="text-xs font-mono text-slate-400">جاري تحميل بيانات لوحة التحكم...</p>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="p-6 bg-rose-950/20 border border-rose-900/40 rounded-xl text-rose-300 flex items-center justify-between">
+      <div className="p-5 bg-rose-950/20 border border-rose-900/50 rounded-xl text-rose-300 flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-6 h-6 text-rose-400" />
-          <span>{error || 'تعذر تحميل الإحصائيات'}</span>
+          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+          <span>{error || 'تعذر تحميل الإحصائيات الإدارية'}</span>
         </div>
         <button
           onClick={fetchStats}
-          className="px-3 py-1.5 bg-rose-900/50 hover:bg-rose-900 text-xs rounded-lg transition-colors cursor-pointer"
+          className="px-3 py-1.5 bg-rose-900/40 hover:bg-rose-900/70 border border-rose-800 text-xs rounded-lg transition-colors cursor-pointer"
         >
           إعادة المحاولة
         </button>
@@ -84,25 +84,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
   const scope = stats.moduleScope || 'both';
 
   // =========================================================================
-  // SCENARIO 4: NO MODULE PERMISSIONS GRANTED
+  // SCENARIO: NO MODULE PERMISSIONS GRANTED
   // =========================================================================
   if (scope === 'none') {
     return (
       <div className="space-y-6">
-        <div className="p-8 bg-brand-card border border-brand-border rounded-2xl text-center space-y-4 shadow-sm max-w-2xl mx-auto my-12">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 mx-auto flex items-center justify-center">
-            <ShieldAlert className="w-8 h-8" />
+        <div className="p-8 bg-[#101625] border border-slate-800 rounded-2xl text-center space-y-4 shadow-xl max-w-xl mx-auto my-12">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center">
+            <ShieldAlert className="w-6 h-6" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-bold text-white">لا توجد صلاحيات وحدات مخصصة لحسابك</h3>
+            <h3 className="text-base font-semibold text-slate-100">لا توجد صلاحيات وحدات مخصصة لحسابك</h3>
             <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
-              لم يتم تعيين أي صلاحية وصول (إكسسوارات أو Compu MSS) لحسابك حالياً. تم حجب كافة الإحصائيات والبيانات لحماية خصوصية وسرية النظام. يرجى التواصل مع مدير النظام لمنحك الصلاحيات اللازمة.
+              لم يتم تعيين أي صلاحية وصول (إكسسوارات أو Compu MSS) لحسابك حالياً. تم حجب كافة الإحصائيات والبيانات لحماية خصوصية وسرية النظام.
             </p>
           </div>
           <div className="pt-2">
             <button
               onClick={fetchStats}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-surface hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-lg transition-colors border border-brand-border cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-700 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>إعادة التحقق من الصلاحيات</span>
@@ -114,196 +114,62 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
   }
 
   // =========================================================================
-  // SCENARIO 1: ACCESSORIES-ONLY USERS
+  // SCENARIO: ACCESSORIES-ONLY USERS
   // =========================================================================
   if (scope === 'accessories') {
     return (
       <div className="space-y-6">
-        {/* Top Welcome & Quick Actions */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        {/* Scope Context Banner */}
+        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
-              <span className="text-xs font-semibold text-amber-400">
-                نطاق الصلاحيات: قسم الإكسسوارات فقط (Accessories Only)
-              </span>
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span className="text-xs font-mono text-amber-400">نطاق الصلاحيات: قسم الإكسسوارات فقط</span>
             </div>
-            <h2 className="text-lg font-bold text-white">لوحة تحكم وإحصائيات قسم الإكسسوارات</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              مؤشرات الأداء، حسابات المستخدمين المصرحة، وفروع نشاط الإكسسوارات وسياسات الأمان المعزولة.
-            </p>
+            <h2 className="text-sm font-semibold text-slate-100">لوحة تحكم قسم الإكسسوارات (Accessories)</h2>
+            <p className="text-xs text-slate-400 mt-0.5">مؤشرات الحسابات، نشاط المحل، وسجل العمليات المعزولة.</p>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            <button
-              onClick={() => onNavigate('users')}
-              className="flex-1 md:flex-none px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Users className="w-4 h-4" />
-              <span>إدارة مستخدمي الإكسسوارات</span>
-            </button>
-          </div>
+          <button
+            onClick={() => onNavigate('users')}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Users className="w-4 h-4" />
+            <span>إدارة مستخدمي الإكسسوارات</span>
+          </button>
         </div>
 
-        {/* KPI Cards Grid (Exclusively Accessories Data) */}
+        {/* KPI Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Accessories Users */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-amber-500/40 transition-all">
+          <div className="p-4 rounded-xl bg-[#101625] border border-slate-800">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-400">مستخدمو الإكسسوارات</span>
-              <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">{stats.totalAppUsers}</span>
-              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+            <div className="mt-2.5 flex items-baseline justify-between">
+              <span className="text-2xl font-bold text-slate-100 tabular-nums">{stats.totalAppUsers}</span>
+              <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 {stats.activeAppUsers} نشط
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">حسابات الفروع المصرح لها بقسم الإكسسوارات</p>
+            <p className="text-[11px] text-slate-500 mt-1">حسابات كاشير ومبيعات المحل</p>
           </div>
 
-          {/* Stores */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-amber-500/40 transition-all">
+          <div className="p-4 rounded-xl bg-[#101625] border border-slate-800">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">فروع الإكسسوارات</span>
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                <Store className="w-4 h-4" />
+              <span className="text-xs font-medium text-slate-400">قاعدة البيانات المحلية</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
+                <HardDrive className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">{stats.totalStores}</span>
-              <span className="text-xs text-emerald-400 font-semibold">{stats.activeStores} محل نشط</span>
+            <div className="mt-2.5 flex items-baseline justify-between">
+              <span className="text-base font-semibold text-slate-200">SQLite محلي</span>
+              <span className="text-xs text-sky-400 font-mono">100% مستقل</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">الفروع المعتمدة لنشاط الإكسسوارات</p>
-          </div>
-
-          {/* Module Permission Status */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-amber-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">صلاحية النشاط</span>
-              <div className="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
-                <Layers className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-amber-400">إكسسوارات</span>
-              <span className="text-xs text-purple-400 font-medium">مصرح بالكامل</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">صلاحية نشطة لإدارة وبيع الإكسسوارات</p>
-          </div>
-
-          {/* Security & Local Isolation */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-amber-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">الأمان والتشفير</span>
-              <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-base font-bold text-emerald-400">تشفير Bcrypt</span>
-              <span className="text-xs text-slate-400">عزل محلي</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">عزل كامل لبيانات الإكسسوارات المحلية</p>
-          </div>
-        </div>
-
-        {/* Lower Grid: Module Status & Recent Audits */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Accessories Module Status Card */}
-          <div className="lg:col-span-1 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white mb-1">حالة قسم الإكسسوارات</h3>
-              <p className="text-xs text-slate-400 mb-4">تفاصيل الحسابات والفروع ونطاق الصلاحيات</p>
-
-              <div className="space-y-3.5">
-                <div className="p-3 rounded-lg bg-brand-surface/60 border border-brand-border/60 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">المستخدمون المصرحون:</span>
-                    <span className="text-amber-400 font-bold font-mono">{stats.totalAppUsers} مستخدم</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الحسابات النشطة:</span>
-                    <span className="text-emerald-400 font-bold font-mono">{stats.activeAppUsers} نشط</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الفروع المعتمدة:</span>
-                    <span className="text-slate-200 font-bold font-mono">{stats.activeStores} محل</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">عزل البيانات:</span>
-                    <span className="text-blue-400 font-semibold text-[11px]">قاعدة بيانات مستقلة</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-brand-border mt-4">
-              <button
-                onClick={() => onNavigate('users')}
-                className="w-full py-2 bg-brand-surface hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>إدارة مستخدمي الإكسسوارات</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Audit Logs (Filtered strictly to Accessories & general user management) */}
-          <div className="lg:col-span-2 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-bold text-white">آخر النشاطات الإدارية</h3>
-                  <p className="text-xs text-slate-400">سجل العمليات الإدارية الخاصة بالمستخدمين والفروع</p>
-                </div>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  (سجل تدقيق قسم الإكسسوارات)
-                </span>
-              </div>
-
-              <div className="space-y-2.5 overflow-y-auto max-h-[240px]">
-                {stats.recentAuditLogs.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-slate-500">لا توجد عمليات تدقيق مسجلة حتى الآن</div>
-                ) : (
-                  stats.recentAuditLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-2.5 rounded-lg bg-brand-surface/60 border border-brand-border/60 flex items-center justify-between text-xs"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-md bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-[10px]">
-                          {log.eventType.slice(0, 3)}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-200">
-                            {log.eventType === 'USER_CREATE' && 'إنشاء حساب مستخدم جديد'}
-                            {log.eventType === 'USER_UPDATE' && 'تحديث بيانات مستخدم'}
-                            {log.eventType === 'USER_ACCESS_CODE_CHANGE' && 'تغيير وتشفير رمز الدخول'}
-                            {log.eventType === 'USER_STATUS_CHANGE' && 'تغيير حالة مستخدم'}
-                            {log.eventType === 'USER_DELETE' && 'حذف حساب مستخدم'}
-                            {log.eventType === 'STORE_CREATE' && 'إضافة فرع جديد'}
-                            {log.eventType === 'STORE_UPDATE' && 'تحديث بيانات فرع'}
-                            {log.eventType === 'ADMIN_LOGIN_SUCCESS' && 'تسجيل دخول إداري ناجح'}
-                            {!['USER_CREATE', 'USER_UPDATE', 'USER_ACCESS_CODE_CHANGE', 'USER_STATUS_CHANGE', 'USER_DELETE', 'STORE_CREATE', 'STORE_UPDATE', 'ADMIN_LOGIN_SUCCESS'].includes(log.eventType) && log.eventType}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            بواسطة: <span className="text-slate-300 font-medium">{log.actorUsername}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(log.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <p className="text-[11px] text-slate-500 mt-1">تخزين بيانات المبيعات محلياً</p>
           </div>
         </div>
       </div>
@@ -311,289 +177,111 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
   }
 
   // =========================================================================
-  // SCENARIO 2: COMPU MSS-ONLY USERS
-  // =========================================================================
-  if (scope === 'mss') {
-    return (
-      <div className="space-y-6">
-        {/* Top Welcome & Quick Actions */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="text-xs font-semibold text-emerald-400">
-                نطاق الصلاحيات: قسم Compu MSS فقط (Compu MSS Only)
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-white">لوحة تحكم وإحصائيات قسم Compu MSS</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              مؤشرات مخزون أجهزة اللابتوب والشاشات، الفروع والمخازن، وحسابات المستخدمين المصرحة.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            <button
-              onClick={() => onNavigate('users')}
-              className="flex-1 md:flex-none px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Users className="w-4 h-4" />
-              <span>إدارة مستخدمي Compu MSS</span>
-            </button>
-          </div>
-        </div>
-
-        {/* KPI Cards Grid (Exclusively Compu MSS Data) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total MSS Users */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-emerald-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">مستخدمو Compu MSS</span>
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">{stats.totalAppUsers}</span>
-              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {stats.activeAppUsers} نشط
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">حسابات الفروع المصرح لها بأجهزة Compu MSS</p>
-          </div>
-
-          {/* Stores & Warehouses */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-emerald-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">الفروع والمخازن</span>
-              <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                <Store className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">{stats.totalStores + stats.totalWarehouses}</span>
-              <span className="text-xs text-slate-300">
-                {stats.activeStores} محل • {stats.totalWarehouses} مخزن
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">نقاط مخزون أجهزة Compu MSS</p>
-          </div>
-
-          {/* Available Devices Inventory */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-emerald-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">مخزون الأجهزة المتاحة</span>
-              <div className="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
-                <Laptop className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-purple-400">
-                {stats.mssMetrics?.availableDevices ?? 0}
-              </span>
-              <span className="text-xs text-slate-400 font-medium">
-                من إجمالي {stats.mssMetrics?.devicesCount ?? 0} جهاز
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">
-              {stats.mssMetrics?.modelsCount ?? 0} موديل معتمد بالكتالوج
-            </p>
-          </div>
-
-          {/* Security & RLS */}
-          <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-emerald-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">الأمان والتشفير</span>
-              <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-base font-bold text-emerald-400">تشفير Bcrypt</span>
-              <span className="text-xs text-slate-400">RLS مفعل</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-2">سياسات أمان مشددة على سحابة Supabase</p>
-          </div>
-        </div>
-
-        {/* Lower Grid: Inventory Details & Recent Audits */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* MSS Inventory Status Card */}
-          <div className="lg:col-span-1 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white mb-1">حالة مخزون Compu MSS</h3>
-              <p className="text-xs text-slate-400 mb-4">توزيع الأجهزة والموديلات ونقاط التخزين</p>
-
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-brand-surface/60 border border-brand-border/60 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الأجهزة المتاحة للبيع:</span>
-                    <span className="text-emerald-400 font-bold font-mono">{stats.mssMetrics?.availableDevices ?? 0} جهاز</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الأجهزة المحجوزة:</span>
-                    <span className="text-amber-400 font-bold font-mono">{stats.mssMetrics?.reservedDevices ?? 0} جهاز</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الأجهزة المباعة:</span>
-                    <span className="text-blue-400 font-bold font-mono">{stats.mssMetrics?.soldDevices ?? 0} جهاز</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">الموديلات المعتمدة:</span>
-                    <span className="text-slate-200 font-bold font-mono">{stats.mssMetrics?.modelsCount ?? 0} موديل</span>
-                  </div>
-                </div>
-
-                {stats.mssMetrics?.byLocation && Object.keys(stats.mssMetrics.byLocation).length > 0 && (
-                  <div className="pt-2">
-                    <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">التوزيع حسب الفروع:</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(stats.mssMetrics.byLocation).map(([loc, count]) => (
-                        <div key={loc} className="p-2 rounded bg-brand-surface/40 border border-brand-border/40 text-xs flex justify-between">
-                          <span className="text-slate-300 truncate">{loc}</span>
-                          <span className="font-bold text-emerald-400 font-mono">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-brand-border mt-4">
-              <button
-                onClick={() => onNavigate('users')}
-                className="w-full py-2 bg-brand-surface hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <span>إدارة مستخدمي Compu MSS</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Audit Logs (Filtered strictly to MSS & user actions) */}
-          <div className="lg:col-span-2 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-bold text-white">آخر النشاطات الإدارية</h3>
-                  <p className="text-xs text-slate-400">سجل العمليات الإدارية وتحويلات الأجهزة</p>
-                </div>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  (سجل تدقيق قسم Compu MSS)
-                </span>
-              </div>
-
-              <div className="space-y-2.5 overflow-y-auto max-h-[240px]">
-                {stats.recentAuditLogs.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-slate-500">لا توجد عمليات تدقيق مسجلة حتى الآن</div>
-                ) : (
-                  stats.recentAuditLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-2.5 rounded-lg bg-brand-surface/60 border border-brand-border/60 flex items-center justify-between text-xs"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-[10px]">
-                          {log.eventType.slice(0, 3)}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-200">
-                            {log.eventType === 'USER_CREATE' && 'إنشاء حساب مستخدم جديد'}
-                            {log.eventType === 'USER_UPDATE' && 'تحديث بيانات مستخدم'}
-                            {log.eventType === 'USER_ACCESS_CODE_CHANGE' && 'تغيير وتشفير رمز الدخول'}
-                            {log.eventType === 'USER_STATUS_CHANGE' && 'تغيير حالة مستخدم'}
-                            {log.eventType === 'USER_DELETE' && 'حذف حساب مستخدم'}
-                            {log.eventType === 'INVENTORY_TRANSFER_COMPLETED' && 'تحويل مخزون بين الفروع'}
-                            {log.eventType === 'STORE_CREATE' && 'إضافة فرع / مخزن جديد'}
-                            {log.eventType === 'STORE_UPDATE' && 'تحديث بيانات فرع / مخزن'}
-                            {log.eventType === 'ADMIN_LOGIN_SUCCESS' && 'تسجيل دخول إداري ناجح'}
-                            {!['USER_CREATE', 'USER_UPDATE', 'USER_ACCESS_CODE_CHANGE', 'USER_STATUS_CHANGE', 'USER_DELETE', 'INVENTORY_TRANSFER_COMPLETED', 'STORE_CREATE', 'STORE_UPDATE', 'ADMIN_LOGIN_SUCCESS'].includes(log.eventType) && log.eventType}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            بواسطة: <span className="text-slate-300 font-medium">{log.actorUsername}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(log.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // SCENARIO 3: USERS WITH ACCESS TO BOTH MODULES (OR SUPER ADMIN)
+  // SCENARIO: FULL ACCESS (BOTH MODULES / SUPER ADMIN)
   // =========================================================================
   return (
     <div className="space-y-6">
-
-
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total App Users */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
+        {/* Card 1: Total Users */}
+        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">المستخدمين </span>
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-brand-primary flex items-center justify-center">
+            <span className="text-xs font-medium text-slate-400">المستخدمين المسجلين</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-white">{stats.totalAppUsers}</span>
-            <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-slate-100 tabular-nums">{stats.totalAppUsers}</span>
+            <span className="text-xs font-medium text-emerald-400 flex items-center gap-1 font-mono">
               <CheckCircle2 className="w-3.5 h-3.5" />
               {stats.activeAppUsers} نشط
             </span>
           </div>
-   
+          <p className="text-[11px] text-slate-500 mt-1.5">حسابات الفروع المصرح لها بالدخول</p>
         </div>
 
-
-        {/* Module Permissions Distribution */}
-        <div className="p-5 rounded-xl bg-brand-card border border-brand-border hover:border-brand-primary/40 transition-all">
+        {/* Card 2: Branches & Warehouses */}
+        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">توزيع الصلاحيات</span>
-            <div className="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
+            <span className="text-xs font-medium text-slate-400">الفروع والمخازن</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
+              <Store className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-white">{stats.modulesBreakdown.both}</span>
-            <span className="text-xs text-purple-400 font-medium">كلا النشاطين</span>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-slate-100 tabular-nums">
+              {stats.totalStores + stats.totalWarehouses}
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              {stats.activeStores} محل • {stats.totalWarehouses} مخزن
+            </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">
-            إكسسوارات: {stats.modulesBreakdown.accessoriesOnly} • Compu MSS: {stats.modulesBreakdown.mssOnly}
+          <p className="text-[11px] text-slate-500 mt-1.5">مواقع ونقاط التوزيع المعتمدة</p>
+        </div>
+
+        {/* Card 3: Available Inventory (MSS) */}
+        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">مخزون الأجهزة المتاحة</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
+              <Laptop className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-slate-100 tabular-nums">
+              {stats.mssMetrics?.availableDevices ?? 0}
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              من {stats.mssMetrics?.devicesCount ?? 0} جهاز
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1.5">
+            {stats.mssMetrics?.modelsCount ?? 0} موديل معتمد بالكتالوج
           </p>
         </div>
 
+        {/* Card 4: Module Distribution */}
+        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">صلاحيات الأقسام</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-slate-100 tabular-nums">
+              {stats.modulesBreakdown.both}
+            </span>
+            <span className="text-xs text-sky-400 font-mono">كلا النشاطين</span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1.5 font-mono">
+            {stats.modulesBreakdown.accessoriesOnly} إكسسوارات • {stats.modulesBreakdown.mssOnly} Compu MSS
+          </p>
+        </div>
       </div>
 
-      {/* Module Permissions Breakdown & Architecture Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Module breakdown progress */}
-        <div className="lg:col-span-1 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-white mb-1">صلاحيات المستخدمين </h3>
-     
+      {/* Main Content Sections: 2-Column Balanced Composition */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left Column: Permissions Breakdown & System Health (1 col) */}
+        <div className="lg:col-span-1 space-y-5">
+          {/* Card: Permissions Distribution */}
+          <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-200">توزيع صلاحيات المستخدمين</h3>
+              <span className="text-[10px] text-slate-500 font-mono">Module Access</span>
+            </div>
 
-            <div className="space-y-3.5">
+            <div className="space-y-3">
+              {/* Both */}
               <div>
-                <div className="flex justify-between text-xs font-medium mb-1">
+                <div className="flex justify-between text-xs mb-1 font-mono">
                   <span className="text-slate-300">Accessories + MSS</span>
-                  <span className="text-brand-primary font-bold">{stats.modulesBreakdown.both} مستخدم</span>
+                  <span className="text-sky-400 font-semibold">{stats.modulesBreakdown.both}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-brand-primary rounded-full"
+                    className="h-full bg-sky-500 rounded-full"
                     style={{
                       width: `${stats.totalAppUsers ? (stats.modulesBreakdown.both / stats.totalAppUsers) * 100 : 0}%`,
                     }}
@@ -601,12 +289,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                 </div>
               </div>
 
+              {/* Accessories Only */}
               <div>
-                <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className="text-slate-300">  Accessories Only</span>
-                  <span className="text-amber-400 font-bold">{stats.modulesBreakdown.accessoriesOnly} مستخدم</span>
+                <div className="flex justify-between text-xs mb-1 font-mono">
+                  <span className="text-slate-300">Accessories Only</span>
+                  <span className="text-amber-400 font-semibold">{stats.modulesBreakdown.accessoriesOnly}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-amber-500 rounded-full"
                     style={{
@@ -616,12 +305,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                 </div>
               </div>
 
+              {/* MSS Only */}
               <div>
-                <div className="flex justify-between text-xs font-medium mb-1">
+                <div className="flex justify-between text-xs mb-1 font-mono">
                   <span className="text-slate-300">Compu MSS Only</span>
-                  <span className="text-emerald-400 font-bold">{stats.modulesBreakdown.mssOnly} مستخدم</span>
+                  <span className="text-emerald-400 font-semibold">{stats.modulesBreakdown.mssOnly}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 rounded-full"
                     style={{
@@ -631,43 +321,55 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                 </div>
               </div>
             </div>
+
+            <div className="pt-3.5 border-t border-slate-800/80 mt-3.5">
+              <button
+                onClick={() => onNavigate('users')}
+                className="w-full py-2 bg-slate-850 bg-[#141b2b] hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-800"
+              >
+                <span>إدارة وتعديل الصلاحيات</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="pt-4 border-t border-brand-border mt-4">
-            <button
-              onClick={() => onNavigate('users')}
-              className="w-full py-2 bg-brand-surface hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <span>إدارة وتعديل الصلاحيات</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+
         </div>
 
-        {/* Recent Audit Activity Stream */}
-        <div className="lg:col-span-2 p-5 rounded-xl bg-brand-card border border-brand-border flex flex-col justify-between">
+        {/* Right Column: Recent Administrative Audit Log (2 cols) */}
+        <div className="lg:col-span-2 p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800/80">
               <div>
-                <h3 className="text-sm font-bold text-white">آخر النشاطات الإدارية</h3>
+                <h3 className="text-xs font-semibold text-slate-200">سجل العمليات والنشاطات الإدارية</h3>
+                <p className="text-[11px] text-slate-500">سجل عمليات إنشاء وتعديل المستخدمين والفروع وتحويلات الأجهزة</p>
               </div>
+              <button
+                onClick={fetchStats}
+                title="تحديث السجل"
+                className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
             </div>
 
-            <div className="space-y-2.5 overflow-y-auto max-h-[220px]">
+            <div className="space-y-2 overflow-y-auto max-h-[320px] pr-0.5">
               {stats.recentAuditLogs.length === 0 ? (
-                <div className="text-center py-6 text-xs text-slate-500">لا توجد عمليات تدقيق مسجلة حتى الآن</div>
+                <div className="text-center py-10 text-xs text-slate-500 font-mono">
+                  لا توجد عمليات تدقيق مسجلة حتى الآن
+                </div>
               ) : (
                 stats.recentAuditLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-2.5 rounded-lg bg-brand-surface/60 border border-brand-border/60 flex items-center justify-between text-xs"
+                    className="p-2.5 rounded-lg bg-[#0d121d] border border-slate-800/70 flex items-center justify-between text-xs hover:border-slate-700/80 transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-[10px]">
+                      <div className="w-7 h-7 rounded-md bg-slate-800 border border-slate-700/80 text-sky-400 flex items-center justify-center font-mono text-[10px] font-bold">
                         {log.eventType.slice(0, 3)}
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-200">
+                        <div className="font-medium text-slate-200 text-xs">
                           {log.eventType === 'USER_CREATE' && 'إنشاء حساب مستخدم جديد'}
                           {log.eventType === 'USER_UPDATE' && 'تحديث بيانات مستخدم'}
                           {log.eventType === 'USER_ACCESS_CODE_CHANGE' && 'تغيير وتشفير رمز الدخول'}
@@ -681,13 +383,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                           {log.eventType === 'SYSTEM_INITIALIZATION' && 'تهيئة نظام الإدارة'}
                           {!['USER_CREATE', 'USER_UPDATE', 'USER_ACCESS_CODE_CHANGE', 'USER_STATUS_CHANGE', 'USER_DELETE', 'STORE_CREATE', 'STORE_UPDATE', 'STORE_STATUS_CHANGE', 'INVENTORY_TRANSFER_COMPLETED', 'ADMIN_LOGIN_SUCCESS', 'SYSTEM_INITIALIZATION'].includes(log.eventType) && log.eventType}
                         </div>
-                        <div className="text-[11px] text-slate-400">
-                          بواسطة: <span className="text-slate-300 font-medium">{log.actorUsername}</span> • الهدف: {log.targetType} #{log.targetId.slice(0, 8)}
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          بواسطة: <span className="text-slate-400">{log.actorUsername}</span>
+                          {log.targetType && (
+                            <span> • {log.targetType} #{log.targetId?.slice(0, 8)}</span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
+                    <div className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+                      <Clock className="w-3 h-3 text-slate-600" />
                       <span>{new Date(log.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>

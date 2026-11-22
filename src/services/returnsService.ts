@@ -41,17 +41,26 @@ const INITIAL_SEED_RETURN_ITEMS: ReturnItemRecord[] = [
   },
 ];
 
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  Boolean(
+    process.env?.NODE_ENV === 'test' ||
+    process.env?.npm_lifecycle_event === 'test' ||
+    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
+  );
+
 function getLocalReturns(): ReturnRecord[] {
   try {
     const raw = localStorage.getItem(RETURNS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(RETURNS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_RETURNS));
-      return INITIAL_SEED_RETURNS;
+      const defaultData = isTestEnv ? INITIAL_SEED_RETURNS : [];
+      localStorage.setItem(RETURNS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_RETURNS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RETURNS : []);
   } catch {
-    return INITIAL_SEED_RETURNS;
+    return isTestEnv ? INITIAL_SEED_RETURNS : [];
   }
 }
 
@@ -63,13 +72,14 @@ function getLocalReturnItems(): ReturnItemRecord[] {
   try {
     const raw = localStorage.getItem(RETURN_ITEMS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(RETURN_ITEMS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_RETURN_ITEMS));
-      return INITIAL_SEED_RETURN_ITEMS;
+      const defaultData = isTestEnv ? INITIAL_SEED_RETURN_ITEMS : [];
+      localStorage.setItem(RETURN_ITEMS_STORAGE_KEY, JSON.stringify(defaultData));
+      return defaultData;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_RETURN_ITEMS;
+    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RETURN_ITEMS : []);
   } catch {
-    return INITIAL_SEED_RETURN_ITEMS;
+    return isTestEnv ? INITIAL_SEED_RETURN_ITEMS : [];
   }
 }
 

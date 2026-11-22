@@ -6,6 +6,7 @@ import {
   Users,
   ShieldCheck,
   Building2,
+  Terminal,
 } from 'lucide-react';
 
 export type NavTab = 'overview' | 'users';
@@ -26,12 +27,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const navItems = [
     {
       id: 'overview' as NavTab,
-      label: 'نظرة عامة',
+      label: 'نظرة عامة  ',
       icon: LayoutDashboard,
     },
     {
       id: 'users' as NavTab,
-      label: 'إدارة المستخدمين',
+      label: 'إدارة المستخدمين والصلاحيات',
       icon: Users,
     },
   ];
@@ -41,32 +42,39 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={onClose}
         />
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 right-0 z-50 w-72 bg-brand-card border-l border-brand-border flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 right-0 z-50 w-64 bg-[#0d121c] border-l border-slate-800/90 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="p-5 border-b border-brand-border flex items-center justify-between">
+        <div className="p-4 border-b border-slate-800/90 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
-              <Building2 className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-sky-400 shadow-sm">
+              <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white tracking-wide">  Admin Dashboard</h1>
-      
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-sm font-semibold text-slate-100 tracking-tight">Compu MSS</h1>
+                <span className="text-[10px] px-1.5 py-0.2 bg-slate-800 text-sky-400 border border-slate-700/60 rounded font-medium">
+                  Admin
+                </span>
+              </div>
+          
             </div>
           </div>
         </div>
 
         {/* Navigation Items */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-       
+          <div className="px-2.5 py-1 text-[11px] font-medium text-slate-500 uppercase tracking-wider font-mono">
+            القائمة الرئيسية
+          </div>
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -78,31 +86,34 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   onTabChange(item.id);
                   if (onClose) onClose();
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
+                    ? 'bg-slate-800/90 text-slate-100 border border-slate-700/80 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                <div className="flex items-center gap-2.5">
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-sky-400' : 'text-slate-500'}`} />
                   <span>{item.label}</span>
                 </div>
+                {isActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                )}
               </button>
             );
           })}
         </nav>
 
         {/* Footer info & copyright */}
-        <div className="p-4 border-t border-brand-border bg-brand-bg/40">
-          <div className="flex flex-col gap-1 text-[11px] text-slate-400">
+        <div className="p-3.5 border-t border-slate-800/90 bg-[#0a0e17]">
+          <div className="flex flex-col gap-1.5 text-[11px]">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-300"> Compu MSS Admin Dashboard</span>
-              <span className="text-[10px] text-slate-400 bg-slate-800/60 border border-slate-700/50 px-1.5 py-0.5 rounded font-mono">
-                v1.0.0
+              <span className="font-medium text-slate-300">نظام Compu MSS</span>
+              <span className="text-[10px] text-slate-400 bg-slate-800/80 border border-slate-700/60 px-1.5 py-0.5 rounded font-mono">
+                v1.0.2
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 pt-1 border-t border-brand-border/40 mt-1">
+            <p className="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1.5">
               © 2026 Ahmed Saber • 01030137635
             </p>
           </div>

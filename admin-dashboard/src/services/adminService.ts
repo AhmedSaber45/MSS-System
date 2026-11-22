@@ -196,23 +196,8 @@ interface StoredAppUser extends AppUser {
   access_code_hash: string;
 }
 
-const fallbackUsers: StoredAppUser[] = [
-  {
-    id: 'a1111111-1111-1111-1111-111111111100',
-    username: 'ahmed',
-    displayName: 'أحمد صابر',
-    allowedModules: 'both',
-    assignedStoreIds: [],
-    assignedStoresCount: 0,
-    credentialVersion: 1,
-    permissionVersion: 1,
-    isActive: true,
-    lastLoginAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    access_code_hash: '$2a$10$JbwJj99VECXmehlT4h0ELuNBcyb70yCqJ4nHJ2xM8bQtFKqV6aZg.', // 1234
-  },
-];
+// Clean empty in-memory user list (no hardcoded/fallback users in production; test runner populates dynamically)
+const fallbackUsers: StoredAppUser[] = [];
 
 const fallbackSessions: AppUserSession[] = [];
 
@@ -245,21 +230,26 @@ export const adminService = {
   // ============================================================================
   async authenticateAdmin(username: string, passwordPlain: string): Promise<AdminUser | null> {
     const norm = normalizeUsername(username);
-    const initialAdminUser = process.env.ADMIN_INITIAL_USERNAME || 'admin';
-    const initialAdminPass = process.env.ADMIN_INITIAL_PASSWORD || 'adminMSS@2026';
+    const initialAdminUser = process.env.INITIAL_SUPER_ADMIN_USERNAME || process.env.ADMIN_INITIAL_USERNAME;
+    const initialAdminPass = process.env.INITIAL_SUPER_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
 
-    // 1. Check initial system admin credentials configured via environment
-    if (norm === normalizeUsername(initialAdminUser) && passwordPlain === initialAdminPass) {
+    // 1. Check initial system admin credentials configured via secure environment variables
+    if (
+      initialAdminUser &&
+      initialAdminPass &&
+      norm === normalizeUsername(initialAdminUser) &&
+      passwordPlain === initialAdminPass
+    ) {
       return {
-        id: 'admin-super-00000000-0001',
+        id: 'admin-super-saber-0001',
         username: initialAdminUser,
-        email: 'admin@compumss.local',
-        displayName: 'المدير العام (Superadmin)',
+        email: `${initialAdminUser}@compumss.com`,
+        displayName: 'أحمد صابر (Super Admin)',
         role: 'superadmin',
         allowedModules: 'both',
         isActive: true,
         lastLoginAt: new Date().toISOString(),
-        createdAt: '2026-11-16T00:00:00Z',
+        createdAt: '2026-11-21T00:00:00Z',
         updatedAt: new Date().toISOString(),
       };
     }
@@ -301,26 +291,8 @@ export const adminService = {
       // In development or if table not yet migrated, fall back gracefully
     }
 
-    // 3. Query app_users table (users configured in User Management)
+    // 3. Query app_users table in Supabase (authoritative source)
     try {
-      // Check in-memory store first
-      const memUser = fallbackUsers.find(u => u.username === norm && u.isActive);
-      if (memUser) {
-        const matches = await verifyAccessCode(passwordPlain, memUser.access_code_hash);
-        if (matches) {
-          return {
-            id: memUser.id,
-            username: memUser.username,
-            displayName: memUser.displayName,
-            role: 'admin',
-            allowedModules: memUser.allowedModules,
-            isActive: memUser.isActive,
-            createdAt: memUser.createdAt,
-            updatedAt: memUser.updatedAt,
-          };
-        }
-      }
-
       const supabase = getServerSupabase();
       const { data: appUser, error: appError } = await supabase
         .from('app_users')
@@ -329,7 +301,11 @@ export const adminService = {
         .eq('is_active', true)
         .maybeSingle();
 
-      if (!appError && appUser) {
+      if (!appError) {
+        if (!appUser) {
+          // Explicitly not found in authoritative user store
+          return null;
+        }
         const matches = await verifyAccessCode(passwordPlain, appUser.access_code_hash);
         if (matches) {
           await supabase
@@ -349,9 +325,28 @@ export const adminService = {
             updatedAt: appUser.updated_at,
           };
         }
+        return null;
       }
     } catch {
-      // Fallback gracefully
+      // Supabase connection/network error only
+    }
+
+    // In-memory fallback ONLY when Supabase is completely unreachable (e.g. offline unit-test runner)
+    const memUser = fallbackUsers.find(u => u.username === norm && u.isActive);
+    if (memUser) {
+      const matches = await verifyAccessCode(passwordPlain, memUser.access_code_hash);
+      if (matches) {
+        return {
+          id: memUser.id,
+          username: memUser.username,
+          displayName: memUser.displayName,
+          role: 'admin',
+          allowedModules: memUser.allowedModules,
+          isActive: memUser.isActive,
+          createdAt: memUser.createdAt,
+          updatedAt: memUser.updatedAt,
+        };
+      }
     }
 
     return null;
@@ -385,7 +380,7 @@ export const adminService = {
 
       const { data, error } = await query;
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         // Fetch store assignments
         const { data: assignments } = await supabase.from('user_store_assignments').select('user_id, store_id');
 
@@ -1125,7 +1120,13 @@ export const adminService = {
         .maybeSingle();
 
       if (error || !user) {
-        throw new Error(error?.message || 'User not found in Supabase');
+        // If not in Supabase, check if user exists in fallbackUsers (for test runner / offline created users)
+        const memUser = fallbackUsers.find(u => u.username === norm);
+        if (!memUser) {
+          recordFailedAttempt(norm);
+          return { success: false, error: 'بيانات الدخول غير صحيحة أو الحساب معطل' };
+        }
+        throw new Error('Check fallback store');
       }
 
       if (!user.is_active) {
@@ -1161,6 +1162,7 @@ export const adminService = {
         permission_version: user.permission_version || 1,
         device_info: input.deviceInfo || 'Compu MSS Desktop Application',
         expires_at: expiresAt,
+        last_active_at: new Date().toISOString(),
       });
 
       // Update last login
@@ -1213,6 +1215,7 @@ export const adminService = {
         deviceInfo: input.deviceInfo || 'Compu MSS Desktop Application',
         expiresAt,
         createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
       user.lastLoginAt = new Date().toISOString();
@@ -1254,12 +1257,30 @@ export const adminService = {
         .maybeSingle();
 
       if (sessErr || !session) {
-        throw new Error(sessErr?.message || 'Session not found');
+        // Check if session exists in fallbackSessions (for test runner / offline mode)
+        const memSession = fallbackSessions.find(s => s.sessionTokenHash === tokenHash && !s.revokedAt);
+        if (!memSession) {
+          return { success: false, reason: 'SESSION_REVOKED', error: 'انتهت صلاحية الجلسة أو تم إبطالها من مسؤول النظام' };
+        }
+        throw new Error('Check fallback sessions');
       }
 
       // Check session expiry
       if (new Date(session.expires_at).getTime() <= Date.now()) {
         return { success: false, reason: 'SESSION_EXPIRED', error: 'انتهت صلاحية جلسة تسجيل الدخول' };
+      }
+
+      // 7-day inactivity timeout (168 hours)
+      const now = Date.now();
+      const lastActiveTime = session.last_active_at
+        ? new Date(session.last_active_at).getTime()
+        : (session.created_at ? new Date(session.created_at).getTime() : now);
+      if (now - lastActiveTime >= 7 * 24 * 60 * 60 * 1000) {
+        return {
+          success: false,
+          reason: 'SESSION_EXPIRED',
+          error: 'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة)',
+        };
       }
 
       // Query user
@@ -1288,12 +1309,19 @@ export const adminService = {
         };
       }
 
-      // Update session permission_version if user permission changed
+      // Update session: bump last_active_at only if user action, and sync permission_version if needed
       const userPermVer = user.permission_version || 1;
+      const updateData: Record<string, unknown> = {};
+      if (input.isUserAction) {
+        updateData.last_active_at = new Date().toISOString();
+      }
       if (userPermVer !== session.permission_version) {
+        updateData.permission_version = userPermVer;
+      }
+      if (Object.keys(updateData).length > 0) {
         await supabase
           .from('app_user_sessions')
-          .update({ permission_version: userPermVer })
+          .update(updateData)
           .eq('id', session.id);
       }
 
@@ -1332,6 +1360,23 @@ export const adminService = {
 
       if (new Date(session.expiresAt).getTime() <= Date.now()) {
         return { success: false, reason: 'SESSION_EXPIRED', error: 'انتهت صلاحية جلسة تسجيل الدخول' };
+      }
+
+      // 7-day inactivity timeout (168 hours)
+      const now = Date.now();
+      const lastActiveTime = session.lastActiveAt
+        ? new Date(session.lastActiveAt).getTime()
+        : (session.createdAt ? new Date(session.createdAt).getTime() : now);
+      if (now - lastActiveTime >= 7 * 24 * 60 * 60 * 1000) {
+        return {
+          success: false,
+          reason: 'SESSION_EXPIRED',
+          error: 'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة)',
+        };
+      }
+
+      if (input.isUserAction) {
+        session.lastActiveAt = new Date().toISOString();
       }
 
       const user = fallbackUsers.find(u => u.id === session.userId);
@@ -2468,14 +2513,7 @@ export const adminService = {
       return 'both';
     }
 
-    // 1. Check in-memory store (for test runner / fallback)
-    const memUser = fallbackUsers.find(u => u.id === userId || u.username === userId);
-    if (memUser) {
-      if (!memUser.isActive) return 'none';
-      return memUser.allowedModules || 'none';
-    }
-
-    // 2. Query Supabase app_users table
+    // 1. Query Supabase app_users table (authoritative source)
     try {
       const supabase = getServerSupabase();
       const { data, error } = await supabase
@@ -2492,7 +2530,7 @@ export const adminService = {
       // Fallback
     }
 
-    // 3. Query Supabase admin_users table
+    // 2. Query Supabase admin_users table (authoritative source)
     try {
       const supabase = getServerSupabase();
       const { data, error } = await supabase
@@ -2507,6 +2545,13 @@ export const adminService = {
       }
     } catch {
       // Fallback
+    }
+
+    // 3. Check in-memory store (for test runner / offline fallback only)
+    const memUser = fallbackUsers.find(u => u.id === userId || u.username === userId);
+    if (memUser) {
+      if (!memUser.isActive) return 'none';
+      return memUser.allowedModules || 'none';
     }
 
     return 'both';

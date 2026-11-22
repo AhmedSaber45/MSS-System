@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Check,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import type { AppUser, SystemStore, ModulePermission, CreateAppUserInput, UpdateAppUserInput } from '@/types/admin';
 
@@ -294,28 +295,33 @@ export const UsersView: React.FC = () => {
   }, [users, searchQuery, moduleFilter, statusFilter, storeFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Alert / Notification banner */}
       {successMessage && (
-        <div className="p-4 bg-emerald-950/30 border border-emerald-800/50 rounded-xl text-emerald-300 text-xs flex items-center justify-between shadow-lg">
+        <div className="p-3 bg-emerald-950/30 border border-emerald-800/60 rounded-xl text-emerald-300 text-xs flex items-center justify-between shadow-sm animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-400 hover:text-white font-bold">
+          <button onClick={() => setSuccessMessage(null)} className="text-emerald-400 hover:text-white font-bold p-1">
             ✕
           </button>
         </div>
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-brand-primary" />
-            <span>إدارة المستخدمين والصلاحيات  </span>
+          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <Users className="w-4 h-4 text-sky-400" />
+            <span>حسابات المستخدمين وصلاحيات الفروع</span>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+              {filteredUsers.length} مستخدم
+            </span>
           </h2>
-  
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            إدارة حسابات نقاط البيع والكاشير وتعيين الفروع وصلاحيات الأقسام
+          </p>
         </div>
 
         <button
@@ -335,24 +341,24 @@ export const UsersView: React.FC = () => {
             });
             setIsCreateOpen(true);
           }}
-          className="px-4 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white text-xs font-semibold rounded-lg shadow-lg shadow-brand-primary/20 flex items-center justify-center gap-2 transition-all"
+          className="px-3.5 py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
         >
-          <UserPlus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4 text-slate-800" />
           <span>إنشاء مستخدم جديد</span>
         </button>
       </div>
 
       {/* Filter and Search Toolbar */}
-      <div className="p-4 bg-brand-card border border-brand-border rounded-xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      <div className="p-3 bg-[#101625] border border-slate-800/90 rounded-xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
         {/* Search */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             placeholder="بحث بالاسم أو اسم المستخدم..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-3 pr-10 py-2 bg-brand-surface border border-brand-border rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+            className="w-full pl-3 pr-9 py-1.5 bg-[#0b0f19] border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/80 focus:ring-1 focus:ring-sky-500/20"
           />
         </div>
 
@@ -362,7 +368,7 @@ export const UsersView: React.FC = () => {
           <select
             value={moduleFilter}
             onChange={(e) => setModuleFilter(e.target.value as any)}
-            className="px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-xs text-slate-200 focus:outline-none focus:border-brand-primary"
+            className="px-2.5 py-1.5 bg-[#0b0f19] border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-sky-500/80"
           >
             <option value="all">كافة الصلاحيات</option>
             <option value="both">Accessories + MSS</option>
@@ -370,69 +376,77 @@ export const UsersView: React.FC = () => {
             <option value="mss">Compu MSS فقط</option>
           </select>
 
-
-
           {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-xs text-slate-200 focus:outline-none focus:border-brand-primary"
+            className="px-2.5 py-1.5 bg-[#0b0f19] border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-sky-500/80"
           >
             <option value="all">كافة الحالات</option>
             <option value="active">النشطة فقط</option>
             <option value="disabled">المعطلة فقط</option>
           </select>
 
+          {/* Store Filter */}
+          {stores.length > 0 && (
+            <select
+              value={storeFilter}
+              onChange={(e) => setStoreFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-[#0b0f19] border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-sky-500/80"
+            >
+              <option value="all">كافة الفروع والمخازن</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+
           <button
             onClick={fetchData}
             title="تحديث القائمة"
-            className="p-2 bg-brand-surface hover:bg-slate-800 border border-brand-border rounded-lg text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 bg-[#0b0f19] hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-primary' : ''}`} />
-            
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-sky-400' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-lg">
+      <div className="bg-[#101625] border border-slate-800/90 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs">
-            <thead className="bg-brand-surface/80 border-b border-brand-border text-slate-400 font-semibold uppercase text-[11px]">
+            <thead className="bg-[#0c101a] border-b border-slate-800 text-slate-400 font-medium text-[11px]">
               <tr>
-                <th className="py-3 px-4">المستخدم</th>
-                <th className="py-3 px-4">الصلاحيات </th>
-      
-                <th className="py-3 px-4 text-center">إصدار الأمان</th>
-                <th className="py-3 px-4 text-center">الحالة</th>
-                <th className="py-3 px-4">آخر دخول</th>
-                <th className="py-3 px-4 text-center">الإجراءات</th>
+                <th className="py-2.5 px-3.5 font-normal">المستخدم</th>
+                <th className="py-2.5 px-3.5 font-normal">صلاحيات الأقسام</th>
+           
+                <th className="py-2.5 px-3.5 font-normal text-center">إصدار الأمان</th>
+                <th className="py-2.5 px-3.5 font-normal text-center">الحالة</th>
+                <th className="py-2.5 px-3.5 font-normal">آخر دخول</th>
+                <th className="py-2.5 px-3.5 font-normal text-center">الإجراءات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-border text-slate-300">
+            <tbody className="divide-y divide-slate-800/80 text-slate-300 font-mono">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500 font-sans">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Users className="w-8 h-8 text-slate-600" />
-                      <p className="text-sm font-semibold text-slate-300">
+                      <Users className="w-6 h-6 text-slate-600" />
+                      <p className="text-xs font-medium text-slate-300">
                         {loading
                           ? 'جاري التحميل...'
                           : users.length === 0
                             ? 'لا يوجد مستخدمون مسجلون في النظام حتى الآن'
                             : 'لا يوجد مستخدمون مطابقون لمعايير البحث'}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {users.length === 0
-                          ? 'ابدأ بإضافة أول حساب مستخدم لتحديد الصلاحيات ورمز الدخول'
-                          : 'جرب تعديل كلمات البحث أو تصفية الصلاحيات'}
-                      </p>
                       {!loading && (
                         <button
                           onClick={() => setIsCreateOpen(true)}
-                          className="mt-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                          className="mt-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors border border-slate-700"
                         >
-                          + إضافة مستخدم جديد
+                          + إضافة أول مستخدم
                         </button>
                       )}
                     </div>
@@ -440,62 +454,75 @@ export const UsersView: React.FC = () => {
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-white text-sm">{user.displayName}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">@{user.username}</div>
+                  <tr key={user.id} className="hover:bg-[#131a29] transition-colors">
+                    {/* User Profile Cell */}
+                    <td className="py-2.5 px-3.5">
+                      <div className="flex items-center gap-2.5 font-sans">
+                        <div className="w-7 h-7 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-semibold text-xs shrink-0">
+                          {user.displayName.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-100 text-xs">{user.displayName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">@{user.username}</div>
+                        </div>
+                      </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
+                    {/* Module Permissions */}
+                    <td className="py-2.5 px-3.5 font-sans">
                       {user.allowedModules === 'both' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-950/60 text-purple-300 border border-purple-800/50">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-sky-950/40 text-sky-300 border border-sky-800/40">
                           كلا النشاطين (مشترك)
                         </span>
                       )}
                       {user.allowedModules === 'accessories' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/50">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/40 text-amber-300 border border-amber-800/40">
                           إكسسوارات فقط
                         </span>
                       )}
                       {user.allowedModules === 'mss' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-800/50">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
                           Compu MSS فقط
                         </span>
                       )}
                     </td>
 
+   
 
-
-                    <td className="py-3.5 px-4 text-center">
+                    {/* Security Version */}
+                    <td className="py-2.5 px-3.5 text-center">
                       <span
                         title={`إصدار الرمز: ${user.credentialVersion || 1} • إصدار الصلاحيات: ${user.permissionVersion || 1}`}
-                        className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800/80 text-slate-300 border border-brand-border"
+                        className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800"
                       >
-                        <ShieldCheck className="w-3 h-3 text-brand-primary" />
+                        <ShieldCheck className="w-3 h-3 text-sky-400" />
                         <span>v{user.credentialVersion || 1}.{user.permissionVersion || 1}</span>
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    {/* Status Pill */}
+                    <td className="py-2.5 px-3.5 text-center font-sans">
                       {user.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-2 py-0.5 rounded-full">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                           نشط
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 bg-rose-950/40 border border-rose-800/40 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-400 bg-rose-950/30 border border-rose-800/40 px-2 py-0.5 rounded-full">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
                           معطل
                         </span>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
+                    {/* Last Login */}
+                    <td className="py-2.5 px-3.5 text-slate-400 font-mono text-[11px]">
                       {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('ar-EG') : 'لم يسجل دخول'}
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-1.5">
+                    {/* Actions Group */}
+                    <td className="py-2.5 px-3.5">
+                      <div className="flex items-center justify-center gap-1">
                         {/* Edit details */}
                         <button
                           onClick={() => {
@@ -513,9 +540,9 @@ export const UsersView: React.FC = () => {
                             setIsEditOpen(true);
                           }}
                           title="تعديل البيانات والصلاحيات"
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                          className="p-1 rounded bg-[#0b0f19] hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors cursor-pointer"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-3 h-3" />
                         </button>
 
                         {/* Change access code */}
@@ -530,18 +557,18 @@ export const UsersView: React.FC = () => {
                             setIsChangeCodeOpen(true);
                           }}
                           title="تغيير وتشفير رمز الدخول"
-                          className="p-1.5 rounded-lg bg-blue-950/60 hover:bg-blue-900/60 text-brand-primary border border-blue-800/40 transition-colors"
+                          className="p-1 rounded bg-[#0b0f19] hover:bg-slate-800 text-sky-400 hover:text-sky-300 border border-slate-800 transition-colors cursor-pointer"
                         >
-                          <KeyRound className="w-3.5 h-3.5" />
+                          <KeyRound className="w-3 h-3" />
                         </button>
 
                         {/* Revoke sessions */}
                         <button
                           onClick={() => handleRevokeSessions(user)}
                           title="إبطال كافة الجلسات المفتوحة للمستخدم"
-                          className="p-1.5 rounded-lg bg-amber-950/40 hover:bg-amber-900/40 text-amber-400 border border-amber-900/40 transition-colors"
+                          className="p-1 rounded bg-[#0b0f19] hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 transition-colors cursor-pointer"
                         >
-                          <LogOut className="w-3.5 h-3.5" />
+                          <LogOut className="w-3 h-3" />
                         </button>
 
                         {/* Toggle status / Disable */}
@@ -555,12 +582,13 @@ export const UsersView: React.FC = () => {
                             }
                           }}
                           title={user.isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
-                          className={`p-1.5 rounded-lg transition-colors ${user.isActive
-                              ? 'bg-rose-950/40 hover:bg-rose-900/40 text-rose-400 border border-rose-900/40'
-                              : 'bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-900/40'
-                            }`}
+                          className={`p-1 rounded border border-slate-800 transition-colors cursor-pointer ${
+                            user.isActive
+                              ? 'bg-[#0b0f19] hover:bg-rose-950/40 text-rose-400'
+                              : 'bg-[#0b0f19] hover:bg-emerald-950/40 text-emerald-400'
+                          }`}
                         >
-                          {user.isActive ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                          {user.isActive ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
                         </button>
 
                         {/* Permanently delete user */}
@@ -571,9 +599,9 @@ export const UsersView: React.FC = () => {
                             setIsDeleteConfirmOpen(true);
                           }}
                           title="حذف الحساب نهائياً"
-                          className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 hover:text-white border border-rose-800/50 transition-colors"
+                          className="p-1 rounded bg-[#0b0f19] hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-800 transition-colors cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     </td>
@@ -589,79 +617,80 @@ export const UsersView: React.FC = () => {
       {/* MODAL: CREATE USER */}
       {/* ============================================================================ */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-brand-card border border-brand-border rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-brand-border pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-brand-primary" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-lg bg-[#101625] border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-sky-400" />
                 <span>إنشاء حساب مستخدم جديد</span>
               </h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-white text-sm">
+              <button
+                onClick={() => setIsCreateOpen(false)}
+                className="text-slate-500 hover:text-slate-300 text-sm p-1"
+              >
                 ✕
               </button>
             </div>
 
             {actionError && (
-              <div className="p-3 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-2.5 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateUser} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">الاسم المعروض (الاسم الكامل) *</label>
+                  <label className="block text-slate-300 font-medium mb-1">الاسم المعروض (الاسم الكامل) *</label>
                   <input
                     type="text"
                     required
-                    placeholder="مثال: محمود مسعود"
+                    placeholder="مثال: محمد أحمد"
                     value={createForm.displayName}
                     onChange={(e) => setCreateForm({ ...createForm, displayName: e.target.value })}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-500/80 focus:ring-1 focus:ring-sky-500/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    اسم المستخدم (Username) *
-                  </label>
+                  <label className="block text-slate-300 font-medium mb-1">اسم المستخدم (Username) *</label>
                   <input
                     type="text"
                     required
-                    placeholder="مثال: masoud"
+                    placeholder="mohamed"
                     value={createForm.username}
                     onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono placeholder-slate-600 focus:outline-none focus:border-sky-500/80 focus:ring-1 focus:ring-sky-500/20"
                   />
                 </div>
               </div>
 
-              {/* Access Code and Confirm Access Code */}
+              {/* Access Code & Confirmation */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">رمز الدخول الأولي *</label>
+                  <label className="block text-slate-300 font-medium mb-1">رمز الدخول السري (Access PIN) *</label>
                   <div className="relative">
                     <input
                       type={showAccessCode ? 'text' : 'password'}
                       required
-                      placeholder="4 خانات فأكثر"
+                      placeholder="4 خانات على الأقل"
                       value={createForm.accessCode}
                       onChange={(e) => setCreateForm({ ...createForm, accessCode: e.target.value })}
-                      className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono pl-10 focus:outline-none focus:border-brand-primary"
+                      className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono pl-8 placeholder-slate-600 focus:outline-none focus:border-sky-500/80 focus:ring-1 focus:ring-sky-500/20"
                     />
                     <button
                       type="button"
                       onClick={() => setShowAccessCode(!showAccessCode)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                     >
-                      {showAccessCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showAccessCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">تأكيد رمز الدخول *</label>
+                  <label className="block text-slate-300 font-medium mb-1">تأكيد رمز الدخول *</label>
                   <div className="relative">
                     <input
                       type={showConfirmCode ? 'text' : 'password'}
@@ -669,136 +698,87 @@ export const UsersView: React.FC = () => {
                       placeholder="أعد إدخال الرمز"
                       value={createForm.confirmAccessCode}
                       onChange={(e) => setCreateForm({ ...createForm, confirmAccessCode: e.target.value })}
-                      className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono pl-10 focus:outline-none focus:border-brand-primary"
+                      className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono pl-8 placeholder-slate-600 focus:outline-none focus:border-sky-500/80 focus:ring-1 focus:ring-sky-500/20"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmCode(!showConfirmCode)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                     >
-                      {showConfirmCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirmCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Module selection */}
+              {/* Module Permission Selection */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">صلاحية الوحدات المصرحة *</label>
+                <label className="block text-slate-300 font-medium mb-1.5">صلاحيات الوحدات (الأقسام المصرحة) *</label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'both'
-                        ? 'bg-purple-950/40 border-purple-500 text-purple-200'
-                        : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                      }`}
+                    className={`p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-colors ${
+                      createForm.allowedModules === 'both'
+                        ? 'bg-sky-950/30 border-sky-600/50 text-slate-100'
+                        : 'bg-[#0b0f19] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
                   >
-                    <input
-                      type="radio"
-                      name="module"
-                      value="both"
-                      checked={createForm.allowedModules === 'both'}
-                      onChange={() => setCreateForm({ ...createForm, allowedModules: 'both' })}
-                      className="sr-only"
-                    />
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>كلا النشاطين</span>
-                      {createForm.allowedModules === 'both' && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-xs text-sky-400">كلا النشاطين</span>
+                      <input
+                        type="radio"
+                        name="modules"
+                        checked={createForm.allowedModules === 'both'}
+                        onChange={() => setCreateForm({ ...createForm, allowedModules: 'both' })}
+                        className="text-sky-500"
+                      />
                     </div>
-                    <span className="text-[10px] mt-1 text-slate-400">إكسسوارات + Compu MSS المشترك</span>
+                    <span className="text-[10px] text-slate-500 leading-tight">إكسسوارات + Compu MSS المشترك</span>
                   </label>
 
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'accessories'
-                        ? 'bg-amber-950/40 border-amber-500 text-amber-200'
-                        : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                      }`}
+                    className={`p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-colors ${
+                      createForm.allowedModules === 'accessories'
+                        ? 'bg-amber-950/30 border-amber-600/50 text-slate-100'
+                        : 'bg-[#0b0f19] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
                   >
-                    <input
-                      type="radio"
-                      name="module"
-                      value="accessories"
-                      checked={createForm.allowedModules === 'accessories'}
-                      onChange={() => setCreateForm({ ...createForm, allowedModules: 'accessories' })}
-                      className="sr-only"
-                    />
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>إكسسوارات فقط</span>
-                      {createForm.allowedModules === 'accessories' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-xs text-amber-400">إكسسوارات فقط</span>
+                      <input
+                        type="radio"
+                        name="modules"
+                        checked={createForm.allowedModules === 'accessories'}
+                        onChange={() => setCreateForm({ ...createForm, allowedModules: 'accessories' })}
+                        className="text-amber-500"
+                      />
                     </div>
-                    <span className="text-[10px] mt-1 text-slate-400">نظام الإكسسوارات المحلي فقط</span>
+                    <span className="text-[10px] text-slate-500 leading-tight">مبيعات ومخزون المحل فقط</span>
                   </label>
 
                   <label
-                    className={`p-3 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${createForm.allowedModules === 'mss'
-                        ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200'
-                        : 'bg-brand-surface border-brand-border text-slate-400 hover:border-slate-600'
-                      }`}
+                    className={`p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-colors ${
+                      createForm.allowedModules === 'mss'
+                        ? 'bg-emerald-950/30 border-emerald-600/50 text-slate-100'
+                        : 'bg-[#0b0f19] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
                   >
-                    <input
-                      type="radio"
-                      name="module"
-                      value="mss"
-                      checked={createForm.allowedModules === 'mss'}
-                      onChange={() => setCreateForm({ ...createForm, allowedModules: 'mss' })}
-                      className="sr-only"
-                    />
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>Compu MSS فقط</span>
-                      {createForm.allowedModules === 'mss' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-xs text-emerald-400">Compu MSS فقط</span>
+                      <input
+                        type="radio"
+                        name="modules"
+                        checked={createForm.allowedModules === 'mss'}
+                        onChange={() => setCreateForm({ ...createForm, allowedModules: 'mss' })}
+                        className="text-emerald-500"
+                      />
                     </div>
-                    <span className="text-[10px] mt-1 text-slate-400">أجهزة اللابتوب والشاشات فقط</span>
+                    <span className="text-[10px] text-slate-500 leading-tight">أجهزة اللابتوب والشاشات فقط</span>
                   </label>
                 </div>
               </div>
 
-              {/* Default Store */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">الفرع أو المخزن الافتراضي</label>
-                <select
-                  value={createForm.defaultStoreId || ''}
-                  onChange={(e) => {
-                    const stId = e.target.value;
-                    const assigned = createForm.assignedStoreIds || [];
-                    const nextAssigned = stId && !assigned.includes(stId) ? [...assigned, stId] : assigned;
-                    setCreateForm({ ...createForm, defaultStoreId: stId, assignedStoreIds: nextAssigned });
-                  }}
-                  className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 focus:outline-none focus:border-brand-primary"
-                >
-                  <option value="">بدون ربط افتراضي</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code}) - {s.type === 'store' ? 'محل' : 'مخزن'}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Additional Stores Multi-selection */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">الفروع والمخازن المصرح للمستخدم بالعمل عليها</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-brand-surface/60 rounded-xl border border-brand-border max-h-36 overflow-y-auto">
-                  {stores.map((store) => {
-                    const isChecked = createForm.assignedStoreIds?.includes(store.id);
-                    return (
-                      <label key={store.id} className="flex items-center gap-2 text-slate-300 cursor-pointer text-xs">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            const cur = createForm.assignedStoreIds || [];
-                            const next = e.target.checked ? [...cur, store.id] : cur.filter((id) => id !== store.id);
-                            setCreateForm({ ...createForm, assignedStoreIds: next });
-                          }}
-                          className="rounded bg-brand-surface border-brand-border text-brand-primary"
-                        />
-                        <span className="truncate">
-                          {store.name} <span className="text-[10px] text-slate-500 font-mono">({store.code})</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+
 
               <div className="flex items-center gap-2 pt-1">
                 <input
@@ -806,28 +786,28 @@ export const UsersView: React.FC = () => {
                   id="userActive"
                   checked={createForm.isActive}
                   onChange={(e) => setCreateForm({ ...createForm, isActive: e.target.checked })}
-                  className="rounded bg-brand-surface border-brand-border text-brand-primary"
+                  className="rounded bg-slate-900 border-slate-700 text-sky-500"
                 />
                 <label htmlFor="userActive" className="text-slate-300 font-medium cursor-pointer">
                   تفعيل الحساب فور الإنشاء
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-brand-border">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-5 py-2 bg-brand-primary hover:bg-brand-secondary text-white font-semibold rounded-lg shadow-lg shadow-brand-primary/20 flex items-center gap-2 transition-all disabled:opacity-50"
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                  <span>إنشاء وتشفير الحساب</span>
+                  {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-900" /> : <UserPlus className="w-3.5 h-3.5" />}
+                  <span>إنشاء الحساب وتشفيره</span>
                 </button>
               </div>
             </form>
@@ -839,108 +819,69 @@ export const UsersView: React.FC = () => {
       {/* MODAL: EDIT USER */}
       {/* ============================================================================ */}
       {isEditOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-brand-card border border-brand-border rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-brand-border pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Edit2 className="w-5 h-5 text-brand-primary" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-lg bg-[#101625] border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-sky-400" />
                 <span>تعديل بيانات المستخدم: {selectedUser.displayName}</span>
               </h3>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-white text-sm">
+              <button onClick={() => setIsEditOpen(false)} className="text-slate-500 hover:text-slate-300 text-sm p-1">
                 ✕
               </button>
             </div>
 
             {actionError && (
-              <div className="p-3 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-2.5 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <form onSubmit={handleEditUser} className="space-y-4 text-xs">
+            <form onSubmit={handleEditUser} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">الاسم المعروض *</label>
+                  <label className="block text-slate-300 font-medium mb-1">الاسم المعروض *</label>
                   <input
                     type="text"
                     required
                     value={editForm.displayName}
                     onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-sky-500/80"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">اسم المستخدم (Username) *</label>
+                  <label className="block text-slate-300 font-medium mb-1">اسم المستخدم (Username) *</label>
                   <input
                     type="text"
                     required
                     value={editForm.username}
                     onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono focus:outline-none focus:border-sky-500/80"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">الصلاحيات المصرحة بالوحدات *</label>
+                <label className="block text-slate-300 font-medium mb-1">الصلاحيات المصرحة بالوحدات *</label>
                 <select
                   value={editForm.allowedModules}
                   onChange={(e) => setEditForm({ ...editForm, allowedModules: e.target.value as ModulePermission })}
-                  className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 focus:outline-none focus:border-brand-primary font-medium"
+                  className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-sky-500/80 font-medium"
                 >
                   <option value="both">كلا النشاطين (Accessories + Compu MSS المشترك)</option>
                   <option value="accessories">إكسسوارات فقط (Accessories Only)</option>
                   <option value="mss">Compu MSS فقط (أجهزة اللابتوب والشاشات)</option>
                 </select>
-                <p className="text-[10px] text-brand-primary mt-1">
-                  تعديل الصلاحيات سيقوم تلقائياً بزيادة إصدار الصلاحيات (Permission Version) وتحديثه على التطبيق.
+                <p className="text-[10px] text-sky-400 mt-1 font-mono">
+                  تعديل الصلاحيات سيزيد تلقائياً إصدار الصلاحيات (Permission Version) لتحديث الأمان.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">الفرع أو المخزن الافتراضي</label>
-                <select
-                  value={editForm.defaultStoreId || ''}
-                  onChange={(e) => setEditForm({ ...editForm, defaultStoreId: e.target.value })}
-                  className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 focus:outline-none focus:border-brand-primary"
-                >
-                  <option value="">بدون ربط افتراضي</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+     
 
-              {/* Additional Stores Multi-selection */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">الفروع والمخازن المصرح بها</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-brand-surface/60 rounded-xl border border-brand-border max-h-36 overflow-y-auto">
-                  {stores.map((store) => {
-                    const isChecked = editForm.assignedStoreIds?.includes(store.id);
-                    return (
-                      <label key={store.id} className="flex items-center gap-2 text-slate-300 cursor-pointer text-xs">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            const cur = editForm.assignedStoreIds || [];
-                            const next = e.target.checked ? [...cur, store.id] : cur.filter((id) => id !== store.id);
-                            setEditForm({ ...editForm, assignedStoreIds: next });
-                          }}
-                          className="rounded bg-brand-surface border-brand-border text-brand-primary"
-                        />
-                        <span className="truncate">
-                          {store.name} <span className="text-[10px] text-slate-500 font-mono">({store.code})</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+  
 
               <div className="flex items-center gap-2 pt-1">
                 <input
@@ -948,27 +889,27 @@ export const UsersView: React.FC = () => {
                   id="editUserActive"
                   checked={editForm.isActive}
                   onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
-                  className="rounded bg-brand-surface border-brand-border text-brand-primary"
+                  className="rounded bg-slate-900 border-slate-700 text-sky-500"
                 />
                 <label htmlFor="editUserActive" className="text-slate-300 font-medium cursor-pointer">
                   الحساب نشط ومصرح له بالدخول
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-brand-border">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsEditOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-5 py-2 bg-brand-primary hover:bg-brand-secondary text-white font-semibold rounded-lg shadow-lg shadow-brand-primary/20 flex items-center gap-2 transition-all disabled:opacity-50"
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
+                  {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-900" /> : <Edit2 className="w-3.5 h-3.5" />}
                   <span>حفظ التعديلات</span>
                 </button>
               </div>
@@ -981,39 +922,38 @@ export const UsersView: React.FC = () => {
       {/* MODAL: CHANGE ACCESS CODE */}
       {/* ============================================================================ */}
       {isChangeCodeOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-brand-card border border-brand-border rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-brand-border pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-brand-primary" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-[#101625] border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-sky-400" />
                 <span>تغيير رمز الدخول: {selectedUser.displayName}</span>
               </h3>
-              <button onClick={() => setIsChangeCodeOpen(false)} className="text-slate-400 hover:text-white text-sm">
+              <button onClick={() => setIsChangeCodeOpen(false)} className="text-slate-500 hover:text-slate-300 text-sm p-1">
                 ✕
               </button>
             </div>
 
             {actionError && (
-              <div className="p-3 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-2.5 bg-rose-950/40 border border-rose-900/50 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <div className="p-3 bg-blue-950/30 border border-blue-900/40 rounded-xl text-xs text-blue-300 space-y-1">
-              <div className="font-semibold flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-brand-primary shrink-0" />
-                <span>الأمان وإبطال الجلسات السابقة:</span>
+            <div className="p-2.5 bg-[#0b0f19] border border-slate-800 rounded-lg text-xs text-slate-300 space-y-1">
+              <div className="font-semibold text-sky-400 flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                <span>إبطال الجلسات النشطة:</span>
               </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                تغيير رمز الدخول سيقوم فوراً بزيادة إصدار الأمان وإبطال كافة الجلسات المفتوحة للمستخدم، بحيث يُطلب منه
-                إعادة تسجيل الدخول فور استعادة الاتصال.
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                تغيير رمز الدخول سيزيد فوراً إصدار الأمان ويبطل كافة الجلسات المفتوحة للمستخدم، مما يتطلب إعادة تسجيل الدخول فور استعادة الاتصال.
               </p>
             </div>
 
-            <form onSubmit={handleChangeCode} className="space-y-4 text-xs">
+            <form onSubmit={handleChangeCode} className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">رمز الدخول الجديد *</label>
+                <label className="block text-slate-300 font-medium mb-1">رمز الدخول الجديد *</label>
                 <div className="relative">
                   <input
                     type={showAccessCode ? 'text' : 'password'}
@@ -1021,20 +961,20 @@ export const UsersView: React.FC = () => {
                     placeholder="4 خانات على الأقل"
                     value={newAccessCode}
                     onChange={(e) => setNewAccessCode(e.target.value)}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono pl-10 focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono pl-8 focus:outline-none focus:border-sky-500/80"
                   />
                   <button
                     type="button"
                     onClick={() => setShowAccessCode(!showAccessCode)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                   >
-                    {showAccessCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showAccessCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">تأكيد رمز الدخول الجديد *</label>
+                <label className="block text-slate-300 font-medium mb-1">تأكيد رمز الدخول الجديد *</label>
                 <div className="relative">
                   <input
                     type={showConfirmCode ? 'text' : 'password'}
@@ -1042,32 +982,32 @@ export const UsersView: React.FC = () => {
                     placeholder="أعد إدخال الرمز الجديد"
                     value={confirmNewAccessCode}
                     onChange={(e) => setConfirmNewAccessCode(e.target.value)}
-                    className="w-full p-2.5 bg-brand-surface border border-brand-border rounded-lg text-slate-200 font-mono pl-10 focus:outline-none focus:border-brand-primary"
+                    className="w-full p-2 bg-[#0b0f19] border border-slate-800 rounded-lg text-slate-200 font-mono pl-8 focus:outline-none focus:border-sky-500/80"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmCode(!showConfirmCode)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                   >
-                    {showConfirmCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirmCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-brand-border">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsChangeCodeOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || !newAccessCode || !confirmNewAccessCode}
-                  className="px-5 py-2 bg-brand-primary hover:bg-brand-secondary text-white font-semibold rounded-lg shadow-lg shadow-brand-primary/20 flex items-center gap-2 transition-all disabled:opacity-50"
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-900" /> : <KeyRound className="w-3.5 h-3.5" />}
                   <span>تحديث وتشفير الرمز</span>
                 </button>
               </div>
@@ -1080,30 +1020,26 @@ export const UsersView: React.FC = () => {
       {/* MODAL: DISABLE USER CONFIRMATION */}
       {/* ============================================================================ */}
       {isDisableConfirmOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-brand-card border border-rose-900/50 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm bg-[#101625] border border-slate-800 rounded-xl p-5 shadow-2xl space-y-3.5 text-center">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-5 h-5" />
             </div>
 
-            <div className="text-center space-y-2">
-              <h3 className="text-base font-bold text-white">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-slate-100">
                 تأكيد تعطيل حساب: {selectedUser.displayName}
               </h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                تعطيل الحساب سيمنع المستخدم فوراً من تسجيل الدخول وسيقوم بإبطال كافة الجلسات النشطة.
-                <br />
-                <span className="text-slate-400 text-[11px]">
-                  لن يتم حذف بيانات الحساب ويمكنك إعادة تفعيله في أي وقت.
-                </span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                تعطيل الحساب سيمنع المستخدم فوراً من تسجيل الدخول وسيقوم بإبطال كافة الجلسات النشطة. يمكن إعادة تفعيله في أي وقت.
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-3 pt-4 border-t border-brand-border">
+            <div className="flex items-center justify-center gap-2 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsDisableConfirmOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors"
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer"
               >
                 إلغاء التراجع
               </button>
@@ -1111,9 +1047,9 @@ export const UsersView: React.FC = () => {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleConfirmToggleStatus}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-lg shadow-rose-600/25 flex items-center gap-1.5 transition-all"
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                {actionLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                {actionLoading && <RefreshCw className="w-3 h-3 animate-spin" />}
                 <span>نعم، تعطيل الحساب الآن</span>
               </button>
             </div>
@@ -1125,70 +1061,50 @@ export const UsersView: React.FC = () => {
       {/* MODAL: PERMANENT USER DELETION CONFIRMATION */}
       {/* ============================================================================ */}
       {isDeleteConfirmOpen && userToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-brand-card border border-rose-600/60 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 className="w-7 h-7 text-rose-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-[#101625] border border-rose-900/40 rounded-xl p-5 shadow-2xl space-y-3.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-5 h-5 text-rose-500" />
             </div>
 
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-bold text-white">
+            <div className="text-center space-y-1">
+              <h3 className="text-sm font-semibold text-slate-100">
                 تأكيد حذف حساب المستخدم نهائياً
               </h3>
-              <p className="text-xs text-rose-200 bg-rose-950/60 border border-rose-900/60 p-2.5 rounded-lg leading-relaxed font-semibold">
-                ⚠️ تنبيه أمني حرج: هذا الإجراء نهائي ولا يمكن التراجع عنه. سيتم مسح بيانات الدخول، الصلاحيات، وإبطال الجلسات فوراً.
+              <p className="text-xs text-rose-300 bg-rose-950/40 border border-rose-900/40 p-2 rounded-lg leading-relaxed font-mono">
+                تنبيه أمني: هذا الإجراء نهائي ولا يمكن التراجع عنه.
               </p>
             </div>
 
             {/* User Account Info Card */}
-            <div className="p-3.5 bg-brand-surface/80 rounded-xl border border-brand-border space-y-2 text-xs">
+            <div className="p-3 bg-[#0b0f19] rounded-lg border border-slate-800 space-y-1.5 text-xs font-mono">
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">الاسم المعروض:</span>
-                <span className="font-bold text-white">{userToDelete.displayName}</span>
+                <span className="text-slate-500">الاسم:</span>
+                <span className="font-semibold text-slate-200">{userToDelete.displayName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">اسم المستخدم (Username):</span>
-                <span className="font-mono text-slate-200">@{userToDelete.username}</span>
+                <span className="text-slate-500">اسم المستخدم:</span>
+                <span className="text-sky-400">@{userToDelete.username}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">الوحدات المصرحة:</span>
-                <span className="font-semibold text-slate-200">
-                  {userToDelete.allowedModules === 'both' && 'كلا النشاطين (Accessories + MSS)'}
-                  {userToDelete.allowedModules === 'accessories' && 'إكسسوارات فقط'}
-                  {userToDelete.allowedModules === 'mss' && 'Compu MSS فقط'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">الفرع الافتراضي:</span>
-                <span className="text-slate-200">{userToDelete.defaultStoreName || 'بدون فرع افتراضي'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">حالة الحساب:</span>
-                <span className={userToDelete.isActive ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                  {userToDelete.isActive ? 'نشط' : 'معطل'}
-                </span>
+                <span className="text-slate-500">الصلاحيات:</span>
+                <span className="text-slate-300">{userToDelete.allowedModules}</span>
               </div>
             </div>
 
             {/* Historical Business Data Preservation Notice */}
-            <div className="p-3 bg-slate-900/70 border border-slate-700/60 rounded-xl text-[11px] text-slate-300 leading-relaxed space-y-1">
-              <div className="font-bold text-slate-200 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>حماية وسلامة السجلات والعمليات التاريخية:</span>
-              </div>
-              <p className="text-slate-400">
-                لن يتم حذف أي فواتير، مبيعات، أو حركات مخزن قام هذا المستخدم بإنشائها مسبقاً. ستبقى كافة السجلات والعمليات التاريخية محفوظة في النظام لأغراض التدقيق المالي والمحاسبي.
-              </p>
+            <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-slate-400 leading-relaxed">
+              لن يتم حذف أي فواتير أو حركات مخزون سابقة أنشأها المستخدم، للحفاظ على دقة سجلات التدقيق المالي.
             </div>
 
             {actionError && (
-              <div className="p-3 bg-rose-950/60 border border-rose-900/60 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-2.5 bg-rose-950/60 border border-rose-900/60 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-brand-border">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => {
@@ -1196,7 +1112,7 @@ export const UsersView: React.FC = () => {
                   setUserToDelete(null);
                   setActionError(null);
                 }}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors"
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer"
               >
                 إلغاء التراجع
               </button>
@@ -1204,10 +1120,10 @@ export const UsersView: React.FC = () => {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleConfirmDelete}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-lg shadow-rose-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                <span>تأكيد الحذف النهائي للحساب</span>
+                {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>تأكيد الحذف النهائي</span>
               </button>
             </div>
           </div>
