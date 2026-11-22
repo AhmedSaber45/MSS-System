@@ -23,79 +23,8 @@ function generateUUID(): string {
   return 'mss-exp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 9);
 }
 
-// Initial realistic seed expenses for Compu MSS business
-const INITIAL_SEED_MSS_EXPENSES: OperatingExpense[] = [
-  {
-    id: 'mss-exp-seed-001',
-    module: 'mss',
-    title: 'مرتبات الفنيين ومسؤولي مبيعات اللابتوب',
-    category: 'مرتبات الموظفين',
-    amount: 14500,
-    branch: 'محل 1',
-    expense_date: '2026-11-01',
-    payment_source: 'أموال الشركة',
-    payment_method: 'تحويل بنكي',
-    description: 'صرف الرواتب الشهرية لفنيي الصيانة ومسؤولي المبيعات عن شهر أكتوبر',
-    created_at: '2026-11-01T09:00:00Z',
-    created_by: 'المدير المالي',
-  },
-  {
-    id: 'mss-exp-seed-002',
-    module: 'mss',
-    title: 'إيجار مقر ومخزن فرع محل 2',
-    category: 'إيجار',
-    amount: 6000,
-    branch: 'محل 2',
-    expense_date: '2026-11-01',
-    payment_source: 'أموال الشركة',
-    payment_method: 'نقدي (كاش)',
-    description: 'سداد القيمة الإيجارية الشهرية لفرع ومخزن محل 2',
-    created_at: '2026-11-01T11:00:00Z',
-    created_by: 'المدير المالي',
-  },
-  {
-    id: 'mss-exp-seed-003',
-    module: 'mss',
-    title: 'بنزين وانتقالات شحن واستلام شحنة أجهزة',
-    category: 'بنزين ومواصلات',
-    amount: 750,
-    branch: 'محل 1',
-    expense_date: '2026-11-12',
-    payment_source: 'أموال الشركة',
-    payment_method: 'نقدي (كاش)',
-    description: 'مصاريف بنزين وانتقالات سيارة الشركة لاستلام شحنة لابتوبات وارد ميناء الإسكندرية',
-    created_at: '2026-11-12T16:30:00Z',
-    created_by: 'مسؤول المشتريات',
-  },
-  {
-    id: 'mss-exp-seed-004',
-    module: 'mss',
-    title: 'معجون حراري وأدوات تنظيف وصيانة أجهزة',
-    category: 'صيانة وإصلاحات',
-    amount: 450,
-    branch: 'محل 2',
-    expense_date: '2026-11-17',
-    payment_source: 'أموال الشركة',
-    payment_method: 'نقدي (كاش)',
-    description: 'شراء معجون حراري احترافي Arctic MX-4 وكحول أيزوبروبيل لصيانة أجهزة الفرز',
-    created_at: '2026-11-17T13:20:00Z',
-    created_by: 'فني الصيانة',
-  },
-  {
-    id: 'mss-exp-seed-005',
-    module: 'mss',
-    title: 'فاتورة إنترنت فايبر عالي السرعة للسيرفرات والمزامنة',
-    category: 'كهرباء ومرافق',
-    amount: 650,
-    branch: 'محل 1',
-    expense_date: '2026-11-19',
-    payment_source: 'أموال الشركة',
-    payment_method: 'فودافون كاش / محفظة',
-    description: 'سداد اشتراك الإنترنت الفايبر الشهري لمزامنة النظام السحابي وكاميرات المراقبة',
-    created_at: '2026-11-19T10:00:00Z',
-    created_by: 'مسؤول النظام',
-  },
-];
+// Initial empty expenses array
+const INITIAL_SEED_MSS_EXPENSES: OperatingExpense[] = [];
 
 const isTestEnv =
   typeof process !== 'undefined' &&
@@ -107,19 +36,18 @@ const isTestEnv =
 
 function getStoredExpenses(): OperatingExpense[] {
   if (typeof window === 'undefined' || !window.localStorage) {
-    return isTestEnv ? INITIAL_SEED_MSS_EXPENSES : [];
+    return [];
   }
   try {
     const raw = localStorage.getItem(MSS_EXPENSES_STORAGE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_MSS_EXPENSES : [];
-      localStorage.setItem(MSS_EXPENSES_STORAGE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      localStorage.setItem(MSS_EXPENSES_STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MSS_EXPENSES : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_MSS_EXPENSES : [];
+    return [];
   }
 }
 

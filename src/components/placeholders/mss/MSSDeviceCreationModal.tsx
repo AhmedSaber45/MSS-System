@@ -45,7 +45,7 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const prevIsOpenRef = React.useRef(false);
 
-  // Form State: Default to BULK as required
+  // Form State: Default to BULK mode
   const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>(initialMode);
   const [formSerial, setFormSerial] = useState('');
   const [formQuantity, setFormQuantity] = useState<number | ''>(1);
@@ -63,15 +63,21 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
   // Child Add Model Modal State (Stacked on top)
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
 
-  // Fetch models list
+  // Fetch confirmed models list strictly from Supabase
   const loadCatalogModels = useCallback(async () => {
     setIsLoadingModels(true);
+    setFormError('');
     try {
-      const models = await mssCatalogService.getModels();
+      const models = await mssCatalogService.getConfirmedModels();
       setCatalogModels(models);
+      if (models.length === 0) {
+        setFormError('لا توجد موديلات معتمدة في قاعدة البيانات السحابية حالياً. يرجى إضافة موديل للكتالوج أولاً.');
+      }
       return models;
-    } catch (err) {
-      console.error('Failed to load catalog models:', err);
+    } catch (err: any) {
+      console.error('Failed to load confirmed catalog models from Supabase:', err);
+      setCatalogModels([]);
+      setFormError(err.message || 'تعذر التحقق من كتالوج الموديلات السحابي. يرجى التأكد من اتصال الإنترنت.');
       return [];
     } finally {
       setIsLoadingModels(false);
@@ -142,8 +148,8 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!formModelId) {
-      setFormError('يرجى اختيار الموديل المرتبط من الكتالوج أو إضافة موديل جديد');
+    if (!formModelId || !catalogModels.some(m => m.id === formModelId)) {
+      setFormError('يرجى اختيار موديل معتمد من الكتالوج السحابي أو إضافة موديل جديد أولاً');
       return;
     }
     const costNum = Number(formCost) || 0;
@@ -182,11 +188,19 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
           notes: formNotes.trim() || undefined,
         });
 
-        showNotification({
-          type: 'success',
-          title: 'تم تسجيل المخزون المجمع بنجاح',
-          message: `تم إضافة (${qty}) وحدات غير مسلسلة في (${formLocation}).`,
-        });
+        if (createdDevice._synced) {
+          showNotification({
+            type: 'success',
+            title: 'تم تسجيل المخزون بنجاح',
+            message: `تم إضافة (${qty}) وحدات غير مسلسلة في (${formLocation}) ومزامنتها مع السحابة.`,
+          });
+        } else {
+          showNotification({
+            type: 'info',
+            title: 'تم حفظ المخزون محلياً (بانتظار المزامنة)',
+            message: `تم حفظ (${qty}) وحدات غير مسلسلة في (${formLocation}) محلياً، وسيتم المزامنة تلقائياً عند استقرار الاتصال.`,
+          });
+        }
       } else {
         // Individual device (serial optional)
         createdDevice = await mssInventoryService.createDevice({
@@ -201,13 +215,23 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
           notes: formNotes.trim() || undefined,
         });
 
-        showNotification({
-          type: 'success',
-          title: 'تم تسجيل الجهاز بنجاح',
-          message: formSerial.trim()
-            ? `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation}`
-            : `تم إضافة جهاز (بدون سيريال) إلى مخزون ${formLocation}`,
-        });
+        if (createdDevice._synced) {
+          showNotification({
+            type: 'success',
+            title: 'تم تسجيل الجهاز بنجاح',
+            message: formSerial.trim()
+              ? `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation} وحفظه في السحابة.`
+              : `تم إضافة جهاز (بدون سيريال) إلى مخزون ${formLocation} وحفظه في السحابة.`,
+          });
+        } else {
+          showNotification({
+            type: 'info',
+            title: 'تم حفظ الجهاز محلياً (بانتظار المزامنة)',
+            message: formSerial.trim()
+              ? `تم حفظ الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) محلياً، وسيتم مزامنته تلقائياً مع السحابة عند توفر الاتصال.`
+              : `تم حفظ الجهاز محلياً، وسيتم مزامنته تلقائياً مع السحابة عند توفر الاتصال.`,
+          });
+        }
       }
 
       onSuccess?.(createdDevice);
@@ -252,8 +276,8 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
               {isSubmitting
                 ? 'جاري الحفظ...'
                 : stockRegistrationMode === 'BULK'
-                ? `تسجيل الدفعة (${formQuantity} أجهزة)`
-                : 'تسجيل الجهاز'}
+                  ? `تسجيل الدفعة (${formQuantity} أجهزة)`
+                  : 'تسجيل الجهاز'}
             </Button>
           </div>
         }
@@ -268,11 +292,10 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
             <button
               type="button"
               onClick={() => setStockRegistrationMode('INDIVIDUAL')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                stockRegistrationMode === 'INDIVIDUAL'
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${stockRegistrationMode === 'INDIVIDUAL'
                   ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Laptop className="w-4 h-4" />
               <span>جهاز فردي (سيريال اختياري)</span>
@@ -280,11 +303,10 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
             <button
               type="button"
               onClick={() => setStockRegistrationMode('BULK')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                stockRegistrationMode === 'BULK'
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${stockRegistrationMode === 'BULK'
                   ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Box className="w-4 h-4" />
               <span>كمية مجمعة بدون سيريال (بالعدد)</span>

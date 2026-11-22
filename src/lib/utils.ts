@@ -78,3 +78,62 @@ export function formatPieceCount(
   }
   return `${safeCount} قطعة${suffix}`;
 }
+
+/**
+ * Cross-platform safe storage wrapper (browser, webview, node, test environments)
+ */
+const memoryStore = new Map<string, string>();
+
+export const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+    } catch {}
+    return memoryStore.get(key) || null;
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+        return;
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+    } catch {}
+    memoryStore.set(key, value);
+  },
+  removeItem(key: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+        return;
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+        return;
+      }
+    } catch {}
+    memoryStore.delete(key);
+  },
+};
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // Fallback below
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}

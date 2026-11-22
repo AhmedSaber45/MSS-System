@@ -130,8 +130,8 @@ export const MSSInventoryView: React.FC = () => {
   const [expandedModelKey, setExpandedModelKey] = useState<string | null>(null);
   const [modelsPage, setModelsPage] = useState<number>(1);
 
-  // Add Stock Modal Mode (Individual vs Bulk)
-  const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>('INDIVIDUAL');
+  // Add Stock Modal Mode (Individual vs Bulk) - Default to BULK
+  const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>('BULK');
   const [formQuantity, setFormQuantity] = useState<number>(1);
 
   // Assign Serials to Bulk Stock Modal
@@ -292,7 +292,7 @@ export const MSSInventoryView: React.FC = () => {
     });
   };
 
-  // Open Add Modal
+  // Open Add Modal (Defaults to BULK mode)
   const handleOpenAdd = (defaultMode: 'INDIVIDUAL' | 'BULK' = 'BULK') => {
     setStockRegistrationMode(defaultMode);
     setIsAddModalOpen(true);
@@ -336,7 +336,7 @@ export const MSSInventoryView: React.FC = () => {
           return;
         }
 
-        await mssInventoryService.createBulkStock({
+        const createdBulk = await mssInventoryService.createBulkStock({
           model_id: formModelId,
           quantity: qty,
           purchase_cost: Number(formCost) || 0,
@@ -347,14 +347,22 @@ export const MSSInventoryView: React.FC = () => {
           notes: formNotes.trim() || undefined,
         });
 
-        showNotification({
-          type: 'success',
-          title: 'تم تسجيل المخزون المجمع بنجاح',
-          message: `تم إضافة (${qty}) وحدات غير مسلسلة في (${formLocation}).`,
-        });
+        if (createdBulk._synced) {
+          showNotification({
+            type: 'success',
+            title: 'تم تسجيل المخزون بنجاح',
+            message: `تم إضافة (${qty}) وحدات غير مسلسلة في (${formLocation}) ومزامنتها مع السحابة.`,
+          });
+        } else {
+          showNotification({
+            type: 'info',
+            title: 'تم حفظ المخزون محلياً (بانتظار المزامنة)',
+            message: `تم حفظ (${qty}) وحدات غير مسلسلة في (${formLocation}) محلياً، وسيتم المزامنة تلقائياً عند استقرار الاتصال.`,
+          });
+        }
       } else {
         // Individual device (serial optional)
-        await mssInventoryService.createDevice({
+        const createdDev = await mssInventoryService.createDevice({
           serial_number: formSerial.trim() || null,
           model_id: formModelId,
           purchase_cost: Number(formCost) || 0,
@@ -366,13 +374,23 @@ export const MSSInventoryView: React.FC = () => {
           notes: formNotes.trim() || undefined,
         });
 
-        showNotification({
-          type: 'success',
-          title: 'تم تسجيل الجهاز بنجاح',
-          message: formSerial.trim()
-            ? `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation}`
-            : `تم إضافة جهاز (بدون سيريال) إلى مخزون ${formLocation}`,
-        });
+        if (createdDev._synced) {
+          showNotification({
+            type: 'success',
+            title: 'تم تسجيل الجهاز بنجاح',
+            message: formSerial.trim()
+              ? `تم إضافة الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) إلى مخزون ${formLocation} وحفظه في السحابة.`
+              : `تم إضافة جهاز (بدون سيريال) إلى مخزون ${formLocation} وحفظه في السحابة.`,
+          });
+        } else {
+          showNotification({
+            type: 'info',
+            title: 'تم حفظ الجهاز محلياً (بانتظار المزامنة)',
+            message: formSerial.trim()
+              ? `تم حفظ الجهاز بالسيريال (${formSerial.trim().toUpperCase()}) محلياً، وسيتم مزامنته تلقائياً مع السحابة عند توفر الاتصال.`
+              : `تم حفظ الجهاز محلياً، وسيتم مزامنته تلقائياً مع السحابة عند توفر الاتصال.`,
+          });
+        }
       }
 
       setIsAddModalOpen(false);
@@ -1018,11 +1036,10 @@ export const MSSInventoryView: React.FC = () => {
           <button
             type="button"
             onClick={() => setInventoryTab('UNITS')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-              inventoryTab === 'UNITS'
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${inventoryTab === 'UNITS'
                 ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <Laptop className="w-4 h-4" />
             <span>الأجهزة الفردية والدفعات ({devices.length})</span>
@@ -1030,11 +1047,10 @@ export const MSSInventoryView: React.FC = () => {
           <button
             type="button"
             onClick={() => setInventoryTab('MODELS')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-              inventoryTab === 'MODELS'
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${inventoryTab === 'MODELS'
                 ? 'bg-white text-slate-900 shadow-subtle border border-slate-300'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <Layers className="w-4 h-4" />
             <span>ملخص المخزون حسب الموديل ({modelSummaries.length})</span>
@@ -1071,11 +1087,10 @@ export const MSSInventoryView: React.FC = () => {
                 <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
                   <button
                     onClick={() => setLocationFilter('ALL')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      locationFilter === 'ALL'
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${locationFilter === 'ALL'
                         ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     كافة الفروع
                   </button>
@@ -1083,11 +1098,10 @@ export const MSSInventoryView: React.FC = () => {
                     <button
                       key={loc}
                       onClick={() => setLocationFilter(loc)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        locationFilter === loc
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${locationFilter === loc
                           ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       {loc}
                     </button>
@@ -1169,11 +1183,10 @@ export const MSSInventoryView: React.FC = () => {
                             </td>
 
                             <td className="p-3 text-center">
-                              <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-full ${
-                                m.existing_units > 0
+                              <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-full ${m.existing_units > 0
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-slate-100 text-slate-500'
-                              }`}>
+                                }`}>
                                 {m.existing_units}
                               </span>
                             </td>
@@ -1282,82 +1295,82 @@ export const MSSInventoryView: React.FC = () => {
                                             return aSold - bSold;
                                           })
                                           .map(dev => (
-                                          <tr
-                                            key={dev.id}
-                                            className={cn(
-                                              'hover:bg-slate-50 transition-opacity',
-                                              dev.status === 'SOLD' && 'opacity-60 bg-slate-50/80 text-slate-500'
-                                            )}
-                                          >
-                                            <td className="p-2">
-                                              {dev.serial_number ? (
-                                                <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
-                                                  {dev.serial_number}
-                                                </span>
-                                              ) : (
-                                                <Badge variant="outline" size="sm" className="text-[10px]">
-                                                  بدون سيريال {dev.quantity && dev.quantity > 1 ? `(${dev.quantity} وحدات)` : ''}
-                                                </Badge>
+                                            <tr
+                                              key={dev.id}
+                                              className={cn(
+                                                'hover:bg-slate-50 transition-opacity',
+                                                dev.status === 'SOLD' && 'opacity-60 bg-slate-50/80 text-slate-500'
                                               )}
-                                            </td>
-                                            <td className="p-2 text-slate-700">{dev.physical_condition}</td>
-                                            <td className="p-2">
-                                              <Badge
-                                                variant={
-                                                  dev.status === 'AVAILABLE'
-                                                    ? 'success'
+                                            >
+                                              <td className="p-2">
+                                                {dev.serial_number ? (
+                                                  <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
+                                                    {dev.serial_number}
+                                                  </span>
+                                                ) : (
+                                                  <Badge variant="outline" size="sm" className="text-[10px]">
+                                                    بدون سيريال {dev.quantity && dev.quantity > 1 ? `(${dev.quantity} وحدات)` : ''}
+                                                  </Badge>
+                                                )}
+                                              </td>
+                                              <td className="p-2 text-slate-700">{dev.physical_condition}</td>
+                                              <td className="p-2">
+                                                <Badge
+                                                  variant={
+                                                    dev.status === 'AVAILABLE'
+                                                      ? 'success'
+                                                      : dev.status === 'RESERVED'
+                                                        ? 'warning'
+                                                        : dev.status === 'SOLD'
+                                                          ? 'default'
+                                                          : 'danger'
+                                                  }
+                                                  size="sm"
+                                                >
+                                                  {dev.status === 'AVAILABLE'
+                                                    ? 'متاح'
                                                     : dev.status === 'RESERVED'
-                                                    ? 'warning'
-                                                    : dev.status === 'SOLD'
-                                                    ? 'default'
-                                                    : 'danger'
-                                                }
-                                                size="sm"
-                                              >
-                                                {dev.status === 'AVAILABLE'
-                                                  ? 'متاح'
-                                                  : dev.status === 'RESERVED'
-                                                  ? 'محجوز'
-                                                  : dev.status === 'SOLD'
-                                                  ? 'مباع'
-                                                  : dev.status}
-                                              </Badge>
-                                            </td>
-                                            <td className="p-2 font-mono text-slate-600">{formatCurrency(dev.purchase_cost)}</td>
-                                            <td className="p-2 font-mono font-bold text-slate-900">{formatCurrency(dev.list_price)}</td>
-                                            <td className="p-2 text-slate-500 truncate max-w-xs">{dev.notes || '-'}</td>
-                                            <td className="p-2 text-center">
-                                              <div className="flex items-center justify-center gap-1">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleOpenDetails(dev)}
-                                                  className="p-1 text-slate-500 hover:text-blue-600 rounded"
-                                                  title="عرض التفاصيل"
-                                                >
-                                                  <Eye className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleOpenEdit(dev)}
-                                                  className="p-1 text-slate-500 hover:text-blue-600 rounded"
-                                                  title="تعديل"
-                                                >
-                                                  <Pencil className="w-3.5 h-3.5" />
-                                                </button>
-                                                {!dev.serial_number && dev.status === 'AVAILABLE' && (
+                                                      ? 'محجوز'
+                                                      : dev.status === 'SOLD'
+                                                        ? 'مباع'
+                                                        : dev.status}
+                                                </Badge>
+                                              </td>
+                                              <td className="p-2 font-mono text-slate-600">{formatCurrency(dev.purchase_cost)}</td>
+                                              <td className="p-2 font-mono font-bold text-slate-900">{formatCurrency(dev.list_price)}</td>
+                                              <td className="p-2 text-slate-500 truncate max-w-xs">{dev.notes || '-'}</td>
+                                              <td className="p-2 text-center">
+                                                <div className="flex items-center justify-center gap-1">
                                                   <button
                                                     type="button"
-                                                    onClick={() => handleOpenAssignSerials(dev)}
-                                                    className="text-[10px] text-amber-700 hover:underline font-bold bg-amber-50 px-1 py-0.5 rounded border border-amber-200"
-                                                    title="تعيين سيريال"
+                                                    onClick={() => handleOpenDetails(dev)}
+                                                    className="p-1 text-slate-500 hover:text-blue-600 rounded"
+                                                    title="عرض التفاصيل"
                                                   >
-                                                    تعيين
+                                                    <Eye className="w-3.5 h-3.5" />
                                                   </button>
-                                                )}
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEdit(dev)}
+                                                    className="p-1 text-slate-500 hover:text-blue-600 rounded"
+                                                    title="تعديل"
+                                                  >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                  </button>
+                                                  {!dev.serial_number && dev.status === 'AVAILABLE' && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleOpenAssignSerials(dev)}
+                                                      className="text-[10px] text-amber-700 hover:underline font-bold bg-amber-50 px-1 py-0.5 rounded border border-amber-200"
+                                                      title="تعيين سيريال"
+                                                    >
+                                                      تعيين
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          ))}
                                       </tbody>
                                     </table>
                                   </div>
@@ -1419,11 +1432,10 @@ export const MSSInventoryView: React.FC = () => {
                 <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1 flex-wrap">
                   <button
                     onClick={() => setLocationFilter('ALL')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                      locationFilter === 'ALL'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === 'ALL'
                         ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     الكل ({devices.length})
                   </button>
@@ -1431,11 +1443,10 @@ export const MSSInventoryView: React.FC = () => {
                     <button
                       key={loc}
                       onClick={() => setLocationFilter(loc)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                        locationFilter === loc
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${locationFilter === loc
                           ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       {loc} ({devices.filter(d => d.stock_location === loc).length})
                     </button>
@@ -1455,11 +1466,10 @@ export const MSSInventoryView: React.FC = () => {
                     <button
                       key={cat.id}
                       onClick={() => setCategoryFilter(cat.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                        categoryFilter === cat.id
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${categoryFilter === cat.id
                           ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       {cat.label}
                     </button>
@@ -1484,11 +1494,10 @@ export const MSSInventoryView: React.FC = () => {
                     <button
                       key={st.id}
                       onClick={() => setStatusFilter(st.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                        statusFilter === st.id
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${statusFilter === st.id
                           ? 'bg-white text-slate-900 shadow-subtle font-bold border border-slate-300'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       {st.label}
                     </button>
@@ -2388,13 +2397,12 @@ export const MSSInventoryView: React.FC = () => {
                   const isOver = enteredCount > availableQty;
                   return (
                     <span
-                      className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded ${
-                        isOver
+                      className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded ${isOver
                           ? 'bg-rose-100 text-rose-700'
                           : enteredCount > 0
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'text-slate-500'
-                      }`}
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'text-slate-500'
+                        }`}
                     >
                       {enteredCount} / {availableQty} سيريال
                     </span>
@@ -2490,9 +2498,8 @@ export const MSSInventoryView: React.FC = () => {
                     {locationOptions.map((loc, locIdx) => (
                       <th
                         key={loc}
-                        className={`p-3 text-center min-w-[180px] font-bold ${
-                          locIdx % 2 === 0 ? 'bg-blue-50/50 text-blue-900' : 'bg-emerald-50/50 text-emerald-900'
-                        }`}
+                        className={`p-3 text-center min-w-[180px] font-bold ${locIdx % 2 === 0 ? 'bg-blue-50/50 text-blue-900' : 'bg-emerald-50/50 text-emerald-900'
+                          }`}
                       >
                         {loc} (موجود / مباع / إجمالي)
                       </th>
@@ -2537,9 +2544,8 @@ export const MSSInventoryView: React.FC = () => {
                             return (
                               <td
                                 key={loc}
-                                className={`p-3 text-center font-mono text-xs whitespace-nowrap ${
-                                  locIdx % 2 === 0 ? 'bg-blue-50/20' : 'bg-emerald-50/20'
-                                }`}
+                                className={`p-3 text-center font-mono text-xs whitespace-nowrap ${locIdx % 2 === 0 ? 'bg-blue-50/20' : 'bg-emerald-50/20'
+                                  }`}
                               >
                                 <span className="text-emerald-700 font-bold">{br.existing_units} موجود</span>
                                 <span className="mx-1 text-slate-300">•</span>
@@ -2581,9 +2587,8 @@ export const MSSInventoryView: React.FC = () => {
                       {locationOptions.map((loc, locIdx) => (
                         <td
                           key={loc}
-                          className={`p-3 text-center font-mono ${
-                            locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
-                          }`}
+                          className={`p-3 text-center font-mono ${locIdx % 2 === 0 ? 'text-blue-900' : 'text-emerald-900'
+                            }`}
                         >
                           {crossWarehouseSummaries.reduce(
                             (s, it) => s + (it.warehouse_breakdown[loc]?.total_units || 0),

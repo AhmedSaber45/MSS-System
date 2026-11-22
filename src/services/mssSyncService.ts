@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.ts';
 import { desktopAuthService } from './desktopAuthService.ts';
+import { generateUUID, safeStorage } from '../lib/utils.ts';
 import type {
   OutboxOperation,
   SyncOperationType,
@@ -14,113 +15,25 @@ const MSS_OUTBOX_CACHE_KEY = 'shop_mss_outbox_queue_v1';
 const MSS_CONFLICTS_CACHE_KEY = 'shop_mss_conflicts_v1';
 const MSS_SYNC_STATE_KEY = 'shop_mss_sync_state_v1';
 
-// Safe Cross-Platform UUID generator
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      // Fallback below
-    }
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-// Initial seed outbox operations for immediate usability
-const INITIAL_SEED_OUTBOX: OutboxOperation[] = [
-  {
-    uuid: 'f0000000-0000-0000-0000-000000000001',
-    type: 'SALE_CREATE',
-    branch: 'محل 1',
-    payload: { invoice_number: 'MSS-INV-101', serial_number: '5CD9283-HP', actual_sale_price: 13000 },
-    description: 'بيع لابتوب HP EliteBook 840 G6 (سيريال: 5CD9283-HP)',
-    client_timestamp: '2024-11-12T13:30:00Z',
-    status: 'SYNCED',
-    retries: 0,
-    synced_at: '2024-11-12T13:30:05Z',
-  },
-  {
-    uuid: 'f0000000-0000-0000-0000-000000000002',
-    type: 'DEVICE_ADD',
-    branch: 'محل 2',
-    payload: { serial_number: 'PF1K893-LEN', model_name: 'ThinkPad T480' },
-    description: 'تسجيل جهاز جديد بالسيريال (PF1K893-LEN) في محل 2',
-    client_timestamp: '2024-11-11T11:00:00Z',
-    status: 'SYNCED',
-    retries: 0,
-    synced_at: '2024-11-11T11:00:04Z',
-  },
-];
-
-// Initial seed conflicts
-const INITIAL_SEED_CONFLICTS: MSSConflict[] = [];
-
-const FALLBACK_SEED_DEVICES = [
-  {
-    id: 'b0000000-0000-0000-0000-000000000005',
-    serial_number: '5CD9283-HP',
-    model_id: 'a0000000-0000-0000-0000-000000000003',
-    purchase_cost: 9800,
-    list_price: 13500,
-    purchase_date: '2024-11-04',
-    physical_condition: 'فرز أول كيبورد مضيئة',
-    stock_location: 'محل 2',
-    status: 'SOLD',
-    notes: 'تم البيع للعميل شريف',
-  },
-];
-
-const FALLBACK_SEED_INVOICES = [
-  {
-    id: 'd0000000-0000-0000-0000-000000000001',
-    invoice_number: 'MSS-INV-101',
-    device_id: 'b0000000-0000-0000-0000-000000000005',
-    serial_number: '5CD9283-HP',
-    model_id: 'a0000000-0000-0000-0000-000000000003',
-    selling_branch: 'محل 1',
-    source_branch: 'محل 2',
-    list_price_snapshot: 13500,
-    discount_amount: 500,
-    actual_sale_price: 13000,
-    cost_snapshot: 9800,
-    gross_profit: 3200,
-    customer_name: 'أ. شريف كمال',
-    sale_date: '2024-11-12T13:30:00Z',
-    is_returned: false,
-  },
-];
-
-const isTestEnv =
-  typeof process !== 'undefined' &&
-  Boolean(
-    process.env?.NODE_ENV === 'test' ||
-    process.env?.npm_lifecycle_event === 'test' ||
-    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
-  );
-
 function getLocalDevices(): any[] {
   try {
-    const raw = localStorage.getItem('shop_mss_devices_cache_v1');
-    if (!raw) return isTestEnv ? FALLBACK_SEED_DEVICES : [];
+    const raw = safeStorage.getItem('shop_mss_devices_cache_v1');
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : (isTestEnv ? FALLBACK_SEED_DEVICES : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? FALLBACK_SEED_DEVICES : [];
+    return [];
   }
 }
 
 function getLocalInvoices(): any[] {
   try {
-    const raw = localStorage.getItem('shop_mss_invoices_cache_v1');
-    if (!raw) return isTestEnv ? FALLBACK_SEED_INVOICES : [];
+    const raw = safeStorage.getItem('shop_mss_invoices_cache_v1');
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : (isTestEnv ? FALLBACK_SEED_INVOICES : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? FALLBACK_SEED_INVOICES : [];
+    return [];
   }
 }
 
@@ -129,40 +42,38 @@ let syncQueued = false;
 
 function getCachedOutbox(): OutboxOperation[] {
   try {
-    const raw = localStorage.getItem(MSS_OUTBOX_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_OUTBOX_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_OUTBOX : [];
-      localStorage.setItem(MSS_OUTBOX_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      safeStorage.setItem(MSS_OUTBOX_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_OUTBOX : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_OUTBOX : [];
+    return [];
   }
 }
 
 function saveCachedOutbox(outbox: OutboxOperation[]): void {
-  localStorage.setItem(MSS_OUTBOX_CACHE_KEY, JSON.stringify(outbox));
+  safeStorage.setItem(MSS_OUTBOX_CACHE_KEY, JSON.stringify(outbox));
 }
 
 function getCachedConflicts(): MSSConflict[] {
   try {
-    const raw = localStorage.getItem(MSS_CONFLICTS_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_CONFLICTS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_CONFLICTS : [];
-      localStorage.setItem(MSS_CONFLICTS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      safeStorage.setItem(MSS_CONFLICTS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_CONFLICTS : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_CONFLICTS : [];
+    return [];
   }
 }
 
 function saveCachedConflicts(conflicts: MSSConflict[]): void {
-  localStorage.setItem(MSS_CONFLICTS_CACHE_KEY, JSON.stringify(conflicts));
+  safeStorage.setItem(MSS_CONFLICTS_CACHE_KEY, JSON.stringify(conflicts));
 }
 
 export const mssSyncService = {
@@ -362,6 +273,20 @@ export const mssSyncService = {
       return { synced: 0, conflicts: 0, failed: 0 };
     }
 
+    // Pre-sync: push any pending models and pending devices to satisfy FK dependencies
+    try {
+      const { mssCatalogService } = await import('./mssCatalogService.ts');
+      await mssCatalogService.syncPendingModels();
+    } catch (e) {
+      console.warn('Pre-sync pending models warning:', e);
+    }
+    try {
+      const { mssInventoryService } = await import('./mssInventoryService.ts');
+      await mssInventoryService.syncPendingDevices();
+    } catch (e) {
+      console.warn('Pre-sync pending devices warning:', e);
+    }
+
     const outbox = getCachedOutbox();
     const pendingOps = outbox.filter(op => op.status === 'PENDING' || op.status === 'FAILED');
 
@@ -429,10 +354,6 @@ export const mssSyncService = {
             if (!existingInv) {
               const localInvs = getLocalInvoices();
               existingInv = localInvs.find((inv: any) => inv.serial_number === serial);
-            }
-
-            if (!existingInv) {
-              existingInv = FALLBACK_SEED_INVOICES.find((inv: any) => inv.serial_number === serial);
             }
 
             if (existingInv && existingInv.invoice_number !== op.payload.invoice_number) {
@@ -591,7 +512,92 @@ export const mssSyncService = {
           conflictCount++;
         } else {
           // No Conflict: Apply to cloud tables if applicable
-          if (op.type === 'PAYMENT_RECORD' && op.payload?.payment) {
+          if (op.type === 'DEVICE_ADD' && op.payload) {
+            const dev = op.payload;
+            if (dev && dev.id && dev.model_id) {
+              const { error: devErr } = await supabase.from('mss_devices').upsert({
+                id: dev.id,
+                serial_number: dev.serial_number || null,
+                model_id: dev.model_id,
+                purchase_cost: dev.purchase_cost,
+                list_price: dev.list_price,
+                purchase_date: dev.purchase_date,
+                physical_condition: dev.physical_condition,
+                stock_location: dev.stock_location,
+                status: dev.status || 'AVAILABLE',
+                notes: dev.notes || null,
+              }, { onConflict: 'id' });
+
+              if (devErr) {
+                console.error('DEVICE_ADD sync failed:', devErr);
+                throw new Error(`فشلت مزامنة الجهاز (${dev.serial_number || dev.id}): ${devErr.message}`);
+              }
+            }
+          } else if (op.type === 'DEVICE_TRANSFER' && op.payload) {
+            const mov = op.payload;
+            if (mov && mov.device_id && mov.to_location) {
+              const { error: trErr } = await supabase.from('mss_devices').update({
+                stock_location: mov.to_location,
+                updated_at: mov.movement_date || new Date().toISOString(),
+              }).eq('id', mov.device_id);
+
+              if (trErr) {
+                console.error('DEVICE_TRANSFER sync failed:', trErr);
+                throw new Error(`فشلت مزامنة نقل الجهاز: ${trErr.message}`);
+              }
+
+              if (mov.id) {
+                await supabase.from('mss_device_movements').upsert({
+                  id: mov.id,
+                  device_id: mov.device_id,
+                  serial_number: mov.serial_number || null,
+                  from_location: mov.from_location,
+                  to_location: mov.to_location,
+                  movement_date: mov.movement_date,
+                  movement_status: mov.movement_status || 'COMPLETED',
+                  notes: mov.notes || null,
+                }, { onConflict: 'id' });
+              }
+            }
+          } else if (op.type === 'SALE_CREATE' && op.payload) {
+            const inv = op.payload;
+            if (inv && inv.id) {
+              const { error: invErr } = await supabase.from('mss_invoices').upsert({
+                id: inv.id,
+                invoice_number: inv.invoice_number,
+                device_id: inv.device_id,
+                model_id: inv.model_id,
+                serial_number: inv.serial_number || null,
+                selling_branch: inv.selling_branch,
+                source_branch: inv.source_branch,
+                list_price_snapshot: inv.list_price_snapshot,
+                discount_amount: inv.discount_amount || 0,
+                actual_sale_price: inv.actual_sale_price,
+                cost_snapshot: inv.cost_snapshot || 0,
+                gross_profit: inv.gross_profit || 0,
+                customer_name: inv.customer_name || 'عميل نقدي',
+                customer_phone: inv.customer_phone || null,
+                customer_national_id: inv.customer_national_id || null,
+                warranty_period_months: inv.warranty_period_months || 3,
+                warranty_terms: inv.warranty_terms || null,
+                sale_date: inv.sale_date,
+                notes: inv.notes || null,
+                is_returned: Boolean(inv.is_returned),
+              }, { onConflict: 'id' });
+
+              if (invErr) {
+                console.error('SALE_CREATE sync failed:', invErr);
+                throw new Error(`فشلت مزامنة فاتورة البيع (${inv.invoice_number}): ${invErr.message}`);
+              }
+
+              if (inv.device_id) {
+                await supabase.from('mss_devices').update({
+                  status: 'SOLD',
+                  updated_at: new Date().toISOString(),
+                }).eq('id', inv.device_id);
+              }
+            }
+          } else if (op.type === 'PAYMENT_RECORD' && op.payload?.payment) {
             const p = op.payload.payment;
             try {
               await supabase.from('mss_payments').insert({

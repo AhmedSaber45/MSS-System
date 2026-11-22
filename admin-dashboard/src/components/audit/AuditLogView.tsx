@@ -187,7 +187,7 @@ export const AuditLogView: React.FC = () => {
               <ShieldAlert className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">سجل النشاط والتدقيق الإداري</h2>
+              <h2 className="text-lg font-bold text-slate-100">سجل النشاط  </h2>
               <p className="text-xs text-slate-400">
                 تسجيل لحظي وتفصيلي غير قابل للتعديل لكافة عمليات الدخول، إدارة المستخدمين، وتغييرات النظام
               </p>
@@ -201,7 +201,7 @@ export const AuditLogView: React.FC = () => {
           className="flex items-center gap-2 px-3.5 py-1.5 bg-[#101625] hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-sky-400' : ''}`} />
-          <span>تحديث السجل</span>
+          <span>Refresh </span>
         </button>
       </div>
 
@@ -213,7 +213,7 @@ export const AuditLogView: React.FC = () => {
             <Activity className="w-4 h-4 text-sky-400" />
           </div>
           <div className="text-xl font-bold font-mono text-slate-100">{counters.totalDisplay}</div>
-          <p className="text-[10px] text-slate-500 mt-1">عملية مسجلة بالنظام</p>
+        
         </div>
 
         <div className="p-3.5 rounded-xl bg-[#101625] border border-slate-800">
@@ -222,16 +222,16 @@ export const AuditLogView: React.FC = () => {
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-xl font-bold font-mono text-emerald-400">{counters.successCount}</div>
-          <p className="text-[10px] text-slate-500 mt-1">تمت بنجاح وتأكيد الحفظ</p>
+         
         </div>
 
         <div className="p-3.5 rounded-xl bg-[#101625] border border-slate-800">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1.5">
-            <span>محاولات مرفوضة / فاشلة</span>
+            <span>محاولات مرفوضة  </span>
             <XCircle className="w-4 h-4 text-rose-400" />
           </div>
           <div className="text-xl font-bold font-mono text-rose-400">{counters.failureCount}</div>
-          <p className="text-[10px] text-slate-500 mt-1">تم حظرها أو فشلت في التنفيذ</p>
+          
         </div>
 
         <div className="p-3.5 rounded-xl bg-[#101625] border border-slate-800">

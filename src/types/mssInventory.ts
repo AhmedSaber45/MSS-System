@@ -24,6 +24,7 @@ export interface MSSDevice {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  _synced?: boolean;
 
   // Joined display fields
   model?: MSSCatalogModel;

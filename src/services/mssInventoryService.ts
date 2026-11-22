@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.ts';
 import { getTodayLocalDateString } from '../lib/dateValidation.ts';
+import { generateUUID, safeStorage } from '../lib/utils.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
@@ -21,153 +22,67 @@ import type { ModelStockQuantitySummary } from '../types/mssReports.ts';
 
 const MSS_DEVICES_CACHE_KEY = 'shop_mss_devices_cache_v1';
 const MSS_MOVEMENTS_CACHE_KEY = 'shop_mss_movements_cache_v1';
+const MSS_PENDING_DEVICES_CACHE_KEY = 'shop_mss_pending_devices_cache_v1';
 
-// Initial seed devices (consistent with migration and catalog seed)
-const INITIAL_SEED_DEVICES: MSSDevice[] = [
-  {
-    id: 'b0000000-0000-0000-0000-000000000001',
-    serial_number: 'PF1K892-LEN',
-    model_id: 'a0000000-0000-0000-0000-000000000001',
-    purchase_cost: 8500,
-    list_price: 11500,
-    purchase_date: '2024-11-08',
-    physical_condition: 'فرز أول ممتاز',
-    stock_location: 'محل 2',
-    status: 'AVAILABLE',
-    notes: 'حالة ممتازة - الشاحن الأصلي',
-    created_at: '2024-11-08T10:00:00Z',
-    updated_at: '2024-11-08T10:00:00Z',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000002',
-    serial_number: 'PF1K893-LEN',
-    model_id: 'a0000000-0000-0000-0000-000000000001',
-    purchase_cost: 8700,
-    list_price: 11800,
-    purchase_date: '2024-11-09',
-    physical_condition: 'فرز أول مع بطارية إضافية',
-    stock_location: 'محل 2',
-    status: 'AVAILABLE',
-    notes: 'بطارية 95% صحة',
-    created_at: '2024-11-09T11:00:00Z',
-    updated_at: '2024-11-09T11:00:00Z',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000003',
-    serial_number: '8F9X021-DELL',
-    model_id: 'a0000000-0000-0000-0000-000000000002',
-    purchase_cost: 11000,
-    list_price: 15000,
-    purchase_date: '2024-11-07',
-    physical_condition: 'كالجديد كرتونة كاملة',
-    stock_location: 'محل 1',
-    status: 'RESERVED',
-    notes: 'محجوز حتى الغد لعميل دائم',
-    created_at: '2024-11-07T09:30:00Z',
-    updated_at: '2024-11-07T09:30:00Z',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000004',
-    serial_number: '8F9X022-DELL',
-    model_id: 'a0000000-0000-0000-0000-000000000002',
-    purchase_cost: 10800,
-    list_price: 14800,
-    purchase_date: '2024-11-10',
-    physical_condition: 'فرز أول نظيف جداً',
-    stock_location: 'محل 1',
-    status: 'AVAILABLE',
-    notes: 'جاهز للعرض',
-    created_at: '2024-11-10T14:15:00Z',
-    updated_at: '2024-11-10T14:15:00Z',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000005',
-    serial_number: '5CD9283-HP',
-    model_id: 'a0000000-0000-0000-0000-000000000003',
-    purchase_cost: 9800,
-    list_price: 13500,
-    purchase_date: '2024-11-05',
-    physical_condition: 'فرز أول كيبورد مضيئة',
-    stock_location: 'محل 2',
-    status: 'SOLD',
-    notes: 'تم البيع للعميل شريف',
-    created_at: '2024-11-05T16:00:00Z',
-    updated_at: '2024-11-05T16:00:00Z',
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000006',
-    serial_number: 'CN49129-MON',
-    model_id: 'a0000000-0000-0000-0000-000000000004',
-    purchase_cost: 3100,
-    list_price: 4200,
-    purchase_date: '2024-11-11',
-    physical_condition: 'سليم تماماً خالي من الخدوش',
-    stock_location: 'محل 1',
-    status: 'AVAILABLE',
-    notes: 'شاشة عرض مع كابل DisplayPort',
-    created_at: '2024-11-11T12:00:00Z',
-    updated_at: '2024-11-11T12:00:00Z',
-  },
-];
+function getPendingDevices(): MSSDevice[] {
+  try {
+    const raw = safeStorage.getItem(MSS_PENDING_DEVICES_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-// Initial seed movements (consistent with migration)
-const INITIAL_SEED_MOVEMENTS: MSSDeviceMovement[] = [
-  {
-    id: 'c0000000-0000-0000-0000-000000000001',
-    device_id: 'b0000000-0000-0000-0000-000000000004',
-    serial_number: '8F9X022-DELL',
-    from_location: 'محل 2',
-    to_location: 'محل 1',
-    movement_date: '2024-11-11T14:30:00Z',
-    movement_status: 'COMPLETED',
-    notes: 'نقل للعرض في واجهة محل 1 بناء على طلب الإدارة',
-    created_at: '2024-11-11T14:30:00Z',
-  },
-  {
-    id: 'c0000000-0000-0000-0000-000000000002',
-    device_id: 'b0000000-0000-0000-0000-000000000006',
-    serial_number: 'CN49129-MON',
-    from_location: 'محل 2',
-    to_location: 'محل 1',
-    movement_date: '2024-11-12T11:00:00Z',
-    movement_status: 'COMPLETED',
-    notes: 'نقل شاشة احترافية لتجهيز طلب تجميعة عميل بمحل 1',
-    created_at: '2024-11-12T11:00:00Z',
-  },
-];
+function savePendingDevices(devices: MSSDevice[]): void {
+  try {
+    safeStorage.setItem(MSS_PENDING_DEVICES_CACHE_KEY, JSON.stringify(devices));
+  } catch {
+    // ignore
+  }
+}
 
-const isTestEnv =
-  typeof process !== 'undefined' &&
-  Boolean(
-    process.env?.NODE_ENV === 'test' ||
-    process.env?.npm_lifecycle_event === 'test' ||
-    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
-  );
+function addPendingDevice(device: MSSDevice): void {
+  const pending = getPendingDevices();
+  const index = pending.findIndex(d => d.id === device.id);
+  if (index >= 0) {
+    pending[index] = device;
+  } else {
+    pending.push(device);
+  }
+  savePendingDevices(pending);
+}
+
+function removePendingDevice(id: string): void {
+  const pending = getPendingDevices();
+  const filtered = pending.filter(d => d.id !== id);
+  savePendingDevices(filtered);
+}
 
 function getCachedDevices(): MSSDevice[] {
   try {
-    const raw = localStorage.getItem(MSS_DEVICES_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_DEVICES_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_DEVICES : [];
-      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      safeStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_DEVICES : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_DEVICES : [];
+    return [];
   }
 }
 
 function saveCachedDevices(devices: MSSDevice[]): void {
-  localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(devices));
+  safeStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(devices));
 }
 
 const MSS_DELETED_DEVICES_KEY = 'shop_mss_deleted_devices_v1';
 
 function getDeletedDeviceIds(): Set<string> {
   try {
-    const raw = localStorage.getItem(MSS_DELETED_DEVICES_KEY);
+    const raw = safeStorage.getItem(MSS_DELETED_DEVICES_KEY);
     if (!raw) return new Set();
     const arr = JSON.parse(raw);
     return new Set(Array.isArray(arr) ? arr : []);
@@ -180,7 +95,7 @@ function addDeletedDeviceId(id: string): void {
   try {
     const set = getDeletedDeviceIds();
     set.add(id);
-    localStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
+    safeStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
   } catch {
     // ignore
   }
@@ -191,7 +106,7 @@ function removeDeletedDeviceId(id: string): void {
     const set = getDeletedDeviceIds();
     if (set.has(id)) {
       set.delete(id);
-      localStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
+      safeStorage.setItem(MSS_DELETED_DEVICES_KEY, JSON.stringify(Array.from(set)));
     }
   } catch {
     // ignore
@@ -200,21 +115,20 @@ function removeDeletedDeviceId(id: string): void {
 
 function getCachedMovements(): MSSDeviceMovement[] {
   try {
-    const raw = localStorage.getItem(MSS_MOVEMENTS_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_MOVEMENTS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
-      localStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      safeStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MOVEMENTS : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_MOVEMENTS : [];
+    return [];
   }
 }
 
 function saveCachedMovements(movements: MSSDeviceMovement[]): void {
-  localStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(movements));
+  safeStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(movements));
 }
 
 export const mssInventoryService = {
@@ -241,48 +155,40 @@ export const mssInventoryService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const cloudDevices = data.map((row: any) => ({
-          id: row.id,
-          serial_number: row.serial_number || null,
-          is_serialized: row.is_serialized !== undefined ? Boolean(row.is_serialized) : Boolean(row.serial_number),
-          quantity: Number(row.quantity) || 1,
-          model_id: row.model_id,
-          purchase_cost: Number(row.purchase_cost) || 0,
-          list_price: Number(row.list_price) || 0,
-          purchase_date: row.purchase_date,
-          physical_condition: row.physical_condition || 'فرز أول',
-          stock_location: row.stock_location as MSSStockLocation,
-          status: row.status as MSSDeviceStatus,
-          notes: row.notes || null,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-        }));
+      if (!error && Array.isArray(data)) {
         const deletedIds = getDeletedDeviceIds();
-        const localCached = getCachedDevices();
-        const mergedMap = new Map<string, MSSDevice>();
-        for (const cd of cloudDevices) {
-          if (deletedIds.has(cd.id)) continue;
-          const key = cd.id || (cd.serial_number ? `sn-${cd.serial_number}` : `id-${Math.random()}`);
-          mergedMap.set(key, cd);
-        }
-        for (const ld of localCached) {
-          if (deletedIds.has(ld.id)) continue;
-          const key = ld.id || (ld.serial_number ? `sn-${ld.serial_number}` : `id-${Math.random()}`);
-          if (!mergedMap.has(key)) {
-            mergedMap.set(key, ld);
+        const pendingDevices = getPendingDevices();
+
+        const cloudDevices: MSSDevice[] = data
+          .filter((row: any) => !deletedIds.has(row.id))
+          .map((row: any) => ({
+            id: row.id,
+            serial_number: row.serial_number || null,
+            is_serialized: row.is_serialized !== undefined ? Boolean(row.is_serialized) : Boolean(row.serial_number),
+            quantity: Number(row.quantity) || 1,
+            model_id: row.model_id,
+            purchase_cost: Number(row.purchase_cost) || 0,
+            list_price: Number(row.list_price) || 0,
+            purchase_date: row.purchase_date,
+            physical_condition: row.physical_condition || 'فرز أول',
+            stock_location: row.stock_location as MSSStockLocation,
+            status: row.status as MSSDeviceStatus,
+            notes: row.notes || null,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            _synced: true,
+          }));
+
+        // Merge pending devices that are not yet in cloud
+        const cloudIds = new Set(cloudDevices.map(d => d.id));
+        const mergedDevices = [...cloudDevices];
+        for (const pd of pendingDevices) {
+          if (!cloudIds.has(pd.id) && !deletedIds.has(pd.id)) {
+            mergedDevices.push({ ...pd, _synced: false });
           }
         }
-        if (isTestEnv) {
-          for (const sd of INITIAL_SEED_DEVICES) {
-            if (deletedIds.has(sd.id)) continue;
-            const key = sd.id || (sd.serial_number ? `sn-${sd.serial_number}` : `id-${Math.random()}`);
-            if (!mergedMap.has(key)) {
-              mergedMap.set(key, sd);
-            }
-          }
-        }
-        devices = Array.from(mergedMap.values());
+
+        devices = mergedDevices;
         saveCachedDevices(devices);
         isCloudFetched = true;
       }
@@ -395,7 +301,7 @@ export const mssInventoryService = {
       throw new Error('الموديل المحدد غير موجود في كتالوج MSS');
     }
 
-    const newId = 'dev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
     const now = new Date().toISOString();
     const today = getTodayLocalDateString();
     const purchaseDate = input.purchase_date || today;
@@ -419,12 +325,14 @@ export const mssInventoryService = {
       notes: input.notes?.trim() || null,
       created_at: now,
       updated_at: now,
+      _synced: false,
       model,
       model_name: model.model_name,
       brand: model.brand,
       category: model.category,
     };
 
+    let synced = false;
     // Try remote insert to Supabase
     try {
       const { data, error } = await supabase
@@ -445,33 +353,48 @@ export const mssInventoryService = {
         .single();
 
       if (!error && data) {
+        synced = true;
         newDevice.id = data.id;
         newDevice.created_at = data.created_at;
         newDevice.updated_at = data.updated_at;
-      } else if (error && error.code === '23505' && serial) {
-        throw new Error(`السيريال نمبر (${serial}) موجود مسبقاً في قاعدة البيانات السحابية.`);
+        newDevice._synced = true;
+      } else if (error) {
+        if (error.code === '23505' && serial) {
+          throw new Error(`السيريال نمبر (${serial}) موجود مسبقاً في قاعدة البيانات السحابية.`);
+        } else if (error.code === '23502' && error.message?.includes('serial_number')) {
+          throw new Error('قاعدة البيانات السحابية تتطلب إدخال سيريال نمبر (يرجى إدخال سيريال للجهاز أو تطبيق ملف ترحيل SQL المرفق للسماح بالأجهزة بدون سيريال).');
+        } else if (error.code === '23503') {
+          throw new Error(`تعذر حفظ الجهاز: الموديل المحدد (${model.model_name}) غير موجود أو غير متزامن سحابياً بعد.`);
+        } else {
+          console.warn('Supabase insert device error, fallback to offline sync:', error);
+        }
       }
     } catch (err: any) {
-      if (err.message && err.message.includes('موجود مسبقاً')) {
+      if (err.message && (err.message.includes('موجود مسبقاً') || err.message.includes('تتطلب إدخال سيريال') || err.message.includes('غير متزامن سحابياً'))) {
         throw err;
       }
-      console.warn('Supabase insert device failed, cached locally for sync:', err);
+      console.warn('Supabase insert device network failure, cached locally for sync:', err);
+    }
+
+    if (synced) {
+      removePendingDevice(newDevice.id);
+    } else {
+      addPendingDevice(newDevice);
+      // Queue in Outbox
+      mssSyncService
+        .queueOperation(
+          'DEVICE_ADD',
+          newDevice,
+          newDevice.serial_number
+            ? `تسجيل جهاز جديد بالسيريال (${newDevice.serial_number}) بمخزون (${newDevice.stock_location})`
+            : `تسجيل جهاز بدون سيريال (${model.model_name}) بمخزون (${newDevice.stock_location})`,
+          newDevice.stock_location
+        )
+        .catch(console.warn);
     }
 
     cached.unshift(newDevice);
     saveCachedDevices(cached);
-
-    // Queue in Outbox
-    mssSyncService
-      .queueOperation(
-        'DEVICE_ADD',
-        newDevice,
-        newDevice.serial_number
-          ? `تسجيل جهاز جديد بالسيريال (${newDevice.serial_number}) بمخزون (${newDevice.stock_location})`
-          : `تسجيل جهاز بدون سيريال (${model.model_name}) بمخزون (${newDevice.stock_location})`,
-        newDevice.stock_location
-      )
-      .catch(console.warn);
 
     backupService.notifyDataChanged(
       newDevice.serial_number
@@ -515,7 +438,7 @@ export const mssInventoryService = {
       throw new Error(`تاريخ الشراء (${purchaseDate}) لا يمكن أن يكون في المستقبل.`);
     }
 
-    const newId = 'dev-bulk-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
     const now = new Date().toISOString();
 
     const bulkDevice: MSSDevice = {
@@ -533,43 +456,73 @@ export const mssInventoryService = {
       notes: input.notes?.trim() || null,
       created_at: now,
       updated_at: now,
+      _synced: false,
       model,
       model_name: model.model_name,
       brand: model.brand,
       category: model.category,
     };
 
+    let synced = false;
+    // Try remote insert to Supabase
+    try {
+      const { data, error } = await supabase
+        .from('mss_devices')
+        .insert({
+          id: bulkDevice.id,
+          serial_number: null,
+          model_id: bulkDevice.model_id,
+          purchase_cost: bulkDevice.purchase_cost,
+          list_price: bulkDevice.list_price,
+          purchase_date: bulkDevice.purchase_date,
+          physical_condition: bulkDevice.physical_condition,
+          stock_location: bulkDevice.stock_location,
+          status: bulkDevice.status,
+          notes: bulkDevice.notes,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        synced = true;
+        bulkDevice.id = data.id;
+        bulkDevice.created_at = data.created_at;
+        bulkDevice.updated_at = data.updated_at;
+        bulkDevice._synced = true;
+      } else if (error) {
+        if (error.code === '23502' && error.message?.includes('serial_number')) {
+          throw new Error('قاعدة البيانات السحابية لا تدعم المخزون غير المسلسل حالياً لأن عمود serial_number مفروض كـ NOT NULL. يرجى تطبيق ملف الترحيل SQL المرفق لتمكين المخزون المجمع.');
+        } else if (error.code === '23503') {
+          throw new Error(`تعذر حفظ المخزون: الموديل المحدد (${model.model_name}) غير موجود أو غير متزامن سحابياً بعد.`);
+        } else {
+          console.warn('Supabase bulk stock insert error, caching locally for sync:', error);
+        }
+      }
+    } catch (err: any) {
+      if (err.message && (err.message.includes('لا تدعم المخزون') || err.message.includes('غير متزامن سحابياً'))) {
+        throw err;
+      }
+      console.warn('Supabase bulk stock insert failed, cached locally for sync:', err);
+    }
+
+    if (synced) {
+      removePendingDevice(bulkDevice.id);
+    } else {
+      addPendingDevice(bulkDevice);
+      // Queue in Outbox
+      mssSyncService
+        .queueOperation(
+          'DEVICE_ADD',
+          bulkDevice,
+          `إضافة دفعة مخزون مجمعة غير مسلسلة (${bulkDevice.quantity} وحدة) للموديل ${model.brand} ${model.model_name} بموقع (${bulkDevice.stock_location})`,
+          bulkDevice.stock_location
+        )
+        .catch(console.warn);
+    }
+
     const cached = getCachedDevices();
     cached.unshift(bulkDevice);
     saveCachedDevices(cached);
-
-    // Try remote insert to Supabase
-    try {
-      await supabase.from('mss_devices').insert({
-        id: bulkDevice.id,
-        serial_number: null,
-        model_id: bulkDevice.model_id,
-        purchase_cost: bulkDevice.purchase_cost,
-        list_price: bulkDevice.list_price,
-        purchase_date: bulkDevice.purchase_date,
-        physical_condition: bulkDevice.physical_condition,
-        stock_location: bulkDevice.stock_location,
-        status: bulkDevice.status,
-        notes: bulkDevice.notes,
-      });
-    } catch (err) {
-      console.warn('Supabase bulk stock insert failed, cached locally:', err);
-    }
-
-    // Queue in Outbox
-    mssSyncService
-      .queueOperation(
-        'DEVICE_ADD',
-        bulkDevice,
-        `إضافة دفعة مخزون مجمعة غير مسلسلة (${bulkDevice.quantity} وحدة) للموديل ${model.brand} ${model.model_name} بموقع (${bulkDevice.stock_location})`,
-        bulkDevice.stock_location
-      )
-      .catch(console.warn);
 
     backupService.notifyDataChanged(`إضافة مخزون MSS غير مسلسل: ${model.model_name} (${qty} جهاز)`);
 
@@ -637,7 +590,7 @@ export const mssInventoryService = {
     const convertedDevices: MSSDevice[] = [];
 
     for (const s of cleanedSerials) {
-      const devId = 'dev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+      const devId = generateUUID();
       const newDev: MSSDevice = {
         id: devId,
         serial_number: s,
@@ -684,7 +637,7 @@ export const mssInventoryService = {
     // Record in inventory movement history / audit trail
     const movements = getCachedMovements();
     for (const dev of convertedDevices) {
-      const movId = 'mov-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+      const movId = generateUUID();
       const mov: MSSDeviceMovement = {
         id: movId,
         device_id: dev.id,
@@ -908,7 +861,7 @@ export const mssInventoryService = {
     }
 
     const now = new Date().toISOString();
-    const movementId = 'mov-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const movementId = generateUUID();
 
     const newMovement: MSSDeviceMovement = {
       id: movementId,
@@ -1006,7 +959,7 @@ export const mssInventoryService = {
         .select('*')
         .order('movement_date', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const cloudMovements = data.map((row: any) => ({
           id: row.id,
           device_id: row.device_id,
@@ -1026,13 +979,6 @@ export const mssInventoryService = {
         for (const lm of localCached) {
           if (!mergedMap.has(lm.id)) {
             mergedMap.set(lm.id, lm);
-          }
-        }
-        if (isTestEnv) {
-          for (const sm of INITIAL_SEED_MOVEMENTS) {
-            if (!mergedMap.has(sm.id)) {
-              mergedMap.set(sm.id, sm);
-            }
           }
         }
         movements = Array.from(mergedMap.values());
@@ -1409,5 +1355,56 @@ export const mssInventoryService = {
 
     results.sort((a, b) => a.brand.localeCompare(b.brand) || a.model_name.localeCompare(b.model_name));
     return results;
+  },
+
+  /**
+   * Push any locally queued pending devices to Supabase
+   */
+  async syncPendingDevices(): Promise<{ syncedCount: number; errors: any[] }> {
+    const pending = getPendingDevices();
+    if (pending.length === 0) return { syncedCount: 0, errors: [] };
+
+    let syncedCount = 0;
+    const errors: any[] = [];
+    const remaining: MSSDevice[] = [];
+
+    for (const dev of pending) {
+      try {
+        const { error } = await supabase.from('mss_devices').upsert(
+          {
+            id: dev.id,
+            serial_number: dev.serial_number || null,
+            model_id: dev.model_id,
+            purchase_cost: dev.purchase_cost,
+            list_price: dev.list_price,
+            purchase_date: dev.purchase_date,
+            physical_condition: dev.physical_condition,
+            stock_location: dev.stock_location,
+            status: dev.status || 'AVAILABLE',
+            notes: dev.notes || null,
+          },
+          { onConflict: 'id' }
+        );
+
+        if (error) {
+          errors.push({ id: dev.id, error: error.message });
+          remaining.push(dev);
+        } else {
+          syncedCount++;
+          const cached = getCachedDevices();
+          const idx = cached.findIndex(d => d.id === dev.id);
+          if (idx >= 0) {
+            cached[idx]._synced = true;
+            saveCachedDevices(cached);
+          }
+        }
+      } catch (err: any) {
+        errors.push({ id: dev.id, error: err.message });
+        remaining.push(dev);
+      }
+    }
+
+    savePendingDevices(remaining);
+    return { syncedCount, errors };
   },
 };

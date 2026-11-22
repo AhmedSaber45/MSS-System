@@ -14,6 +14,7 @@ export interface MSSCatalogModel {
   default_list_price: number;
   created_at: string;
   updated_at: string;
+  _synced?: boolean;
 }
 
 export interface NewMSSModelInput {

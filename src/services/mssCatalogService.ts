@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.ts';
 import { backupService } from './backupService.ts';
+import { generateUUID, safeStorage } from '../lib/utils.ts';
 import type {
   MSSCatalogModel,
   NewMSSModelInput,
@@ -11,10 +12,11 @@ import type {
 const MSS_MODELS_CACHE_KEY = 'shop_mss_models_cache_v1';
 const MSS_DEVICES_CACHE_KEY = 'shop_mss_devices_cache_v1';
 const MSS_DELETED_MODELS_CACHE_KEY = 'shop_mss_deleted_models_cache_v1';
+const MSS_PENDING_MODELS_CACHE_KEY = 'shop_mss_pending_models_cache_v1';
 
 function getDeletedModelIds(): Set<string> {
   try {
-    const raw = localStorage.getItem(MSS_DELETED_MODELS_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_DELETED_MODELS_CACHE_KEY);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw);
     return new Set(Array.isArray(parsed) ? parsed : []);
@@ -26,132 +28,121 @@ function getDeletedModelIds(): Set<string> {
 function addDeletedModelId(id: string): void {
   const current = getDeletedModelIds();
   current.add(id);
-  localStorage.setItem(MSS_DELETED_MODELS_CACHE_KEY, JSON.stringify(Array.from(current)));
+  safeStorage.setItem(MSS_DELETED_MODELS_CACHE_KEY, JSON.stringify(Array.from(current)));
 }
 
-// Seed models for offline preview and initial synchronization
-const INITIAL_SEED_MODELS: MSSCatalogModel[] = [
-  {
-    id: 'a0000000-0000-0000-0000-000000000001',
-    brand: 'Lenovo',
-    model_name: 'ThinkPad T480',
-    category: 'لابتوب',
-    processor: 'Intel Core i5-8350U',
-    gpu: 'Intel UHD Graphics 620',
-    ram: '16 GB DDR4',
-    storage: '256 GB NVMe SSD',
-    screen_size: '14" FHD IPS',
-    specifications: 'بطارية مزدوجة، كيبورد مضيئة، كاميرا خصوصية ThinkShutter',
-    default_list_price: 11500,
-    created_at: '2024-11-01T10:00:00Z',
-    updated_at: '2024-11-01T10:00:00Z',
-  },
-  {
-    id: 'a0000000-0000-0000-0000-000000000002',
-    brand: 'Dell',
-    model_name: 'Latitude 5420',
-    category: 'لابتوب',
-    processor: 'Intel Core i5-1145G7',
-    gpu: 'Intel Iris Xe Graphics',
-    ram: '16 GB DDR4',
-    storage: '512 GB NVMe SSD',
-    screen_size: '14" FHD Anti-Glare',
-    specifications: 'الجيل الحادي عشر، شاحن تايب سي، بصمة إصبع',
-    default_list_price: 15000,
-    created_at: '2024-11-02T11:30:00Z',
-    updated_at: '2024-11-02T11:30:00Z',
-  },
-  {
-    id: 'a0000000-0000-0000-0000-000000000003',
-    brand: 'HP',
-    model_name: 'EliteBook 840 G6',
-    category: 'لابتوب',
-    processor: 'Intel Core i7-8665U',
-    gpu: 'Intel UHD Graphics 620',
-    ram: '16 GB DDR4',
-    storage: '512 GB NVMe SSD',
-    screen_size: '14" FHD IPS',
-    specifications: 'هيكل ألومنيوم أنيق، صوت Bang & Olufsen فاخر',
-    default_list_price: 13500,
-    created_at: '2024-11-03T09:15:00Z',
-    updated_at: '2024-11-03T09:15:00Z',
-  },
-  {
-    id: 'a0000000-0000-0000-0000-000000000004',
-    brand: 'Dell',
-    model_name: 'UltraSharp U2419H',
-    category: 'شاشة',
-    processor: '-',
-    gpu: null,
-    ram: '-',
-    storage: '-',
-    screen_size: '24" FHD IPS InfinityEdge',
-    specifications: 'شاشة احترافية لمصممي الجرافيك، حواف نحيفة جداً، حامل هيدروليك كامل',
-    default_list_price: 4200,
-    created_at: '2024-11-04T14:20:00Z',
-    updated_at: '2024-11-04T14:20:00Z',
-  },
-];
+function getPendingModelIds(): Set<string> {
+  try {
+    const raw = safeStorage.getItem(MSS_PENDING_MODELS_CACHE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
 
-// Seed sample device units for initial offline stock availability
-const INITIAL_SEED_DEVICES = [
-  { id: 'b1', serial_number: 'PF1K892-LEN', model_id: 'a0000000-0000-0000-0000-000000000001', stock_location: 'محل 2', status: 'AVAILABLE' },
-  { id: 'b2', serial_number: 'PF1K893-LEN', model_id: 'a0000000-0000-0000-0000-000000000001', stock_location: 'محل 2', status: 'AVAILABLE' },
-  { id: 'b3', serial_number: '8F9X021-DELL', model_id: 'a0000000-0000-0000-0000-000000000002', stock_location: 'محل 1', status: 'RESERVED' },
-  { id: 'b4', serial_number: '8F9X022-DELL', model_id: 'a0000000-0000-0000-0000-000000000002', stock_location: 'محل 1', status: 'AVAILABLE' },
-  { id: 'b5', serial_number: '5CD9283-HP', model_id: 'a0000000-0000-0000-0000-000000000003', stock_location: 'محل 2', status: 'SOLD' },
-  { id: 'b6', serial_number: 'CN49129-MON', model_id: 'a0000000-0000-0000-0000-000000000004', stock_location: 'محل 1', status: 'AVAILABLE' },
-];
+function markModelPending(id: string): void {
+  const current = getPendingModelIds();
+  current.add(id);
+  safeStorage.setItem(MSS_PENDING_MODELS_CACHE_KEY, JSON.stringify(Array.from(current)));
+}
 
-const isTestEnv =
-  typeof process !== 'undefined' &&
-  Boolean(
-    process.env?.NODE_ENV === 'test' ||
-    process.env?.npm_lifecycle_event === 'test' ||
-    (Array.isArray(process.argv) && process.argv.some(a => a.includes('test')))
-  );
+function unmarkModelPending(id: string): void {
+  const current = getPendingModelIds();
+  if (current.has(id)) {
+    current.delete(id);
+    safeStorage.setItem(MSS_PENDING_MODELS_CACHE_KEY, JSON.stringify(Array.from(current)));
+  }
+}
 
 function getCachedModels(): MSSCatalogModel[] {
   try {
-    const raw = localStorage.getItem(MSS_MODELS_CACHE_KEY);
+    const raw = safeStorage.getItem(MSS_MODELS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_MODELS : [];
-      localStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      safeStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_MODELS : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_MODELS : [];
+    return [];
   }
 }
 
 function saveCachedModels(models: MSSCatalogModel[]): void {
-  localStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify(models));
+  safeStorage.setItem(MSS_MODELS_CACHE_KEY, JSON.stringify(models));
 }
 
-function getCachedDevices(): typeof INITIAL_SEED_DEVICES {
+function getCachedDevices(): any[] {
   try {
-    const raw = localStorage.getItem(MSS_DEVICES_CACHE_KEY);
-    if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_DEVICES : [];
-      localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
-    }
+    const raw = safeStorage.getItem(MSS_DEVICES_CACHE_KEY);
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_DEVICES : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_DEVICES : [];
+    return [];
   }
 }
 
 export const mssCatalogService = {
   /**
-   * Fetch all catalog models with offline cache fallback
+   * Sync any models created offline that are pending in local cache
    */
-  async getModels(query?: string, category?: string): Promise<MSSCatalogModel[]> {
+  async syncPendingModels(): Promise<void> {
+    const pendingIds = getPendingModelIds();
+    if (pendingIds.size === 0) return;
+
+    const cached = getCachedModels();
+    for (const id of Array.from(pendingIds)) {
+      const model = cached.find(m => m.id === id);
+      if (!model) {
+        unmarkModelPending(id);
+        continue;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('mss_models')
+          .upsert({
+            id: model.id,
+            brand: model.brand,
+            model_name: model.model_name,
+            category: model.category,
+            processor: model.processor,
+            gpu: model.gpu,
+            ram: model.ram,
+            storage: model.storage,
+            screen_size: model.screen_size,
+            specifications: model.specifications,
+            default_list_price: model.default_list_price,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+          }, { onConflict: 'id' });
+
+        if (!error) {
+          unmarkModelPending(id);
+        }
+      } catch (err) {
+        console.warn(`Sync pending model ${id} failed:`, err);
+      }
+    }
+  },
+
+  /**
+   * Fetch catalog models where Supabase is the AUTHORITATIVE source of truth.
+   * If options?.confirmedOnly is true, only models verified in Supabase are returned (throws if Supabase unreachable).
+   */
+  async getModels(
+    query?: string,
+    category?: string,
+    options?: { confirmedOnly?: boolean }
+  ): Promise<MSSCatalogModel[]> {
     let models: MSSCatalogModel[] = [];
     let isCloudFetched = false;
+
+    // Trigger sync for any models that were created offline
+    this.syncPendingModels().catch(() => {});
 
     try {
       const { data, error } = await supabase
@@ -159,8 +150,8 @@ export const mssCatalogService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const cloudModels = data.map((row: any) => ({
+      if (!error && Array.isArray(data)) {
+        const cloudModels: MSSCatalogModel[] = data.map((row: any) => ({
           id: row.id,
           brand: row.brand,
           model_name: row.model_name,
@@ -174,36 +165,52 @@ export const mssCatalogService = {
           default_list_price: Number(row.default_list_price) || 0,
           created_at: row.created_at,
           updated_at: row.updated_at,
+          _synced: true,
         }));
-        const localCached = getCachedModels();
-        const mergedMap = new Map<string, MSSCatalogModel>();
-        for (const cm of cloudModels) {
-          mergedMap.set(cm.id, cm);
-        }
-        for (const lm of localCached) {
-          if (!mergedMap.has(lm.id)) {
-            mergedMap.set(lm.id, lm);
+
+        const cloudIds = new Set(cloudModels.map(m => m.id));
+        const pendingIds = getPendingModelIds();
+        const cached = getCachedModels();
+
+        // Any pending model that is now found in cloudModels has been successfully synced
+        for (const pid of Array.from(pendingIds)) {
+          if (cloudIds.has(pid)) {
+            unmarkModelPending(pid);
           }
         }
-        if (isTestEnv) {
-          for (const seed of INITIAL_SEED_MODELS) {
-            if (!mergedMap.has(seed.id) && !Array.from(mergedMap.values()).some(m => m.model_name === seed.model_name)) {
-              mergedMap.set(seed.id, seed);
-            }
+
+        // Only keep local pending models that are legitimately waiting to sync
+        const legitimatePendingModels: MSSCatalogModel[] = [];
+        for (const m of cached) {
+          if (pendingIds.has(m.id) && !cloudIds.has(m.id)) {
+            legitimatePendingModels.push({ ...m, _synced: false });
           }
         }
-        const deletedIds = getDeletedModelIds();
-        models = Array.from(mergedMap.values()).filter(m => !deletedIds.has(m.id));
-        saveCachedModels(models);
+
+        // RECONCILE: Supabase is authoritative.
+        // Stale cached models that no longer exist in Supabase are purged!
+        // We do NOT do an array union with cached models.
+        const reconciledModels = [...cloudModels, ...legitimatePendingModels];
+        saveCachedModels(reconciledModels);
         isCloudFetched = true;
+
+        if (options?.confirmedOnly) {
+          models = cloudModels;
+        } else {
+          models = reconciledModels;
+        }
+      } else if (error) {
+        console.warn('Supabase fetch models error:', error);
       }
     } catch (err) {
-      console.warn('Supabase fetch models failed, using local cache:', err);
+      console.warn('Supabase fetch models network failure:', err);
     }
 
     if (!isCloudFetched) {
-      const deletedIds = getDeletedModelIds();
-      models = getCachedModels().filter(m => !deletedIds.has(m.id));
+      if (options?.confirmedOnly) {
+        throw new Error('تعذر التحقق من كتالوج الموديلات السحابي (Supabase غير متاح حالياً). يرجى التأكد من اتصال الإنترنت.');
+      }
+      models = getCachedModels();
     }
 
     if (query && query.trim()) {
@@ -228,6 +235,13 @@ export const mssCatalogService = {
   },
 
   /**
+   * Fetch strictly confirmed models from Supabase (Used by Add Device modal)
+   */
+  async getConfirmedModels(query?: string, category?: string): Promise<MSSCatalogModel[]> {
+    return this.getModels(query, category, { confirmedOnly: true });
+  },
+
+  /**
    * Get single model by ID
    */
   async getModelById(id: string): Promise<MSSCatalogModel | null> {
@@ -236,7 +250,8 @@ export const mssCatalogService = {
   },
 
   /**
-   * Add a new catalog model to Supabase and update local cache
+   * Add a new catalog model to Supabase and update local cache.
+   * Generates a stable RFC-4122 v4 UUID so offline-created models have valid UUIDs.
    */
   async createModel(input: NewMSSModelInput): Promise<MSSCatalogModel> {
     const brand = input.brand.trim();
@@ -246,7 +261,7 @@ export const mssCatalogService = {
     if (!modelName) throw new Error('اسم الموديل (Model Name) مطلوب');
     if (input.default_list_price < 0) throw new Error('السعر الاسترشادي لا يمكن أن يكون سالباً');
 
-    const newId = 'mod-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
     const now = new Date().toISOString();
 
     const newModel: MSSCatalogModel = {
@@ -266,10 +281,12 @@ export const mssCatalogService = {
     };
 
     // Try remote insert
+    let remoteSaved = false;
     try {
       const { data, error } = await supabase
         .from('mss_models')
         .insert({
+          id: newModel.id,
           brand: newModel.brand,
           model_name: newModel.model_name,
           category: newModel.category,
@@ -288,12 +305,31 @@ export const mssCatalogService = {
         newModel.id = data.id;
         newModel.created_at = data.created_at;
         newModel.updated_at = data.updated_at;
+        remoteSaved = true;
+        newModel._synced = true;
+        unmarkModelPending(newModel.id);
+      } else if (error) {
+        console.warn('Supabase insert model failed with error, cached locally for sync:', error.message);
+        remoteSaved = false;
+        newModel._synced = false;
+        markModelPending(newModel.id);
       }
     } catch (err) {
-      console.warn('Supabase insert model failed, cached locally for sync:', err);
+      console.warn('Supabase insert model network error, cached locally for sync:', err);
+      remoteSaved = false;
+      newModel._synced = false;
+      markModelPending(newModel.id);
     }
 
-    const cached = getCachedModels();
+    if (!remoteSaved) {
+      markModelPending(newModel.id);
+      newModel._synced = false;
+    } else {
+      unmarkModelPending(newModel.id);
+      newModel._synced = true;
+    }
+
+    const cached = getCachedModels().filter(m => m.id !== newModel.id);
     cached.unshift(newModel);
     saveCachedModels(cached);
 
@@ -363,7 +399,16 @@ export const mssCatalogService = {
    * Delete model from catalog
    */
   async deleteModel(id: string): Promise<void> {
+    // Check if any devices reference this model (local or remote)
+    const devices = getCachedDevices();
+    const hasDevices = devices.some((d: any) => d.model_id === id);
+    if (hasDevices) {
+      throw new Error('لا يمكن حذف الموديل لوجود أجهزة مسجلة مرتبطة به في المخزون.');
+    }
+
     addDeletedModelId(id);
+    unmarkModelPending(id);
+
     try {
       await supabase.from('mss_models').delete().eq('id', id);
     } catch (err) {
@@ -389,7 +434,7 @@ export const mssCatalogService = {
         .from('mss_devices')
         .select('id, model_id, stock_location, status');
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         devices = data;
         localStorage.setItem(MSS_DEVICES_CACHE_KEY, JSON.stringify(devices));
         isCloud = true;
@@ -406,6 +451,8 @@ export const mssCatalogService = {
 
     devices.forEach((d: any) => {
       const modelId = d.model_id;
+      if (!modelId) return;
+
       if (!availabilityMap[modelId]) {
         availabilityMap[modelId] = {
           model_id: modelId,

@@ -34,79 +34,11 @@ const MSS_RETURNS_CACHE_KEY = 'shop_mss_returns_cache_v1';
 const MSS_PAYMENTS_CACHE_KEY = 'shop_mss_payments_cache_v1';
 const MSS_SCHEDULES_CACHE_KEY = 'shop_mss_installment_schedules_cache_v1';
 
-// Seed initial invoices
-const INITIAL_SEED_INVOICES: MSSInvoice[] = [
-  {
-    id: 'd0000000-0000-0000-0000-000000000001',
-    invoice_number: 'MSS-INV-101',
-    device_id: 'b0000000-0000-0000-0000-000000000005',
-    serial_number: '5CD9283-HP',
-    model_id: 'a0000000-0000-0000-0000-000000000003',
-    selling_branch: 'محل 1',
-    source_branch: 'محل 2',
-    list_price_snapshot: 13500,
-    discount_amount: 500,
-    actual_sale_price: 13000,
-    cost_snapshot: 9800,
-    gross_profit: 3200,
-    customer_name: 'أ. شريف كمال',
-    customer_phone: '01012345678',
-    warranty_period: 'ضمان شهر كامل',
-    notes: 'بيع جهاز مخزن بمحل 2 من خلال محل 1',
-    sale_date: '2024-11-12T13:30:00Z',
-    is_returned: false,
-    created_at: '2024-11-12T13:30:00Z',
-    updated_at: '2024-11-12T13:30:00Z',
-    brand: 'HP',
-    model_name: 'EliteBook 840 G6',
-    category: 'لابتوب',
-    payment_type: 'FULL',
-    payment_status: 'PAID',
-    paid_amount: 13000,
-    remaining_balance: 0,
-    installments_count: 0,
-  },
-];
-
-// Seed initial reservations
-const INITIAL_SEED_RESERVATIONS: MSSReservation[] = [
-  {
-    id: 'e0000000-0000-0000-0000-000000000001',
-    reservation_number: 'MSS-RES-01',
-    device_id: 'b0000000-0000-0000-0000-000000000003',
-    serial_number: '8F9X021-DELL',
-    branch: 'محل 1',
-    customer_name: 'أحمد محمود الجزار',
-    customer_phone: '01234567890',
-    deposit_amount: 1000,
-    agreed_price: 14500,
-    expiry_date: '2026-11-20',
-    status: 'ACTIVE',
-    notes: 'حجز مع عربون 1000 EGP حتى استلام الراتب',
-    created_at: '2024-11-10T09:30:00Z',
-    updated_at: '2024-11-10T09:30:00Z',
-    brand: 'Dell',
-    model_name: 'Latitude 5420',
-  },
-];
-
-// Seed initial returns
+// Initial empty seed arrays
+const INITIAL_SEED_INVOICES: MSSInvoice[] = [];
+const INITIAL_SEED_RESERVATIONS: MSSReservation[] = [];
 const INITIAL_SEED_RETURNS: MSSReturn[] = [];
-
-// Seed initial payment transactions
-const INITIAL_SEED_PAYMENTS: MSSPayment[] = [
-  {
-    id: 'pay-seed-mss-01',
-    invoice_id: 'd0000000-0000-0000-0000-000000000001',
-    amount: 13000,
-    payment_date: '2024-11-12',
-    payment_method: 'نقدي',
-    notes: 'سداد كامل عند تأكيد البيع',
-    recorded_by: 'النظام',
-    is_reversal: false,
-    created_at: '2024-11-12T13:30:00Z',
-  },
-];
+const INITIAL_SEED_PAYMENTS: MSSPayment[] = [];
 
 function normalizeInvoiceItems(inv: MSSInvoice): MSSInvoice {
   if (Array.isArray(inv.items) && inv.items.length > 0) {
@@ -191,15 +123,14 @@ function getCachedInvoices(): MSSInvoice[] {
   try {
     const raw = localStorage.getItem(MSS_INVOICES_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_INVOICES : [];
-      localStorage.setItem(MSS_INVOICES_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData.map(normalizeInvoiceItems);
+      localStorage.setItem(MSS_INVOICES_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_INVOICES : []);
+    const list = Array.isArray(parsed) ? parsed : [];
     return list.map(normalizeInvoiceItems);
   } catch {
-    return (isTestEnv ? INITIAL_SEED_INVOICES : []).map(normalizeInvoiceItems);
+    return [];
   }
 }
 
@@ -211,15 +142,14 @@ function getCachedReservations(): MSSReservation[] {
   try {
     const raw = localStorage.getItem(MSS_RESERVATIONS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_RESERVATIONS : [];
-      localStorage.setItem(MSS_RESERVATIONS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData.map(normalizeReservationItems);
+      localStorage.setItem(MSS_RESERVATIONS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RESERVATIONS : []);
+    const list = Array.isArray(parsed) ? parsed : [];
     return list.map(normalizeReservationItems);
   } catch {
-    return (isTestEnv ? INITIAL_SEED_RESERVATIONS : []).map(normalizeReservationItems);
+    return [];
   }
 }
 
@@ -231,14 +161,13 @@ function getCachedReturns(): MSSReturn[] {
   try {
     const raw = localStorage.getItem(MSS_RETURNS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_RETURNS : [];
-      localStorage.setItem(MSS_RETURNS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      localStorage.setItem(MSS_RETURNS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_RETURNS : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_RETURNS : [];
+    return [];
   }
 }
 
@@ -250,14 +179,13 @@ function getCachedPayments(): MSSPayment[] {
   try {
     const raw = localStorage.getItem(MSS_PAYMENTS_CACHE_KEY);
     if (!raw) {
-      const defaultData = isTestEnv ? INITIAL_SEED_PAYMENTS : [];
-      localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify(defaultData));
-      return defaultData;
+      localStorage.setItem(MSS_PAYMENTS_CACHE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : (isTestEnv ? INITIAL_SEED_PAYMENTS : []);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return isTestEnv ? INITIAL_SEED_PAYMENTS : [];
+    return [];
   }
 }
 
@@ -398,13 +326,6 @@ export const mssCommerceService = {
         for (const li of localCached) {
           if (!mergedMap.has(li.invoice_number)) {
             mergedMap.set(li.invoice_number, li);
-          }
-        }
-        if (isTestEnv) {
-          for (const si of INITIAL_SEED_INVOICES) {
-            if (!mergedMap.has(si.invoice_number)) {
-              mergedMap.set(si.invoice_number, si);
-            }
           }
         }
         invoices = Array.from(mergedMap.values());

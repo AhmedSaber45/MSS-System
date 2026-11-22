@@ -123,11 +123,19 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
         });
       } else {
         resultModel = await mssCatalogService.createModel(inputData);
-        showNotification({
-          type: 'success',
-          title: 'تمت إضافة الموديل للكتالوج',
-          message: `تم تسجيل الموديل ${inputData.brand} ${inputData.model_name} بنجاح`,
-        });
+        if (resultModel._synced) {
+          showNotification({
+            type: 'success',
+            title: 'تمت إضافة الموديل بنجاح',
+            message: `تم تسجيل الموديل ${inputData.brand} ${inputData.model_name} وحفظه في السحابة`,
+          });
+        } else {
+          showNotification({
+            type: 'info',
+            title: 'تم حفظ الموديل محلياً (بانتظار المزامنة)',
+            message: `تم حفظ الموديل ${inputData.brand} ${inputData.model_name} محلياً وسيتم مزامنته تلقائياً مع السحابة عند توفر الاتصال`,
+          });
+        }
       }
 
       onSuccess?.(resultModel);
