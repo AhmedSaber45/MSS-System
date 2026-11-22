@@ -23,12 +23,59 @@ const ADMIN_API_URL =
 let memorySession: StoredSession | null = null;
 let lastRecordedUserActivity = 0;
 
+/**
+ * Checks whether persistent session data has genuinely changed
+ * (identity, roles, module permissions, store assignments, versioning, or token/expiration).
+ */
+export function hasSessionDataChanged(
+  current: StoredSession,
+  newUser: AuthenticatedUser,
+  newExpiresAt?: string,
+  newToken?: string
+): boolean {
+  if (newToken && newToken !== current.sessionToken) return true;
+  if (newExpiresAt && newExpiresAt !== current.expiresAt) return true;
+
+  const curUser = current.user;
+  if (!curUser) return true;
+  if (curUser.id !== newUser.id) return true;
+  if (curUser.username !== newUser.username) return true;
+  if (curUser.displayName !== newUser.displayName) return true;
+  if (curUser.allowedModules !== newUser.allowedModules) return true;
+  if (curUser.defaultStoreId !== newUser.defaultStoreId) return true;
+  if (curUser.credentialVersion !== newUser.credentialVersion) return true;
+  if (curUser.permissionVersion !== newUser.permissionVersion) return true;
+
+  const curStores = curUser.assignedStoreIds || [];
+  const newStores = newUser.assignedStoreIds || [];
+  if (curStores.length !== newStores.length) return true;
+  for (let i = 0; i < curStores.length; i++) {
+    if (curStores[i] !== newStores[i]) return true;
+  }
+
+  return false;
+}
+
 export const desktopAuthService = {
   /**
    * Check whether running in native desktop environment
    */
   isDesktop(): boolean {
     return isTauri();
+  },
+
+  /**
+   * Update memory session without touching disk/DPAPI
+   */
+  updateMemorySession(session: StoredSession): void {
+    memorySession = session;
+  },
+
+  /**
+   * Get current in-memory session if loaded
+   */
+  getMemorySession(): StoredSession | null {
+    return memorySession;
   },
 
   /**
@@ -195,7 +242,7 @@ export const desktopAuthService = {
     }
     lastRecordedUserActivity = now;
 
-    const current = await this.loadSecureSession();
+    const current = memorySession || (await this.loadSecureSession());
     if (!current) return false;
 
     const updated: StoredSession = {

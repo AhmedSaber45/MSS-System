@@ -390,58 +390,151 @@ fn get_accessories_db_status() -> Result<String, String> {
 }
 
 // Secure Session Storage Commands (Windows DPAPI / OS-Protected Storage)
+#[cfg(target_os = "windows")]
+mod dpapi {
+    use std::ffi::c_void;
+    use std::ptr;
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct DATA_BLOB {
+        cbData: u32,
+        pbData: *mut u8,
+    }
+
+    const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
+
+    #[link(name = "crypt32")]
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn CryptProtectData(
+            pDataIn: *const DATA_BLOB,
+            szDataDescr: *const u16,
+            pOptionalEntropy: *const DATA_BLOB,
+            pvReserved: *mut c_void,
+            pPromptStruct: *mut c_void,
+            dwFlags: u32,
+            pDataOut: *mut DATA_BLOB,
+        ) -> i32;
+
+        fn CryptUnprotectData(
+            pDataIn: *const DATA_BLOB,
+            ppszDataDescr: *mut *mut u16,
+            pOptionalEntropy: *const DATA_BLOB,
+            pvReserved: *mut c_void,
+            pPromptStruct: *mut c_void,
+            dwFlags: u32,
+            pDataOut: *mut DATA_BLOB,
+        ) -> i32;
+
+        fn LocalFree(hMem: *mut c_void) -> *mut c_void;
+    }
+
+    pub fn protect(data: &[u8]) -> Result<Vec<u8>, String> {
+        let mut data_in = DATA_BLOB {
+            cbData: data.len() as u32,
+            pbData: data.as_ptr() as *mut u8,
+        };
+        let mut data_out = DATA_BLOB {
+            cbData: 0,
+            pbData: ptr::null_mut(),
+        };
+
+        let success = unsafe {
+            CryptProtectData(
+                &mut data_in,
+                ptr::null(),
+                ptr::null(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut data_out,
+            )
+        };
+
+        if success == 0 {
+            return Err("CryptProtectData failed to encrypt session".to_string());
+        }
+
+        if data_out.pbData.is_null() {
+            return Err("CryptProtectData returned null pointer".to_string());
+        }
+
+        let encrypted = unsafe {
+            let slice = std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize);
+            let bytes = slice.to_vec();
+            LocalFree(data_out.pbData as *mut c_void);
+            bytes
+        };
+
+        Ok(encrypted)
+    }
+
+    pub fn unprotect(data: &[u8]) -> Result<Vec<u8>, String> {
+        let mut data_in = DATA_BLOB {
+            cbData: data.len() as u32,
+            pbData: data.as_ptr() as *mut u8,
+        };
+        let mut data_out = DATA_BLOB {
+            cbData: 0,
+            pbData: ptr::null_mut(),
+        };
+
+        let success = unsafe {
+            CryptUnprotectData(
+                &mut data_in,
+                ptr::null_mut(),
+                ptr::null(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut data_out,
+            )
+        };
+
+        if success == 0 {
+            return Err("CryptUnprotectData failed: corrupted session or credentials changed".to_string());
+        }
+
+        if data_out.pbData.is_null() {
+            return Err("CryptUnprotectData returned null pointer".to_string());
+        }
+
+        let decrypted = unsafe {
+            let slice = std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize);
+            let bytes = slice.to_vec();
+            LocalFree(data_out.pbData as *mut c_void);
+            bytes
+        };
+
+        Ok(decrypted)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_session_file_path() -> Result<std::path::PathBuf, String> {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .map(std::path::PathBuf::from)
+        .or_else(dirs::data_local_dir)
+        .ok_or_else(|| "Could not determine LOCALAPPDATA directory".to_string())?;
+    Ok(base.join("CompuMSS").join("session.dpapi"))
+}
+
 #[tauri::command]
 fn save_secure_session(session_json: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use std::io::Write;
-        use std::process::{Command, Stdio};
-
-        let script = r#"
-            [Console]::InputEncoding = [System.Text.Encoding]::UTF8
-            Add-Type -AssemblyName System.Security
-            $data = [Console]::In.ReadToEnd()
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes($data)
-            $enc = [System.Security.Cryptography.ProtectedData]::Protect(
-                $bytes,
-                $null,
-                [System.Security.Cryptography.DataProtectionScope]::CurrentUser
-            )
-            $folder = Join-Path $env:LOCALAPPDATA "CompuMSS"
-            if (!(Test-Path $folder)) {
-                New-Item -ItemType Directory -Path $folder -Force | Out-Null
-            }
-            $target = Join-Path $folder "session.dpapi"
-            [System.IO.File]::WriteAllBytes($target, $enc)
-        "#;
-
-        let mut child = Command::new("powershell")
-            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn DPAPI process: {}", e))?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(session_json.as_bytes())
-                .map_err(|e| format!("Failed to write session data to DPAPI stdin: {}", e))?;
+        let target = get_session_file_path()?;
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create CompuMSS folder: {}", e))?;
         }
-
-        let output = child
-            .wait_with_output()
-            .map_err(|e| format!("Failed to wait for DPAPI process: {}", e))?;
-
-        if !output.status.success() {
-            let err = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("DPAPI encryption failed: {}", err));
-        }
-
+        let encrypted = dpapi::protect(session_json.as_bytes())?;
+        std::fs::write(&target, encrypted).map_err(|e| format!("Failed to write session file: {}", e))?;
         Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {
+        let _ = session_json;
         Ok(())
     }
 }
@@ -450,42 +543,26 @@ fn save_secure_session(session_json: String) -> Result<(), String> {
 fn load_secure_session() -> Result<Option<String>, String> {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-
-        let script = r#"
-            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-            Add-Type -AssemblyName System.Security
-            $target = Join-Path $env:LOCALAPPDATA "CompuMSS\session.dpapi"
-            if (!(Test-Path $target)) {
-                exit 0
-            }
-            try {
-                $enc = [System.IO.File]::ReadAllBytes($target)
-                $dec = [System.Security.Cryptography.ProtectedData]::Unprotect(
-                    $enc,
-                    $null,
-                    [System.Security.Cryptography.DataProtectionScope]::CurrentUser
-                )
-                [Console]::Out.Write([System.Text.Encoding]::UTF8.GetString($dec))
-            } catch {
-                exit 2
-            }
-        "#;
-
-        let output = Command::new("powershell")
-            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
-            .output()
-            .map_err(|e| format!("Failed to run DPAPI read: {}", e))?;
-
-        if output.status.code() == Some(2) {
-            return Err("Decryption failed: corrupted session or credentials changed".to_string());
+        let target = get_session_file_path()?;
+        if !target.exists() {
+            return Ok(None);
         }
-
-        let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if s.is_empty() {
+        let bytes = match std::fs::read(&target) {
+            Ok(b) => b,
+            Err(e) => {
+                return Err(format!("Failed to read session file: {}", e));
+            }
+        };
+        if bytes.is_empty() {
+            return Ok(None);
+        }
+        let decrypted = dpapi::unprotect(&bytes)?;
+        let s = String::from_utf8(decrypted).map_err(|e| format!("Invalid UTF-8 in session: {}", e))?;
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(s))
+            Ok(Some(trimmed.to_string()))
         }
     }
     #[cfg(not(target_os = "windows"))]
@@ -498,25 +575,122 @@ fn load_secure_session() -> Result<Option<String>, String> {
 fn clear_secure_session() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-
-        let script = r#"
-            $target = Join-Path $env:LOCALAPPDATA "CompuMSS\session.dpapi"
-            if (Test-Path $target) {
-                Remove-Item $target -Force
-            }
-        "#;
-
-        let _ = Command::new("powershell")
-            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
-            .status();
-
+        let target = get_session_file_path()?;
+        if target.exists() {
+            let _ = std::fs::remove_file(target);
+        }
         Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {
         Ok(())
     }
+}
+
+fn decode_base64_internal(input: &str) -> Option<Vec<u8>> {
+    let mut table = [255u8; 256];
+    for (i, &b) in b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".iter().enumerate() {
+        table[b as usize] = i as u8;
+    }
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for &b in bytes {
+        if b == b'=' || b.is_ascii_whitespace() {
+            continue;
+        }
+        let val = table[b as usize];
+        if val == 255 {
+            return None;
+        }
+        buf = (buf << 6) | (val as u32);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    Some(out)
+}
+
+#[tauri::command]
+fn save_exported_file_to_disk(file_path: String, data_base64: String) -> Result<(), String> {
+    use std::fs;
+    use std::path::Path;
+
+    let path = Path::new(&file_path);
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| format!("تعذر إنشاء مجلد الوجهة: {}", e))?;
+        }
+    }
+
+    let clean_b64 = if let Some(idx) = data_base64.find(',') {
+        &data_base64[idx + 1..]
+    } else {
+        &data_base64
+    };
+
+    let bytes = match decode_base64_internal(clean_b64.trim()) {
+        Some(b) => b,
+        None => return Err("فشل فك ترميز بيانات الملف المصدّر (بيانات base64 غير صالحة)".into()),
+    };
+
+    fs::write(path, bytes).map_err(|e| format!("فشل كتابة الملف على القرص: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn check_path_exists(path: String) -> bool {
+    std::path::Path::new(&path).exists()
+}
+
+#[tauri::command]
+fn create_export_dir(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        std::fs::create_dir_all(p).map_err(|e| format!("تعذر إنشاء المجلد: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn save_export_storage_location(location: Option<String>) -> Result<(), String> {
+    let mut dir = dirs::data_local_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    dir.push("CompuMSS");
+    let _ = std::fs::create_dir_all(&dir);
+    let config_file = dir.join("export_storage_config.json");
+    if let Some(loc) = location {
+        let json = serde_json::json!({
+            "storageLocation": loc,
+            "updatedAt": chrono::Utc::now().to_rfc3339(),
+            "appName": "Compu MSS",
+            "version": "1.0.3"
+        });
+        std::fs::write(&config_file, json.to_string()).map_err(|e| e.to_string())?;
+    } else if config_file.exists() {
+        let _ = std::fs::remove_file(&config_file);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn load_export_storage_location() -> Result<Option<String>, String> {
+    let mut dir = dirs::data_local_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    dir.push("CompuMSS");
+    let config_file = dir.join("export_storage_config.json");
+    if config_file.exists() {
+        let raw = std::fs::read_to_string(&config_file).map_err(|e| e.to_string())?;
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if let Some(loc) = parsed.get("storageLocation").and_then(|v| v.as_str()) {
+                if !loc.trim().is_empty() {
+                    return Ok(Some(loc.trim().to_string()));
+                }
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -569,6 +743,11 @@ pub fn run() {
             save_secure_session,
             load_secure_session,
             clear_secure_session,
+            save_exported_file_to_disk,
+            check_path_exists,
+            create_export_dir,
+            save_export_storage_location,
+            load_export_storage_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

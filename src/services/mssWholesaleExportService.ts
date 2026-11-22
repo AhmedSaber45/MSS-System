@@ -1128,7 +1128,6 @@ export const mssWholesaleExportService = {
       filename,
       data: buffer,
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      skipFallbackDownload: true,
     });
 
     if (!saveResult.success) {

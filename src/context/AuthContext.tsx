@@ -8,7 +8,7 @@ import type {
   LoginResult,
   AuthContextType,
 } from '../types/auth.ts';
-import { desktopAuthService } from '../services/desktopAuthService.ts';
+import { desktopAuthService, hasSessionDataChanged } from '../services/desktopAuthService.ts';
 import { supabase } from '../lib/supabase.ts';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,7 +83,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastOnlineValidationAt: new Date().toISOString(),
         lastActivityAt: isUserAction ? new Date().toISOString() : currentSession.lastActivityAt,
       };
-      await desktopAuthService.saveSecureSession(updatedSession);
+
+      const hasChanged = hasSessionDataChanged(
+        currentSession,
+        res.user,
+        res.expiresAt
+      );
+
+      // Only write to persistent disk storage when underlying session data actually changes
+      // or if triggered by an explicit user action
+      if (hasChanged || isUserAction) {
+        await desktopAuthService.saveSecureSession(updatedSession);
+      } else {
+        desktopAuthService.updateMemorySession(updatedSession);
+      }
+
       setUser(res.user);
       setSession(updatedSession);
       setStatus('authenticated');

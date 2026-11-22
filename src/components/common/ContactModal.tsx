@@ -170,7 +170,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
             </span>
           </div>
           <span className="font-mono text-[11px] text-slate-400 font-bold">
-            Compu MSS v1.0.2
+            Compu MSS v1.0.3
           </span>
         </div>
       </div>

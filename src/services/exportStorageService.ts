@@ -163,7 +163,7 @@ async function writeDiskConfigAsync(locationPath: string | null): Promise<void> 
       storageLocation: locationPath,
       updatedAt: new Date().toISOString(),
       appName: 'Compu MSS',
-      version: '1.0.2',
+      version: '1.0.3',
     };
     fsMod.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -265,6 +265,25 @@ export const exportStorageService = {
   async getStorageLocationAsync(): Promise<string | null> {
     const syncVal = this.getStorageLocation();
     if (syncVal) return syncVal;
+
+    // Check Tauri persistent disk configuration first
+    if (this.isTauriEnvironment()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const tauriLoc = await invoke<string | null>('load_export_storage_location');
+        if (tauriLoc && tauriLoc.trim()) {
+          const clean = tauriLoc.trim();
+          cachedStorageLocation = clean;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(EXPORT_STORAGE_LOCATION_KEY, clean);
+          }
+          return clean;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const diskVal = await readDiskConfigAsync();
     if (diskVal && diskVal.trim()) {
       const clean = diskVal.trim();
@@ -302,7 +321,16 @@ export const exportStorageService = {
       }
     }
 
-    // Persist to disk configuration file asynchronously
+    // Persist to disk configuration in Tauri environment
+    if (this.isTauriEnvironment()) {
+      import('@tauri-apps/api/core')
+        .then(({ invoke }) => {
+          invoke('save_export_storage_location', { location: cleanPath }).catch(console.warn);
+        })
+        .catch(() => {});
+    }
+
+    // Persist to disk configuration file asynchronously for Node/test environments
     writeDiskConfigAsync(cleanPath);
 
     listeners.forEach(fn => fn(cleanPath));
@@ -526,12 +554,26 @@ export const exportStorageService = {
 
   /**
    * Returns the expected root folder path: `<storageLocation>/MSS System Files`
+   * Avoids duplicating 'MSS System Files' segment if user already pointed directly to it.
    */
   getRootFolderPath(): string | null {
     const loc = this.getStorageLocation();
     if (!loc) return null;
-    const sep = loc.includes('/') ? '/' : '\\';
-    return `${loc.replace(/[\\/]+$/, '')}${sep}${ROOT_EXPORT_FOLDER}`;
+    const trimmed = loc.trim().replace(/[\\/]+$/, '');
+    const sep = trimmed.includes('/') && !trimmed.includes('\\') ? '/' : '\\';
+
+    // Check if user path already ends with ROOT_EXPORT_FOLDER
+    const lastPart = trimmed.split(/[\\/]/).pop();
+    if (lastPart === ROOT_EXPORT_FOLDER) {
+      return trimmed;
+    }
+
+    // Handle Windows drive roots like C: or C:\
+    if (/^[a-zA-Z]:$/.test(trimmed)) {
+      return `${trimmed}\\${ROOT_EXPORT_FOLDER}`;
+    }
+
+    return `${trimmed}${sep}${ROOT_EXPORT_FOLDER}`;
   },
 
   /**
@@ -540,7 +582,7 @@ export const exportStorageService = {
   getExpectedFolderPath(exportType: ExportType): string | null {
     const root = this.getRootFolderPath();
     if (!root) return null;
-    const sep = root.includes('/') ? '/' : '\\';
+    const sep = root.includes('/') && !root.includes('\\') ? '/' : '\\';
     const subfolder = EXPORT_SUBFOLDERS[exportType] || 'تقارير عامة';
     return `${root}${sep}${subfolder}`;
   },
@@ -554,8 +596,19 @@ export const exportStorageService = {
     if (!rootPath) {
       throw new Error('لم يتم تحديد مجلد حفظ وتصدير الملفات.');
     }
-    const sep = rootPath.includes('/') ? '/' : '\\';
-    const canonicalSubfolder = EXPORT_SUBFOLDERS[exportType];
+    const sep = rootPath.includes('/') && !rootPath.includes('\\') ? '/' : '\\';
+    const canonicalSubfolder = EXPORT_SUBFOLDERS[exportType] || 'تقارير عامة';
+    const subfolderPath = `${rootPath}${sep}${canonicalSubfolder}`;
+
+    if (this.isTauriEnvironment()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('create_export_dir', { path: subfolderPath });
+        return { rootPath, subfolderPath };
+      } catch (err: any) {
+        console.warn('Tauri create_export_dir warning:', err);
+      }
+    }
 
     // Node.js / filesystem creation
     const { fs: fsMod, path: pathMod } = await getNodeFs();
@@ -576,12 +629,12 @@ export const exportStorageService = {
         }
       }
 
-      const subfolderPath = pathMod.join(rootPath, targetSubfolderName);
-      if (!fsMod.existsSync(subfolderPath)) {
-        fsMod.mkdirSync(subfolderPath, { recursive: true });
+      const activeSubfolderPath = pathMod.join(rootPath, targetSubfolderName);
+      if (!fsMod.existsSync(activeSubfolderPath)) {
+        fsMod.mkdirSync(activeSubfolderPath, { recursive: true });
       }
 
-      return { rootPath, subfolderPath };
+      return { rootPath, subfolderPath: activeSubfolderPath };
     }
 
     // HTML5 File System Access API
@@ -596,7 +649,6 @@ export const exportStorageService = {
       }
     }
 
-    const subfolderPath = `${rootPath}${sep}${canonicalSubfolder}`;
     return { rootPath, subfolderPath };
   },
 
@@ -604,35 +656,52 @@ export const exportStorageService = {
    * Resolves a non-colliding filename if a file with the same name already exists in target directory.
    */
   async resolveUniqueFilename(targetDir: string, filename: string): Promise<string> {
-    const { fs: fsMod, path: pathMod } = await getNodeFs();
-    if (fsMod && pathMod) {
-      try {
-        let fullPath = pathMod.join(targetDir, filename);
-        if (!fsMod.existsSync(fullPath)) {
-          return filename;
-        }
+    const sep = targetDir.includes('/') && !targetDir.includes('\\') ? '/' : '\\';
+    const extIndex = filename.lastIndexOf('.');
+    const base = extIndex > 0 ? filename.slice(0, extIndex) : filename;
+    const ext = extIndex > 0 ? filename.slice(extIndex) : '';
 
-        const ext = pathMod.extname(filename);
-        const base = pathMod.basename(filename, ext);
-        let counter = 1;
-        while (fsMod.existsSync(pathMod.join(targetDir, `${base} (${counter})${ext}`))) {
-          counter++;
+    const checkExists = async (p: string): Promise<boolean> => {
+      if (this.isTauriEnvironment()) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          return await invoke<boolean>('check_path_exists', { path: p });
+        } catch {
+          return false;
         }
-        return `${base} (${counter})${ext}`;
-      } catch {
-        return filename;
       }
+      const { fs: fsMod } = await getNodeFs();
+      if (fsMod) {
+        try {
+          return fsMod.existsSync(p);
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    };
+
+    let candidate = filename;
+    let fullCandidate = `${targetDir}${sep}${candidate}`;
+    let counter = 1;
+
+    while (await checkExists(fullCandidate)) {
+      candidate = `${base} (${counter})${ext}`;
+      fullCandidate = `${targetDir}${sep}${candidate}`;
+      counter++;
     }
-    return filename;
+
+    return candidate;
   },
 
   /**
    * Centralized method to save an exported file into the configured destination folder.
    *
    * Guarantees:
-   * 1. Automatic destination retrieval: Uses saved path permanently without re-prompting.
-   * 2. Lazy folder creation: Root folder and subfolder are created on demand.
-   * 3. Clear errors and prompt on missing/invalid path: Never silently dumps to an unrelated directory.
+   * 1. Default destination support: When no custom path is configured, automatically saves using default downloads.
+   * 2. Automatic destination retrieval: Uses saved custom path permanently without re-prompting.
+   * 3. Lazy folder creation: Root folder and subfolder are created on demand.
+   * 4. Clear errors and prompt on missing/invalid path: Never silently dumps to an unrelated directory.
    */
   async saveExportedFile(params: SaveExportFileParams): Promise<SaveExportResult> {
     const {
@@ -641,15 +710,13 @@ export const exportStorageService = {
       data,
       mimeType,
       interactive = true,
-      skipFallbackDownload = true,
-      allowDirectDownloadFallback = false,
+      skipFallbackDownload = false,
+      allowDirectDownloadFallback = true,
     } = params;
 
-    // 0. Regular Browser Environment Fallback (e.g. npm run dev)
-    // Silently and automatically downloads the generated file to the user's default Downloads folder.
-    // Preserves existing filenames, data, and naming conventions without opening a folder picker
-    // or displaying any new UI/toast messages.
-    if (this.isBrowserEnvironment()) {
+    // 0. Default Destination Handling: When NO custom destination path is configured
+    // Preserves the existing extraction and file-saving logic that worked before this feature was introduced.
+    if (!this.isDestinationConfigured()) {
       try {
         this.triggerDirectDownload(data, filename, mimeType);
 
@@ -670,12 +737,12 @@ export const exportStorageService = {
           filename,
         };
       } catch (err: any) {
-        console.warn('Browser direct download fallback failed:', err);
+        console.warn('Default direct download failed:', err);
         return {
           success: false,
           savedToCustomLocation: false,
           filename,
-          error: err?.message || 'فشل تحميل الملف عبر المتصفح.',
+          error: err?.message || 'فشل حفظ الملف عبر مسار التنزيل الافتراضي.',
         };
       }
     }
@@ -683,7 +750,6 @@ export const exportStorageService = {
     // 1. Ensure valid destination location
     const locationRes = await this.ensureValidStorageLocation({ interactive });
     if (!locationRes.valid || !locationRes.path) {
-      // Do NOT silently replace the saved path or fall back to an unrelated default directory!
       if (!skipFallbackDownload && allowDirectDownloadFallback) {
         this.triggerDirectDownload(data, filename, mimeType);
       }
@@ -695,62 +761,76 @@ export const exportStorageService = {
       };
     }
 
-    const destLoc = locationRes.path;
-
     try {
       // 2. Lazy creation of Root Folder & Subfolder
       const { subfolderPath } = await this.ensureSubfolder(exportType);
       const uniqueFilename = await this.resolveUniqueFilename(subfolderPath, filename);
-      const sep = subfolderPath.includes('/') ? '/' : '\\';
+      const sep = subfolderPath.includes('/') && !subfolderPath.includes('\\') ? '/' : '\\';
       const fullFilePath = `${subfolderPath}${sep}${uniqueFilename}`;
 
-      // 3. Physical write in Node.js environment
-      if (typeof process !== 'undefined' && process.versions?.node) {
-        const { fs: fsMod } = await getNodeFs();
-        if (fsMod) {
-          let bufferToWrite: Buffer;
+      // 3. Prepare data in both base64 (for Tauri IPC) and Buffer (for Node.js)
+      let base64ToWrite = '';
+      let bufferToWrite: Buffer | null = null;
 
-          if (typeof data === 'string') {
-            if (data.startsWith('data:')) {
-              const base64Str = data.split(',')[1] || '';
-              bufferToWrite = Buffer.from(base64Str, 'base64');
-            } else {
-              bufferToWrite = Buffer.from(data, 'utf-8');
-            }
-          } else if (data instanceof Uint8Array) {
-            bufferToWrite = Buffer.from(data);
-          } else if (data instanceof ArrayBuffer) {
-            bufferToWrite = Buffer.from(new Uint8Array(data));
-          } else {
-            bufferToWrite = Buffer.from(data as any);
+      if (typeof data === 'string') {
+        if (data.startsWith('data:')) {
+          base64ToWrite = data.split(',')[1] || '';
+          if (typeof Buffer !== 'undefined') {
+            bufferToWrite = Buffer.from(base64ToWrite, 'base64');
           }
-
-          fsMod.writeFileSync(fullFilePath, bufferToWrite);
+        } else {
+          if (typeof Buffer !== 'undefined') {
+            bufferToWrite = Buffer.from(data, 'utf-8');
+            base64ToWrite = bufferToWrite.toString('base64');
+          } else {
+            base64ToWrite = btoa(unescape(encodeURIComponent(data)));
+          }
+        }
+      } else {
+        const u8 = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
+        if (typeof Buffer !== 'undefined') {
+          bufferToWrite = Buffer.from(u8);
+          base64ToWrite = bufferToWrite.toString('base64');
+        } else {
+          let binary = '';
+          const len = u8.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(u8[i]);
+          }
+          base64ToWrite = btoa(binary);
         }
       }
 
-      // 4. HTML5 File System Access API write
-      if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
-        try {
-          const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
-            create: true,
-          });
-          const subHandle = await rootHandle.getDirectoryHandle(EXPORT_SUBFOLDERS[exportType], { create: true });
-          const fileHandle = await subHandle.getFileHandle(uniqueFilename, { create: true });
-          const writable = await fileHandle.createWritable();
-
-          if (typeof data === 'string' && data.startsWith('data:')) {
-            const res = await fetch(data);
-            const blob = await res.blob();
-            await writable.write(blob);
-          } else {
-            await writable.write(data as any);
-          }
-          await writable.close();
-        } catch (dirErr) {
-          console.warn('Failed writing to FileSystemDirectoryHandle:', dirErr);
-          throw dirErr;
+      // 4. Physical write in Tauri desktop environment
+      if (this.isTauriEnvironment()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_exported_file_to_disk', {
+          filePath: fullFilePath,
+          dataBase64: base64ToWrite,
+        });
+      } else if (typeof process !== 'undefined' && process.versions?.node) {
+        // Physical write in Node.js test environment
+        const { fs: fsMod } = await getNodeFs();
+        if (fsMod && bufferToWrite) {
+          fsMod.writeFileSync(fullFilePath, bufferToWrite);
         }
+      } else if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
+        // HTML5 File System Access API write
+        const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
+          create: true,
+        });
+        const subHandle = await rootHandle.getDirectoryHandle(EXPORT_SUBFOLDERS[exportType], { create: true });
+        const fileHandle = await subHandle.getFileHandle(uniqueFilename, { create: true });
+        const writable = await fileHandle.createWritable();
+
+        if (typeof data === 'string' && data.startsWith('data:')) {
+          const res = await fetch(data);
+          const blob = await res.blob();
+          await writable.write(blob);
+        } else {
+          await writable.write(data as any);
+        }
+        await writable.close();
       }
 
       // 5. Register export history metadata
@@ -851,8 +931,8 @@ export const exportStorageService = {
     const { elementId, filename, exportType, orientation = 'portrait', format = 'a4' } = params;
     const finalFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-    // In Tauri desktop environment, ensure valid storage location first before rendering
-    if (this.isTauriEnvironment()) {
+    // If a custom destination is configured, ensure it is accessible before rendering
+    if (this.isDestinationConfigured()) {
       const locationRes = await this.ensureValidStorageLocation({ interactive: true });
       if (!locationRes.valid || !locationRes.path) {
         return {
