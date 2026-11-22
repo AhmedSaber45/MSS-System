@@ -1,6 +1,5 @@
 1-احاول اخلى لينك للموقع Read only ومش كل الصفحات ظاهرة هو المخزون بس فى جزء اللابات واللى متباع مايظهرش هنا مش زى البرنامج 
 
 
-remove mocak data , redesign admin dashboard ,v 1.0.2 and final optmization 
 
 

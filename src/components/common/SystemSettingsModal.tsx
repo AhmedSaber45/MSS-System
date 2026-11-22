@@ -175,7 +175,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="إعدادات النظام — Compu MSS"
+      title="إعدادات النظام — AS System"
       subtitle=""
       size="md"
       footer={
@@ -199,7 +199,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
                 </Badge>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                تشغيل <strong>Compu MSS</strong> تلقائياً عند بدء تشغيل نظام التشغيل Windows.
+                تشغيل <strong>AS System</strong> تلقائياً عند بدء تشغيل نظام التشغيل Windows.
               </p>
             </div>
 
@@ -348,7 +348,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
           <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">اسم التطبيق:</span>
-              <span className="font-bold text-slate-900 font-mono">Compu MSS</span>
+              <span className="font-bold text-slate-900 font-mono">AS System</span>
             </div>
 
             <div className="flex items-center justify-between text-xs">

@@ -39,6 +39,14 @@ export const PageRefreshOverlay: React.FC<PageRefreshOverlayProps> = ({
       dir="rtl"
     >
       <div className="flex flex-col items-center justify-center p-8 sm:p-10 bg-white rounded-2xl border border-slate-200/90 shadow-md space-y-4 max-w-sm w-full mx-4 text-center">
+        <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center p-2 shadow-xs border border-slate-800">
+          <img
+            src="/assets/branding/as_logo_gold.png"
+            alt="AS System"
+            className="w-full h-full object-contain select-none"
+          />
+        </div>
+
         <div className="relative flex items-center justify-center">
           <Spinner
             size="xl"

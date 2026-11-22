@@ -58,7 +58,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
   const handleOpenWhatsApp = () => {
     const whatsappUrl = `https://wa.me/201030137635?text=${encodeURIComponent(
-      'مرحباً أستاذ أحمد، أتواصل معك بخصوص نظام Compu MSS'
+      'مرحباً أستاذ أحمد، أتواصل معك بخصوص نظام AS System'
     )}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };

@@ -31,17 +31,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       {/* Brand Header */}
       <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between shrink-0">
         {!isSidebarCollapsed ? (
-          <div className="flex items-center gap-3.5 overflow-hidden">
-            <div
-              className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-xs shrink-0 text-sm',
-                isAccessories ? 'bg-blue-600' : 'bg-teal-700'
-              )}
-            >
-              {isAccessories ? 'ACC' : 'MSS'}
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs shrink-0 p-1.5 border border-slate-800">
+              <img
+                src="/assets/branding/as_logo_gold.png"
+                alt="AS System"
+                className="w-full h-full object-contain select-none"
+              />
             </div>
             <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-slate-900 truncate font-mono">Compu MSS</h1>
+              <h1 className="text-base font-bold text-slate-900 truncate font-mono">AS System</h1>
               <p className="text-xs font-semibold text-slate-500 truncate mt-0.5">
                 {isAccessories ? ' الإكسسوارات ' : ' Compu MSS '}
               </p>
@@ -50,12 +49,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         ) : (
           <div className="mx-auto">
             <div
-              className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-xs text-sm',
-                isAccessories ? 'bg-blue-600' : 'bg-teal-700'
-              )}
+              className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs p-1.5 border border-slate-800"
+              title="AS System"
             >
-              {isAccessories ? 'ACC' : 'MSS'}
+              <img
+                src="/assets/branding/as_logo_gold.png"
+                alt="AS System"
+                className="w-full h-full object-contain select-none"
+              />
             </div>
           </div>
         )}
@@ -129,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         {!isSidebarCollapsed && (
           <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
             <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
-              Compu MSS v1.0.2
+              AS System v1.0.2
             </span>
             {onOpenSettings && (
               <button

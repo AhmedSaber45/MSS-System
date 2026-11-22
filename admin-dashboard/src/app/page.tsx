@@ -6,6 +6,7 @@ import { AdminSidebar, NavTab } from '@/components/layout/AdminSidebar';
 import { AdminHeader } from '@/components/layout/AdminHeader';
 import { OverviewView } from '@/components/overview/OverviewView';
 import { UsersView } from '@/components/users/UsersView';
+import { AuditLogView } from '@/components/audit/AuditLogView';
 import { RefreshCw } from 'lucide-react';
 
 const INACTIVITY_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (168 hours)
@@ -190,6 +191,7 @@ export default function AdminDashboardPage() {
             <OverviewView onNavigate={(tab) => setCurrentTab(tab)} adminUser={adminUser} />
           )}
           {currentTab === 'users' && <UsersView />}
+          {currentTab === 'audit' && <AuditLogView />}
         </main>
       </div>
     </div>

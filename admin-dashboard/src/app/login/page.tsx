@@ -74,11 +74,15 @@ export default function LoginPage() {
         <div className="bg-[#101625] border border-slate-800/90 rounded-2xl p-7 shadow-2xl space-y-6">
           {/* Brand Header */}
           <div className="text-center space-y-2.5">
-            <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-center text-slate-200 mx-auto shadow-inner">
-              <ShieldCheck className="w-5 h-5 text-sky-400" />
+            <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-center p-2 text-slate-200 mx-auto shadow-inner">
+              <img
+                src="/assets/branding/as_logo_gold.png"
+                alt="AS System"
+                className="w-full h-full object-contain select-none"
+              />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-slate-100 tracking-tight">Compu MSS</h1>
+              <h1 className="text-lg font-semibold text-slate-100 tracking-tight">AS System</h1>
               <p className="text-xs text-slate-400 mt-0.5">لوحة تحكم الإدارة المركزية</p>
             </div>
           </div>
@@ -165,7 +169,7 @@ export default function LoginPage() {
 
           {/* Security Notice */}
           <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-            <span>Compu MSS v1.0.2</span>
+            <span>AS System v1.0.2</span>
             <span>جلسة نشطة 7 أيام</span>
           </div>
         </div>

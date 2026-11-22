@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/session';
-import { adminService } from '@/services/adminService';
+import { activityLogger } from '@/services/activityLogger';
 
 export async function GET(req: NextRequest) {
   const session = getAdminSession();
@@ -9,13 +9,28 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
+  const search = searchParams.get('search') || undefined;
+  const eventType = searchParams.get('eventType') || undefined;
+  const statusParam = searchParams.get('status') || undefined;
+  const targetType = searchParams.get('targetType') || undefined;
   const limitParam = searchParams.get('limit');
-  const limit = limitParam ? parseInt(limitParam, 10) : 100;
+  const offsetParam = searchParams.get('offset');
+
+  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+  const status = statusParam === 'SUCCESS' || statusParam === 'FAILURE' ? statusParam : 'ALL';
 
   try {
-    const logs = await adminService.getAuditLogs(limit);
-    return NextResponse.json({ logs });
+    const { logs, total } = await activityLogger.getLogs({
+      search,
+      eventType,
+      status,
+      targetType,
+      limit,
+      offset,
+    });
+    return NextResponse.json({ success: true, logs, total });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'فشل في جلب سجل التدقيق' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'فشل في جلب سجل النشاط والتدقيق' }, { status: 500 });
   }
 }

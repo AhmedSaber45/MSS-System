@@ -21,6 +21,10 @@ const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     title: 'إدارة المستخدمين والصلاحيات',
     subtitle: '',
   },
+  audit: {
+    title: 'سجل النشاط والتدقيق',
+    subtitle: 'سجل تفصيلي ولحظي لكافة عمليات النظام والمستخدمين',
+  },
 };
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({

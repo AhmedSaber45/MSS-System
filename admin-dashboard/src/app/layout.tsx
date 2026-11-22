@@ -2,8 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Compu MSS Admin Dashboard     ',
+  title: 'AS System Admin Dashboard',
   description: 'نظام إدارة الحسابات، الصلاحيات، الفروع وسجل التدقيق لشركة Compu MSS',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/assets/branding/as_icon_512.png',
+  },
 };
 
 export default function RootLayout({

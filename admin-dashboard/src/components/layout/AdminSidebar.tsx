@@ -7,9 +7,10 @@ import {
   ShieldCheck,
   Building2,
   Terminal,
+  ShieldAlert,
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'users';
+export type NavTab = 'overview' | 'users' | 'audit';
 
 interface AdminSidebarProps {
   currentTab: NavTab;
@@ -35,6 +36,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'إدارة المستخدمين والصلاحيات',
       icon: Users,
     },
+    {
+      id: 'audit' as NavTab,
+      label: 'سجل النشاط والتدقيق',
+      icon: ShieldAlert,
+    },
   ];
 
   return (
@@ -55,12 +61,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Brand Header */}
         <div className="p-4 border-b border-slate-800/90 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-sky-400 shadow-sm">
-              <ShieldCheck className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center p-1 shadow-sm">
+              <img
+                src="/assets/branding/as_logo_gold.png"
+                alt="AS System"
+                className="w-full h-full object-contain select-none"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-semibold text-slate-100 tracking-tight">Compu MSS</h1>
+                <h1 className="text-sm font-semibold text-slate-100 tracking-tight">AS System</h1>
                 <span className="text-[10px] px-1.5 py-0.2 bg-slate-800 text-sky-400 border border-slate-700/60 rounded font-medium">
                   Admin
                 </span>
@@ -108,7 +118,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="p-3.5 border-t border-slate-800/90 bg-[#0a0e17]">
           <div className="flex flex-col gap-1.5 text-[11px]">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-slate-300">نظام Compu MSS</span>
+              <span className="font-medium text-slate-300">AS System</span>
               <span className="text-[10px] text-slate-400 bg-slate-800/80 border border-slate-700/60 px-1.5 py-0.5 rounded font-mono">
                 v1.0.2
               </span>

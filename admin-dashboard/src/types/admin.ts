@@ -219,7 +219,7 @@ export interface StoreMergeResult {
   message: string;
 }
 
-export type AuditTargetType = 'user' | 'store' | 'system' | 'auth' | 'inventory';
+export type AuditTargetType = 'user' | 'store' | 'system' | 'auth' | 'inventory' | 'session' | 'role';
 
 export interface AdminAuditLog {
   id: string;

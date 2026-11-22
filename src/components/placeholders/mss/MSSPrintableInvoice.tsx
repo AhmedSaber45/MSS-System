@@ -251,7 +251,7 @@ export const MSSPrintableInvoice: React.FC<MSSPrintableInvoiceProps> = ({
               <div>
                 <h1 className="text-2xl font-bold text-slate-950 tracking-tight">Compu MSS</h1>
                 <p className="text-sm text-slate-600 mt-1">
-                  بيع  أجهزة اللابتوب والكمبيوتر المعتمدة
+                  بيع  أجهزة اللابتوب والكمبيوتر 
                 </p>
                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
                   <span>فرع البيع: {invoice.selling_branch}</span>

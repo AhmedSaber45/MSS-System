@@ -201,45 +201,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
           <p className="text-[11px] text-slate-500 mt-1.5">حسابات الفروع المصرح لها بالدخول</p>
         </div>
 
-        {/* Card 2: Branches & Warehouses */}
-        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">الفروع والمخازن</span>
-            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
-              <Store className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2.5 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-slate-100 tabular-nums">
-              {stats.totalStores + stats.totalWarehouses}
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              {stats.activeStores} محل • {stats.totalWarehouses} مخزن
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1.5">مواقع ونقاط التوزيع المعتمدة</p>
-        </div>
 
-        {/* Card 3: Available Inventory (MSS) */}
-        <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">مخزون الأجهزة المتاحة</span>
-            <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center justify-center">
-              <Laptop className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2.5 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-slate-100 tabular-nums">
-              {stats.mssMetrics?.availableDevices ?? 0}
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              من {stats.mssMetrics?.devicesCount ?? 0} جهاز
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1.5">
-            {stats.mssMetrics?.modelsCount ?? 0} موديل معتمد بالكتالوج
-          </p>
-        </div>
 
         {/* Card 4: Module Distribution */}
         <div className="p-4 rounded-xl bg-[#101625] border border-slate-800/90 shadow-sm hover:border-slate-700 transition-colors">
@@ -344,13 +306,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                 <h3 className="text-xs font-semibold text-slate-200">سجل العمليات والنشاطات الإدارية</h3>
                 <p className="text-[11px] text-slate-500">سجل عمليات إنشاء وتعديل المستخدمين والفروع وتحويلات الأجهزة</p>
               </div>
-              <button
-                onClick={fetchStats}
-                title="تحديث السجل"
-                className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onNavigate('audit')}
+                  className="flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
+                >
+                  <span>عرض السجل الكامل</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={fetchStats}
+                  title="تحديث السجل"
+                  className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 overflow-y-auto max-h-[320px] pr-0.5">
@@ -370,18 +341,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate, adminUse
                       </div>
                       <div>
                         <div className="font-medium text-slate-200 text-xs">
-                          {log.eventType === 'USER_CREATE' && 'إنشاء حساب مستخدم جديد'}
-                          {log.eventType === 'USER_UPDATE' && 'تحديث بيانات مستخدم'}
-                          {log.eventType === 'USER_ACCESS_CODE_CHANGE' && 'تغيير وتشفير رمز الدخول'}
-                          {log.eventType === 'USER_STATUS_CHANGE' && 'تغيير حالة مستخدم'}
-                          {log.eventType === 'USER_DELETE' && 'حذف حساب مستخدم'}
-                          {log.eventType === 'STORE_CREATE' && 'إضافة فرع / مخزن جديد'}
-                          {log.eventType === 'STORE_UPDATE' && 'تحديث بيانات فرع / مخزن'}
-                          {log.eventType === 'STORE_STATUS_CHANGE' && 'تغيير حالة فرع / مخزن'}
-                          {log.eventType === 'INVENTORY_TRANSFER_COMPLETED' && 'تحويل مخزون بين الفروع'}
-                          {log.eventType === 'ADMIN_LOGIN_SUCCESS' && 'تسجيل دخول إداري ناجح'}
-                          {log.eventType === 'SYSTEM_INITIALIZATION' && 'تهيئة نظام الإدارة'}
-                          {!['USER_CREATE', 'USER_UPDATE', 'USER_ACCESS_CODE_CHANGE', 'USER_STATUS_CHANGE', 'USER_DELETE', 'STORE_CREATE', 'STORE_UPDATE', 'STORE_STATUS_CHANGE', 'INVENTORY_TRANSFER_COMPLETED', 'ADMIN_LOGIN_SUCCESS', 'SYSTEM_INITIALIZATION'].includes(log.eventType) && log.eventType}
+                          {typeof log.metadata?.description === 'string' ? (
+                            log.metadata.description
+                          ) : (
+                            <>
+                              {log.eventType === 'USER_CREATE' && 'إنشاء حساب مستخدم جديد'}
+                              {log.eventType === 'USER_UPDATE' && 'تحديث بيانات مستخدم'}
+                              {log.eventType === 'USER_PERMISSIONS_CHANGE' && 'تعديل صلاحيات مستخدم'}
+                              {log.eventType === 'USER_ACCESS_CODE_CHANGE' && 'تغيير وتشفير رمز الدخول'}
+                              {log.eventType === 'USER_STATUS_CHANGE' && 'تغيير حالة مستخدم'}
+                              {log.eventType === 'USER_DELETE' && 'حذف حساب مستخدم'}
+                              {log.eventType === 'STORE_CREATE' && 'إضافة فرع / مخزن جديد'}
+                              {log.eventType === 'STORE_UPDATE' && 'تحديث بيانات فرع / مخزن'}
+                              {log.eventType === 'STORE_STATUS_CHANGE' && 'تغيير حالة فرع / مخزن'}
+                              {log.eventType === 'INVENTORY_TRANSFER_COMPLETED' && 'تحويل مخزون بين الفروع'}
+                              {log.eventType === 'ADMIN_LOGIN_SUCCESS' && 'تسجيل دخول إداري ناجح'}
+                              {log.eventType === 'SYSTEM_INITIALIZATION' && 'تهيئة نظام الإدارة'}
+                              {!['USER_CREATE', 'USER_UPDATE', 'USER_PERMISSIONS_CHANGE', 'USER_ACCESS_CODE_CHANGE', 'USER_STATUS_CHANGE', 'USER_DELETE', 'STORE_CREATE', 'STORE_UPDATE', 'STORE_STATUS_CHANGE', 'INVENTORY_TRANSFER_COMPLETED', 'ADMIN_LOGIN_SUCCESS', 'SYSTEM_INITIALIZATION'].includes(log.eventType) && log.eventType}
+                            </>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono">
                           بواسطة: <span className="text-slate-400">{log.actorUsername}</span>

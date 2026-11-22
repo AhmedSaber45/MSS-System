@@ -49,13 +49,13 @@ describe('MSS System — Branding, Copyright, Backup Destinations & Windows Star
     } catch {}
   });
 
-  test('1. Application Branding: tauri.conf.json has productName Compu MSS and preserves identifier', () => {
+  test('1. Application Branding: tauri.conf.json has productName AS System and preserves identifier', () => {
     const tauriConfRaw = fs.readFileSync(path.resolve('./src-tauri/tauri.conf.json'), 'utf-8');
     const tauriConf = JSON.parse(tauriConfRaw);
 
-    assert.strictEqual(tauriConf.productName, 'Compu MSS', 'productName must be Compu MSS');
+    assert.strictEqual(tauriConf.productName, 'AS System', 'productName must be AS System');
     assert.strictEqual(tauriConf.identifier, 'com.shop.management.system', 'Application identifier must be preserved to protect SQLite storage');
-    assert.ok(tauriConf.app?.windows?.[0]?.title?.includes('Compu MSS'), 'Window title must reflect Compu MSS');
+    assert.ok(tauriConf.app?.windows?.[0]?.title?.includes('AS System'), 'Window title must reflect AS System');
   });
 
   test('2. Copyright & Contact Notice: Exact details in AppFooter, ContactModal, and SystemSettingsModal without triggering browser app alerts', () => {

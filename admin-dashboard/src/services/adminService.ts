@@ -1,4 +1,5 @@
 import { getServerSupabase } from '../lib/supabase.ts';
+import { activityLogger } from './activityLogger.ts';
 import {
   hashAccessCode,
   hashPassword,
@@ -385,30 +386,25 @@ export const adminService = {
         const { data: assignments } = await supabase.from('user_store_assignments').select('user_id, store_id');
 
         const existingUserIds = new Set(data.map((r: any) => r.id));
-        const extraFallback = fallbackUsers.filter(u => !existingUserIds.has(u.id)).map(u => sanitizeUser(u) as unknown as AppUser);
+        const extraFallback = isTestEnv
+          ? fallbackUsers.filter(u => !existingUserIds.has(u.id)).map(u => sanitizeUser(u) as unknown as AppUser)
+          : [];
 
         let mapped = [
           ...data.map((row: any) => {
             const userStoreIds = assignments?.filter((a) => a.user_id === row.id).map((a) => a.store_id) || [];
-            const memStoreIds = fallbackUserStoreAssignments.filter(a => a.userId === row.id).map(a => a.storeId);
-            const combinedStoreIds = Array.from(new Set([...userStoreIds, ...memStoreIds]));
-            const memUser = fallbackUsers.find(u => u.id === row.id);
-            const effectiveDefaultStoreId = memUser?.defaultStoreId || row.default_store_id;
-            const effectivePermVersion = Math.max(row.permission_version ?? 1, memUser?.permissionVersion ?? 1);
-            const effectiveAllowedModules = memUser?.allowedModules || row.allowed_modules;
-
             return {
               id: row.id,
               username: row.username,
               displayName: row.display_name,
-              allowedModules: effectiveAllowedModules,
-              defaultStoreId: effectiveDefaultStoreId,
+              allowedModules: row.allowed_modules,
+              defaultStoreId: row.default_store_id,
               defaultStoreName: row.default_store_name,
               defaultStoreCode: row.default_store_code,
-              assignedStoreIds: combinedStoreIds,
-              assignedStoresCount: combinedStoreIds.length || row.assigned_stores_count || 0,
+              assignedStoreIds: userStoreIds,
+              assignedStoresCount: userStoreIds.length || row.assigned_stores_count || 0,
               credentialVersion: row.credential_version ?? 1,
-              permissionVersion: effectivePermVersion,
+              permissionVersion: row.permission_version ?? 1,
               isActive: row.is_active,
               lastLoginAt: row.last_login_at,
               createdAt: row.created_at,
@@ -461,128 +457,220 @@ export const adminService = {
     }
 
     const normUsername = normalizeUsername(input.username);
+    const storeIdsToAssign = input.assignedStoreIds || (input.defaultStoreId ? [input.defaultStoreId] : []);
     const accessCodeHash = await hashAccessCode(input.accessCode);
+    let createdUser: AppUser | null = null;
+    let lastPersistenceError: any = null;
 
     try {
       const supabase = getServerSupabase();
 
-      // Check unique username
-      const { data: existing } = await supabase
-        .from('app_users')
-        .select('id')
-        .eq('username', normUsername)
-        .maybeSingle();
+      // 1. Try secure RPC function admin_create_app_user first (handles RLS bypass and secure hashing)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_create_app_user', {
+        p_username: normUsername,
+        p_display_name: input.displayName.trim(),
+        p_access_code: input.accessCode,
+        p_allowed_modules: input.allowedModules || 'both',
+        p_default_store_id: input.defaultStoreId || null,
+        p_assigned_store_ids: storeIdsToAssign.length > 0 ? storeIdsToAssign : null,
+        p_is_active: input.isActive ?? true,
+        p_actor_id: actor.adminId,
+        p_actor_username: actor.username,
+      });
 
-      if (existing) {
-        throw new Error(`اسم المستخدم "${normUsername}" مستخدم بالفعل، يرجى اختيار اسم آخر`);
-      }
-
-      const { data, error } = await supabase
-        .from('app_users')
-        .insert({
-          username: normUsername,
-          display_name: input.displayName.trim(),
-          access_code_hash: accessCodeHash,
-          allowed_modules: input.allowedModules,
-          default_store_id: input.defaultStoreId || null,
-          credential_version: 1,
-          permission_version: 1,
-          is_active: input.isActive ?? true,
-        })
-        .select('id, username, display_name, allowed_modules, default_store_id, credential_version, permission_version, is_active, created_at, updated_at')
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // Add store assignments if provided
-      const storeIdsToAssign = input.assignedStoreIds || (input.defaultStoreId ? [input.defaultStoreId] : []);
-      if (storeIdsToAssign.length > 0) {
-        const rows = storeIdsToAssign.map(storeId => ({
-          user_id: data.id,
-          store_id: storeId,
-          is_primary: storeId === input.defaultStoreId,
-        }));
-        await supabase.from('user_store_assignments').insert(rows);
-      }
-
-      // Audit log
-      await this.logAdminAudit(
-        actor,
-        'USER_CREATE',
-        'user',
-        data.id,
-        {
-          username: normUsername,
-          displayName: input.displayName.trim(),
-          allowedModules: input.allowedModules,
-          defaultStoreId: input.defaultStoreId,
-          assignedStoreIdsCount: storeIdsToAssign.length,
-          credentialVersion: 1,
-          permissionVersion: 1,
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        const row = rpcData[0];
+        createdUser = {
+          id: row.id,
+          username: row.username,
+          displayName: row.display_name,
+          allowedModules: row.allowed_modules,
+          defaultStoreId: row.default_store_id,
+          assignedStoreIds: storeIdsToAssign,
+          assignedStoresCount: storeIdsToAssign.length,
+          credentialVersion: row.credential_version || 1,
+          permissionVersion: row.permission_version || 1,
+          isActive: row.is_active,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+      } else {
+        if (rpcError) {
+          lastPersistenceError = rpcError;
+          if (rpcError.message && (rpcError.message.includes('مستخدم بالفعل') || rpcError.message.includes('أحرف'))) {
+            throw new Error(rpcError.message);
+          }
         }
-      );
 
-      return {
-        id: data.id,
-        username: data.username,
-        displayName: data.display_name,
-        allowedModules: data.allowed_modules,
-        defaultStoreId: data.default_store_id,
-        assignedStoreIds: storeIdsToAssign,
-        assignedStoresCount: storeIdsToAssign.length,
-        credentialVersion: data.credential_version || 1,
-        permissionVersion: data.permission_version || 1,
-        isActive: data.is_active,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-    } catch (err: any) {
-      // In-memory fallback
-      if (fallbackUsers.some(u => u.username === normUsername)) {
-        throw new Error(`اسم المستخدم "${normUsername}" مستخدم بالفعل`);
+        // 2. Direct table insert fallback if RPC not yet deployed
+        const { data: existing } = await supabase
+          .from('app_users')
+          .select('id')
+          .eq('username', normUsername)
+          .maybeSingle();
+
+        if (existing) {
+          throw new Error(`اسم المستخدم "${normUsername}" مستخدم بالفعل، يرجى اختيار اسم آخر`);
+        }
+
+        const { data, error } = await supabase
+          .from('app_users')
+          .insert({
+            username: normUsername,
+            display_name: input.displayName.trim(),
+            access_code_hash: accessCodeHash,
+            allowed_modules: input.allowedModules,
+            default_store_id: input.defaultStoreId || null,
+            credential_version: 1,
+            permission_version: 1,
+            is_active: input.isActive ?? true,
+          })
+          .select('id, username, display_name, allowed_modules, default_store_id, credential_version, permission_version, is_active, created_at, updated_at')
+          .single();
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        if (storeIdsToAssign.length > 0) {
+          const rows = storeIdsToAssign.map(storeId => ({
+            user_id: data.id,
+            store_id: storeId,
+            is_primary: storeId === input.defaultStoreId,
+          }));
+          await supabase.from('user_store_assignments').insert(rows);
+        }
+
+        createdUser = {
+          id: data.id,
+          username: data.username,
+          displayName: data.display_name,
+          allowedModules: data.allowed_modules,
+          defaultStoreId: data.default_store_id,
+          assignedStoreIds: storeIdsToAssign,
+          assignedStoresCount: storeIdsToAssign.length,
+          credentialVersion: data.credential_version || 1,
+          permissionVersion: data.permission_version || 1,
+          isActive: data.is_active,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
       }
+    } catch (err: any) {
+      lastPersistenceError = err;
+      if (err.message && (err.message.includes('مستخدم بالفعل') || err.message.includes('أحرف') || err.message.includes('رمز الدخول'))) {
+        await activityLogger.logActivity({
+          actorId: actor.adminId,
+          actorUsername: actor.username,
+          eventType: 'USER_CREATE',
+          targetType: 'user',
+          targetUsername: normUsername,
+          status: 'FAILURE',
+          failureReason: err.message,
+          metadata: { username: normUsername, displayName: input.displayName.trim() },
+        });
+        throw err;
+      }
+    }
 
+    if (createdUser) {
+      // Sync in-memory fallback cache
       const defaultStore = fallbackStores.find(s => s.id === input.defaultStoreId);
-      const storeIdsToAssign = input.assignedStoreIds || (input.defaultStoreId ? [input.defaultStoreId] : []);
-      const newUser: StoredAppUser = {
-        id: `u-${Date.now()}`,
-        username: normUsername,
-        displayName: input.displayName.trim(),
-        allowedModules: input.allowedModules,
-        defaultStoreId: input.defaultStoreId,
+      fallbackUsers.unshift({
+        id: createdUser.id,
+        username: createdUser.username,
+        displayName: createdUser.displayName,
+        allowedModules: createdUser.allowedModules,
+        defaultStoreId: createdUser.defaultStoreId,
         defaultStoreName: defaultStore?.name,
         defaultStoreCode: defaultStore?.code,
         assignedStoreIds: storeIdsToAssign,
         assignedStoresCount: storeIdsToAssign.length,
-        credentialVersion: 1,
-        permissionVersion: 1,
-        isActive: input.isActive ?? true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        credentialVersion: createdUser.credentialVersion,
+        permissionVersion: createdUser.permissionVersion,
+        isActive: createdUser.isActive,
+        createdAt: createdUser.createdAt,
+        updatedAt: createdUser.updatedAt,
         access_code_hash: accessCodeHash,
-      };
+      });
 
-      fallbackUsers.unshift(newUser);
-
-      await this.logAdminAudit(
-        actor,
-        'USER_CREATE',
-        'user',
-        newUser.id,
-        {
-          username: normUsername,
-          displayName: input.displayName.trim(),
-          allowedModules: input.allowedModules,
+      await activityLogger.logActivity({
+        actorId: actor.adminId,
+        actorUsername: actor.username,
+        eventType: 'USER_CREATE',
+        targetType: 'user',
+        targetId: createdUser.id,
+        targetUsername: createdUser.username,
+        status: 'SUCCESS',
+        metadata: {
+          username: createdUser.username,
+          displayName: createdUser.displayName,
+          allowedModules: createdUser.allowedModules,
+          defaultStoreId: createdUser.defaultStoreId,
           assignedStoreIdsCount: storeIdsToAssign.length,
-          credentialVersion: 1,
-          permissionVersion: 1,
-        }
-      );
+        },
+      });
 
-      return sanitizeUser(newUser) as unknown as AppUser;
+      return createdUser;
     }
+
+    // In live production, persistence failure MUST throw the real error
+    if (!isTestEnv) {
+      const errorMsg = lastPersistenceError?.message || 'فشل في حفظ المستخدم في قاعدة البيانات';
+      await activityLogger.logActivity({
+        actorId: actor.adminId,
+        actorUsername: actor.username,
+        eventType: 'USER_CREATE',
+        targetType: 'user',
+        targetUsername: normUsername,
+        status: 'FAILURE',
+        failureReason: errorMsg,
+      });
+      throw new Error(`فشل في حفظ المستخدم في قاعدة البيانات: ${errorMsg}`);
+    }
+
+    // Mock fallback solely for isolated unit tests
+    if (fallbackUsers.some(u => u.username === normUsername)) {
+      throw new Error(`اسم المستخدم "${normUsername}" مستخدم بالفعل`);
+    }
+
+    const defaultStore = fallbackStores.find(s => s.id === input.defaultStoreId);
+    const mockUser: StoredAppUser = {
+      id: `u-${Date.now()}`,
+      username: normUsername,
+      displayName: input.displayName.trim(),
+      allowedModules: input.allowedModules,
+      defaultStoreId: input.defaultStoreId,
+      defaultStoreName: defaultStore?.name,
+      defaultStoreCode: defaultStore?.code,
+      assignedStoreIds: storeIdsToAssign,
+      assignedStoresCount: storeIdsToAssign.length,
+      credentialVersion: 1,
+      permissionVersion: 1,
+      isActive: input.isActive ?? true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      access_code_hash: accessCodeHash,
+    };
+    fallbackUsers.unshift(mockUser);
+
+    await activityLogger.logActivity({
+      actorId: actor.adminId,
+      actorUsername: actor.username,
+      eventType: 'USER_CREATE',
+      targetType: 'user',
+      targetId: mockUser.id,
+      targetUsername: mockUser.username,
+      status: 'SUCCESS',
+      metadata: {
+        username: mockUser.username,
+        displayName: mockUser.displayName,
+        allowedModules: mockUser.allowedModules,
+        mockFallback: true,
+      },
+    });
+
+    return sanitizeUser(mockUser) as unknown as AppUser;
   },
 
   async updateAppUser(input: UpdateAppUserInput, actor: SessionPayload): Promise<AppUser> {
@@ -808,8 +896,23 @@ export const adminService = {
       throw new Error('لا يمكنك حذف حسابك الشخصي المسجل به حالياً');
     }
 
+    let targetUsername = userId;
+    const memUser = fallbackUsers.find(u => u.id === userId);
+    if (memUser) targetUsername = memUser.username;
+
     try {
       const supabase = getServerSupabase();
+
+      // Find user before deleting for audit username
+      const { data: userBeforeDelete } = await supabase
+        .from('app_users')
+        .select('id, username, display_name, allowed_modules')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (userBeforeDelete) {
+        targetUsername = userBeforeDelete.username;
+      }
 
       // 1. Try secure atomic deletion RPC function
       const { data: rpcSuccess, error: rpcErr } = await supabase.rpc('admin_delete_app_user', {
@@ -822,11 +925,27 @@ export const adminService = {
         // Clean in-memory fallback
         const idx = fallbackUsers.findIndex(u => u.id === userId);
         if (idx !== -1) fallbackUsers.splice(idx, 1);
+        for (let i = fallbackSessions.length - 1; i >= 0; i--) {
+          if (fallbackSessions[i].userId === userId) fallbackSessions.splice(i, 1);
+        }
+
+        await activityLogger.logActivity({
+          actorId: actor.adminId,
+          actorUsername: actor.username,
+          eventType: 'USER_DELETE',
+          targetType: 'user',
+          targetId: userId,
+          targetUsername,
+          status: 'SUCCESS',
+        });
         return;
       }
 
+      if (rpcErr && rpcErr.message && (rpcErr.message.includes('لا يمكن حذف') || rpcErr.message.includes('غير موجود'))) {
+        throw new Error(rpcErr.message);
+      }
+
       // 2. Direct table deletion fallback
-      // Check if user is in admin_users
       const { data: adminUser } = await supabase
         .from('admin_users')
         .select('*')
@@ -847,20 +966,17 @@ export const adminService = {
         }
 
         await supabase.from('admin_users').delete().eq('id', userId);
-        await this.logAdminAudit(actor, 'ADMIN_DELETE', 'user', userId, {
-          isAdminUser: true,
-          username: adminUser.username,
-          displayName: adminUser.display_name,
+        await activityLogger.logActivity({
+          actorId: actor.adminId,
+          actorUsername: actor.username,
+          eventType: 'ADMIN_DELETE',
+          targetType: 'user',
+          targetId: userId,
+          targetUsername: adminUser.username,
+          status: 'SUCCESS',
         });
         return;
       }
-
-      // Find user before deleting for audit trail
-      const { data: userBeforeDelete } = await supabase
-        .from('app_users')
-        .select('id, username, display_name, allowed_modules')
-        .eq('id', userId)
-        .maybeSingle();
 
       // Delete active sessions
       await supabase.from('app_user_sessions').delete().eq('user_id', userId);
@@ -878,25 +994,44 @@ export const adminService = {
         throw new Error(delErr.message);
       }
 
-      await this.logAdminAudit(
-        actor,
-        'USER_DELETE',
-        'user',
-        userId,
-        {
-          username: userBeforeDelete?.username,
+      await activityLogger.logActivity({
+        actorId: actor.adminId,
+        actorUsername: actor.username,
+        eventType: 'USER_DELETE',
+        targetType: 'user',
+        targetId: userId,
+        targetUsername,
+        status: 'SUCCESS',
+        metadata: {
+          username: userBeforeDelete?.username || targetUsername,
           displayName: userBeforeDelete?.display_name,
-          allowedModules: userBeforeDelete?.allowed_modules,
-        }
-      );
+        },
+      });
 
       // Clean in-memory fallback
       const idx = fallbackUsers.findIndex(u => u.id === userId);
       if (idx !== -1) fallbackUsers.splice(idx, 1);
+      for (let i = fallbackSessions.length - 1; i >= 0; i--) {
+        if (fallbackSessions[i].userId === userId) fallbackSessions.splice(i, 1);
+      }
     } catch (err: any) {
+      if (err.message && err.message.includes('لا يمكن حذف')) {
+        await activityLogger.logActivity({
+          actorId: actor.adminId,
+          actorUsername: actor.username,
+          eventType: 'USER_DELETE',
+          targetType: 'user',
+          targetId: userId,
+          targetUsername,
+          status: 'FAILURE',
+          failureReason: err.message,
+        });
+        throw err;
+      }
+
       // In-memory fallback for test runner
       const idx = fallbackUsers.findIndex(u => u.id === userId);
-      if (idx !== -1) {
+      if (idx !== -1 && isTestEnv) {
         const u = fallbackUsers[idx];
         fallbackUsers.splice(idx, 1);
         for (let i = fallbackUserStoreAssignments.length - 1; i >= 0; i--) {
@@ -909,13 +1044,30 @@ export const adminService = {
             fallbackSessions.splice(i, 1);
           }
         }
-        await this.logAdminAudit(actor, 'USER_DELETE', 'user', userId, {
-          username: u.username,
-          displayName: u.displayName,
+        await activityLogger.logActivity({
+          actorId: actor.adminId,
+          actorUsername: actor.username,
+          eventType: 'USER_DELETE',
+          targetType: 'user',
+          targetId: userId,
+          targetUsername: u.username,
+          status: 'SUCCESS',
         });
         return;
       }
-      throw new Error(err.message || 'المستخدم غير موجود أو فشل في الحذف');
+
+      const errMsg = err.message || 'المستخدم غير موجود أو فشل في الحذف من قاعدة البيانات';
+      await activityLogger.logActivity({
+        actorId: actor.adminId,
+        actorUsername: actor.username,
+        eventType: 'USER_DELETE',
+        targetType: 'user',
+        targetId: userId,
+        targetUsername,
+        status: 'FAILURE',
+        failureReason: errMsg,
+      });
+      throw new Error(errMsg);
     }
   },
 
@@ -923,45 +1075,64 @@ export const adminService = {
     try {
       const supabase = getServerSupabase();
       
-      const updateData: Record<string, unknown> = {
-        is_active: isActive,
-        updated_at: new Date().toISOString(),
-      };
+      // 1. Try secure atomic RPC admin_update_app_user first (SECURITY DEFINER, handles RLS bypass)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_update_app_user', {
+        p_user_id: userId,
+        p_display_name: null,
+        p_username: null,
+        p_allowed_modules: null,
+        p_default_store_id: null,
+        p_assigned_store_ids: null,
+        p_is_active: isActive,
+        p_actor_id: actor.adminId,
+        p_actor_username: actor.username,
+      });
 
-      // If disabling account, increment credential_version and revoke sessions
-      if (!isActive) {
-        const { data: user } = await supabase.from('app_users').select('credential_version').eq('id', userId).single();
-        const nextCredVer = (user?.credential_version || 1) + 1;
-        updateData.credential_version = nextCredVer;
+      if (rpcErr || !rpcData || rpcData.length === 0) {
+        // Fallback to direct update if RPC is unavailable
+        const updateData: Record<string, unknown> = {
+          is_active: isActive,
+          updated_at: new Date().toISOString(),
+        };
 
-        // Revoke all active sessions in app_user_sessions
-        await supabase
-          .from('app_user_sessions')
-          .update({ revoked_at: new Date().toISOString() })
-          .eq('user_id', userId)
-          .is('revoked_at', null);
-      }
-
-      const { error: updError } = await supabase
-        .from('app_users')
-        .update(updateData)
-        .eq('id', userId);
-
-      if (updError) throw new Error(updError.message);
-    } catch {
-      const user = fallbackUsers.find(u => u.id === userId);
-      if (user) {
-        user.isActive = isActive;
-        user.updatedAt = new Date().toISOString();
+        // If disabling account, increment credential_version and revoke sessions
         if (!isActive) {
-          user.credentialVersion = (user.credentialVersion || 1) + 1;
-          // Revoke sessions
-          fallbackSessions.forEach(s => {
-            if (s.userId === userId && !s.revokedAt) {
-              s.revokedAt = new Date().toISOString();
-            }
-          });
+          const { data: user } = await supabase.from('app_users').select('credential_version').eq('id', userId).single();
+          const nextCredVer = (user?.credential_version || 1) + 1;
+          updateData.credential_version = nextCredVer;
+
+          // Revoke all active sessions in app_user_sessions
+          await supabase
+            .from('app_user_sessions')
+            .update({ revoked_at: new Date().toISOString() })
+            .eq('user_id', userId)
+            .is('revoked_at', null);
         }
+
+        const { error: updError } = await supabase
+          .from('app_users')
+          .update(updateData)
+          .eq('id', userId);
+
+        if (updError) throw new Error(updError.message);
+      }
+    } catch {
+      // Fallback path when Supabase is unreachable
+    }
+
+    // Always keep in-memory mirror synchronized (for offline/test environments)
+    const memUser = fallbackUsers.find(u => u.id === userId);
+    if (memUser) {
+      memUser.isActive = isActive;
+      memUser.updatedAt = new Date().toISOString();
+      if (!isActive) {
+        memUser.credentialVersion = (memUser.credentialVersion || 1) + 1;
+        // Revoke active sessions
+        fallbackSessions.forEach(s => {
+          if (s.userId === userId && !s.revokedAt) {
+            s.revokedAt = new Date().toISOString();
+          }
+        });
       }
     }
 
@@ -1124,18 +1295,48 @@ export const adminService = {
         const memUser = fallbackUsers.find(u => u.username === norm);
         if (!memUser) {
           recordFailedAttempt(norm);
+          await activityLogger.logActivity({
+            actorId: 'anonymous',
+            actorUsername: norm,
+            eventType: 'LOGIN_FAILURE',
+            targetType: 'auth',
+            targetId: norm,
+            targetUsername: norm,
+            status: 'FAILURE',
+            failureReason: 'المستخدم غير موجود',
+          });
           return { success: false, error: 'بيانات الدخول غير صحيحة أو الحساب معطل' };
         }
         throw new Error('Check fallback store');
       }
 
       if (!user.is_active) {
+        await activityLogger.logActivity({
+          actorId: user.id,
+          actorUsername: user.username,
+          eventType: 'LOGIN_REJECTED',
+          targetType: 'auth',
+          targetId: user.id,
+          targetUsername: user.username,
+          status: 'FAILURE',
+          failureReason: 'الحساب معطل من قبل مسؤول النظام',
+        });
         return { success: false, error: 'بيانات الدخول غير صحيحة أو الحساب معطل' };
       }
 
       const isValidCode = await verifyAccessCode(input.accessCode, user.access_code_hash);
       if (!isValidCode) {
         recordFailedAttempt(norm);
+        await activityLogger.logActivity({
+          actorId: 'anonymous',
+          actorUsername: norm,
+          eventType: 'LOGIN_FAILURE',
+          targetType: 'auth',
+          targetId: norm,
+          targetUsername: norm,
+          status: 'FAILURE',
+          failureReason: 'رمز الدخول غير صحيح',
+        });
         return { success: false, error: 'بيانات الدخول غير صحيحة أو الحساب معطل' };
       }
 
@@ -1165,11 +1366,36 @@ export const adminService = {
         last_active_at: new Date().toISOString(),
       });
 
+      // Mirror session to in-memory fallback store
+      fallbackSessions.unshift({
+        id: `sess-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        userId: user.id,
+        sessionTokenHash,
+        credentialVersion: user.credential_version || 1,
+        permissionVersion: user.permission_version || 1,
+        deviceInfo: input.deviceInfo || 'Compu MSS Desktop Application',
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+        expiresAt,
+        revokedAt: undefined,
+      });
+
       // Update last login
       await supabase
         .from('app_users')
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', user.id);
+
+      await activityLogger.logActivity({
+        actorId: user.id,
+        actorUsername: user.username,
+        eventType: 'LOGIN_SUCCESS',
+        targetType: 'auth',
+        targetId: user.id,
+        targetUsername: user.username,
+        status: 'SUCCESS',
+        metadata: { deviceInfo: input.deviceInfo || 'Desktop' },
+      });
 
       return {
         success: true,
@@ -1257,12 +1483,32 @@ export const adminService = {
         .maybeSingle();
 
       if (sessErr || !session) {
-        // Check if session exists in fallbackSessions (for test runner / offline mode)
-        const memSession = fallbackSessions.find(s => s.sessionTokenHash === tokenHash && !s.revokedAt);
-        if (!memSession) {
-          return { success: false, reason: 'SESSION_REVOKED', error: 'انتهت صلاحية الجلسة أو تم إبطالها من مسؤول النظام' };
+        // Check if there was a revoked session to determine if the account was disabled
+        const { data: anySession } = await supabase
+          .from('app_user_sessions')
+          .select('user_id')
+          .eq('session_token_hash', tokenHash)
+          .maybeSingle();
+
+        if (anySession?.user_id) {
+          const { data: u } = await supabase.from('app_users').select('is_active').eq('id', anySession.user_id).maybeSingle();
+          if (u && !u.is_active) {
+            return { success: false, reason: 'ACCOUNT_DISABLED', error: 'تم تعطيل الحساب من قبل مسؤول النظام' };
+          }
         }
-        throw new Error('Check fallback sessions');
+
+        // Check if session exists in fallbackSessions (for test runner / offline mode)
+        const anyMemSession = fallbackSessions.find(s => s.sessionTokenHash === tokenHash);
+        if (anyMemSession) {
+          const memUser = fallbackUsers.find(u => u.id === anyMemSession.userId);
+          if (memUser && !memUser.isActive) {
+            return { success: false, reason: 'ACCOUNT_DISABLED', error: 'تم تعطيل الحساب من قبل مسؤول النظام' };
+          }
+          if (!anyMemSession.revokedAt) {
+            throw new Error('Check fallback sessions');
+          }
+        }
+        return { success: false, reason: 'SESSION_REVOKED', error: 'انتهت صلاحية الجلسة أو تم إبطالها من مسؤول النظام' };
       }
 
       // Check session expiry
@@ -1276,6 +1522,15 @@ export const adminService = {
         ? new Date(session.last_active_at).getTime()
         : (session.created_at ? new Date(session.created_at).getTime() : now);
       if (now - lastActiveTime >= 7 * 24 * 60 * 60 * 1000) {
+        await activityLogger.logActivity({
+          actorId: session.user_id,
+          actorUsername: 'user',
+          eventType: 'INACTIVITY_TIMEOUT',
+          targetType: 'session',
+          targetId: session.id,
+          status: 'FAILURE',
+          failureReason: 'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة)',
+        });
         return {
           success: false,
           reason: 'SESSION_EXPIRED',
@@ -1291,6 +1546,11 @@ export const adminService = {
         .maybeSingle();
 
       if (userErr || !user) {
+        // If user is hidden by RLS because is_active = false, verify in fallback mirror
+        const memUser = fallbackUsers.find(u => u.id === session.user_id);
+        if (memUser && !memUser.isActive) {
+          return { success: false, reason: 'ACCOUNT_DISABLED', error: 'بيانات الدخول غير صحيحة أو الحساب معطل' };
+        }
         return { success: false, reason: 'SESSION_REVOKED', error: 'المستخدم غير موجود أو تم حذفه' };
       }
 
@@ -1368,6 +1628,15 @@ export const adminService = {
         ? new Date(session.lastActiveAt).getTime()
         : (session.createdAt ? new Date(session.createdAt).getTime() : now);
       if (now - lastActiveTime >= 7 * 24 * 60 * 60 * 1000) {
+        await activityLogger.logActivity({
+          actorId: session.userId,
+          actorUsername: 'user',
+          eventType: 'INACTIVITY_TIMEOUT',
+          targetType: 'session',
+          targetId: session.id,
+          status: 'FAILURE',
+          failureReason: 'انتهت صلاحية الجلسة لعدم وجود أي نشاط لمدة 7 أيام متتالية (168 ساعة)',
+        });
         return {
           success: false,
           reason: 'SESSION_EXPIRED',
@@ -1441,6 +1710,15 @@ export const adminService = {
     } catch {
       // Handled by in-memory update above
     }
+
+    await activityLogger.logActivity({
+      actorId: session?.userId || 'user',
+      actorUsername: 'user',
+      eventType: 'LOGOUT',
+      targetType: 'auth',
+      targetId: session?.userId || 'session',
+      status: 'SUCCESS',
+    });
 
     return { success: true };
   },
@@ -2428,7 +2706,7 @@ export const adminService = {
   },
 
   // ============================================================================
-  // AUDIT LOG FOUNDATION
+  // AUDIT LOG FOUNDATION & ACTIVITY LOGGER INTEGRATION
   // ============================================================================
   async logAdminAudit(
     actor: SessionPayload,
@@ -2438,71 +2716,19 @@ export const adminService = {
     metadata: Record<string, unknown> = {}
   ): Promise<void> {
     const cleanMeta = sanitizeMetadata(metadata);
-
-    // Keep fallback in-memory logs always updated for local dev and fast retrieval
-    fallbackAuditLogs.unshift({
-      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    await activityLogger.logActivity({
       actorId: actor.adminId,
       actorUsername: actor.username,
       eventType,
       targetType,
       targetId,
       metadata: cleanMeta,
-      createdAt: new Date().toISOString(),
     });
-
-    try {
-      const supabase = getServerSupabase();
-      await supabase.from('admin_audit_logs').insert({
-        actor_id: actor.adminId,
-        actor_username: actor.username,
-        event_type: eventType,
-        target_type: targetType,
-        target_id: targetId,
-        metadata: cleanMeta,
-      });
-    } catch {
-      // Ignored in offline / development fallback
-    }
   },
 
   async getAuditLogs(limit = 100): Promise<AdminAuditLog[]> {
-    let cloudLogs: AdminAuditLog[] = [];
-    try {
-      const supabase = getServerSupabase();
-      const { data, error } = await supabase
-        .from('admin_audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (!error && data && data.length > 0) {
-        cloudLogs = data.map((row: any) => ({
-          id: row.id,
-          actorId: row.actor_id,
-          actorUsername: row.actor_username,
-          eventType: row.event_type,
-          targetType: row.target_type,
-          targetId: row.target_id,
-          metadata: row.metadata || {},
-          createdAt: row.created_at,
-        }));
-      }
-    } catch {
-      // Fallback
-    }
-
-    const all = [...fallbackAuditLogs, ...cloudLogs];
-    const seen = new Set<string>();
-    const deduplicated: AdminAuditLog[] = [];
-    for (const log of all) {
-      if (!seen.has(log.id)) {
-        seen.add(log.id);
-        deduplicated.push(log);
-      }
-    }
-    deduplicated.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return deduplicated.slice(0, limit);
+    const { logs } = await activityLogger.getLogs({ limit });
+    return logs;
   },
 
   /**
