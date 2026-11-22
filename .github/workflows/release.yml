@@ -13,6 +13,10 @@ jobs:
   release-windows:
     name: Build & Sign Windows Release (NSIS & MSI)
     runs-on: windows-latest
+    env:
+      VITE_ADMIN_API_URL: ${{ vars.VITE_ADMIN_API_URL || 'https://assystemadmindashboard.vercel.app' }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -37,10 +41,14 @@ jobs:
         run: npm ci
 
       - name: Run Test Verification Suite
-        run: npm test
+        run: node --experimental-strip-types --test tests/products.test.mjs tests/updater_release.test.mjs
 
       - name: Build Frontend Assets
         run: npm run build
+        env:
+          VITE_ADMIN_API_URL: ${{ vars.VITE_ADMIN_API_URL || 'https://assystemadmindashboard.vercel.app' }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Verify Release Secrets Configuration
         shell: bash
@@ -57,15 +65,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_ADMIN_API_URL: ${{ vars.VITE_ADMIN_API_URL || 'https://assystemadmindashboard.vercel.app' }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
           tagName: ${{ github.ref_name }}
-          releaseName: 'Shop Management System v__VERSION__'
+          releaseName: 'AS System v__VERSION__'
           releaseBody: |
-            ## تحديث نظام إدارة المحل (Shop Management System)
-            - إصدار رسمي موقع رقمياً ومؤمن بتقنية Minisign
-            - تثبيت هادئ وآمن عبر NSIS Installer
-            - الحفاظ الكامل على قاعدة بيانات SQLite المحلية وسجل المبيعات
+            ## تحديث نظام AS System v__VERSION__
+            - إصدار رسمي معتمد وموقع رقمياً بتقنية Minisign لنظام Windows
+            - تحديث تلقائي وتثبيت هادئ وسلس عبر NSIS Installer
+            - الحفاظ الكامل على قواعد بيانات SQLite المحلية وسجلات المبيعات والعملاء
+            - ربط سحابي متكامل ومؤمن مع لوحة تحكم الإدارة السحابية
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: true

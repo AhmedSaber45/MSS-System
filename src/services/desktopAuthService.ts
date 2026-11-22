@@ -12,9 +12,12 @@ const DEFAULT_OFFLINE_DAYS = 7;
 export const INACTIVITY_TIMEOUT_DAYS = 7;
 export const INACTIVITY_TIMEOUT_MS = INACTIVITY_TIMEOUT_DAYS * 24 * 60 * 60 * 1000; // 168 hours = 604,800,000 ms
 
+const PRODUCTION_ADMIN_API_URL = 'https://assystemadmindashboard.vercel.app';
 const ADMIN_API_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ADMIN_API_URL) ||
-  'http://localhost:3000';
+  ((typeof import.meta !== 'undefined' && import.meta.env?.PROD)
+    ? PRODUCTION_ADMIN_API_URL
+    : 'http://localhost:3000');
 
 // In-memory session store fallback for non-Tauri / test environments
 let memorySession: StoredSession | null = null;
