@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -12,6 +12,7 @@ import { mssInventoryService } from '@/services/mssInventoryService';
 import { mssCatalogService } from '@/services/mssCatalogService';
 import { useNotification } from '@/context/NotificationContext';
 import { getTodayLocalDateString } from '@/lib/dateValidation';
+import { formatCurrency } from '@/lib/utils';
 import type { MSSDevice, MSSDeviceStatus, MSSStockLocation } from '@/types/mssInventory';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
@@ -102,22 +103,41 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
         if (initialModelId) {
           setFormModelId(initialModelId);
           const m = models.find(x => x.id === initialModelId);
-          if (m) setFormListPrice(m.default_list_price);
+          if (m && typeof m.default_list_price === 'number' && m.default_list_price > 0) {
+            setFormListPrice(m.default_list_price);
+          } else {
+            setFormListPrice('');
+          }
         } else if (models.length > 0) {
           setFormModelId(models[0].id);
-          setFormListPrice(models[0].default_list_price);
+          if (typeof models[0].default_list_price === 'number' && models[0].default_list_price > 0) {
+            setFormListPrice(models[0].default_list_price);
+          } else {
+            setFormListPrice('');
+          }
+        } else {
+          setFormModelId('');
+          setFormListPrice('');
         }
       });
     }
     prevIsOpenRef.current = isOpen;
   }, [isOpen, initialMode, initialModelId, locationOptions, loadCatalogModels]);
 
-  // When model selection changes, auto-fill default list price if currently 0
+  // Memoized currently selected model
+  const selectedModel = useMemo(() => {
+    if (!formModelId) return null;
+    return catalogModels.find(m => m.id === formModelId) || null;
+  }, [formModelId, catalogModels]);
+
+  // When model selection changes, automatically populate Offer Price from the selected model's configured selling price
   const handleModelChange = (modelId: string) => {
     setFormModelId(modelId);
     const m = catalogModels.find(x => x.id === modelId);
-    if (m && (!formListPrice || formListPrice === 0)) {
+    if (m && typeof m.default_list_price === 'number' && m.default_list_price > 0) {
       setFormListPrice(m.default_list_price);
+    } else {
+      setFormListPrice('');
     }
   };
 
@@ -131,8 +151,10 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
 
     // 3. Automatically select the newly created model in the parent form
     setFormModelId(newModel.id);
-    if (!formListPrice || formListPrice === 0) {
+    if (typeof newModel.default_list_price === 'number' && newModel.default_list_price > 0) {
       setFormListPrice(newModel.default_list_price);
+    } else {
+      setFormListPrice('');
     }
 
     // 4. Show success notification
@@ -157,6 +179,10 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
 
     if (costNum < 0) {
       setFormError('سعر التكلفة لا يمكن أن يكون سالباً');
+      return;
+    }
+    if (formListPrice === '') {
+      setFormError('يرجى إدخال سعر العرض للوحدة');
       return;
     }
     if (listPriceNum < 0) {
@@ -360,6 +386,87 @@ export const MSSDeviceCreationModal: React.FC<MSSDeviceCreationModalProps> = ({
               )}
             />
           </div>
+
+          {/* Complete Model Specifications Display */}
+          {selectedModel ? (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 text-xs">{selectedModel.brand} {selectedModel.model_name}</span>
+                  <Badge variant="default" size="sm">{selectedModel.category}</Badge>
+                </div>
+                <div className="text-left">
+                  <span className="text-[10px] text-slate-500 block">سعر البيع المعتمد</span>
+                  <span className="font-mono font-bold text-slate-900 text-xs">
+                    {typeof selectedModel.default_list_price === 'number' && selectedModel.default_list_price > 0
+                      ? formatCurrency(selectedModel.default_list_price)
+                      : <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Specifications Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">المعالج (CPU)</span>
+                  <span className="text-xs font-semibold text-slate-800 break-words">
+                    {selectedModel.processor?.trim() || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">كارت الشاشة (GPU)</span>
+                  <span className="text-xs font-semibold text-slate-800 break-words">
+                    {selectedModel.gpu?.trim() || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">الذاكرة (RAM)</span>
+                  <span className="text-xs font-semibold text-slate-800 break-words">
+                    {selectedModel.ram?.trim() || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">التخزين (SSD/HDD)</span>
+                  <span className="text-xs font-semibold text-slate-800 break-words">
+                    {selectedModel.storage?.trim() || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">الشاشة والعرض</span>
+                  <span className="text-xs font-semibold text-slate-800 break-words">
+                    {selectedModel.screen_size?.trim() || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] text-slate-500 block font-medium">الفئة</span>
+                  <span className="text-xs font-semibold text-slate-800">
+                    {selectedModel.category || <span className="text-slate-400 font-normal italic">غير محدد</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Model Notes / Remarks */}
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] text-slate-500 block font-medium mb-1">
+                  ملاحظات ومواصفات إضافية للموديل
+                </span>
+                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                  {selectedModel.specifications?.trim() || (
+                    <span className="text-slate-400 font-normal italic">لا توجد ملاحظات إضافية مسجلة لهذا الموديل</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-slate-500 text-xs">
+              يرجى اختيار موديل من الكتالوج لعرض مواصفاته وسعره المعتمد تلقائياً
+            </div>
+          )}
 
           {/* Serial Number (Individual Mode) or Quantity (Bulk Mode) */}
           {stockRegistrationMode === 'INDIVIDUAL' ? (
