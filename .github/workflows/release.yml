@@ -73,13 +73,13 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
-            ## تحديث نظام AS System v__VERSION__
-            - تشغيل نافذة التطبيق في وضع ملء الشاشة وتكبير مساحة العرض تلقائياً عند التشغيل مع الحفاظ على أزرار التحكم وشريط المهام
-            - إصلاح تكاملي لحفظ فواتير المبيعات وحركات المخزون في قسم الإكسسوارات مع المعاملات الذرية التلقائية في SQLite
-            - تصحيح احتساب إجماليات الفواتير والخصومات والأرصدة المتبقية وسجل الدفعات بدقة متناهية
-            - إزالة البيانات الوهمية والتجريبية من حركة المبيعات والتقارير اليومية وعرض حالة عدم وجود بيانات بشكل نظيف
-            - الحفاظ التام والآمن على قواعد البيانات المحلية وسجلات المخزون والعملاء
-            - دعم التحديث التلقائي الشفاف والموقّع رقمياً عبر قناة GitHub Releases الرسمية
+            ## AS System v__VERSION__ Release Notes
+            - Fixed assembled-model quantity registration and BOM component consumption.
+            - Improved Compu MSS synchronization reliability and pending operation handling.
+            - Improved synchronization error reporting and duplicate transaction protection.
+            - Enhanced Sync Now manual action to distinguish between all operational outcomes.
+            - Preserved full data integrity, SQLite databases, and remote cloud records safely.
+            - Transparent auto-updater signed with verified official release keys.
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: true

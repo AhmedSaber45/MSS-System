@@ -67,3 +67,14 @@ export interface SyncStateSummary {
   failed_count: number;
   last_sync_time: string | null;
 }
+
+export interface MSSSyncResult {
+  synced: number;
+  conflicts: number;
+  failed: number;
+  totalPending?: number;
+  status?: 'NO_PENDING' | 'SUCCESS' | 'AUTH_BLOCKED' | 'OFFLINE' | 'PARTIAL_FAILURE' | 'FAILED' | 'CONFLICTS';
+  message?: string;
+  errors?: string[];
+}
+

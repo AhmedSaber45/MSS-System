@@ -8,6 +8,7 @@ import type {
   SyncStateSummary,
   ConflictType,
   ConflictResolutionStatus,
+  MSSSyncResult,
 } from '../types/mssSync.ts';
 import type { MSSStockLocation } from '../types/mssInventory.ts';
 
@@ -39,6 +40,14 @@ function getLocalInvoices(): any[] {
 
 let isSyncRunning = false;
 let syncQueued = false;
+let lastSyncResult: MSSSyncResult = {
+  synced: 0,
+  conflicts: 0,
+  failed: 0,
+  totalPending: 0,
+  status: 'NO_PENDING',
+  message: '',
+};
 
 function getCachedOutbox(): OutboxOperation[] {
   try {
@@ -229,13 +238,13 @@ export const mssSyncService = {
    * - Never silently discards conflicting transactions (Rule 10 & 25)
    * - Handles retries with backoff
    */
-  async syncOutbox(): Promise<{ synced: number; conflicts: number; failed: number }> {
+  async syncOutbox(): Promise<MSSSyncResult> {
     if (isSyncRunning) {
       syncQueued = true;
       while (isSyncRunning) {
         await new Promise(r => setTimeout(r, 50));
       }
-      return { synced: 0, conflicts: 0, failed: 0 };
+      return lastSyncResult;
     }
 
     isSyncRunning = true;
@@ -248,15 +257,19 @@ export const mssSyncService = {
           synced: result.synced + extra.synced,
           conflicts: result.conflicts + extra.conflicts,
           failed: result.failed + extra.failed,
+          totalPending: extra.totalPending,
+          status: extra.status,
+          message: extra.message,
         };
       }
+      lastSyncResult = result;
       return result;
     } finally {
       isSyncRunning = false;
     }
   },
 
-  async _executeSync(): Promise<{ synced: number; conflicts: number; failed: number }> {
+  async _executeSync(): Promise<MSSSyncResult> {
     // Phase 3 Auth Guard: When a session is active, verify user has MSS permission before cloud sync
     const currentSession = await desktopAuthService.loadSecureSession();
     if (
@@ -265,12 +278,28 @@ export const mssSyncService = {
       currentSession.user.allowedModules !== 'both'
     ) {
       // Preserve pending outbox records safely without syncing
-      return { synced: 0, conflicts: 0, failed: 0 };
+      return {
+        synced: 0,
+        conflicts: 0,
+        failed: 0,
+        totalPending: 0,
+        status: 'AUTH_BLOCKED',
+        message: 'تم حظر المزامنة: الحساب الحالي لا يمتلك صلاحية الوصول لموديل Compu MSS.',
+      };
     }
 
     const isOnline = await this.checkConnectivity();
     if (!isOnline) {
-      return { synced: 0, conflicts: 0, failed: 0 };
+      const outbox = getCachedOutbox();
+      const pendingCount = outbox.filter(op => op.status === 'PENDING' || op.status === 'FAILED').length;
+      return {
+        synced: 0,
+        conflicts: 0,
+        failed: 0,
+        totalPending: pendingCount,
+        status: 'OFFLINE',
+        message: 'تعذر الاتصال بالخادم السحابي أو شبكة الإنترنت. العمليات محفوظة في صندوق العمليات المعلقة بأمان.',
+      };
     }
 
     // Pre-sync: push any pending models and pending devices to satisfy FK dependencies
@@ -289,6 +318,17 @@ export const mssSyncService = {
 
     const outbox = getCachedOutbox();
     const pendingOps = outbox.filter(op => op.status === 'PENDING' || op.status === 'FAILED');
+
+    if (pendingOps.length === 0) {
+      return {
+        synced: 0,
+        conflicts: 0,
+        failed: 0,
+        totalPending: 0,
+        status: 'NO_PENDING',
+        message: 'لا توجد عمليات معلقة بانتظار المزامنة حالياً. جميع البيانات متطابقة مع السحابة.',
+      };
+    }
 
     let syncedCount = 0;
     let conflictCount = 0;
@@ -310,6 +350,7 @@ export const mssSyncService = {
           // Already synchronized previously! (Idempotent replay)
           op.status = 'SYNCED';
           op.synced_at = new Date().toISOString();
+          op.last_error = null;
           syncedCount++;
           continue;
         }
@@ -518,6 +559,8 @@ export const mssSyncService = {
               const { error: devErr } = await supabase.from('mss_devices').upsert({
                 id: dev.id,
                 serial_number: dev.serial_number || null,
+                is_serialized: dev.is_serialized !== undefined ? Boolean(dev.is_serialized) : Boolean(dev.serial_number),
+                quantity: dev.quantity && dev.quantity > 0 ? Number(dev.quantity) : 1,
                 model_id: dev.model_id,
                 purchase_cost: dev.purchase_cost,
                 list_price: dev.list_price,
@@ -561,40 +604,129 @@ export const mssSyncService = {
             }
           } else if (op.type === 'SALE_CREATE' && op.payload) {
             const inv = op.payload;
-            if (inv && inv.id) {
-              const { error: invErr } = await supabase.from('mss_invoices').upsert({
-                id: inv.id,
-                invoice_number: inv.invoice_number,
-                device_id: inv.device_id,
-                model_id: inv.model_id,
-                serial_number: inv.serial_number || null,
-                selling_branch: inv.selling_branch,
-                source_branch: inv.source_branch,
-                list_price_snapshot: inv.list_price_snapshot,
-                discount_amount: inv.discount_amount || 0,
-                actual_sale_price: inv.actual_sale_price,
-                cost_snapshot: inv.cost_snapshot || 0,
-                gross_profit: inv.gross_profit || 0,
-                customer_name: inv.customer_name || 'عميل نقدي',
-                customer_phone: inv.customer_phone || null,
-                customer_national_id: inv.customer_national_id || null,
-                warranty_period_months: inv.warranty_period_months || 3,
-                warranty_terms: inv.warranty_terms || null,
-                sale_date: inv.sale_date,
-                notes: inv.notes || null,
-                is_returned: Boolean(inv.is_returned),
-              }, { onConflict: 'id' });
+            if (inv && (inv.id || inv.invoice_number)) {
+              const isUUID = (str?: string | null) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
 
-              if (invErr) {
-                console.error('SALE_CREATE sync failed:', invErr);
-                throw new Error(`فشلت مزامنة فاتورة البيع (${inv.invoice_number}): ${invErr.message}`);
+              // 1. Check if invoice already exists in Supabase (idempotency reconciliation)
+              let existingRemoteInv: any = null;
+              try {
+                if (isUUID(inv.id)) {
+                  const { data: byId } = await supabase
+                    .from('mss_invoices')
+                    .select('id, invoice_number')
+                    .eq('id', inv.id)
+                    .maybeSingle();
+
+                  if (byId) {
+                    existingRemoteInv = byId;
+                  }
+                }
+                if (!existingRemoteInv && inv.invoice_number) {
+                  const { data: byNum } = await supabase
+                    .from('mss_invoices')
+                    .select('id, invoice_number')
+                    .eq('invoice_number', inv.invoice_number)
+                    .maybeSingle();
+                  existingRemoteInv = byNum;
+                }
+              } catch (checkErr) {
+                console.warn('Check remote invoice warning:', checkErr);
               }
 
-              if (inv.device_id) {
+              // 2. If invoice does NOT exist in cloud, insert it with correct schema columns
+              if (!existingRemoteInv) {
+                const hasValidUuid = isUUID(inv.id);
+                const invoicePayload: any = {
+                  ...(hasValidUuid ? { id: inv.id } : {}),
+                  invoice_number: inv.invoice_number,
+                  device_id: isUUID(inv.device_id) ? inv.device_id : null,
+                  model_id: inv.model_id,
+                  serial_number: inv.serial_number || null,
+                  selling_branch: inv.selling_branch,
+                  source_branch: inv.source_branch,
+                  list_price_snapshot: inv.list_price_snapshot,
+                  discount_amount: inv.discount_amount || 0,
+                  actual_sale_price: inv.actual_sale_price,
+                  cost_snapshot: inv.cost_snapshot || 0,
+                  gross_profit: inv.gross_profit || 0,
+                  customer_name: inv.customer_name || 'عميل نقدي',
+                  customer_phone: inv.customer_phone || null,
+                  warranty_period: inv.warranty_period || (inv.warranty_period_months ? `${inv.warranty_period_months} شهور` : 'ضمان شهر كامل'),
+                  sale_date: inv.sale_date,
+                  notes: inv.notes || null,
+                  is_returned: Boolean(inv.is_returned),
+                  payment_type: inv.payment_type === 'DEFERRED' ? 'DEFERRED' : 'FULL',
+                  payment_status: inv.payment_status || 'PAID',
+                  paid_amount: inv.paid_amount !== undefined ? inv.paid_amount : inv.actual_sale_price,
+                  remaining_balance: inv.remaining_balance !== undefined ? inv.remaining_balance : 0,
+                  due_date: inv.due_date || null,
+                  installments_count: inv.installments_count || 0,
+                };
+
+                const { data: insertedInv, error: invErr } = await supabase
+                  .from('mss_invoices')
+                  .upsert(invoicePayload, { onConflict: hasValidUuid ? 'id' : 'invoice_number' })
+                  .select('id, invoice_number')
+                  .maybeSingle();
+
+                if (invErr) {
+                  console.error('SALE_CREATE sync failed:', invErr);
+                  throw new Error(`فشلت مزامنة فاتورة البيع (${inv.invoice_number}): ${invErr.message}`);
+                }
+                if (insertedInv) {
+                  existingRemoteInv = insertedInv;
+                }
+              }
+
+              // 3. Ensure line items are stored in mss_invoice_items if present
+              const targetInvId = existingRemoteInv?.id || (isUUID(inv.id) ? inv.id : null);
+              if (targetInvId && inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
+                try {
+                  const { data: existingItems } = await supabase
+                    .from('mss_invoice_items')
+                    .select('id')
+                    .eq('invoice_id', targetInvId);
+
+                  if (!existingItems || existingItems.length === 0) {
+                    await supabase.from('mss_invoice_items').insert(
+                      inv.items.map((it: any) => ({
+                        ...(isUUID(it.id) ? { id: it.id } : {}),
+                        invoice_id: targetInvId,
+                        device_id: isUUID(it.device_id) ? it.device_id : null,
+                        model_id: it.model_id,
+                        serial_number: it.serial_number || null,
+                        quantity: it.quantity || 1,
+                        list_price_snapshot: it.list_price_snapshot,
+                        unit_price: it.unit_price,
+                        discount_amount: it.discount_amount || 0,
+                        actual_sale_price: it.actual_sale_price,
+                        cost_snapshot: it.cost_snapshot || 0,
+                        gross_profit: it.gross_profit || 0,
+                        source_branch: it.source_branch,
+                      }))
+                    );
+                  }
+                } catch (itemsErr) {
+                  console.warn('Sync invoice items warning:', itemsErr);
+                }
+              }
+
+              // 4. Ensure sold device status is updated in Supabase
+              if (inv.device_id && isUUID(inv.device_id)) {
                 await supabase.from('mss_devices').update({
                   status: 'SOLD',
                   updated_at: new Date().toISOString(),
                 }).eq('id', inv.device_id);
+              }
+              if (inv.items && Array.isArray(inv.items)) {
+                for (const item of inv.items) {
+                  if (item.device_id && isUUID(item.device_id)) {
+                    await supabase.from('mss_devices').update({
+                      status: 'SOLD',
+                      updated_at: new Date().toISOString(),
+                    }).eq('id', item.device_id);
+                  }
+                }
               }
             }
           } else if (op.type === 'PAYMENT_RECORD' && op.payload?.payment) {
@@ -746,7 +878,31 @@ export const mssSyncService = {
     saveCachedOutbox(outbox);
     localStorage.setItem(MSS_SYNC_STATE_KEY, new Date().toISOString());
 
-    return { synced: syncedCount, conflicts: conflictCount, failed: failedCount };
+    let finalStatus: MSSSyncResult['status'] = 'SUCCESS';
+    let finalMsg = '';
+
+    if (failedCount > 0 && syncedCount === 0) {
+      finalStatus = 'FAILED';
+      finalMsg = `فشلت مزامنة (${failedCount}) عملية. تفاصيل الأخطاء مسجلة في قائمة العمليات المعلقة.`;
+    } else if (failedCount > 0 && syncedCount > 0) {
+      finalStatus = 'PARTIAL_FAILURE';
+      finalMsg = `تمت مزامنة (${syncedCount}) عملية بنجاح، بينما تعذر إكمال (${failedCount}) عملية ورُصد (${conflictCount}) تعارض.`;
+    } else if (conflictCount > 0) {
+      finalStatus = 'CONFLICTS';
+      finalMsg = `تمت مزامنة (${syncedCount}) عملية ورصد (${conflictCount}) تعارض يتطلب مراجعة وتسوية الإدارة.`;
+    } else {
+      finalStatus = 'SUCCESS';
+      finalMsg = `تمت مزامنة جميع العمليات بنجاح (${syncedCount} عملية).`;
+    }
+
+    return {
+      synced: syncedCount,
+      conflicts: conflictCount,
+      failed: failedCount,
+      totalPending: pendingOps.length,
+      status: finalStatus,
+      message: finalMsg,
+    };
   },
 
   /**

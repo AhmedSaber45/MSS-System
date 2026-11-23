@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.ts';
+import { generateUUID } from '../lib/utils.ts';
 import { validateDateRange, getTodayLocalDateString } from '../lib/dateValidation.ts';
 import { roundMoney } from '../lib/accounting.ts';
 import { mssInventoryService } from './mssInventoryService.ts';
@@ -640,11 +641,11 @@ export const mssCommerceService = {
 
     const invoiceNumber = await this.getNextInvoiceNumber();
     const now = new Date().toISOString();
-    const newId = 'inv-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
 
     // 5. Construct line items
     const constructedItems: MSSInvoiceItem[] = processedItems.map((p, idx) => ({
-      id: `inv-item-${newId}-${idx + 1}`,
+      id: generateUUID(),
       invoice_id: newId,
       device_id: p.device.id,
       model_id: p.device.model_id,
@@ -1532,10 +1533,10 @@ export const mssCommerceService = {
     const totalDeposit = Number(input.deposit_amount) || 0;
     const resNumber = await this.getNextReservationNumber();
     const now = new Date().toISOString();
-    const newId = 'res-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
 
     const constructedItems: MSSReservationItem[] = processedItems.map((p, idx) => ({
-      id: `res-item-${newId}-${idx + 1}`,
+      id: generateUUID(),
       reservation_id: newId,
       device_id: p.device.id,
       model_id: p.device.model_id,
@@ -1996,7 +1997,7 @@ export const mssCommerceService = {
 
     const returnNumber = await this.getNextReturnNumber();
     const now = new Date().toISOString();
-    const newId = 'ret-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+    const newId = generateUUID();
 
     const newReturn: MSSReturn = {
       id: newId,

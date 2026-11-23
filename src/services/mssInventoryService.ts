@@ -340,6 +340,8 @@ export const mssInventoryService = {
         .insert({
           id: newDevice.id,
           serial_number: newDevice.serial_number,
+          is_serialized: newDevice.is_serialized ?? Boolean(newDevice.serial_number),
+          quantity: newDevice.quantity && newDevice.quantity > 0 ? newDevice.quantity : 1,
           model_id: newDevice.model_id,
           purchase_cost: newDevice.purchase_cost,
           list_price: newDevice.list_price,
@@ -355,6 +357,8 @@ export const mssInventoryService = {
       if (!error && data) {
         synced = true;
         newDevice.id = data.id;
+        newDevice.quantity = Number(data.quantity) || newDevice.quantity;
+        newDevice.is_serialized = data.is_serialized !== undefined ? Boolean(data.is_serialized) : Boolean(newDevice.serial_number);
         newDevice.created_at = data.created_at;
         newDevice.updated_at = data.updated_at;
         newDevice._synced = true;
@@ -471,6 +475,8 @@ export const mssInventoryService = {
         .insert({
           id: bulkDevice.id,
           serial_number: null,
+          is_serialized: false,
+          quantity: bulkDevice.quantity,
           model_id: bulkDevice.model_id,
           purchase_cost: bulkDevice.purchase_cost,
           list_price: bulkDevice.list_price,
@@ -486,6 +492,8 @@ export const mssInventoryService = {
       if (!error && data) {
         synced = true;
         bulkDevice.id = data.id;
+        bulkDevice.quantity = Number(data.quantity) || bulkDevice.quantity;
+        bulkDevice.is_serialized = data.is_serialized !== undefined ? Boolean(data.is_serialized) : false;
         bulkDevice.created_at = data.created_at;
         bulkDevice.updated_at = data.updated_at;
         bulkDevice._synced = true;
@@ -676,6 +684,8 @@ export const mssInventoryService = {
         await supabase.from('mss_devices').insert({
           id: d.id,
           serial_number: d.serial_number,
+          is_serialized: true,
+          quantity: 1,
           model_id: d.model_id,
           purchase_cost: d.purchase_cost,
           list_price: d.list_price,
@@ -789,6 +799,8 @@ export const mssInventoryService = {
         .from('mss_devices')
         .update({
           serial_number: updated.serial_number,
+          is_serialized: updated.is_serialized,
+          quantity: updated.quantity,
           model_id: updated.model_id,
           purchase_cost: updated.purchase_cost,
           list_price: updated.list_price,
@@ -1374,6 +1386,8 @@ export const mssInventoryService = {
           {
             id: dev.id,
             serial_number: dev.serial_number || null,
+            is_serialized: dev.is_serialized !== undefined ? Boolean(dev.is_serialized) : Boolean(dev.serial_number),
+            quantity: dev.quantity && dev.quantity > 0 ? Number(dev.quantity) : 1,
             model_id: dev.model_id,
             purchase_cost: dev.purchase_cost,
             list_price: dev.list_price,

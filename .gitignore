@@ -42,3 +42,7 @@ src-tauri/target
 
 # Supabase
 supabase/.temp
+
+# Backups
+backups/
+

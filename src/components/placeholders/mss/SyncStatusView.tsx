@@ -112,17 +112,56 @@ export const SyncStatusView: React.FC = () => {
     setIsSyncing(true);
     try {
       const result = await mssSyncService.syncOutbox();
-      showNotification({
-        type: 'success',
-        title: 'اكتملت دورة المزامنة',
-        message: `تمت مزامنة (${result.synced}) عملية، ورصد (${result.conflicts}) تعارض، وفشل (${result.failed}) عملية.`,
-      });
+      if (result.status === 'NO_PENDING') {
+        showNotification({
+          type: 'info',
+          title: 'لا توجد عمليات معلقة',
+          message: result.message || 'جميع العمليات متزامنة بالكامل مع السحابة ولا توجد بيانات معلقة.',
+        });
+      } else if (result.status === 'AUTH_BLOCKED') {
+        showNotification({
+          type: 'warning',
+          title: 'المزامنة مقيدة بالصلاحيات',
+          message: result.message || 'المستخدم الحالي غير مصرح له بمزامنة بيانات Compu MSS. يرجى تسجيل الدخول بحساب مخول.',
+        });
+      } else if (result.status === 'OFFLINE') {
+        showNotification({
+          type: 'warning',
+          title: 'لا يوجد اتصال بالخادم',
+          message: result.message || 'تعذر الاتصال بالخادم السحابي. يرجى التحقق من الشبكة وإعادة المحاولة. العمليات محفوظة محلياً.',
+        });
+      } else if (result.status === 'SUCCESS') {
+        showNotification({
+          type: 'success',
+          title: 'اكتملت المزامنة بنجاح',
+          message: result.message || `تمت مزامنة (${result.synced}) عملية بنجاح إلى السحابة.`,
+        });
+      } else if (result.status === 'CONFLICTS') {
+        showNotification({
+          type: 'warning',
+          title: 'تم رصد تعارضات في البيانات',
+          message: result.message || `تمت مزامنة (${result.synced}) عملية، ورصد (${result.conflicts}) تعارض يتطلب مراجعة وتسوية المدير.`,
+        });
+      } else if (result.status === 'PARTIAL_FAILURE') {
+        showNotification({
+          type: 'warning',
+          title: 'مزامنة جزئية',
+          message: result.message || `تمت مزامنة (${result.synced}) عملية، وفشلت (${result.failed}) عملية. يرجى مراجعة تفاصيل الخطأ في الجدول.`,
+        });
+      } else {
+        // FAILED
+        showNotification({
+          type: 'error',
+          title: 'فشلت المزامنة',
+          message: result.message || `فشلت مزامنة (${result.failed}) عملية. تفاصيل الأخطاء مسجلة في قائمة العمليات المعلقة أدناه.`,
+        });
+      }
       await loadData();
     } catch (err: any) {
       showNotification({
         type: 'error',
-        title: 'فشلت المزامنة',
-        message: err.message || 'تعذر استكمال المزامنة السحابية',
+        title: 'خطأ غير متوقع أثناء المزامنة',
+        message: err.message || 'تعذر استكمال المزامنة السحابية. تم الإبقاء على العمليات في صندوق العمليات بأمان.',
       });
     } finally {
       setIsSyncing(false);
