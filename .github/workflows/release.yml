@@ -74,12 +74,12 @@ jobs:
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__ Release Notes
-            - MSS Add New Device Modal: Automatically populates Offer Price using the selected model's configured selling price.
-            - Model Price Switching: Dynamically updates Offer Price when switching between models, clearing values if no price is configured (eliminates hardcoded 15000).
-            - Complete Model Specifications: Displays full saved model specifications (Processor, GPU, RAM, Storage, Screen, Category, Notes/Remarks, and Selling Price) directly in the modal upon selection.
-            - Model Switching Isolation: Clears previous specifications immediately to ensure zero leakage or mixing between different models.
-            - Fallback Indicators: Displays clean "غير محدد" indicator for optional unconfigured specifications.
-            - Full Data & Synchronization Integrity: Preserved local SQLite database, remote cloud records, and existing authentication/permission systems safely.
+            - MSS Dynamic Model Form: Form input fields dynamically adapt to selected category (Laptop, Screen/Monitor, Other).
+            - Dedicated Monitor Specifications: Complete fields for Screen Size (inches), Resolution, Panel Type (IPS/VA/TN/OLED), Refresh Rate (Hz), Response Time (ms), Aspect Ratio, Connectivity / Ports, Curved/Flat, Touchscreen Support, Brightness (nits), and Screen Notes.
+            - Hardware Isolation: Hardware fields (CPU, RAM, GPU, storage) are strictly isolated and never contaminate Screen models upon create or update.
+            - Edit Model Support: Existing models load seamlessly into the appropriate form layout with full roundtrip specification parsing and backward compatibility.
+            - Common Fields Integrity: Brand, Model Name, Default List Price, and notes remain preserved across category switching.
+            - Production Data Safety: Real production data untouched with zero mock or fake data pollution.
             - Transparent auto-updater signed with verified official release keys.
           releaseDraft: false
           prerelease: false

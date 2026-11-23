@@ -7,7 +7,16 @@ import { Spinner } from '@/components/common/Spinner';
 import { useNotification } from '@/context/NotificationContext';
 import { mssCatalogService } from '@/services/mssCatalogService';
 import type { MSSCatalogModel, MSSCategory, NewMSSModelInput } from '@/types/mssCatalog';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Laptop, Monitor, Layers } from 'lucide-react';
+import {
+  type ParsedScreenSpecs,
+  buildScreenSummary,
+  buildScreenSpecifications,
+  parseScreenSpecs,
+} from '@/services/mssScreenSpecs';
+
+export type { ParsedScreenSpecs };
+export { buildScreenSummary, buildScreenSpecifications, parseScreenSpecs };
 
 export interface MSSModelModalProps {
   isOpen: boolean;
@@ -25,43 +34,114 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
   zIndexClassName,
 }) => {
   const { showNotification } = useNotification();
+
+  // Common Fields
   const [brand, setBrand] = useState('');
   const [modelName, setModelName] = useState('');
   const [category, setCategory] = useState<MSSCategory>('لابتوب');
+  const [defaultListPrice, setDefaultListPrice] = useState<number>(0);
+
+  // Laptop & Generic Fields
   const [processor, setProcessor] = useState('');
   const [gpu, setGpu] = useState('');
   const [ram, setRam] = useState('');
   const [storage, setStorage] = useState('');
   const [screenSize, setScreenSize] = useState('');
   const [specifications, setSpecifications] = useState('');
-  const [defaultListPrice, setDefaultListPrice] = useState<number>(0);
+
+  // Screen / Monitor Fields
+  const [monitorSize, setMonitorSize] = useState('');
+  const [monitorResolution, setMonitorResolution] = useState('');
+  const [monitorPanel, setMonitorPanel] = useState('');
+  const [monitorRefreshRate, setMonitorRefreshRate] = useState('');
+  const [monitorResponseTime, setMonitorResponseTime] = useState('');
+  const [monitorAspectRatio, setMonitorAspectRatio] = useState('');
+  const [monitorPorts, setMonitorPorts] = useState('');
+  const [monitorCurvature, setMonitorCurvature] = useState('مسطحة (Flat)');
+  const [monitorTouch, setMonitorTouch] = useState('لا');
+  const [monitorBrightness, setMonitorBrightness] = useState('');
+  const [monitorNotes, setMonitorNotes] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize or reset form state when modal opens or modelToEdit changes
   useEffect(() => {
     if (isOpen) {
       if (modelToEdit) {
-        setBrand(modelToEdit.brand);
-        setModelName(modelToEdit.model_name);
-        setCategory(modelToEdit.category);
-        setProcessor(modelToEdit.processor || '');
-        setGpu(modelToEdit.gpu || '');
-        setRam(modelToEdit.ram || '');
-        setStorage(modelToEdit.storage || '');
-        setScreenSize(modelToEdit.screen_size || '');
-        setSpecifications(modelToEdit.specifications || '');
-        setDefaultListPrice(modelToEdit.default_list_price);
+        setBrand(modelToEdit.brand || '');
+        setModelName(modelToEdit.model_name || '');
+        setCategory(modelToEdit.category || 'لابتوب');
+        setDefaultListPrice(modelToEdit.default_list_price || 0);
+
+        if (modelToEdit.category === 'شاشة') {
+          // Parse monitor specifications
+          const parsed = parseScreenSpecs(modelToEdit.screen_size, modelToEdit.specifications);
+          setMonitorSize(parsed.size);
+          setMonitorResolution(parsed.resolution);
+          setMonitorPanel(parsed.panel);
+          setMonitorRefreshRate(parsed.refreshRate);
+          setMonitorResponseTime(parsed.responseTime);
+          setMonitorAspectRatio(parsed.aspectRatio);
+          setMonitorPorts(parsed.ports);
+          setMonitorCurvature(parsed.curvature);
+          setMonitorTouch(parsed.touch);
+          setMonitorBrightness(parsed.brightness);
+          setMonitorNotes(parsed.notes);
+
+          // Clear laptop fields
+          setProcessor('');
+          setGpu('');
+          setRam('');
+          setStorage('');
+          setScreenSize('');
+          setSpecifications('');
+        } else {
+          // Laptop or Other
+          setProcessor(modelToEdit.processor || '');
+          setGpu(modelToEdit.gpu || '');
+          setRam(modelToEdit.ram || '');
+          setStorage(modelToEdit.storage || '');
+          setScreenSize(modelToEdit.screen_size || '');
+          setSpecifications(modelToEdit.specifications || '');
+
+          // Clear monitor fields
+          setMonitorSize('');
+          setMonitorResolution('');
+          setMonitorPanel('');
+          setMonitorRefreshRate('');
+          setMonitorResponseTime('');
+          setMonitorAspectRatio('');
+          setMonitorPorts('');
+          setMonitorCurvature('مسطحة (Flat)');
+          setMonitorTouch('لا');
+          setMonitorBrightness('');
+          setMonitorNotes('');
+        }
       } else {
+        // Reset to clean empty form
         setBrand('');
         setModelName('');
         setCategory('لابتوب');
+        setDefaultListPrice(0);
+
         setProcessor('');
         setGpu('');
         setRam('');
         setStorage('');
         setScreenSize('');
         setSpecifications('');
-        setDefaultListPrice(0);
+
+        setMonitorSize('');
+        setMonitorResolution('');
+        setMonitorPanel('');
+        setMonitorRefreshRate('');
+        setMonitorResponseTime('');
+        setMonitorAspectRatio('');
+        setMonitorPorts('');
+        setMonitorCurvature('مسطحة (Flat)');
+        setMonitorTouch('لا');
+        setMonitorBrightness('');
+        setMonitorNotes('');
       }
     }
   }, [isOpen, modelToEdit]);
@@ -83,7 +163,7 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
       showNotification({
         type: 'warning',
         title: 'اسم الموديل مطلوب',
-        message: 'يرجى كتابة اسم الموديل (مثل: ThinkPad T480)',
+        message: 'يرجى كتابة اسم الموديل (مثل: ThinkPad T480 أو UltraSharp U2720Q)',
       });
       return;
     }
@@ -97,20 +177,78 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
       return;
     }
 
+    // Type-specific validation
+    if (category === 'شاشة' && !monitorSize.trim()) {
+      showNotification({
+        type: 'warning',
+        title: 'حجم الشاشة مطلوب',
+        message: 'يرجى كتابة حجم الشاشة بالبوصة للشاشات (مثل: 24", 27", 32")',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const inputData: NewMSSModelInput = {
-        brand: brand.trim(),
-        model_name: modelName.trim(),
-        category,
-        processor: processor.trim() || undefined,
-        gpu: (category === 'لابتوب' && gpu.trim()) ? gpu.trim() : undefined,
-        ram: ram.trim() || undefined,
-        storage: storage.trim() || undefined,
-        screen_size: screenSize.trim() || undefined,
-        specifications: specifications.trim() || undefined,
-        default_list_price: defaultListPrice,
-      };
+      let inputData: NewMSSModelInput;
+
+      if (category === 'شاشة') {
+        const constructedScreenSize = buildScreenSummary(
+          monitorSize,
+          monitorResolution,
+          monitorPanel,
+          monitorRefreshRate,
+          monitorCurvature
+        );
+        const constructedSpecs = buildScreenSpecifications({
+          responseTime: monitorResponseTime,
+          aspectRatio: monitorAspectRatio,
+          ports: monitorPorts,
+          brightness: monitorBrightness,
+          touch: monitorTouch,
+          notes: monitorNotes,
+        });
+
+        inputData = {
+          brand: brand.trim(),
+          model_name: modelName.trim(),
+          category: 'شاشة',
+          // Setting incompatible hardware fields to undefined on create or empty string on update clears them in the DB
+          processor: modelToEdit ? '' : undefined,
+          gpu: modelToEdit ? '' : undefined,
+          ram: modelToEdit ? '' : undefined,
+          storage: modelToEdit ? '' : undefined,
+          screen_size: constructedScreenSize || undefined,
+          specifications: constructedSpecs || undefined,
+          default_list_price: defaultListPrice,
+        };
+      } else if (category === 'لابتوب') {
+        inputData = {
+          brand: brand.trim(),
+          model_name: modelName.trim(),
+          category: 'لابتوب',
+          processor: processor.trim() || (modelToEdit ? '' : undefined),
+          gpu: gpu.trim() || (modelToEdit ? '' : undefined),
+          ram: ram.trim() || (modelToEdit ? '' : undefined),
+          storage: storage.trim() || (modelToEdit ? '' : undefined),
+          screen_size: screenSize.trim() || (modelToEdit ? '' : undefined),
+          specifications: specifications.trim() || (modelToEdit ? '' : undefined),
+          default_list_price: defaultListPrice,
+        };
+      } else {
+        // أخرى (Other)
+        inputData = {
+          brand: brand.trim(),
+          model_name: modelName.trim(),
+          category: 'أخرى',
+          processor: processor.trim() || (modelToEdit ? '' : undefined),
+          gpu: modelToEdit ? '' : undefined,
+          ram: ram.trim() || (modelToEdit ? '' : undefined),
+          storage: storage.trim() || (modelToEdit ? '' : undefined),
+          screen_size: screenSize.trim() || (modelToEdit ? '' : undefined),
+          specifications: specifications.trim() || (modelToEdit ? '' : undefined),
+          default_list_price: defaultListPrice,
+        };
+      }
 
       let resultModel: MSSCatalogModel;
 
@@ -155,7 +293,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => !isSubmitting && onClose()}
-      title={modelToEdit ? `تعديل الموديل: ${modelToEdit.brand} ${modelToEdit.model_name}` : 'إضافة موديل جديد إلى الكتالوج'}
+      title={
+        modelToEdit
+          ? `تعديل الموديل: ${modelToEdit.brand} ${modelToEdit.model_name}`
+          : 'إضافة موديل جديد إلى الكتالوج'
+      }
       subtitle="تسجيل مواصفات الجهاز والشاشة والمعالج في كتالوج الأجهزة المشترك"
       size="lg"
       zIndexClassName={zIndexClassName}
@@ -184,13 +326,14 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {/* Core Common Fields: Brand, Model Name, Category */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="font-bold text-slate-700 block mb-1">
               الماركة (Brand) <span className="text-rose-500">*</span>
             </label>
             <Input
-              placeholder="مثال: Lenovo, Dell, HP..."
+              placeholder="مثال: Dell, Lenovo, Samsung, LG..."
               value={brand}
               onChange={e => setBrand(e.target.value)}
               required
@@ -202,7 +345,7 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
               اسم الموديل (Model Name) <span className="text-rose-500">*</span>
             </label>
             <Input
-              placeholder="مثال: ThinkPad T480..."
+              placeholder={category === 'شاشة' ? 'مثال: UltraSharp U2720Q, Odyssey G7...' : 'مثال: ThinkPad T480, Latitude 5490...'}
               value={modelName}
               onChange={e => setModelName(e.target.value)}
               required
@@ -210,73 +353,281 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">النوع</label>
+            <label className="font-bold text-slate-700 block mb-1">النوع / الفئة</label>
             <Select
               value={category}
               onChange={e => setCategory(e.target.value as MSSCategory)}
               options={[
                 { value: 'لابتوب', label: 'لابتوب' },
                 { value: 'شاشة', label: 'شاشة' },
+                { value: 'أخرى', label: 'أخرى' },
               ]}
             />
           </div>
         </div>
 
-        {/* Hardware Specs Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">المعالج (CPU)</label>
-            <Input
-              placeholder="مثال: Intel Core i5-8350U, i7-1185G7..."
-              value={processor}
-              onChange={e => setProcessor(e.target.value)}
-              className="font-mono"
-            />
-          </div>
+        {/* DYNAMIC FORM SECTION BASED ON CATEGORY */}
 
-          {category === 'لابتوب' && (
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">
-                كارت الشاشة (GPU) <span className="text-slate-400 font-normal">(اختياري)</span>
-              </label>
-              <Input
-                placeholder="مثال: Intel UHD 620, Nvidia RTX 3060 6GB..."
-                value={gpu}
-                onChange={e => setGpu(e.target.value)}
-                className="font-mono"
-              />
+        {/* 1. LAPTOP FIELDS */}
+        {category === 'لابتوب' && (
+          <div className="pt-3 border-t border-slate-200 space-y-3">
+            <div className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded flex items-center gap-1.5">
+              <Laptop className="w-4 h-4 text-blue-600" />
+              <span>مواصفات اللابتوب والعتاد الداخلي</span>
             </div>
-          )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">المعالج (CPU)</label>
+                <Input
+                  placeholder="مثال: Intel Core i5-8350U, i7-1185G7..."
+                  value={processor}
+                  onChange={e => setProcessor(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
 
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">الذاكرة العشوائية (RAM)</label>
-            <Input
-              placeholder="مثال: 16 GB DDR4, 32 GB..."
-              value={ram}
-              onChange={e => setRam(e.target.value)}
-              className="font-mono"
-            />
-          </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  كارت الشاشة (GPU) <span className="text-slate-400 font-normal">(اختياري)</span>
+                </label>
+                <Input
+                  placeholder="مثال: Intel UHD 620, Nvidia RTX 3060 6GB..."
+                  value={gpu}
+                  onChange={e => setGpu(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
 
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">سعة التخزين (Storage)</label>
-            <Input
-              placeholder="مثال: 512 GB NVMe SSD, 1 TB..."
-              value={storage}
-              onChange={e => setStorage(e.target.value)}
-              className="font-mono"
-            />
-          </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">الذاكرة العشوائية (RAM)</label>
+                <Input
+                  placeholder="مثال: 16 GB DDR4, 32 GB..."
+                  value={ram}
+                  onChange={e => setRam(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
 
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">حجم ومواصفات الشاشة</label>
-            <Input
-              placeholder='مثال: 14" FHD IPS, 24" 144Hz...'
-              value={screenSize}
-              onChange={e => setScreenSize(e.target.value)}
-            />
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">سعة التخزين (Storage)</label>
+                <Input
+                  placeholder="مثال: 512 GB NVMe SSD, 1 TB..."
+                  value={storage}
+                  onChange={e => setStorage(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="font-bold text-slate-700 block mb-1">حجم ومواصفات الشاشة</label>
+                <Input
+                  placeholder='مثال: 14" FHD IPS, 15.6" 144Hz...'
+                  value={screenSize}
+                  onChange={e => setScreenSize(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* 2. SCREEN / MONITOR FIELDS */}
+        {category === 'شاشة' && (
+          <div className="pt-3 border-t border-slate-200 space-y-3">
+            <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded flex items-center gap-1.5">
+              <Monitor className="w-4 h-4 text-emerald-600" />
+              <span>مواصفات الشاشة والعرض (Screen & Display Specifications)</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Screen Size */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  حجم الشاشة (بالبوصة) <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  placeholder='مثال: 24", 27", 32", 21.5"...'
+                  value={monitorSize}
+                  onChange={e => setMonitorSize(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Resolution */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">دقة الشاشة (Resolution)</label>
+                <Input
+                  placeholder="مثال: FHD (1920×1080), 2K QHD, 4K UHD..."
+                  value={monitorResolution}
+                  onChange={e => setMonitorResolution(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Panel Type */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">نوع اللوحة (Panel Type)</label>
+                <Select
+                  value={monitorPanel}
+                  onChange={e => setMonitorPanel(e.target.value)}
+                  options={[
+                    { value: '', label: 'غير محدد / افتراضي' },
+                    { value: 'IPS', label: 'IPS' },
+                    { value: 'VA', label: 'VA' },
+                    { value: 'TN', label: 'TN' },
+                    { value: 'OLED', label: 'OLED' },
+                    { value: 'Mini-LED', label: 'Mini-LED' },
+                    { value: 'Nano IPS', label: 'Nano IPS' },
+                  ]}
+                />
+              </div>
+
+              {/* Refresh Rate */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">معدل التحديث (Refresh Rate)</label>
+                <Input
+                  placeholder="مثال: 60Hz, 75Hz, 144Hz, 165Hz..."
+                  value={monitorRefreshRate}
+                  onChange={e => setMonitorRefreshRate(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Response Time */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">زمن الاستجابة (Response Time)</label>
+                <Input
+                  placeholder="مثال: 1ms, 2ms, 4ms, 5ms..."
+                  value={monitorResponseTime}
+                  onChange={e => setMonitorResponseTime(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Aspect Ratio */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">نسبة الأبعاد (Aspect Ratio)</label>
+                <Select
+                  value={monitorAspectRatio}
+                  onChange={e => setMonitorAspectRatio(e.target.value)}
+                  options={[
+                    { value: '', label: 'غير محدد (افتراضي)' },
+                    { value: '16:9', label: '16:9 (عريض قياسي)' },
+                    { value: '16:10', label: '16:10' },
+                    { value: '21:9', label: '21:9 (UltraWide)' },
+                    { value: '32:9', label: '32:9 (Super UltraWide)' },
+                    { value: '4:3', label: '4:3' },
+                  ]}
+                />
+              </div>
+
+              {/* Curved / Flat */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">تصميم الشاشة (Curved / Flat)</label>
+                <Select
+                  value={monitorCurvature}
+                  onChange={e => setMonitorCurvature(e.target.value)}
+                  options={[
+                    { value: 'مسطحة (Flat)', label: 'مسطحة (Flat)' },
+                    { value: 'منحنية (Curved)', label: 'منحنية (Curved)' },
+                  ]}
+                />
+              </div>
+
+              {/* Touchscreen */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">دعم اللمس (Touchscreen)</label>
+                <Select
+                  value={monitorTouch}
+                  onChange={e => setMonitorTouch(e.target.value)}
+                  options={[
+                    { value: 'لا', label: 'لا (Non-Touch)' },
+                    { value: 'نعم', label: 'نعم (Touchscreen)' },
+                  ]}
+                />
+              </div>
+
+              {/* Brightness */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">السطوع (Brightness)</label>
+                <Input
+                  placeholder="مثال: 250 nits, 300 nits, 350 nits..."
+                  value={monitorBrightness}
+                  onChange={e => setMonitorBrightness(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Ports / Connectivity */}
+              <div className="md:col-span-3">
+                <label className="font-bold text-slate-700 block mb-1">
+                  المنافذ والتوصيل (Ports / Connectivity)
+                </label>
+                <Input
+                  placeholder="مثال: HDMI, DisplayPort, VGA, USB-C, Audio Out..."
+                  value={monitorPorts}
+                  onChange={e => setMonitorPorts(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. OTHER / GENERIC FIELDS */}
+        {category === 'أخرى' && (
+          <div className="pt-3 border-t border-slate-200 space-y-3">
+            <div className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-amber-600" />
+              <span>مواصفات الجهاز العامة</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  المعالج (CPU) <span className="text-slate-400 font-normal">(اختياري)</span>
+                </label>
+                <Input
+                  placeholder="مثال: Intel Core i5..."
+                  value={processor}
+                  onChange={e => setProcessor(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  الذاكرة العشوائية (RAM) <span className="text-slate-400 font-normal">(اختياري)</span>
+                </label>
+                <Input
+                  placeholder="مثال: 8 GB..."
+                  value={ram}
+                  onChange={e => setRam(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  سعة التخزين (Storage) <span className="text-slate-400 font-normal">(اختياري)</span>
+                </label>
+                <Input
+                  placeholder="مثال: 256 GB SSD..."
+                  value={storage}
+                  onChange={e => setStorage(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  الشاشة / العرض <span className="text-slate-400 font-normal">(اختياري)</span>
+                </label>
+                <Input
+                  placeholder='مثال: 10.1", بدون شاشة...'
+                  value={screenSize}
+                  onChange={e => setScreenSize(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Price and Details */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
@@ -297,12 +648,22 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
 
           <div className="md:col-span-2">
             <label className="font-bold text-slate-700 block mb-1">
-              ملاحظات ومواصفات إضافية
+              {category === 'شاشة' ? 'ملاحظات ومواصفات إضافية للشاشة' : 'ملاحظات ومواصفات إضافية'}
             </label>
             <Input
-              placeholder="مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي..."
-              value={specifications}
-              onChange={e => setSpecifications(e.target.value)}
+              placeholder={
+                category === 'شاشة'
+                  ? 'مثال: قاعدة هيدروليك قابلة للدوران والارتفاع، سماعات مدمجة، مخرج صوت 3.5mm...'
+                  : 'مثال: كيبورد مضيئة، بصمة إصبع، شاحن تايب سي 65 واط أصلي...'
+              }
+              value={category === 'شاشة' ? monitorNotes : specifications}
+              onChange={e => {
+                if (category === 'شاشة') {
+                  setMonitorNotes(e.target.value);
+                } else {
+                  setSpecifications(e.target.value);
+                }
+              }}
             />
           </div>
         </div>
