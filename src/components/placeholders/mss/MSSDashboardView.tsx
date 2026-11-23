@@ -44,6 +44,7 @@ export const MSSDashboardView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'mss' | 'unified'>('mss');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // MSS Data States
@@ -57,6 +58,7 @@ export const MSSDashboardView: React.FC = () => {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [devices, reservations, models, availMap, invoices, syncSummary, finSummary] =
         await Promise.all([
@@ -105,8 +107,9 @@ export const MSSDashboardView: React.FC = () => {
         setSyncStatusText('وضع عدم الاتصال');
         setSyncBadgeVariant('warning');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load MSS dashboard data:', err);
+      setLoadError(err?.message || 'تعذر تحميل بيانات لوحة تحكم Compu MSS');
     } finally {
       setIsLoading(false);
     }
@@ -389,13 +392,26 @@ export const MSSDashboardView: React.FC = () => {
                 عرض سجل الفواتير كاملاً
               </Button>
             </div>
-            <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
-              <Table
-                columns={columns}
-                data={recentSales}
-                keyExtractor={(item: MSSInvoice) => item.id}
-              />
-            </div>
+            {loadError ? (
+              <Alert variant="danger" title="خطأ في تحميل المبيعات الأخيرة">
+                <div className="flex items-center justify-between">
+                  <span>{loadError}</span>
+                  <Button size="sm" variant="outline" onClick={loadData} className="mr-2">
+                    إعادة المحاولة
+                  </Button>
+                </div>
+              </Alert>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-2xs">
+                <Table
+                  columns={columns}
+                  data={recentSales}
+                  keyExtractor={(item: MSSInvoice) => item.id}
+                  emptyMessage="لا توجد مبيعات مسجلة حالياً"
+                  emptySubMessage="لم يتم تسجيل أي عمليات بيع أجهزة حتى الآن"
+                />
+              </div>
+            )}
           </div>
         </>
       )}

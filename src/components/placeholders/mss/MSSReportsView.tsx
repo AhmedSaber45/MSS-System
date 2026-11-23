@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsCard, Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -59,6 +59,7 @@ export const MSSReportsView: React.FC = () => {
   const [stockValuation, setStockValuation] = useState<LocationStockValuation[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [dailySummaries, setDailySummaries] = useState<DailyMSSSummary[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [dateLabel, setDateLabel] = useState<string>('');
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
   const [soldLaptopsReport, setSoldLaptopsReport] = useState<SoldLaptopsReport | null>(null);
@@ -72,8 +73,40 @@ export const MSSReportsView: React.FC = () => {
     debtors: any[];
   } | null>(null);
 
+  type DailySortField = 'date' | 'salesCount' | 'revenue' | 'cogs' | 'refunds' | 'grossProfit';
+  const [dailySortField, setDailySortField] = useState<DailySortField>('date');
+  const [dailySortDirection, setDailySortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const activeDailySummaries = useMemo(() => {
+    return dailySummaries.filter(d => d.salesCount > 0 || d.refunds > 0 || d.revenue > 0);
+  }, [dailySummaries]);
+
+  const sortedDailySummaries = useMemo(() => {
+    const list = [...activeDailySummaries];
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (dailySortField === 'date') {
+        cmp = a.date.localeCompare(b.date);
+      } else {
+        cmp = (a[dailySortField] || 0) - (b[dailySortField] || 0);
+      }
+      return dailySortDirection === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [activeDailySummaries, dailySortField, dailySortDirection]);
+
+  const handleToggleDailySort = (field: DailySortField) => {
+    if (dailySortField === field) {
+      setDailySortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setDailySortField(field);
+      setDailySortDirection('desc');
+    }
+  };
+
   const loadReportData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const dateFilter = unifiedDashboardService.calculateDateRange(period, customStart, customEnd);
       setDateLabel(dateFilter.label);
@@ -96,8 +129,9 @@ export const MSSReportsView: React.FC = () => {
       setDailySummaries(daily);
       setReceivables(rec);
       setSoldLaptopsReport(soldReport);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load MSS report data:', err);
+      setLoadError(err?.message || 'تعذر تحميل بيانات تقارير Compu MSS');
     } finally {
       setIsLoading(false);
     }
@@ -271,10 +305,23 @@ export const MSSReportsView: React.FC = () => {
         </CardContent>
       </Card>
 
-      {isLoading || !summary ? (
+      {isLoading ? (
         <div className="py-16 text-center">
           <Spinner size="lg" />
           <p className="mt-3 text-sm font-medium text-slate-600">جاري إعداد تقارير Compu MSS...</p>
+        </div>
+      ) : loadError ? (
+        <Card className="p-8 text-center bg-white border border-rose-200 shadow-2xs space-y-3">
+          <AlertTriangle className="w-10 h-10 mx-auto text-rose-500" />
+          <h3 className="text-base font-bold text-rose-800">تعذر تحميل بيانات التقارير</h3>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={loadReportData} className="border-rose-300 text-rose-800 hover:bg-rose-50">
+            إعادة المحاولة
+          </Button>
+        </Card>
+      ) : !summary ? (
+        <div className="py-16 text-center">
+          <p className="text-sm text-slate-500">لا توجد بيانات متاحة لعرض التقرير</p>
         </div>
       ) : (
         <>
@@ -438,23 +485,101 @@ export const MSSReportsView: React.FC = () => {
               <table className="w-full text-right text-sm">
                 <thead className="bg-slate-100/90 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-300">
                   <tr>
-                    <th className="py-3 px-3.5">التاريخ</th>
-                    <th className="py-3 px-3.5 text-center">عدد المبيعات</th>
-                    <th className="py-3 px-3.5 text-left">الإيراد اليومي</th>
-                    <th className="py-3 px-3.5 text-left">تكلفة الأجهزة المباعة</th>
-                    <th className="py-3 px-3.5 text-left">المرتجعات</th>
-                    <th className="py-3 px-3.5 text-left">مجمل الربح اليومي</th>
+                    <th
+                      className="py-3 px-3.5 cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('date')}
+                      title="ترتيب حسب التاريخ"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>التاريخ</span>
+                        {dailySortField === 'date' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-3.5 text-center cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('salesCount')}
+                      title="ترتيب حسب عدد المبيعات"
+                    >
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span>عدد المبيعات</span>
+                        {dailySortField === 'salesCount' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-3.5 text-left cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('revenue')}
+                      title="ترتيب حسب الإيراد اليومي"
+                    >
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span>الإيراد اليومي</span>
+                        {dailySortField === 'revenue' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-3.5 text-left cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('cogs')}
+                      title="ترتيب حسب تكلفة الأجهزة المباعة"
+                    >
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span>تكلفة الأجهزة المباعة</span>
+                        {dailySortField === 'cogs' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-3.5 text-left cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('refunds')}
+                      title="ترتيب حسب المرتجعات"
+                    >
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span>المرتجعات</span>
+                        {dailySortField === 'refunds' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-3.5 text-left cursor-pointer hover:bg-slate-200/70 transition-colors select-none"
+                      onClick={() => handleToggleDailySort('grossProfit')}
+                      title="ترتيب حسب مجمل الربح اليومي"
+                    >
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span>مجمل الربح اليومي</span>
+                        {dailySortField === 'grossProfit' && (
+                          <span className="text-xs font-bold text-blue-600">
+                            {dailySortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {dailySummaries.length === 0 ? (
+                  {sortedDailySummaries.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-slate-500">
-                        لا توجد بيانات مسجلة في هذه الفترة
+                        لا توجد حركة مبيعات مسجلة خلال آخر 14 يوماً
                       </td>
                     </tr>
                   ) : (
-                    dailySummaries.map((day, idx) => (
+                    sortedDailySummaries.map((day, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3 px-3.5 font-mono font-medium text-slate-900 tabular-nums">{day.date}</td>
                         <td className="py-3 px-3.5 text-center font-mono tabular-nums text-slate-700 font-semibold">{day.salesCount}</td>

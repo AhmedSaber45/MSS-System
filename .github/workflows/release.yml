@@ -74,11 +74,11 @@ jobs:
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__ Release Notes
-            - Fixed assembled-model quantity registration and BOM component consumption.
-            - Improved Compu MSS synchronization reliability and pending operation handling.
-            - Improved synchronization error reporting and duplicate transaction protection.
-            - Enhanced Sync Now manual action to distinguish between all operational outcomes.
-            - Preserved full data integrity, SQLite databases, and remote cloud records safely.
+            - MSS Dashboard Recent Sales: Removed stale local cached and demo records; section now strictly reflects genuine cloud sales and displays clean empty states.
+            - MSS Invoices: Prevented deleted cloud invoices from reappearing through stale local cache, while preserving legitimate pending offline transactions.
+            - MSS Sales Reports: Filtered 14-day sales activity to genuine active days and added interactive column sorting.
+            - MSS Promotional Image Generator: Fixed price input field behavior so placeholder is purely visual guidance and entered numbers are never prefixed with extra zeros.
+            - Preserved local SQLite database integrity, remote cloud records, and existing authentication/permission systems safely.
             - Transparent auto-updater signed with verified official release keys.
           releaseDraft: false
           prerelease: false

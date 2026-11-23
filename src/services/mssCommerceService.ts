@@ -289,7 +289,7 @@ export const mssCommerceService = {
         .select('*')
         .order('sale_date', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const cloudInvoices = data.map((row: any) => ({
           id: row.id,
           invoice_number: row.invoice_number,
@@ -319,16 +319,43 @@ export const mssCommerceService = {
           installments_count: Number(row.installments_count) || 0,
         }));
 
-        const localCached = getCachedInvoices();
+        // Retrieve pending outbox operations to preserve legitimate unsynced offline sales
+        let pendingLocalInvoices: MSSInvoice[] = [];
+        try {
+          const outbox = await mssSyncService.getOutbox();
+          const pendingSaleOps = outbox.filter(
+            op => op.type === 'SALE_CREATE' && (op.status === 'PENDING' || op.status === 'FAILED')
+          );
+          const pendingInvoiceNumbers = new Set(
+            pendingSaleOps.map(op => op.payload?.invoice_number).filter(Boolean)
+          );
+          const pendingInvoiceIds = new Set(
+            pendingSaleOps.map(op => op.payload?.id).filter(Boolean)
+          );
+
+          const localCached = getCachedInvoices();
+          pendingLocalInvoices = localCached.filter(
+            li => pendingInvoiceNumbers.has(li.invoice_number) || pendingInvoiceIds.has(li.id)
+          );
+        } catch (syncErr) {
+          console.warn('Failed to inspect pending outbox for invoices:', syncErr);
+        }
+
+        const cloudInvoiceNumbers = new Set(cloudInvoices.map(ci => ci.invoice_number));
+        const cloudInvoiceIds = new Set(cloudInvoices.map(ci => ci.id));
+
         const mergedMap = new Map<string, MSSInvoice>();
+        // 1. Authoritative cloud invoices take precedence
         for (const ci of cloudInvoices) {
           mergedMap.set(ci.invoice_number, ci);
         }
-        for (const li of localCached) {
-          if (!mergedMap.has(li.invoice_number)) {
-            mergedMap.set(li.invoice_number, li);
+        // 2. Add legitimate unsynced offline invoices not yet in cloud
+        for (const pi of pendingLocalInvoices) {
+          if (!cloudInvoiceNumbers.has(pi.invoice_number) && !cloudInvoiceIds.has(pi.id)) {
+            mergedMap.set(pi.invoice_number, pi);
           }
         }
+
         invoices = Array.from(mergedMap.values());
         saveCachedInvoices(invoices);
         isCloudFetched = true;
@@ -1317,7 +1344,7 @@ export const mssCommerceService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const cloudReservations = data.map((row: any) => ({
           id: row.id,
           reservation_number: row.reservation_number,
@@ -1334,16 +1361,41 @@ export const mssCommerceService = {
           created_at: row.created_at,
           updated_at: row.updated_at,
         }));
-        const localCached = getCachedReservations();
+
+        let pendingLocalReservations: MSSReservation[] = [];
+        try {
+          const outbox = await mssSyncService.getOutbox();
+          const pendingResOps = outbox.filter(
+            op => op.type === 'RESERVATION_CREATE' && (op.status === 'PENDING' || op.status === 'FAILED')
+          );
+          const pendingResNumbers = new Set(
+            pendingResOps.map(op => op.payload?.reservation_number).filter(Boolean)
+          );
+          const pendingResIds = new Set(
+            pendingResOps.map(op => op.payload?.id).filter(Boolean)
+          );
+
+          const localCached = getCachedReservations();
+          pendingLocalReservations = localCached.filter(
+            lr => pendingResNumbers.has(lr.reservation_number) || pendingResIds.has(lr.id)
+          );
+        } catch (syncErr) {
+          console.warn('Failed to inspect pending outbox for reservations:', syncErr);
+        }
+
+        const cloudReservationNumbers = new Set(cloudReservations.map(cr => cr.reservation_number));
+        const cloudReservationIds = new Set(cloudReservations.map(cr => cr.id));
+
         const mergedMap = new Map<string, MSSReservation>();
         for (const cr of cloudReservations) {
           mergedMap.set(cr.id, cr);
         }
-        for (const lr of localCached) {
-          if (!mergedMap.has(lr.id)) {
-            mergedMap.set(lr.id, lr);
+        for (const pr of pendingLocalReservations) {
+          if (!cloudReservationNumbers.has(pr.reservation_number) && !cloudReservationIds.has(pr.id)) {
+            mergedMap.set(pr.id, pr);
           }
         }
+
         reservations = Array.from(mergedMap.values());
         saveCachedReservations(reservations);
         isCloudFetched = true;
@@ -1885,8 +1937,8 @@ export const mssCommerceService = {
         .select('*')
         .order('return_date', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        returns = data.map((row: any) => ({
+      if (!error && Array.isArray(data)) {
+        const cloudReturns = data.map((row: any) => ({
           id: row.id,
           return_number: row.return_number,
           invoice_id: row.invoice_id,
@@ -1902,6 +1954,43 @@ export const mssCommerceService = {
           notes: row.notes || null,
           created_at: row.created_at,
         }));
+
+        let pendingLocalReturns: MSSReturn[] = [];
+        try {
+          const outbox = await mssSyncService.getOutbox();
+          const pendingReturnOps = outbox.filter(
+            op => op.type === 'RETURN_PROCESS' && (op.status === 'PENDING' || op.status === 'FAILED')
+          );
+          const pendingReturnNumbers = new Set(
+            pendingReturnOps.map(op => op.payload?.return_number).filter(Boolean)
+          );
+          const pendingReturnIds = new Set(
+            pendingReturnOps.map(op => op.payload?.id).filter(Boolean)
+          );
+
+          const localCached = getCachedReturns();
+          pendingLocalReturns = localCached.filter(
+            lr => pendingReturnNumbers.has(lr.return_number) || pendingReturnIds.has(lr.id)
+          );
+        } catch (syncErr) {
+          console.warn('Failed to inspect pending outbox for returns:', syncErr);
+        }
+
+        const cloudReturnNumbers = new Set(cloudReturns.map(cr => cr.return_number));
+        const cloudReturnIds = new Set(cloudReturns.map(cr => cr.id));
+
+        const mergedMap = new Map<string, MSSReturn>();
+        for (const cr of cloudReturns) {
+          mergedMap.set(cr.return_number || cr.id, cr);
+        }
+        for (const pr of pendingLocalReturns) {
+          const key = pr.return_number || pr.id;
+          if (!cloudReturnNumbers.has(pr.return_number) && !cloudReturnIds.has(pr.id)) {
+            mergedMap.set(key, pr);
+          }
+        }
+
+        returns = Array.from(mergedMap.values());
         saveCachedReturns(returns);
         isCloudFetched = true;
       }

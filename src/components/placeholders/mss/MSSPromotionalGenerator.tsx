@@ -526,7 +526,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [itemsPerPage, setItemsPerPage] = useState<number>(PROMOTIONAL_MAX_DEVICES_PER_PAGE);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<PromotionalLaptopItem>>({});
+  const [editFormData, setEditFormData] = useState<Partial<Omit<PromotionalLaptopItem, 'price'> & { price?: number | string }>>({});
   const [isExportingPng, setIsExportingPng] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<{
@@ -597,13 +597,22 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   // Edit in-memory item in preview modal
   const handleStartEditItem = (item: PromotionalLaptopItem) => {
     setEditingItemId(item.id);
-    setEditFormData({ ...item });
+    setEditFormData({
+      ...item,
+      price: item.price !== undefined && item.price !== null && item.price !== 0 ? item.price : '',
+    });
   };
 
   const handleSaveItemEdit = () => {
     if (!editingItemId) return;
+    const rawPrice = editFormData.price;
+    const finalPrice =
+      rawPrice === '' || rawPrice === undefined || rawPrice === null
+        ? undefined
+        : Math.max(0, Number(rawPrice));
+
     setPreviewItems(prev =>
-      prev.map(it => (it.id === editingItemId ? { ...it, ...editFormData } : it))
+      prev.map(it => (it.id === editingItemId ? { ...it, ...editFormData, price: finalPrice } : it))
     );
     setEditingItemId(null);
     setEditFormData({});
@@ -1537,13 +1546,19 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                                   <label className="text-slate-500 block">السعر (ج.م):</label>
                                   <input
                                     type="number"
-                                    value={editFormData.price || 0}
-                                    onChange={e =>
+                                    min="0"
+                                    placeholder="0"
+                                    value={editFormData.price !== undefined && editFormData.price !== null ? editFormData.price : ''}
+                                    onChange={e => {
+                                      let val = e.target.value;
+                                      if (val.length > 1 && val.startsWith('0') && !val.startsWith('0.')) {
+                                        val = val.replace(/^0+(?=\d)/, '');
+                                      }
                                       setEditFormData(prev => ({
                                         ...prev,
-                                        price: Number(e.target.value) || 0,
-                                      }))
-                                    }
+                                        price: val,
+                                      }));
+                                    }}
                                     className="w-full px-2 py-1 rounded border border-slate-300 bg-white"
                                   />
                                 </div>

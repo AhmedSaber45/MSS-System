@@ -90,7 +90,7 @@ export const mssExpensesService = {
         }
 
         const { data, error } = await query.order('expense_date', { ascending: false });
-        if (!error && Array.isArray(data) && data.length > 0) {
+        if (!error && Array.isArray(data)) {
           const mapped: OperatingExpense[] = data.map((row: any) => ({
             id: row.id,
             module: 'mss',

@@ -46,6 +46,7 @@ export const MSSInvoicesView: React.FC = () => {
   const { showNotification } = useNotification();
   const [invoices, setInvoices] = useState<MSSInvoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sellingBranchFilter, setSellingBranchFilter] = useState<'ALL' | MSSStockLocation>('ALL');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('ALL');
@@ -62,6 +63,7 @@ export const MSSInvoicesView: React.FC = () => {
   // Load Invoices
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const list = await mssCommerceService.getInvoices({
         startDate: dateFilter.startDate || undefined,
@@ -69,8 +71,9 @@ export const MSSInvoicesView: React.FC = () => {
         sellingBranch: sellingBranchFilter !== 'ALL' ? sellingBranchFilter : undefined,
       });
       setInvoices(list);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load MSS invoices:', err);
+      setLoadError(err?.message || 'تعذر تحميل فواتير مبيعات الأجهزة');
     } finally {
       setIsLoading(false);
     }
@@ -504,6 +507,15 @@ export const MSSInvoicesView: React.FC = () => {
           <Spinner size="lg" />
           <p className="text-sm font-medium text-slate-600 mt-3">جارٍ تحميل فواتير الأجهزة...</p>
         </div>
+      ) : loadError ? (
+        <Card className="p-8 text-center bg-white border border-rose-200 shadow-2xs space-y-3">
+          <AlertTriangle className="w-10 h-10 mx-auto text-rose-500" />
+          <h3 className="text-base font-bold text-rose-800">تعذر تحميل الفواتير</h3>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={loadData} className="border-rose-300 text-rose-800 hover:bg-rose-50">
+            إعادة المحاولة
+          </Button>
+        </Card>
       ) : filteredInvoices.length === 0 ? (
         <Card className="p-12 text-center bg-white border border-slate-300 shadow-2xs space-y-3">
           <FileText className="w-12 h-12 mx-auto text-slate-400" />
