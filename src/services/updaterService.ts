@@ -1,7 +1,8 @@
 import { backupService } from './backupService.ts';
 import type { UpdateInfo, UpdateStatus } from '../types/updater.ts';
+import { APP_VERSION } from '../config/appVersion.ts';
 
-const CURRENT_APP_VERSION = '1.0.8';
+const CURRENT_APP_VERSION = APP_VERSION;
 const UPDATER_STATE_KEY = 'shop_updater_state_v1';
 
 // Initial state

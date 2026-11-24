@@ -80,7 +80,35 @@ export interface MSSDeviceMovement {
 export interface TransferDeviceInput {
   device_id: string;
   to_location: MSSStockLocation;
+  quantity?: number;
   notes?: string;
+}
+
+export interface MSSStockAdjustment {
+  id: string;
+  model_id: string;
+  model_name: string;
+  brand: string;
+  stock_location: MSSStockLocation;
+  device_id?: string | null;
+  previous_quantity: number;
+  new_quantity: number;
+  adjustment_amount: number;
+  reason: string;
+  actor_id?: string;
+  actor_username: string;
+  created_at: string;
+  _synced?: boolean;
+}
+
+export interface StockAdjustmentInput {
+  model_id: string;
+  stock_location: MSSStockLocation;
+  new_quantity: number;
+  reason: string;
+  actor_id?: string;
+  actor_username?: string;
+  device_id?: string;
 }
 
 export interface NewMSSBulkStockInput {
@@ -116,6 +144,7 @@ export interface MSSModelInventorySummary {
   sold_count: number;
   maintenance_count: number;
   devices: MSSDevice[];
+  model?: MSSCatalogModel;
 }
 
 export interface MSSInventorySummary {

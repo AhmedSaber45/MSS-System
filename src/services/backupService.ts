@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { APP_VERSION } from '../config/appVersion.ts';
 import type {
   BackupItem,
   BackupConfig,
@@ -413,7 +414,7 @@ export const backupService = {
 
       // Capture complete consistent snapshot of local data
       const snapshot = {
-        version: '1.0.5',
+        version: APP_VERSION,
         type: triggerType,
         timestamp: now.toISOString(),
         data: {

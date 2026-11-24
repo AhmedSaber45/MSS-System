@@ -710,7 +710,7 @@ function drawBrandBadge(
     drawRoundedRect(ctx, x - 24, y - 10, 48, 20, 4);
     ctx.fillStyle = '#e2e8f0';
     ctx.fill();
-    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = '#1e293b';
     ctx.fillText(b.slice(0, 8), x, y + 1);
   }
@@ -982,15 +982,15 @@ export function renderPromotionalToCanvas(
         ctx.textAlign = 'center';
         drawBrandBadge(ctx, cellCenterX, cellCenterY, item.brand);
       } else if (col.id === 'model') {
-        ctx.textAlign = 'left';
+        ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
-        drawFittedText(ctx, item.model_name || '---', cellX + 12, cellCenterY, col.width - 24);
+        drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16);
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'generation') {
@@ -998,25 +998,25 @@ export function renderPromotionalToCanvas(
         const genText = item.generation || '---';
         const hasArabic = /[\u0600-\u06FF]/.test(genText);
         ctx.direction = hasArabic ? 'rtl' : 'ltr';
-        ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
         drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'ram') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'storage') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'screen') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = '600 13px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'gpu') {
@@ -1032,12 +1032,12 @@ export function renderPromotionalToCanvas(
         } else {
           ctx.fillStyle = '#475569';
         }
-        ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
         drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'quantity') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         ctx.fillText(String(item.quantity || 1), cellCenterX, cellCenterY);
       } else if (col.id === 'price') {
@@ -1045,7 +1045,7 @@ export function renderPromotionalToCanvas(
         ctx.direction = 'ltr';
         const priceNum = Number(item.price) || 0;
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
-        ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+        ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
         ctx.fillStyle = '#0a2558'; // Bold dark blue numbers
         drawFittedText(ctx, priceFormatted, cellCenterX, cellCenterY, col.width - 10);
       }
@@ -1100,14 +1100,18 @@ export function renderPromotionalToCanvas(
  * Automatically ensures the filename has the export date _YYYY-MM-DD.png without duplication.
  * Routes directly to custom export folder (MSS System Files/MSS Images) if configured.
  */
-export async function exportPromotionalAsPng(canvasOrDataUrl: HTMLCanvasElement | string, filename: string): Promise<any> {
+export async function exportPromotionalAsPng(
+  canvasOrDataUrl: HTMLCanvasElement | string,
+  filename: string,
+  exportType: import('./exportStorageService').ExportType = 'mss_images'
+): Promise<any> {
   const finalFilename = formatArabicExportFilename(filename, 'png');
   const dataUrl = typeof canvasOrDataUrl === 'string'
     ? canvasOrDataUrl
     : canvasOrDataUrl.toDataURL('image/png', 1.0);
 
   const res = await exportStorageService.saveExportedFile({
-    exportType: 'mss_images',
+    exportType,
     filename: finalFilename,
     data: dataUrl,
     mimeType: 'image/png',
@@ -1256,9 +1260,10 @@ export async function exportPromotionalAsPdf(
   const rawArrayBuffer = pdf.output('arraybuffer');
   const buffer = new Uint8Array(rawArrayBuffer);
 
-  // Route saving through centralized export storage service (Folder: MSS System Files/MSS Images)
+  // Route saving through centralized export storage service
+  const targetExportType = (options.exportType as any) || 'mss_images';
   const saveResult = await exportStorageService.saveExportedFile({
-    exportType: 'mss_images',
+    exportType: targetExportType,
     filename: finalPdfName,
     data: buffer,
     mimeType: 'application/pdf',
@@ -1366,7 +1371,8 @@ export async function exportPromotionalAllPagesAsPng(
     );
 
     if (typeof document !== 'undefined' && typeof window !== 'undefined') {
-      exportPromotionalAsPng(pageDataUrl, filename);
+      const targetExportType = (options.exportType as any) || 'mss_images';
+      await exportPromotionalAsPng(pageDataUrl, filename, targetExportType);
       // Small pause between downloads to let browser process
       await new Promise(res => setTimeout(res, 250));
     }

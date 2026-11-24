@@ -1,4 +1,5 @@
 import type { MSSStockLocation } from './mssInventory.ts';
+import type { MSSCatalogModel } from './mssCatalog.ts';
 
 export interface MSSFinancialSummary {
   totalRevenue: number;
@@ -89,6 +90,7 @@ export interface ModelStockQuantitySummary {
   model_code?: string;
   category: string;
   specifications?: string;
+  model?: MSSCatalogModel;
   total_units: number;
   existing_units: number;
   sold_units: number;

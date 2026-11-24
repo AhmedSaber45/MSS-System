@@ -235,8 +235,10 @@ export const MSSAuditLogView: React.FC = () => {
                       <td className="py-3 px-3.5">
                         <div className="flex items-center gap-1.5">
                           {getTargetIcon(log.targetType)}
-                          <span className="font-bold text-slate-700 uppercase text-[11px]">
-                            {log.targetType}
+                          <span className="font-bold text-slate-700 text-[11px]">
+                            {(typeof log.metadata?.targetUsername === 'string' && log.metadata.targetUsername) ||
+                              (typeof log.metadata?.username === 'string' && log.metadata.username) ||
+                              log.targetType}
                           </span>
                           <span className="font-mono text-slate-500 text-[10px]">
                             ({log.targetId.slice(0, 10)})

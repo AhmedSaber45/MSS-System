@@ -1,6 +1,6 @@
 [package]
 name = "shop-management-system"
-version = "1.0.8"
+version = "1.0.9"
 description = "MSS System desktop application backend"
 authors = ["Ahmed Saber"]
 edition = "2021"

@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 export type AppSection = 'accessories' | 'mss';
 
@@ -13,7 +13,8 @@ export type AccessoriesRoute =
   | 'reports'
   | 'history'
   | 'backup'
-  | 'expenses';
+  | 'expenses'
+  | 'promotional-image';
 
 export type MSSRoute =
   | 'dashboard'

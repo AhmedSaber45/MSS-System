@@ -4,6 +4,7 @@ import { accessoriesNavItems, mssNavItems } from '../../config/navigationConfig'
 import { SectionSwitcher } from './SectionSwitcher';
 import { ChevronRight, ChevronLeft, Database, Cloud, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { FULL_APP_VERSION } from '../../config/appVersion';
 
 export interface SidebarProps {
   onOpenSettings?: () => void;
@@ -130,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         {!isSidebarCollapsed && (
           <div className="flex items-center justify-between text-xs text-slate-600 px-1 font-semibold">
             <span className="text-xs font-mono font-bold text-slate-600 tabular-nums">
-              AS System v1.0.5
+              {FULL_APP_VERSION}
             </span>
             {onOpenSettings && (
               <button

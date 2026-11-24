@@ -371,10 +371,7 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
         {/* 1. LAPTOP FIELDS */}
         {category === 'لابتوب' && (
           <div className="pt-3 border-t border-slate-200 space-y-3">
-            <div className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded flex items-center gap-1.5">
-              <Laptop className="w-4 h-4 text-blue-600" />
-              <span>مواصفات اللابتوب والعتاد الداخلي</span>
-            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">المعالج (CPU)</label>
@@ -433,10 +430,7 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
         {/* 2. SCREEN / MONITOR FIELDS */}
         {category === 'شاشة' && (
           <div className="pt-3 border-t border-slate-200 space-y-3">
-            <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded flex items-center gap-1.5">
-              <Monitor className="w-4 h-4 text-emerald-600" />
-              <span>مواصفات الشاشة والعرض (Screen & Display Specifications)</span>
-            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Screen Size */}
               <div>

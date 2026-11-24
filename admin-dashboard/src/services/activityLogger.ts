@@ -83,7 +83,13 @@ function sanitizeMetadata(metadata?: Record<string, unknown>): Record<string, un
  */
 export function formatArabicDescription(input: ActivityLogInput): string {
   const actor = input.actorUsername || 'المستخدم';
-  const target = input.targetUsername || input.targetId || '';
+  const targetUser =
+    input.targetUsername ||
+    (typeof input.metadata?.targetUsername === 'string' && input.metadata.targetUsername) ||
+    (typeof input.metadata?.username === 'string' && input.metadata.username) ||
+    (input.targetType === 'user' && input.targetId && input.targetId !== 'system'
+      ? `مستخدم #${input.targetId.slice(0, 8)}`
+      : input.targetId || '');
   const status = input.status || 'SUCCESS';
 
   if (input.description && input.description.trim()) {
@@ -94,48 +100,48 @@ export function formatArabicDescription(input: ActivityLogInput): string {
     case 'LOGIN_SUCCESS':
       return `قام ${actor} بتسجيل الدخول`;
     case 'LOGIN_FAILURE':
-      return `محاولة تسجيل دخول فاشلة للمستخدم ${target || actor}`;
+      return `محاولة تسجيل دخول فاشلة للمستخدم: ${targetUser || actor}`;
     case 'LOGIN_REJECTED':
-      return `تم رفض محاولة تسجيل الدخول للمستخدم ${target || actor} لأن الحساب معطل أو غير مصرح له`;
+      return `تم رفض محاولة تسجيل الدخول للمستخدم: ${targetUser || actor} لأن الحساب معطل أو غير مصرح له`;
     case 'LOGOUT':
       return `قام ${actor} بتسجيل الخروج`;
     case 'INACTIVITY_TIMEOUT':
-      return `تم إنهاء جلسة المستخدم ${target || actor} تلقائياً لعدم وجود نشاط لمدة 7 أيام (168 ساعة)`;
+      return `تم إنهاء جلسة المستخدم: ${targetUser || actor} تلقائياً لعدم وجود نشاط لمدة 7 أيام (168 ساعة)`;
     case 'SESSION_EXPIRED':
-      return `انتهت صلاحية جلسة المستخدم ${target || actor}`;
+      return `انتهت صلاحية جلسة المستخدم: ${targetUser || actor}`;
     case 'USER_CREATE':
-      return `قام ${actor} بإنشاء مستخدم جديد باسم ${target}`;
+      return `قام ${actor} بإنشاء مستخدم جديد باسم: ${targetUser}`;
     case 'USER_UPDATE':
-      return `قام ${actor} بتعديل بيانات المستخدم ${target}`;
+      return `قام ${actor} بتعديل بيانات المستخدم: ${targetUser}`;
     case 'USER_PERMISSIONS_CHANGE':
-      return `قام ${actor} بتعديل صلاحيات المستخدم ${target}`;
+      return `قام ${actor} بتعديل صلاحيات المستخدم: ${targetUser}`;
     case 'USER_ROLE_CHANGE':
-      return `قام ${actor} بتعديل دور المستخدم ${target}`;
+      return `قام ${actor} بتعديل دور المستخدم: ${targetUser}`;
     case 'USER_STATUS_CHANGE': {
       const isNowActive = input.metadata?.newStatus === 'ACTIVE' || input.metadata?.isActive === true;
-      return `قام ${actor} بـ${isNowActive ? 'تفعيل' : 'تعطيل'} حساب المستخدم ${target}`;
+      return `قام ${actor} بـ${isNowActive ? 'تفعيل' : 'تعطيل'} حساب المستخدم: ${targetUser}`;
     }
     case 'USER_ACCESS_CODE_CHANGE':
-      return `قام ${actor} بتغيير رمز الدخول للمستخدم ${target} وإبطال جلساته النشطة`;
+      return `قام ${actor} بتغيير رمز الدخول للمستخدم: ${targetUser} وإبطال كافة جلساته النشطة`;
     case 'USER_SESSION_REVOKE':
-      return `قام ${actor} بإبطال كافة الجلسات النشطة للمستخدم ${target}`;
+      return `قام ${actor} بإبطال كافة الجلسات النشطة للمستخدم: ${targetUser}`;
     case 'USER_DELETE':
-      return `قام ${actor} بحذف المستخدم ${target}`;
+      return `قام ${actor} بحذف المستخدم: ${targetUser}`;
     case 'STORE_CREATE':
-      return `قام ${actor} بإنشاء فرع / مخزن جديد باسم ${input.metadata?.name || target}`;
+      return `قام ${actor} بإنشاء فرع / مخزن جديد باسم ${input.metadata?.name || targetUser}`;
     case 'STORE_UPDATE':
-      return `قام ${actor} بتعديل بيانات الفرع / المخزن ${input.metadata?.name || target}`;
+      return `قام ${actor} بتعديل بيانات الفرع / المخزن ${input.metadata?.name || targetUser}`;
     case 'STORE_STATUS_CHANGE':
-      return `قام ${actor} بتغيير حالة الفرع / المخزن ${target}`;
+      return `قام ${actor} بتغيير حالة الفرع / المخزن ${targetUser}`;
     case 'STORE_MERGE_COMPLETED':
-      return `قام ${actor} بدمج الفرع ${input.metadata?.sourceStoreName || ''} في ${input.metadata?.destinationStoreName || target}`;
+      return `قام ${actor} بدمج الفرع ${input.metadata?.sourceStoreName || ''} في ${input.metadata?.destinationStoreName || targetUser}`;
     case 'INVENTORY_TRANSFER_COMPLETED':
-      return `قام ${actor} بإتمام تحويل مخزون برقم #${target}`;
+      return `قام ${actor} بإتمام تحويل مخزون برقم #${targetUser}`;
     default:
       if (status === 'FAILURE') {
         return `فشلت عملية ${input.eventType} المنفذة بواسطة ${actor}`;
       }
-      return `قام ${actor} بتنفيذ عملية ${input.eventType} على ${target}`;
+      return `قام ${actor} بتنفيذ عملية ${input.eventType} على ${targetUser}`;
   }
 }
 
@@ -277,16 +283,59 @@ export const activityLogger = {
 
       if (!error && data) {
         cloudTotal = count;
-        cloudLogs = data.map((row: any) => ({
-          id: row.id,
-          actorId: row.actor_id,
-          actorUsername: row.actor_username,
-          eventType: row.event_type,
-          targetType: row.target_type,
-          targetId: row.target_id,
-          metadata: row.metadata || {},
-          createdAt: row.created_at,
-        }));
+        cloudLogs = data.map((row: any) => {
+          const rowMeta = row.metadata || {};
+          const targetUsername =
+            (typeof rowMeta.targetUsername === 'string' && rowMeta.targetUsername) ||
+            (typeof rowMeta.username === 'string' && rowMeta.username) ||
+            (typeof rowMeta.target_username === 'string' && rowMeta.target_username) ||
+            null;
+
+          return {
+            id: row.id,
+            actorId: row.actor_id,
+            actorUsername: row.actor_username,
+            eventType: row.event_type,
+            targetType: row.target_type,
+            targetId: row.target_id,
+            metadata: {
+              ...rowMeta,
+              targetUsername,
+            },
+            createdAt: row.created_at,
+          };
+        });
+
+        // Enrich cloud logs that target users but lack targetUsername snapshot
+        const missingUsers = cloudLogs.filter(
+          l => l.targetType === 'user' && l.targetId && !l.metadata?.targetUsername
+        );
+        if (missingUsers.length > 0) {
+          try {
+            const userIds = missingUsers
+              .map(l => l.targetId)
+              .filter((val, idx, arr) => arr.indexOf(val) === idx);
+            const { data: users } = await supabase
+              .from('app_users')
+              .select('id, username')
+              .in('id', userIds);
+
+            const userMap = new Map((users || []).map((u: any) => [u.id, u.username]));
+            for (const l of missingUsers) {
+              const found = userMap.get(l.targetId);
+              if (found) {
+                l.metadata.targetUsername = found;
+                if (typeof l.metadata?.description === 'string' && l.metadata.description.includes(l.targetId)) {
+                  l.metadata.description = l.metadata.description.replaceAll(l.targetId, found);
+                }
+              } else {
+                l.metadata.targetUsername = 'مستخدم محذوف';
+              }
+            }
+          } catch {
+            // Non-blocking enrichment
+          }
+        }
       }
     } catch {
       // Fall back to memory buffer
@@ -315,6 +364,8 @@ export const activityLogger = {
         l =>
           l.actorUsername.toLowerCase().includes(search) ||
           l.targetId.toLowerCase().includes(search) ||
+          (typeof l.metadata?.targetUsername === 'string' && l.metadata.targetUsername.toLowerCase().includes(search)) ||
+          (typeof l.metadata?.username === 'string' && l.metadata.username.toLowerCase().includes(search)) ||
           l.eventType.toLowerCase().includes(search) ||
           (typeof l.metadata?.description === 'string' && l.metadata.description.toLowerCase().includes(search))
       );

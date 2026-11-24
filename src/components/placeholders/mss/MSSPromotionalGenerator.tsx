@@ -54,8 +54,14 @@ import {
 } from 'lucide-react';
 
 export interface MSSPromotionalGeneratorProps {
-  devices: MSSDevice[];
-  models: MSSModel[];
+  devices?: MSSDevice[];
+  models?: MSSModel[];
+  mode?: 'mss' | 'accessories_manual';
+  manualItems?: PromotionalLaptopItem[];
+  onManualItemsChange?: (items: PromotionalLaptopItem[]) => void;
+  onEditItem?: (item: PromotionalLaptopItem) => void;
+  onDeleteItem?: (id: string) => void;
+  exportType?: import('@/services/exportStorageService').ExportType;
 }
 
 /**
@@ -72,7 +78,7 @@ const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
   if (!brandConfig || imgError) {
     const label = brandConfig?.name || (brand || '').trim().slice(0, 8);
     return (
-      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[10px] shadow-2xs">
+      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[11px] shadow-2xs">
         {label}
       </div>
     );
@@ -175,8 +181,8 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5" dir="ltr">
-        <table className="w-full text-xs text-left border-collapse border border-slate-300" dir="ltr">
-          <thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400">
+        <table className="w-full text-[13.5px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
+          <thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400 text-xs">
             <tr>
               <th className="py-3 px-2 w-24 text-center">
                 <div className="flex flex-col items-center gap-1">
@@ -184,8 +190,8 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   <span>الماركة</span>
                 </div>
               </th>
-              <th className="py-3 px-3 text-left">
-                <div className="flex items-center gap-1 justify-start">
+              <th className="py-3 px-3 text-center">
+                <div className="flex flex-col items-center gap-1 justify-center">
                   <img src={PROMOTIONAL_HEADER_ICONS.model} alt="الموديل" className="w-4 h-4 object-contain" />
                   <span>الموديل</span>
                 </div>
@@ -244,7 +250,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-200 font-bold text-[13.5px]">
             {pageItems.map((item, idx) => {
               const isEven = idx % 2 === 0;
               const gpuUpper = (item.gpu || '').toUpperCase();
@@ -257,26 +263,26 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   <td className="py-2.5 px-2 text-center border-r border-slate-200">
                     <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td className="py-2.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-left">
-                    <div dir="ltr">{item.model_name}</div>
+                  <td className="py-2.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[13.5px]">
+                    <div dir="ltr" className="text-center truncate max-w-full">{item.model_name}</div>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono" dir="ltr">
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[13.5px]" dir="ltr">
                     {item.processor || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-semibold text-slate-700 border-r border-slate-200">
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 text-[13.5px]">
                     <bdi>{item.generation || '---'}</bdi>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200" dir="ltr">
+                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13.5px]" dir="ltr">
                     {item.ram || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono text-slate-800 border-r border-slate-200" dir="ltr">
+                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13.5px]" dir="ltr">
                     {item.storage || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center text-slate-700 border-r border-slate-200 font-mono" dir="ltr">
+                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13px]" dir="ltr">
                     {item.screen || '---'}
                   </td>
                   <td
-                    className={`py-2.5 px-2 text-center font-bold ${
+                    className={`py-2.5 px-2 text-center font-bold text-[13.5px] ${
                       displayOptions.showQuantity || displayOptions.showPrice ? 'border-r border-slate-200' : ''
                     } ${
                       isNvidia ? 'text-emerald-700' : isAmd ? 'text-rose-600' : isIntel ? 'text-blue-700' : 'text-slate-700'
@@ -287,7 +293,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   </td>
                   {displayOptions.showQuantity && (
                     <td
-                      className={`py-2.5 px-2 text-center font-bold text-slate-900 ${
+                      className={`py-2.5 px-2 text-center font-bold text-slate-900 text-[13.5px] ${
                         displayOptions.showPrice ? 'border-r border-slate-200' : ''
                       }`}
                       dir="ltr"
@@ -296,7 +302,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                     </td>
                   )}
                   {displayOptions.showPrice && (
-                    <td className="py-2.5 px-3 text-center font-extrabold text-[#0a2558] text-sm tabular-nums" dir="ltr">
+                    <td className="py-2.5 px-3 text-center font-extrabold text-[#0a2558] text-[15.5px] tabular-nums" dir="ltr">
                       {item.price ? Number(item.price).toLocaleString('en-US') : '---'}
                     </td>
                   )}
@@ -322,16 +328,25 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 };
 
 export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = ({
-  devices,
-  models,
+  devices = [],
+  models = [],
+  mode = 'mss',
+  manualItems,
+  onManualItemsChange,
+  onEditItem,
+  onDeleteItem,
+  exportType = 'mss_images',
 }) => {
   const { showNotification } = useNotification();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // 1. Initial items prepared from available devices
+  // 1. Initial items prepared from available devices (or manualItems in accessories_manual mode)
   const allAvailableItems = useMemo(() => {
+    if (mode === 'accessories_manual') {
+      return manualItems || [];
+    }
     return preparePromotionalItems(devices, models);
-  }, [devices, models]);
+  }, [mode, manualItems, devices, models]);
 
   // 2. Selection & Filter State
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -360,10 +375,31 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
 
   // Extract distinct models dynamically filtered by selected brands
   const filteredModels = useMemo(() => {
+    if (mode === 'accessories_manual') {
+      const distinctModelsMap = new Map<string, MSSModel>();
+      allAvailableItems.forEach(it => {
+        const key = (it.model_name || '').trim();
+        if (key && key !== '---' && !distinctModelsMap.has(key)) {
+          distinctModelsMap.set(key, {
+            id: it.id,
+            model_name: it.model_name,
+            brand: it.brand,
+            category: 'لابتوب',
+            default_list_price: it.price || 0,
+            created_at: '',
+            updated_at: '',
+          });
+        }
+      });
+      const list = Array.from(distinctModelsMap.values());
+      if (selectedBrands.length === 0) return list;
+      const brandSet = new Set(selectedBrands.map(b => b.trim().toLowerCase()));
+      return list.filter(m => brandSet.has((m.brand || '').trim().toLowerCase()));
+    }
     if (selectedBrands.length === 0) return models;
     const brandSet = new Set(selectedBrands.map(b => b.trim().toLowerCase()));
     return models.filter(m => brandSet.has((m.brand || '').trim().toLowerCase()));
-  }, [models, selectedBrands]);
+  }, [mode, allAvailableItems, models, selectedBrands]);
 
   // Safely prune selectedModelIds ONLY when selectedBrands changes and some selected model is no longer valid
   useEffect(() => {
@@ -611,9 +647,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         ? undefined
         : Math.max(0, Number(rawPrice));
 
-    setPreviewItems(prev =>
-      prev.map(it => (it.id === editingItemId ? { ...it, ...editFormData, price: finalPrice } : it))
-    );
+    setPreviewItems(prev => {
+      const updated = prev.map(it => (it.id === editingItemId ? { ...it, ...editFormData, price: finalPrice } : it));
+      if (mode === 'accessories_manual' && onManualItemsChange) {
+        onManualItemsChange(updated);
+      }
+      return updated;
+    });
     setEditingItemId(null);
     setEditFormData({});
     showNotification({
@@ -631,6 +671,9 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   const handleRemoveFromPreview = (id: string) => {
     setPreviewItems(prev => {
       const next = prev.filter(it => it.id !== id);
+      if (mode === 'accessories_manual' && onManualItemsChange) {
+        onManualItemsChange(next);
+      }
       const newTotal = Math.max(1, Math.ceil(next.length / itemsPerPage));
       if (currentPageIndex >= newTotal) {
         setCurrentPageIndex(Math.max(0, newTotal - 1));
@@ -684,7 +727,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         cacheBust: true,
       });
 
-      exportPromotionalAsPng(dataUrl, filename);
+      await exportPromotionalAsPng(dataUrl, filename, exportType);
       showNotification({
         type: 'success',
         title: 'تم تصدير صفحة المعاينة الحالية',
@@ -709,7 +752,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
             currentPageIndex + 1,
             totalPages
           );
-          exportPromotionalAsPng(canvasRef.current, filename);
+          await exportPromotionalAsPng(canvasRef.current, filename, exportType);
           showNotification({
             type: 'success',
             title: 'تم تصدير صفحة المعاينة الحالية',
@@ -742,6 +785,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         {
           ...displayOptions,
           itemsPerPage,
+          exportType,
         },
         (curr, total) => {
           setExportProgress({ isExporting: true, type: 'png', currentPage: curr, totalPages: total });
@@ -789,6 +833,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
           ...displayOptions,
           itemsPerPage,
           filename,
+          exportType,
           onProgress: (curr, total) => {
             setExportProgress({ isExporting: true, type: 'pdf', currentPage: curr, totalPages: total });
           },
@@ -1100,13 +1145,18 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                 <th className="p-2.5 text-center w-24">الشاشة</th>
                 <th className="p-2.5 text-center w-24">الكمية المتاحة</th>
                 <th className="p-2.5 text-left w-28">السعر</th>
+                {mode === 'accessories_manual' && (
+                  <th className="p-2.5 text-center w-24">الإجراءات</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedTableItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-500">
-                    لا توجد أجهزة مطابقة للفلاتر المحددة حالياً.
+                  <td colSpan={mode === 'accessories_manual' ? 11 : 10} className="py-12 text-center text-slate-500">
+                    {mode === 'accessories_manual' && allAvailableItems.length === 0
+                      ? 'لا توجد أجهزة مضافة حتى الآن. استخدم نموذج الإدخال أعلاه لإضافة أول جهاز إلى القائمة الدعائية.'
+                      : 'لا توجد أجهزة مطابقة للفلاتر المحددة حالياً.'}
                   </td>
                 </tr>
               ) : (
@@ -1162,6 +1212,34 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                       <td className="p-2.5 text-left font-mono font-bold text-emerald-700 w-28 whitespace-nowrap">
                         {item.price ? formatCurrency(item.price) : '---'}
                       </td>
+                      {mode === 'accessories_manual' && (
+                        <td className="p-2.5 text-center w-24" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {onEditItem && (
+                              <button
+                                type="button"
+                                onClick={() => onEditItem(item)}
+                                className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100/60 rounded-md transition-colors cursor-pointer"
+                                title="تعديل بيانات الجهاز"
+                                aria-label="تعديل"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {onDeleteItem && (
+                              <button
+                                type="button"
+                                onClick={() => onDeleteItem(item.id)}
+                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100/60 rounded-md transition-colors cursor-pointer"
+                                title="حذف الجهاز من القائمة"
+                                aria-label="حذف"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

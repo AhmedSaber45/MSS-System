@@ -1,4 +1,4 @@
-import { NavItemConfig } from '../types/navigation';
+import type { NavItemConfig } from '../types/navigation.ts';
 import {
   LayoutDashboard,
   Package,
@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   ReceiptText,
+  Sparkles,
 } from 'lucide-react';
 
 export const accessoriesNavItems: NavItemConfig[] = [
@@ -69,6 +70,12 @@ export const accessoriesNavItems: NavItemConfig[] = [
     label: 'مصروفات المحل',
     description: 'تسجيل المصروفات التشغيلية اليومية وخصمها من صافي الأرباح',
     icon: ReceiptText,
+  },
+  {
+    id: 'promotional-image',
+    label: 'الصورة الدعائية',
+    description: 'إنشاء وتخصيص صور وعروض دعائية للأجهزة بجودة عالية وبشكل مخصص',
+    icon: Sparkles,
   },
   {
     id: 'reports',
@@ -151,12 +158,7 @@ export const mssNavItems: NavItemConfig[] = [
     description: 'إدارة المصروفات التشغيلية لـ Compu MSS وخصمها من صافي الأرباح',
     icon: ReceiptText,
   },
-  {
-    id: 'audit',
-    label: 'سجل النشاط والتدقيق',
-    description: 'سجل تدقيق غير قابل للتعديل لكافة العمليات الإدارية',
-    icon: ShieldCheck,
-  },
+
   {
     id: 'reports',
     label: 'تقارير المبيعات',

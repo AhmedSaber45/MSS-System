@@ -70,16 +70,13 @@ export async function PATCH(req: NextRequest) {
       if (!body.newAccessCode) {
         return NextResponse.json({ error: 'رمز الدخول الجديد مطلوب' }, { status: 400 });
       }
-      await adminService.changeUserAccessCode(
+      const result = await adminService.changeUserAccessCode(
         id,
         body.newAccessCode,
         session,
         body.confirmNewAccessCode
       );
-      return NextResponse.json({
-        success: true,
-        message: 'تم تغيير وتشفير رمز الدخول بنجاح وتحديث إصدار الأمان وإبطال الجلسات السابقة',
-      });
+      return NextResponse.json(result);
     }
 
     if (action === 'revoke_sessions') {

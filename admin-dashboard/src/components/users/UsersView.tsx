@@ -187,7 +187,7 @@ export const UsersView: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'فشل في تغيير رمز الدخول');
 
-      setSuccessMessage(`تم تغيير وتشفير رمز الدخول للمستخدم "${selectedUser.displayName}" بنجاح وزيادة إصدار الأمان وإبطال الجلسات السابقة.`);
+      setSuccessMessage(data.message || `تم تغيير وتشفير رمز الدخول للمستخدم "${selectedUser.displayName}" بنجاح وإبطال كافة جلساته النشطة تلقائياً عبر جميع الأجهزة.`);
       setIsChangeCodeOpen(false);
       setNewAccessCode('');
       setConfirmNewAccessCode('');

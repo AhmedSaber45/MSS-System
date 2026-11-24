@@ -24,6 +24,7 @@ export interface PromotionalLaptopItem {
   stock_location?: string;
   physical_condition?: string;
   serial_number?: string;
+  notes?: string;
 }
 
 export interface PromotionalDisplayOptions {
@@ -42,6 +43,7 @@ export interface PromotionalExportOptions extends PromotionalDisplayOptions {
   filename?: string;
   onProgress?: (currentPage: number, totalPages: number) => void;
   pageDataUrls?: string[];
+  exportType?: 'mss_images' | 'custom_images' | string;
 }
 
 export interface PromotionalPdfExportResult {

@@ -622,7 +622,7 @@ export function applyStyledExcelFormatting(
         col.header === WHOLESALE_HEADERS.QUANTITY ||
         col.header.includes('الكمية');
 
-      const horizontalAlign: 'right' | 'center' = isModel ? 'right' : 'center';
+      const horizontalAlign: 'right' | 'center' = 'center';
 
       const cellStyle: any = {
         fill: {

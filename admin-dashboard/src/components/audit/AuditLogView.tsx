@@ -364,10 +364,27 @@ export const AuditLogView: React.FC = () => {
                 {filteredLogs.map((log) => {
                   const badge = getEventBadge(log.eventType);
                   const isSuccess = log.metadata?.status !== 'FAILURE';
-                  const description =
+                  const targetUsername =
+                    (typeof log.metadata?.targetUsername === 'string' && log.metadata.targetUsername.trim()) ||
+                    (typeof log.metadata?.username === 'string' && log.metadata.username.trim()) ||
+                    (typeof log.metadata?.target_username === 'string' && log.metadata.target_username.trim()) ||
+                    null;
+
+                  let description =
                     typeof log.metadata?.description === 'string'
                       ? log.metadata.description
                       : `${badge.label} بواسطة ${log.actorUsername}`;
+
+                  if (log.eventType === 'USER_ACCESS_CODE_CHANGE') {
+                    const displayUser =
+                      targetUsername ||
+                      (log.targetType === 'user' && log.targetId && log.targetId !== 'system'
+                        ? `مستخدم #${log.targetId.slice(0, 8)}`
+                        : 'المستخدم');
+                    description = `قام ${log.actorUsername} بتغيير رمز الدخول للمستخدم: ${displayUser} وإبطال كافة جلساته النشطة`;
+                  } else if (targetUsername && log.targetId && description.includes(log.targetId)) {
+                    description = description.replaceAll(log.targetId, targetUsername);
+                  }
 
                   return (
                     <tr
@@ -400,7 +417,7 @@ export const AuditLogView: React.FC = () => {
 
                       {/* Description */}
                       <td className="py-3 px-4">
-                        <div className="font-normal text-slate-200 max-w-md truncate">
+                        <div className="font-normal text-slate-200 max-w-md truncate" title={description}>
                           {description}
                         </div>
                         {log.metadata?.failureReason ? (
@@ -412,13 +429,20 @@ export const AuditLogView: React.FC = () => {
 
                       {/* Target */}
                       <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">
-                        {log.metadata?.targetUsername ? (
-                          <span className="text-slate-300 font-medium">
-                            {String(log.metadata.targetUsername)}
-                          </span>
+                        {targetUsername ? (
+                          <div className="flex flex-col">
+                            <span className="text-slate-200 font-medium font-sans">
+                              {targetUsername}
+                            </span>
+                            {log.targetId && log.targetId !== 'system' && log.targetId !== targetUsername && (
+                              <span className="text-[10px] text-slate-500 font-mono" title={`معرف المستخدم: ${log.targetId}`}>
+                                #{log.targetId.slice(0, 8)}
+                              </span>
+                            )}
+                          </div>
                         ) : log.targetId && log.targetId !== 'system' ? (
-                          <span>
-                            {log.targetType}: #{log.targetId.slice(0, 8)}
+                          <span className="text-slate-400">
+                            {log.targetType === 'user' ? 'مستخدم محذوف' : log.targetType}: #{log.targetId.slice(0, 8)}
                           </span>
                         ) : (
                           <span className="text-slate-600">النظام</span>
@@ -525,33 +549,58 @@ export const AuditLogView: React.FC = () => {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#090d16] border border-slate-800">
-                <div>
-                  <span className="text-slate-500 block text-[10px]">نوع العملية</span>
-                  <span className="text-slate-200 font-mono">{selectedLog.eventType}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">المنفّذ</span>
-                  <span className="text-slate-200 font-mono">{selectedLog.actorUsername} ({selectedLog.actorId})</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">المستهدف</span>
-                  <span className="text-slate-200 font-mono">{selectedLog.targetType}: {selectedLog.targetId}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">التوقيت (UTC)</span>
-                  <span className="text-slate-200 font-mono">{formatTimestamp(selectedLog.createdAt)}</span>
-                </div>
-              </div>
+              {(() => {
+                const modalTargetUser =
+                  (typeof selectedLog.metadata?.targetUsername === 'string' && selectedLog.metadata.targetUsername) ||
+                  (typeof selectedLog.metadata?.username === 'string' && selectedLog.metadata.username) ||
+                  (typeof selectedLog.metadata?.target_username === 'string' && selectedLog.metadata.target_username) ||
+                  null;
 
-              <div>
-                <span className="text-slate-400 block mb-1">الوصف المباشر:</span>
-                <p className="p-2.5 rounded-lg bg-sky-950/20 border border-sky-900/40 text-sky-200">
-                  {typeof selectedLog.metadata?.description === 'string'
-                    ? selectedLog.metadata.description
-                    : selectedLog.eventType}
-                </p>
-              </div>
+                const modalDescription =
+                  selectedLog.eventType === 'USER_ACCESS_CODE_CHANGE'
+                    ? `قام ${selectedLog.actorUsername} بتغيير رمز الدخول للمستخدم: ${modalTargetUser || selectedLog.targetId} وإبطال كافة جلساته النشطة`
+                    : typeof selectedLog.metadata?.description === 'string'
+                      ? modalTargetUser && selectedLog.targetId && selectedLog.metadata.description.includes(selectedLog.targetId)
+                        ? selectedLog.metadata.description.replaceAll(selectedLog.targetId, modalTargetUser)
+                        : selectedLog.metadata.description
+                      : selectedLog.eventType;
+
+                return (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#090d16] border border-slate-800">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">نوع العملية</span>
+                        <span className="text-slate-200 font-mono">{selectedLog.eventType}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">المنفّذ (المشرف)</span>
+                        <span className="text-slate-200 font-mono">{selectedLog.actorUsername} ({selectedLog.actorId})</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">المستهدف (الهدف)</span>
+                        <span className="text-slate-200 font-mono">
+                          {selectedLog.targetType === 'user'
+                            ? modalTargetUser
+                              ? `${modalTargetUser} (#${selectedLog.targetId.slice(0, 8)})`
+                              : `مستخدم محذوف (#${selectedLog.targetId.slice(0, 8)})`
+                            : `${selectedLog.targetType}: ${selectedLog.targetId}`}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">التوقيت (UTC)</span>
+                        <span className="text-slate-200 font-mono">{formatTimestamp(selectedLog.createdAt)}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block mb-1">الوصف المباشر:</span>
+                      <p className="p-2.5 rounded-lg bg-sky-950/20 border border-sky-900/40 text-sky-200">
+                        {modalDescription}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
 
               {selectedLog.metadata?.failureReason ? (
                 <div>

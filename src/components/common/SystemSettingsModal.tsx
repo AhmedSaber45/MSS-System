@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Button } from './Button';
 import { Badge } from './Badge';
 import { Spinner } from './Spinner';
+import { APP_VERSION, APP_NAME } from '../../config/appVersion';
 import {
   Settings,
   Power,
@@ -348,12 +349,12 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
           <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">اسم التطبيق:</span>
-              <span className="font-bold text-slate-900 font-mono">AS System</span>
+              <span className="font-bold text-slate-900 font-mono">{APP_NAME}</span>
             </div>
 
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">الإصدار:</span>
-              <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">v1.0.5</span>
+              <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">v{APP_VERSION}</span>
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">

@@ -1150,7 +1150,14 @@ export const adminService = {
     newAccessCode: string,
     actor: SessionPayload,
     confirmNewAccessCode?: string
-  ): Promise<void> {
+  ): Promise<{
+    success: boolean;
+    targetUsername: string;
+    credentialVersion: number;
+    sessionsRevoked: boolean;
+    partialWarning: boolean;
+    message: string;
+  }> {
     const validation = validateAccessCode(newAccessCode);
     if (!validation.valid) {
       throw new Error(validation.error);
@@ -1164,106 +1171,232 @@ export const adminService = {
 
     try {
       const supabase = getServerSupabase();
-      
-      const { data: user, error: selError } = await supabase
-        .from('app_users')
-        .select('credential_version')
-        .eq('id', userId)
-        .single();
 
-      if (selError || !user) {
-        throw new Error(selError?.message || 'User not found in Supabase');
+      // 1. Invoke secure RPC function admin_change_user_access_code (handles SECURITY DEFINER & atomic session revocation)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_change_user_access_code', {
+        p_user_id: userId,
+        p_new_access_code: newAccessCode.trim(),
+        p_actor_id: actor.adminId || 'admin',
+        p_actor_username: actor.username || 'admin',
+      });
+
+      if (rpcError) {
+        const errMsg = rpcError.message || '';
+        if (
+          rpcError.code === 'PGRST202' ||
+          errMsg.includes('schema cache') ||
+          errMsg.includes('Could not find') ||
+          errMsg.includes('structure of query does not match')
+        ) {
+          throw new Error(
+            'دالة admin_change_user_access_code تحتاج إلى تطبيق التحديث في قاعدة البيانات. يرجى تطبيق ملف الترحيل 20261124_fix_admin_access_code_rpc_return_type.sql في Supabase SQL Editor.'
+          );
+        }
+        throw new Error(errMsg || 'فشل في تحديث رمز الدخول في قاعدة البيانات');
       }
 
-      const nextCredVer = (user?.credential_version || 1) + 1;
+      // Handle both scalar JSONB response and legacy table array response
+      const targetRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (!targetRow || (typeof targetRow === 'object' && targetRow.success === false)) {
+        throw new Error('لم يتم إرجاع أي بيانات بعد تحديث رمز الدخول للمستخدم');
+      }
 
-      const { error: updError } = await supabase
-        .from('app_users')
-        .update({
-          access_code_hash: hashed,
-          credential_version: nextCredVer,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
+      const nextCredVer = Number(targetRow.credential_version) || 1;
+      const targetUsername = targetRow.username || '';
+      const targetDisplayName = targetRow.display_name || targetUsername;
 
-      if (updError) throw new Error(updError.message);
-
-      // Invalidate all existing sessions
-      await supabase
-        .from('app_user_sessions')
-        .update({ revoked_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .is('revoked_at', null);
-
-      await this.logAdminAudit(
-        actor,
-        'USER_ACCESS_CODE_CHANGE',
-        'user',
-        userId,
-        {
-          note: 'تم تغيير وتشفير رمز الدخول، وزيادة إصدار الأمان وإبطال الجلسات السابقة',
-          credentialVersion: nextCredVer,
-        }
-      );
-    } catch {
+      // Mirror update to fallbackUsers if present
       const user = fallbackUsers.find(u => u.id === userId);
       if (user) {
         user.access_code_hash = hashed;
-        user.credentialVersion = (user.credentialVersion || 1) + 1;
+        user.credentialVersion = nextCredVer;
         user.updatedAt = new Date().toISOString();
+      }
 
-        // Revoke sessions in memory
+      // Revoke in-memory sessions strictly for this user (never revoke admin or other users)
+      fallbackSessions.forEach(s => {
+        if (s.userId === userId && !s.revokedAt) {
+          s.revokedAt = new Date().toISOString();
+        }
+      });
+
+      // Mirror audit log to activity buffer with explicit target user snapshot
+      await activityLogger.logActivity({
+        actorId: actor.adminId || 'admin',
+        actorUsername: actor.username || 'admin',
+        eventType: 'USER_ACCESS_CODE_CHANGE',
+        targetType: 'user',
+        targetId: userId,
+        targetUsername,
+        description: `قام ${actor.username || 'admin'} بتغيير رمز الدخول للمستخدم: ${targetUsername} وإبطال كافة جلساته النشطة`,
+        status: 'SUCCESS',
+        metadata: {
+          note: 'تم تغيير وتشفير رمز الدخول، وزيادة إصدار الأمان وإبطال كافة الجلسات السابقة تلقائياً',
+          credentialVersion: nextCredVer,
+          targetUsername,
+          username: targetUsername,
+          targetDisplayName,
+          sessionsRevoked: true,
+        },
+      });
+
+      return {
+        success: true,
+        targetUsername,
+        credentialVersion: nextCredVer,
+        sessionsRevoked: true,
+        partialWarning: false,
+        message: `تم تغيير وتشفير رمز الدخول للمستخدم "${targetUsername}" بنجاح، وإبطال كافة جلساته النشطة تلقائياً عبر جميع الأجهزة.`,
+      };
+    } catch (err: any) {
+      // In isolated test runner without remote Supabase network access, allow fallbackUsers only if user exists
+      const memUser = fallbackUsers.find(u => u.id === userId);
+      if (
+        memUser &&
+        (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+          err.message?.includes('fetch failed') ||
+          err.message?.includes('NETWORK BLOCKED') ||
+          err.message?.includes('Supabase not configured'))
+      ) {
+        memUser.access_code_hash = hashed;
+        memUser.credentialVersion = (memUser.credentialVersion || 1) + 1;
+        memUser.updatedAt = new Date().toISOString();
+
         fallbackSessions.forEach(s => {
           if (s.userId === userId && !s.revokedAt) {
             s.revokedAt = new Date().toISOString();
           }
         });
+
+        await activityLogger.logActivity({
+          actorId: actor.adminId || 'admin',
+          actorUsername: actor.username || 'admin',
+          eventType: 'USER_ACCESS_CODE_CHANGE',
+          targetType: 'user',
+          targetId: userId,
+          targetUsername: memUser.username,
+          description: `قام ${actor.username || 'admin'} بتغيير رمز الدخول للمستخدم: ${memUser.username} وإبطال كافة جلساته النشطة`,
+          status: 'SUCCESS',
+          metadata: {
+            note: 'تم تغيير وتشفير رمز الدخول محلياً (بيئة الاختبار)',
+            credentialVersion: memUser.credentialVersion,
+            targetUsername: memUser.username,
+            username: memUser.username,
+            targetDisplayName: memUser.displayName,
+            sessionsRevoked: true,
+          },
+        });
+
+        return {
+          success: true,
+          targetUsername: memUser.username,
+          credentialVersion: memUser.credentialVersion,
+          sessionsRevoked: true,
+          partialWarning: false,
+          message: `تم تغيير وتشفير رمز الدخول للمستخدم "${memUser.username}" بنجاح، وإبطال كافة جلساته النشطة تلقائياً عبر جميع الأجهزة.`,
+        };
       }
 
-      await this.logAdminAudit(
-        actor,
-        'USER_ACCESS_CODE_CHANGE',
-        'user',
-        userId,
-        {
-          note: 'تم تغيير وتشفير رمز الدخول، وزيادة إصدار الأمان وإبطال الجلسات السابقة',
-          credentialVersion: user?.credentialVersion,
-        }
-      );
+      // Authoritative update failed: rethrow error to prevent false success reporting
+      throw new Error(err.message || 'فشل تحديث رمز الدخول في قاعدة البيانات');
     }
   },
 
   async revokeUserSessions(userId: string, actor: SessionPayload): Promise<void> {
+    let targetUsername = userId;
     try {
       const supabase = getServerSupabase();
-      const { data: user } = await supabase.from('app_users').select('credential_version').eq('id', userId).single();
-      const nextCredVer = (user?.credential_version || 1) + 1;
 
-      await supabase
-        .from('app_users')
-        .update({ credential_version: nextCredVer, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      // 1. Invoke secure RPC function admin_revoke_user_sessions (SECURITY DEFINER)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_revoke_user_sessions', {
+        p_user_id: userId,
+        p_actor_id: actor.adminId || 'admin',
+        p_actor_username: actor.username || 'admin',
+      });
 
-      await supabase
-        .from('app_user_sessions')
-        .update({ revoked_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .is('revoked_at', null);
-    } catch {
+      if (rpcError) {
+        const errMsg = rpcError.message || '';
+        if (
+          rpcError.code === 'PGRST202' ||
+          errMsg.includes('schema cache') ||
+          errMsg.includes('Could not find') ||
+          errMsg.includes('structure of query does not match')
+        ) {
+          throw new Error(
+            'دالة admin_revoke_user_sessions تحتاج إلى تطبيق التحديث في قاعدة البيانات. يرجى تطبيق ملف الترحيل 20261124_fix_admin_access_code_rpc_return_type.sql في Supabase SQL Editor.'
+          );
+        }
+        throw new Error(errMsg || 'فشل في إبطال جلسات المستخدم في قاعدة البيانات');
+      }
+
+      // Handle both scalar JSONB response and legacy table array response
+      const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (!row || (typeof row === 'object' && row.success === false)) {
+        throw new Error('لم يتم إرجاع أي بيانات بعد إبطال جلسات المستخدم');
+      }
+
+      targetUsername = row.username || userId;
       const user = fallbackUsers.find(u => u.id === userId);
       if (user) {
-        user.credentialVersion = (user.credentialVersion || 1) + 1;
+        user.credentialVersion = Number(row.credential_version) || (user.credentialVersion || 1) + 1;
         fallbackSessions.forEach(s => {
           if (s.userId === userId && !s.revokedAt) {
             s.revokedAt = new Date().toISOString();
           }
         });
       }
-    }
 
-    await this.logAdminAudit(actor, 'USER_SESSION_REVOKE', 'user', userId, {
-      note: 'تم إبطال كافة جلسات المستخدم النشطة وزيادة إصدار الأمان',
-    });
+      await activityLogger.logActivity({
+        actorId: actor.adminId,
+        actorUsername: actor.username,
+        eventType: 'USER_SESSION_REVOKE',
+        targetType: 'user',
+        targetId: userId,
+        targetUsername,
+        description: `قام ${actor.username} بإبطال كافة الجلسات النشطة للمستخدم: ${targetUsername}`,
+        metadata: {
+          note: 'تم إبطال كافة جلسات المستخدم النشطة وزيادة إصدار الأمان تلقائياً',
+          targetUsername,
+          username: targetUsername,
+        },
+      });
+      return;
+    } catch (err: any) {
+      if (
+        isTestEnv ||
+        process.env.NODE_ENV === 'test' ||
+        err.message?.includes('fetch failed') ||
+        err.message?.includes('NETWORK BLOCKED') ||
+        err.message?.includes('Supabase not configured')
+      ) {
+        const user = fallbackUsers.find(u => u.id === userId);
+        if (user) {
+          targetUsername = user.username;
+          user.credentialVersion = (user.credentialVersion || 1) + 1;
+          fallbackSessions.forEach(s => {
+            if (s.userId === userId && !s.revokedAt) {
+              s.revokedAt = new Date().toISOString();
+            }
+          });
+          await activityLogger.logActivity({
+            actorId: actor.adminId,
+            actorUsername: actor.username,
+            eventType: 'USER_SESSION_REVOKE',
+            targetType: 'user',
+            targetId: userId,
+            targetUsername,
+            description: `قام ${actor.username} بإبطال كافة الجلسات النشطة للمستخدم: ${targetUsername}`,
+            metadata: {
+              note: 'تم إبطال كافة جلسات المستخدم النشطة وزيادة إصدار الأمان محلياً',
+              targetUsername,
+              username: targetUsername,
+            },
+          });
+          return;
+        }
+      }
+      throw new Error(err.message || 'فشل في إبطال جلسات المستخدم في قاعدة البيانات');
+    }
   },
 
   // ============================================================================
@@ -2713,16 +2846,26 @@ export const adminService = {
     eventType: string,
     targetType: AuditTargetType,
     targetId: string,
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    targetUsername?: string
   ): Promise<void> {
     const cleanMeta = sanitizeMetadata(metadata);
+    const resolvedUsername =
+      targetUsername ||
+      (typeof cleanMeta.targetUsername === 'string' ? cleanMeta.targetUsername : undefined) ||
+      (typeof cleanMeta.username === 'string' ? cleanMeta.username : undefined);
+
     await activityLogger.logActivity({
       actorId: actor.adminId,
       actorUsername: actor.username,
       eventType,
       targetType,
       targetId,
-      metadata: cleanMeta,
+      targetUsername: resolvedUsername,
+      metadata: {
+        ...cleanMeta,
+        targetUsername: resolvedUsername,
+      },
     });
   },
 

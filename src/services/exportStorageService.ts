@@ -1,4 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core';
+import { APP_VERSION, APP_NAME } from '../config/appVersion.ts';
 
 export type ExportType =
   | 'accessories_invoices'
@@ -7,7 +8,8 @@ export type ExportType =
   | 'mss_reports'
   | 'mss_excel'
   | 'mss_images'
-  | 'accessories_excel';
+  | 'accessories_excel'
+  | 'custom_images';
 
 export const ROOT_EXPORT_FOLDER = 'MSS System Files';
 
@@ -20,6 +22,7 @@ export const EXPORT_FOLDERS = {
   MSS_EXCEL: 'MSS Exel Sheets',
   MSS_IMAGES: 'MSS Images',
   ACCESSORIES_EXCEL: 'Accessories Exel sheets',
+  CUSTOM_IMAGES: 'custom images',
 } as const;
 
 export const EXPORT_SUBFOLDERS: Record<ExportType, string> = {
@@ -30,6 +33,7 @@ export const EXPORT_SUBFOLDERS: Record<ExportType, string> = {
   mss_excel: EXPORT_FOLDERS.MSS_EXCEL,
   mss_images: EXPORT_FOLDERS.MSS_IMAGES,
   accessories_excel: EXPORT_FOLDERS.ACCESSORIES_EXCEL,
+  custom_images: EXPORT_FOLDERS.CUSTOM_IMAGES,
 };
 
 export const EXPORT_SUBFOLDER_ALIASES: Record<string, string[]> = {
@@ -162,8 +166,8 @@ async function writeDiskConfigAsync(locationPath: string | null): Promise<void> 
     const data = {
       storageLocation: locationPath,
       updatedAt: new Date().toISOString(),
-      appName: 'Compu MSS',
-      version: '1.0.5',
+      appName: APP_NAME,
+      version: APP_VERSION,
     };
     fsMod.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -580,9 +584,17 @@ export const exportStorageService = {
    * Returns the expected subfolder path for an export type: `<storageLocation>/MSS System Files/<subfolder>`
    */
   getExpectedFolderPath(exportType: ExportType): string | null {
+    const loc = this.getStorageLocation();
+    if (!loc) return null;
+    const trimmed = loc.trim().replace(/[\\/]+$/, '');
+    const sep = trimmed.includes('/') && !trimmed.includes('\\') ? '/' : '\\';
+
+    if (exportType === 'custom_images') {
+      return `${trimmed}${sep}${EXPORT_FOLDERS.CUSTOM_IMAGES}`;
+    }
+
     const root = this.getRootFolderPath();
     if (!root) return null;
-    const sep = root.includes('/') && !root.includes('\\') ? '/' : '\\';
     const subfolder = EXPORT_SUBFOLDERS[exportType] || 'تقارير عامة';
     return `${root}${sep}${subfolder}`;
   },
@@ -592,11 +604,50 @@ export const exportStorageService = {
    * Creates them ONLY on demand (first export operation), never prematurely.
    */
   async ensureSubfolder(exportType: ExportType): Promise<{ rootPath: string; subfolderPath: string }> {
+    const loc = this.getStorageLocation();
+    if (!loc) {
+      throw new Error('لم يتم تحديد مجلد حفظ وتصدير الملفات.');
+    }
+    const trimmed = loc.trim().replace(/[\\/]+$/, '');
+    const sep = trimmed.includes('/') && !trimmed.includes('\\') ? '/' : '\\';
+
+    if (exportType === 'custom_images') {
+      const subfolderPath = `${trimmed}${sep}${EXPORT_FOLDERS.CUSTOM_IMAGES}`;
+
+      if (this.isTauriEnvironment()) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('create_export_dir', { path: subfolderPath });
+          return { rootPath: trimmed, subfolderPath };
+        } catch (err: any) {
+          console.warn('Tauri create_export_dir warning:', err);
+        }
+      }
+
+      // Node.js / filesystem creation
+      const { fs: fsMod } = await getNodeFs();
+      if (fsMod) {
+        if (!fsMod.existsSync(subfolderPath)) {
+          fsMod.mkdirSync(subfolderPath, { recursive: true });
+        }
+      }
+
+      // HTML5 File System Access API
+      if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
+        try {
+          await (window as any).__mss_export_dir_handle.getDirectoryHandle(EXPORT_FOLDERS.CUSTOM_IMAGES, { create: true });
+        } catch (err) {
+          console.warn('HTML5 directory handle creation warning:', err);
+        }
+      }
+
+      return { rootPath: trimmed, subfolderPath };
+    }
+
     const rootPath = this.getRootFolderPath();
     if (!rootPath) {
       throw new Error('لم يتم تحديد مجلد حفظ وتصدير الملفات.');
     }
-    const sep = rootPath.includes('/') && !rootPath.includes('\\') ? '/' : '\\';
     const canonicalSubfolder = EXPORT_SUBFOLDERS[exportType] || 'تقارير عامة';
     const subfolderPath = `${rootPath}${sep}${canonicalSubfolder}`;
 
@@ -816,10 +867,15 @@ export const exportStorageService = {
         }
       } else if (typeof window !== 'undefined' && (window as any).__mss_export_dir_handle) {
         // HTML5 File System Access API write
-        const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
-          create: true,
-        });
-        const subHandle = await rootHandle.getDirectoryHandle(EXPORT_SUBFOLDERS[exportType], { create: true });
+        let subHandle: any;
+        if (exportType === 'custom_images') {
+          subHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(EXPORT_FOLDERS.CUSTOM_IMAGES, { create: true });
+        } else {
+          const rootHandle = await (window as any).__mss_export_dir_handle.getDirectoryHandle(ROOT_EXPORT_FOLDER, {
+            create: true,
+          });
+          subHandle = await rootHandle.getDirectoryHandle(EXPORT_SUBFOLDERS[exportType], { create: true });
+        }
         const fileHandle = await subHandle.getFileHandle(uniqueFilename, { create: true });
         const writable = await fileHandle.createWritable();
 

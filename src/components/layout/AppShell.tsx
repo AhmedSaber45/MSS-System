@@ -20,6 +20,7 @@ import { InvoicesView } from '../placeholders/accessories/InvoicesView';
 import { ReturnsView } from '../placeholders/accessories/ReturnsView';
 import { ReportsView } from '../placeholders/accessories/ReportsView';
 import { AccessoriesExpensesView } from '../placeholders/accessories/AccessoriesExpensesView';
+import { AccessoriesPromotionalView } from '../placeholders/accessories/AccessoriesPromotionalView';
 import { HistoryView } from '../placeholders/accessories/HistoryView';
 import { BackupView } from '../placeholders/accessories/BackupView';
 
@@ -66,6 +67,8 @@ export const AppShell: React.FC = () => {
           return <ReportsView />;
         case 'expenses':
           return <AccessoriesExpensesView />;
+        case 'promotional-image':
+          return <AccessoriesPromotionalView />;
         case 'history':
           return <HistoryView />;
         case 'backup':

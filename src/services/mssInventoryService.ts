@@ -17,6 +17,8 @@ import type {
   NewMSSBulkStockInput,
   AssignSerialsInput,
   MSSModelInventorySummary,
+  MSSStockAdjustment,
+  StockAdjustmentInput,
 } from '../types/mssInventory.ts';
 import type { ModelStockQuantitySummary } from '../types/mssReports.ts';
 
@@ -129,6 +131,30 @@ function getCachedMovements(): MSSDeviceMovement[] {
 
 function saveCachedMovements(movements: MSSDeviceMovement[]): void {
   safeStorage.setItem(MSS_MOVEMENTS_CACHE_KEY, JSON.stringify(movements));
+}
+
+const MSS_STOCK_ADJUSTMENTS_CACHE_KEY = 'shop_mss_stock_adjustments_cache_v1';
+
+function getCachedAdjustments(): MSSStockAdjustment[] {
+  try {
+    const raw = safeStorage.getItem(MSS_STOCK_ADJUSTMENTS_CACHE_KEY);
+    if (!raw) {
+      safeStorage.setItem(MSS_STOCK_ADJUSTMENTS_CACHE_KEY, JSON.stringify([]));
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedAdjustments(adjustments: MSSStockAdjustment[]): void {
+  try {
+    safeStorage.setItem(MSS_STOCK_ADJUSTMENTS_CACHE_KEY, JSON.stringify(adjustments));
+  } catch {
+    // ignore
+  }
 }
 
 export const mssInventoryService = {
@@ -851,6 +877,7 @@ export const mssInventoryService = {
 
   /**
    * Physical Transfer between Shop 1 and Shop 2 (Explicit Movement Record)
+   * Supports both serialized devices (1 unit) and bulk devices (partial or full transfer)
    */
   async transferDevice(input: TransferDeviceInput): Promise<{ device: MSSDevice; movement: MSSDeviceMovement }> {
     const cached = getCachedDevices();
@@ -875,6 +902,22 @@ export const mssInventoryService = {
     const now = new Date().toISOString();
     const movementId = generateUUID();
 
+    const deviceQty = device.quantity && device.quantity > 0 ? device.quantity : 1;
+    const isSerialized = Boolean(device.serial_number && device.is_serialized !== false);
+    const transferQty = isSerialized
+      ? 1
+      : (input.quantity !== undefined && input.quantity > 0 ? Math.floor(input.quantity) : deviceQty);
+
+    if (transferQty <= 0) {
+      throw new Error('كمية النقل يجب أن تكون رقماً صحيحاً أكبر من صفر');
+    }
+
+    if (transferQty > deviceQty) {
+      throw new Error(`الكمية المراد نقلها (${transferQty}) أكبر من الكمية المتاحة (${deviceQty})`);
+    }
+
+    const isPartialBulkTransfer = !isSerialized && transferQty < deviceQty;
+
     const newMovement: MSSDeviceMovement = {
       id: movementId,
       device_id: device.id,
@@ -883,56 +926,140 @@ export const mssInventoryService = {
       to_location: toLocation,
       movement_date: now,
       movement_status: 'COMPLETED',
-      notes: input.notes?.trim() || 'نقل فعلي بين المحلين',
+      notes: `${input.notes?.trim() || 'نقل فعلي بين المحلين'}${!isSerialized ? ` (الكمية المنقولة: ${transferQty} وحدة)` : ''}`,
       created_at: now,
       model_name: device.model_name,
       brand: device.brand,
     };
 
-    // Try Supabase RPC or direct insert
-    try {
-      // Call transfer RPC or direct update
-      const { data: rpcData, error: rpcError } = await supabase.rpc('transfer_mss_device', {
-        p_device_id: device.id,
-        p_to_location: toLocation,
-        p_notes: newMovement.notes,
-      });
+    if (isPartialBulkTransfer) {
+      // Deduct from source bulk lot
+      device.quantity = deviceQty - transferQty;
+      device.updated_at = now;
+      cached[deviceIndex] = device;
 
-      if (!rpcError && rpcData) {
-        newMovement.id = rpcData;
-      } else {
-        // Fallback to manual direct update
+      try {
         await supabase
           .from('mss_devices')
-          .update({ stock_location: toLocation })
+          .update({ quantity: device.quantity, updated_at: now })
           .eq('id', device.id);
+      } catch (err) {
+        console.warn('Supabase update source bulk device failed, recorded locally:', err);
+      }
 
-        const { data: insertData } = await supabase
-          .from('mss_device_movements')
-          .insert({
-            device_id: device.id,
-            serial_number: device.serial_number,
-            from_location: fromLocation,
-            to_location: toLocation,
-            movement_status: 'COMPLETED',
-            notes: newMovement.notes,
-          })
-          .select('id, movement_date, created_at')
-          .single();
+      // Check if destination has existing bulk device of same model
+      const destIndex = cached.findIndex(
+        d => d.model_id === device.model_id &&
+             d.stock_location === toLocation &&
+             (!d.is_serialized || !d.serial_number) &&
+             d.status === 'AVAILABLE'
+      );
 
-        if (insertData?.id) {
-          newMovement.id = insertData.id;
-          if (insertData.movement_date) newMovement.movement_date = insertData.movement_date;
+      if (destIndex >= 0) {
+        const destDevice = cached[destIndex];
+        destDevice.quantity = (destDevice.quantity || 1) + transferQty;
+        destDevice.updated_at = now;
+        cached[destIndex] = destDevice;
+        try {
+          await supabase
+            .from('mss_devices')
+            .update({ quantity: destDevice.quantity, updated_at: now })
+            .eq('id', destDevice.id);
+        } catch (err) {
+          console.warn('Supabase update dest bulk device failed, recorded locally:', err);
+        }
+      } else {
+        const newDestDevice: MSSDevice = {
+          id: generateUUID(),
+          serial_number: null,
+          is_serialized: false,
+          quantity: transferQty,
+          model_id: device.model_id,
+          purchase_cost: device.purchase_cost,
+          list_price: device.list_price,
+          purchase_date: device.purchase_date,
+          physical_condition: device.physical_condition,
+          stock_location: toLocation,
+          status: 'AVAILABLE',
+          notes: `تحويل جزئي (${transferQty} وحدة) من ${fromLocation}`,
+          created_at: now,
+          updated_at: now,
+          _synced: false,
+          model: device.model,
+          model_name: device.model_name,
+          brand: device.brand,
+          category: device.category,
+        };
+        cached.unshift(newDestDevice);
+        try {
+          await supabase.from('mss_devices').insert({
+            id: newDestDevice.id,
+            serial_number: null,
+            is_serialized: false,
+            quantity: newDestDevice.quantity,
+            model_id: newDestDevice.model_id,
+            purchase_cost: newDestDevice.purchase_cost,
+            list_price: newDestDevice.list_price,
+            purchase_date: newDestDevice.purchase_date,
+            physical_condition: newDestDevice.physical_condition,
+            stock_location: newDestDevice.stock_location,
+            status: newDestDevice.status,
+            notes: newDestDevice.notes,
+          });
+          newDestDevice._synced = true;
+        } catch (err) {
+          console.warn('Supabase insert dest bulk device failed, cached locally:', err);
         }
       }
-    } catch (err) {
-      console.warn('Supabase transfer device failed, recorded locally:', err);
+    } else {
+      // Full transfer of device (serialized or whole bulk lot)
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('transfer_mss_device', {
+          p_device_id: device.id,
+          p_to_location: toLocation,
+          p_notes: newMovement.notes,
+        });
+
+        if (!rpcError && rpcData) {
+          newMovement.id = rpcData;
+        } else {
+          await supabase
+            .from('mss_devices')
+            .update({ stock_location: toLocation, updated_at: now })
+            .eq('id', device.id);
+        }
+      } catch (err) {
+        console.warn('Supabase transfer device failed, recorded locally:', err);
+      }
+
+      device.stock_location = toLocation;
+      device.updated_at = now;
+      cached[deviceIndex] = device;
     }
 
-    // Update local cache
-    device.stock_location = toLocation;
-    device.updated_at = now;
-    cached[deviceIndex] = device;
+    // Insert movement into Supabase
+    try {
+      const { data: insertData } = await supabase
+        .from('mss_device_movements')
+        .insert({
+          device_id: device.id,
+          serial_number: device.serial_number,
+          from_location: fromLocation,
+          to_location: toLocation,
+          movement_status: 'COMPLETED',
+          notes: newMovement.notes,
+        })
+        .select('id, movement_date, created_at')
+        .single();
+
+      if (insertData?.id) {
+        newMovement.id = insertData.id;
+        if (insertData.movement_date) newMovement.movement_date = insertData.movement_date;
+      }
+    } catch (err) {
+      console.warn('Supabase insert movement failed, recorded locally:', err);
+    }
+
     saveCachedDevices(cached);
 
     const movements = getCachedMovements();
@@ -944,14 +1071,311 @@ export const mssInventoryService = {
       .queueOperation(
         'DEVICE_TRANSFER',
         newMovement,
-        `نقل جهاز بالسيريال (${newMovement.serial_number}) من (${newMovement.from_location}) إلى (${newMovement.to_location})`,
+        device.serial_number
+          ? `نقل جهاز بالسيريال (${newMovement.serial_number}) من (${newMovement.from_location}) إلى (${newMovement.to_location})`
+          : `نقل مخزون مجمع (${transferQty} وحدة) من (${newMovement.from_location}) إلى (${newMovement.to_location})`,
         newMovement.from_location
       )
       .catch(console.warn);
 
-    backupService.notifyDataChanged(`نقل جهاز MSS بين المحلين: ${newMovement.serial_number}`);
+    backupService.notifyDataChanged(
+      device.serial_number
+        ? `نقل جهاز MSS بين المحلين: ${newMovement.serial_number}`
+        : `نقل مخزون MSS (${transferQty} وحدة) إلى ${toLocation}`
+    );
 
     return { device, movement: newMovement };
+  },
+
+  /**
+   * Adjust/Correct Stock Quantity for an MSS Model at a Specific Branch
+   * Designed for safe correction of accidental inventory entries (e.g. 70 units -> 7 units)
+   * Updates local and remote stock, logs movements and audit logs, records adjustment history.
+   */
+  async adjustStockQuantity(input: StockAdjustmentInput): Promise<MSSStockAdjustment> {
+    if (!input.model_id) {
+      throw new Error('يجب تحديد الموديل المراد تصحيح كميته');
+    }
+    if (!input.stock_location) {
+      throw new Error('يجب تحديد الفرع أو المخزن المستهدف');
+    }
+    if (typeof input.new_quantity !== 'number' || isNaN(input.new_quantity) || input.new_quantity < 0) {
+      throw new Error('الكمية المصححة يجب أن تكون رقماً صحيحاً أكبر من أو يساوي الصفر');
+    }
+    if (!input.reason || !input.reason.trim()) {
+      throw new Error('يجب ذكر سبب تصحيح الكمية لأغراض التدقيق والمراجعة');
+    }
+
+    const activeLocations = await mssOperationalService.getActiveLocationNames();
+    if (!activeLocations.includes(input.stock_location)) {
+      throw new Error(`المحل أو المخزن غير صالح (${input.stock_location}). المواقع المتاحة: ${activeLocations.join('، ')}`);
+    }
+
+    const model = await mssCatalogService.getModelById(input.model_id);
+    if (!model) {
+      throw new Error('الموديل المحدد غير موجود في كتالوج MSS');
+    }
+
+    const now = new Date().toISOString();
+    const targetQty = Math.floor(input.new_quantity);
+    const cached = getCachedDevices();
+
+    // Find available devices for this model at this location
+    const matching = cached.filter(
+      d => d.model_id === input.model_id &&
+           d.stock_location === input.stock_location &&
+           d.status === 'AVAILABLE'
+    );
+
+    let currentAvailableQty = 0;
+    if (input.device_id) {
+      const dev = cached.find(d => d.id === input.device_id);
+      if (!dev) throw new Error('الجهاز المحدد غير موجود');
+      currentAvailableQty = dev.quantity && dev.quantity > 0 ? dev.quantity : 1;
+    } else {
+      currentAvailableQty = matching.reduce((sum, d) => sum + (d.quantity && d.quantity > 0 ? d.quantity : 1), 0);
+    }
+
+    const delta = targetQty - currentAvailableQty;
+    if (delta === 0) {
+      throw new Error(`الكمية المصححة مطابقة للرصيد الفعلي الحالي (${currentAvailableQty})، لا يوجد تغيير لتطبيقه.`);
+    }
+
+    // Apply adjustment to stock items
+    if (input.device_id) {
+      const dev = cached.find(d => d.id === input.device_id)!;
+      dev.quantity = targetQty;
+      if (targetQty === 0) {
+        dev.status = 'SOLD';
+      }
+      dev.updated_at = now;
+      try {
+        await supabase
+          .from('mss_devices')
+          .update({ quantity: targetQty, status: dev.status, updated_at: now })
+          .eq('id', dev.id);
+      } catch (err) {
+        console.warn('Supabase update device on adjustment failed, recorded locally:', err);
+      }
+    } else {
+      // Find bulk item first
+      const bulkDev = matching.find(d => !d.is_serialized || !d.serial_number);
+      if (bulkDev) {
+        const prevBulkQty = bulkDev.quantity && bulkDev.quantity > 0 ? bulkDev.quantity : 1;
+        const newBulkQty = Math.max(0, prevBulkQty + delta);
+        bulkDev.quantity = newBulkQty;
+        if (newBulkQty === 0 && targetQty === 0) {
+          bulkDev.status = 'SOLD';
+        }
+        bulkDev.updated_at = now;
+        try {
+          await supabase
+            .from('mss_devices')
+            .update({ quantity: newBulkQty, status: bulkDev.status, updated_at: now })
+            .eq('id', bulkDev.id);
+        } catch (err) {
+          console.warn('Supabase update bulk device on adjustment failed, recorded locally:', err);
+        }
+      } else if (delta > 0) {
+        // Create new bulk device record with the delta quantity
+        const newBulkDevice: MSSDevice = {
+          id: generateUUID(),
+          serial_number: null,
+          is_serialized: false,
+          quantity: delta,
+          model_id: input.model_id,
+          purchase_cost: matching[0]?.purchase_cost || 0,
+          list_price: model.default_list_price || 0,
+          purchase_date: getTodayLocalDateString(),
+          physical_condition: 'فرز أول ممتاز',
+          stock_location: input.stock_location,
+          status: 'AVAILABLE',
+          notes: `[تصحيح رصيد مخزون]: إضافة ${delta} وحدة. السبب: ${input.reason.trim()}`,
+          created_at: now,
+          updated_at: now,
+          _synced: false,
+          model,
+          model_name: model.model_name,
+          brand: model.brand,
+          category: model.category,
+        };
+        cached.unshift(newBulkDevice);
+        try {
+          await supabase.from('mss_devices').insert({
+            id: newBulkDevice.id,
+            serial_number: null,
+            is_serialized: false,
+            quantity: newBulkDevice.quantity,
+            model_id: newBulkDevice.model_id,
+            purchase_cost: newBulkDevice.purchase_cost,
+            list_price: newBulkDevice.list_price,
+            purchase_date: newBulkDevice.purchase_date,
+            physical_condition: newBulkDevice.physical_condition,
+            stock_location: newBulkDevice.stock_location,
+            status: newBulkDevice.status,
+            notes: newBulkDevice.notes,
+          });
+          newBulkDevice._synced = true;
+        } catch (err) {
+          console.warn('Supabase insert adjusted bulk device failed, cached locally:', err);
+        }
+      } else if (delta < 0) {
+        // Only serialized units exist and reduction is requested: mark excess units as RETURNED
+        const countToArchive = Math.min(matching.length, Math.abs(delta));
+        const toArchive = matching.slice(0, countToArchive);
+        for (const dev of toArchive) {
+          dev.status = 'RETURNED';
+          dev.notes = (dev.notes ? dev.notes + ' | ' : '') + `[تصحيح رصيد: استبعاد وحدة. السبب: ${input.reason.trim()}]`;
+          dev.updated_at = now;
+          try {
+            await supabase
+              .from('mss_devices')
+              .update({ status: 'RETURNED', notes: dev.notes, updated_at: now })
+              .eq('id', dev.id);
+          } catch (err) {
+            console.warn('Supabase archive serialized unit failed, recorded locally:', err);
+          }
+        }
+      }
+    }
+
+    saveCachedDevices(cached);
+
+    // Create adjustment audit record
+    const adjustmentId = generateUUID();
+    const adjustment: MSSStockAdjustment = {
+      id: adjustmentId,
+      model_id: input.model_id,
+      model_name: model.model_name,
+      brand: model.brand,
+      stock_location: input.stock_location,
+      device_id: input.device_id || null,
+      previous_quantity: currentAvailableQty,
+      new_quantity: targetQty,
+      adjustment_amount: delta,
+      reason: input.reason.trim(),
+      actor_id: input.actor_id,
+      actor_username: input.actor_username || 'مستخدم النظام',
+      created_at: now,
+      _synced: false,
+    };
+
+    const adjList = getCachedAdjustments();
+    adjList.unshift(adjustment);
+    saveCachedAdjustments(adjList);
+
+    // Try persisting to Supabase table
+    try {
+      await supabase.from('mss_stock_adjustments').insert({
+        id: adjustment.id,
+        model_id: adjustment.model_id,
+        stock_location: adjustment.stock_location,
+        device_id: adjustment.device_id,
+        previous_quantity: adjustment.previous_quantity,
+        new_quantity: adjustment.new_quantity,
+        adjustment_amount: adjustment.adjustment_amount,
+        reason: adjustment.reason,
+        actor_id: adjustment.actor_id,
+        actor_username: adjustment.actor_username,
+      });
+      adjustment._synced = true;
+    } catch {
+      // Non-blocking if table not migrated yet
+    }
+
+    // Log explicit movement for auditing
+    const movement: MSSDeviceMovement = {
+      id: generateUUID(),
+      device_id: adjustment.device_id || adjustment.id,
+      serial_number: null,
+      from_location: input.stock_location,
+      to_location: input.stock_location,
+      movement_date: now,
+      movement_status: 'COMPLETED',
+      notes: `[تصحيح رصيد مخزون]: تعديل الكمية من (${currentAvailableQty}) إلى (${targetQty}) [الفرق: ${delta > 0 ? '+' : ''}${delta}]. السبب: ${input.reason.trim()}`,
+      created_at: now,
+      model_name: model.model_name,
+      brand: model.brand,
+    };
+    const movements = getCachedMovements();
+    movements.unshift(movement);
+    saveCachedMovements(movements);
+
+    // Log to Admin Audit Logs
+    await mssOperationalService.logAudit({
+      actorId: input.actor_id || 'system',
+      actorUsername: input.actor_username || 'مدير النظام',
+      eventType: 'STOCK_QUANTITY_CORRECTION',
+      targetType: 'inventory',
+      targetId: input.model_id,
+      metadata: {
+        modelId: input.model_id,
+        modelName: model.model_name,
+        stockLocation: input.stock_location,
+        previousQuantity: currentAvailableQty,
+        newQuantity: targetQty,
+        delta,
+        reason: input.reason.trim(),
+      },
+    });
+
+    backupService.notifyDataChanged(`تصحيح كمية المخزون لموديل ${model.model_name}: ${currentAvailableQty} -> ${targetQty}`);
+
+    return adjustment;
+  },
+
+  /**
+   * Get all stock adjustment records with optional model filter
+   */
+  async getStockAdjustments(modelId?: string): Promise<MSSStockAdjustment[]> {
+    let list = getCachedAdjustments();
+    try {
+      let query = supabase
+        .from('mss_stock_adjustments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (modelId) {
+        query = query.eq('model_id', modelId);
+      }
+
+      const { data, error } = await query;
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const cloudMap = new Map<string, MSSStockAdjustment>();
+        for (const row of data) {
+          cloudMap.set(row.id, {
+            id: row.id,
+            model_id: row.model_id,
+            model_name: row.model_name || '',
+            brand: row.brand || '',
+            stock_location: row.stock_location as MSSStockLocation,
+            device_id: row.device_id,
+            previous_quantity: Number(row.previous_quantity) || 0,
+            new_quantity: Number(row.new_quantity) || 0,
+            adjustment_amount: Number(row.adjustment_amount) || 0,
+            reason: row.reason,
+            actor_id: row.actor_id,
+            actor_username: row.actor_username || '',
+            created_at: row.created_at,
+            _synced: true,
+          });
+        }
+        for (const localAdj of list) {
+          if (!cloudMap.has(localAdj.id)) {
+            cloudMap.set(localAdj.id, localAdj);
+          }
+        }
+        list = Array.from(cloudMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at));
+        saveCachedAdjustments(list);
+      }
+    } catch {
+      // Offline fallback
+    }
+
+    if (modelId) {
+      return list.filter(a => a.model_id === modelId);
+    }
+    return list;
   },
 
   /**
@@ -1171,6 +1595,7 @@ export const mssInventoryService = {
           sold_count: 0,
           maintenance_count: 0,
           devices: [],
+          model: model || undefined,
         });
       }
 
@@ -1245,6 +1670,7 @@ export const mssInventoryService = {
             sold_count: 0,
             maintenance_count: 0,
             devices: [],
+            model: model || undefined,
           });
         }
 
@@ -1311,6 +1737,7 @@ export const mssInventoryService = {
           model_code: s.model_code,
           category: s.category,
           specifications: model?.specifications || '',
+          model: model,
           total_units: 0,
           existing_units: 0,
           sold_units: 0,

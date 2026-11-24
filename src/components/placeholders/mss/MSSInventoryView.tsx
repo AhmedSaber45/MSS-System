@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -25,10 +25,13 @@ import type {
   NewMSSBulkStockInput,
   AssignSerialsInput,
   MSSModelInventorySummary,
+  MSSStockAdjustment,
 } from '@/types/mssInventory';
 import type { ModelStockQuantitySummary } from '@/types/mssReports';
 import type { MSSCatalogModel } from '@/types/mssCatalog';
 import { MSSModelModal } from './MSSModelModal';
+import { MSSModelSpecsModal } from './MSSModelSpecsModal';
+import { formatCompactModelSpecs } from '@/services/mssModelSpecsService';
 import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
 import { mssOperationalService } from '@/services/mssOperationalService';
 import type { SystemStore, TransferPreviewResponse, ExecuteTransferResult } from '@/types/mssOperational';
@@ -63,6 +66,9 @@ import {
   Barcode,
   Tag,
   BarChart3,
+  SlidersHorizontal,
+  X,
+  Info,
 } from 'lucide-react';
 
 export const MSSInventoryView: React.FC = () => {
@@ -130,6 +136,22 @@ export const MSSInventoryView: React.FC = () => {
   const [expandedModelKey, setExpandedModelKey] = useState<string | null>(null);
   const [modelsPage, setModelsPage] = useState<number>(1);
 
+  // Model Specifications & Notes Viewer Modal
+  const [isModelSpecsModalOpen, setIsModelSpecsModalOpen] = useState<boolean>(false);
+  const [selectedSpecsModel, setSelectedSpecsModel] = useState<MSSCatalogModel | null>(null);
+  const [selectedSpecsSummary, setSelectedSpecsSummary] = useState<MSSModelInventorySummary | null>(null);
+
+  const handleOpenModelSpecs = (summaryRow: MSSModelInventorySummary) => {
+    const resolved =
+      summaryRow.model ||
+      catalogModels.find(cm => cm.id === summaryRow.model_id) ||
+      summaryRow.devices.find(d => d.model)?.model ||
+      null;
+    setSelectedSpecsSummary(summaryRow);
+    setSelectedSpecsModel(resolved);
+    setIsModelSpecsModalOpen(true);
+  };
+
   // Add Stock Modal Mode (Individual vs Bulk) - Default to BULK
   const [stockRegistrationMode, setStockRegistrationMode] = useState<'INDIVIDUAL' | 'BULK'>('BULK');
   const [formQuantity, setFormQuantity] = useState<number>(1);
@@ -144,8 +166,30 @@ export const MSSInventoryView: React.FC = () => {
 
   // Transfer Form State
   const [transferTargetLocation, setTransferTargetLocation] = useState<MSSStockLocation>('');
+  const [transferQuantity, setTransferQuantity] = useState<number>(1);
   const [transferNotes, setTransferNotes] = useState<string>('');
   const [transferError, setTransferError] = useState<string>('');
+
+  // Stock Adjustment State
+  const [isStockAdjustmentModalOpen, setIsStockAdjustmentModalOpen] = useState<boolean>(false);
+  const [adjustmentModelId, setAdjustmentModelId] = useState<string>('');
+  const [adjustmentLocation, setAdjustmentLocation] = useState<MSSStockLocation>('');
+  const [adjustmentTargetDevice, setAdjustmentTargetDevice] = useState<MSSDevice | null>(null);
+  const [adjustmentNewQty, setAdjustmentNewQty] = useState<number | ''>('');
+  const [adjustmentReason, setAdjustmentReason] = useState<string>('');
+  const [adjustmentError, setAdjustmentError] = useState<string>('');
+  const [isAdjusting, setIsAdjusting] = useState<boolean>(false);
+  const [isAdjustmentConfirmOpen, setIsAdjustmentConfirmOpen] = useState<boolean>(false);
+
+  // Searchable Model Dropdown State for Stock Adjustment
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState<boolean>(false);
+  const [modelSearchTerm, setModelSearchTerm] = useState<string>('');
+
+  // Adjustment History State
+  const [isAdjustmentHistoryModalOpen, setIsAdjustmentHistoryModalOpen] = useState<boolean>(false);
+  const [adjustmentHistory, setAdjustmentHistory] = useState<MSSStockAdjustment[]>([]);
+  const [isHistoryLoadingState, setIsHistoryLoadingState] = useState<boolean>(false);
 
   const actor = useMemo(() => {
     return {
@@ -534,10 +578,13 @@ export const MSSInventoryView: React.FC = () => {
     }
 
     setSelectedDevice(dev);
-    // Suggest the other shop
-    const target = locationOptions.find(l => l !== dev.stock_location) || locationOptions[0] || '';
+    // Find valid destination locations excluding the source location
+    const validTargets = locationOptions.filter(l => l !== dev.stock_location);
+    const target = validTargets[0] || '';
     setTransferTargetLocation(target);
-    setTransferNotes('لتعويض النقص فى المخزون الأخر');
+    const devQty = dev.quantity && dev.quantity > 0 ? dev.quantity : 1;
+    setTransferQuantity(dev.is_serialized === false ? 1 : 1);
+    setTransferNotes('لتعويض النقص فى المخزون الآخر');
     setTransferError('');
     setIsTransferModalOpen(true);
   };
@@ -547,8 +594,21 @@ export const MSSInventoryView: React.FC = () => {
     e.preventDefault();
     if (!selectedDevice || isSubmitting) return;
 
+    if (!transferTargetLocation) {
+      setTransferError('يرجى اختيار المحل أو المخزن المستلم');
+      return;
+    }
+
     if (selectedDevice.stock_location === transferTargetLocation) {
-      setTransferError('الجهاز موجود بالفعل في هذا الفرع. اختر فرعاً مختلفاً.');
+      setTransferError('الجهاز متواجد بالفعل في هذا الموقع. اختر موقعاً مختلفاً.');
+      return;
+    }
+
+    const availableQty = selectedDevice.is_serialized === false ? (selectedDevice.quantity || 1) : 1;
+    const qtyToTransfer = selectedDevice.is_serialized === false ? transferQuantity : 1;
+
+    if (qtyToTransfer <= 0 || qtyToTransfer > availableQty) {
+      setTransferError(`الكمية المراد نقلها (${qtyToTransfer}) غير صالحة. المتاح: ${availableQty}`);
       return;
     }
 
@@ -558,13 +618,16 @@ export const MSSInventoryView: React.FC = () => {
       await mssInventoryService.transferDevice({
         device_id: selectedDevice.id,
         to_location: transferTargetLocation,
+        quantity: qtyToTransfer,
         notes: transferNotes.trim() || undefined,
       });
 
       showNotification({
         type: 'success',
-        title: 'تم نقل الجهاز بنجاح',
-        message: `تم تحويل الجهاز (${selectedDevice.serial_number}) من ${selectedDevice.stock_location} إلى ${transferTargetLocation}`,
+        title: 'تم نقل المخزون بنجاح',
+        message: selectedDevice.serial_number
+          ? `تم تحويل الجهاز (${selectedDevice.serial_number}) من ${selectedDevice.stock_location} إلى ${transferTargetLocation}`
+          : `تم تحويل ${qtyToTransfer} وحدة من (${selectedDevice.model_name}) إلى ${transferTargetLocation}`,
       });
 
       setIsTransferModalOpen(false);
@@ -573,6 +636,159 @@ export const MSSInventoryView: React.FC = () => {
       setTransferError(err.message || 'فشلت عملية النقل');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Computed values for Stock Adjustment
+  const currentModelStock = useMemo(() => {
+    if (!adjustmentModelId || !adjustmentLocation) return 0;
+    if (adjustmentTargetDevice) {
+      return adjustmentTargetDevice.quantity && adjustmentTargetDevice.quantity > 0 ? adjustmentTargetDevice.quantity : 1;
+    }
+    const matching = devices.filter(
+      d => d.model_id === adjustmentModelId && d.stock_location === adjustmentLocation && d.status === 'AVAILABLE'
+    );
+    return matching.reduce((sum, d) => sum + (d.quantity && d.quantity > 0 ? d.quantity : 1), 0);
+  }, [devices, adjustmentModelId, adjustmentLocation, adjustmentTargetDevice]);
+
+  const adjustmentDelta = useMemo(() => {
+    if (adjustmentNewQty === '' || isNaN(Number(adjustmentNewQty))) return 0;
+    return Number(adjustmentNewQty) - currentModelStock;
+  }, [adjustmentNewQty, currentModelStock]);
+
+  // Filter models for Stock Adjustment Searchable Dropdown
+  const filteredAdjustmentModels = useMemo(() => {
+    if (!modelSearchTerm.trim()) return catalogModels;
+    const term = modelSearchTerm.trim().toLowerCase();
+    return catalogModels.filter(m => {
+      const fullName = `${m.brand} ${m.model_name}`.toLowerCase();
+      const modelOnly = (m.model_name || '').toLowerCase();
+      const brandOnly = (m.brand || '').toLowerCase();
+      return fullName.includes(term) || modelOnly.includes(term) || brandOnly.includes(term);
+    });
+  }, [catalogModels, modelSearchTerm]);
+
+  const selectedAdjustmentModel = useMemo(() => {
+    return catalogModels.find(m => m.id === adjustmentModelId);
+  }, [catalogModels, adjustmentModelId]);
+
+  // Click outside to close searchable model dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
+    };
+    if (isModelDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isModelDropdownOpen]);
+
+  const handleOpenStockAdjustment = (device?: MSSDevice, modelId?: string) => {
+    setAdjustmentError('');
+    setIsAdjustmentConfirmOpen(false);
+    setModelSearchTerm('');
+    setIsModelDropdownOpen(false);
+    if (device) {
+      setAdjustmentTargetDevice(device);
+      setAdjustmentModelId(device.model_id);
+      setAdjustmentLocation(device.stock_location);
+      setAdjustmentNewQty(device.quantity && device.quantity > 0 ? device.quantity : 1);
+    } else if (modelId) {
+      setAdjustmentTargetDevice(null);
+      setAdjustmentModelId(modelId);
+      const loc = locationOptions[0] || 'محل 1';
+      setAdjustmentLocation(loc);
+      const matching = devices.filter(
+        d => d.model_id === modelId && d.stock_location === loc && d.status === 'AVAILABLE'
+      );
+      const qty = matching.reduce((sum, d) => sum + (d.quantity && d.quantity > 0 ? d.quantity : 1), 0);
+      setAdjustmentNewQty(qty);
+    } else {
+      setAdjustmentTargetDevice(null);
+      setAdjustmentModelId(catalogModels[0]?.id || '');
+      setAdjustmentLocation(locationOptions[0] || 'محل 1');
+      setAdjustmentNewQty('');
+    }
+    setAdjustmentReason('');
+    setIsStockAdjustmentModalOpen(true);
+  };
+
+  const handleExecuteStockAdjustment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!adjustmentModelId) {
+      setAdjustmentError('يجب اختيار الموديل المراد تعديله');
+      return;
+    }
+    if (!adjustmentLocation) {
+      setAdjustmentError('يجب تحديد الفرع أو المخزن');
+      return;
+    }
+    if (adjustmentNewQty === '' || isNaN(Number(adjustmentNewQty)) || Number(adjustmentNewQty) < 0) {
+      setAdjustmentError('الكمية المصححة يجب أن تكون رقماً صحيحاً أكبر من أو يساوي الصفر');
+      return;
+    }
+    if (!adjustmentReason.trim()) {
+      setAdjustmentError('يرجى كتابة سبب تصحيح الكمية للمراجعة والتدقيق');
+      return;
+    }
+    if (adjustmentDelta === 0) {
+      setAdjustmentError('الكمية المدخلة مطابقة للرصيد الفعلي الحالي، لا يوجد فرق لتطبيقه');
+      return;
+    }
+
+    if (!isAdjustmentConfirmOpen) {
+      // Prompt confirmation summary first
+      setIsAdjustmentConfirmOpen(true);
+      return;
+    }
+
+    setIsAdjusting(true);
+    setAdjustmentError('');
+    try {
+      const result = await mssInventoryService.adjustStockQuantity({
+        model_id: adjustmentModelId,
+        stock_location: adjustmentLocation,
+        device_id: adjustmentTargetDevice?.id,
+        new_quantity: Number(adjustmentNewQty),
+        reason: adjustmentReason.trim(),
+        actor_id: user?.id,
+        actor_username: user?.username || 'مدير النظام',
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'تم تصحيح رصيد المخزون بنجاح',
+        message: `تم تعديل رصيد (${result.model_name}) من ${result.previous_quantity} إلى ${result.new_quantity} وحدة [${result.adjustment_amount > 0 ? '+' : ''}${result.adjustment_amount}].`,
+      });
+
+      setIsStockAdjustmentModalOpen(false);
+      setIsAdjustmentConfirmOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setAdjustmentError(err.message || 'فشلت عملية تصحيح الكمية');
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
+
+  const handleOpenAdjustmentHistory = async () => {
+    setIsHistoryLoadingState(true);
+    setIsAdjustmentHistoryModalOpen(true);
+    try {
+      const list = await mssInventoryService.getStockAdjustments();
+      setAdjustmentHistory(list);
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'خطأ',
+        message: err.message || 'تعذر تحميل سجل تصحيحات الكميات',
+      });
+    } finally {
+      setIsHistoryLoadingState(false);
     }
   };
 
@@ -904,6 +1120,17 @@ export const MSSInventoryView: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => handleOpenStockAdjustment(item)}
+            title="تصحيح كمية هذا العنصر بالمخزون"
+            className="p-1 text-amber-600 hover:text-amber-800 h-7 w-7"
+            disabled={item.status === 'SOLD'}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleOpenEdit(item)}
             title="تعديل بيانات الجهاز"
             className="p-1 text-slate-600 hover:text-slate-900 h-7 w-7"
@@ -955,6 +1182,26 @@ export const MSSInventoryView: React.FC = () => {
               className="border-slate-300 font-semibold"
             >
               نقل جهاز بين المحلين
+            </Button>
+
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => handleOpenStockAdjustment()}
+              leftIcon={<SlidersHorizontal className="w-4.5 h-4.5 text-amber-600" />}
+              className="border-slate-300 font-bold text-amber-700 hover:bg-amber-50"
+            >
+              تصحيح كمية المخزون
+            </Button>
+
+            <Button
+              variant="outline"
+              size="md"
+              onClick={handleOpenAdjustmentHistory}
+              leftIcon={<History className="w-4.5 h-4.5 text-slate-600" />}
+              className="border-slate-300 font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              سجل تصحيحات الكميات
             </Button>
 
             <Button
@@ -1165,6 +1412,18 @@ export const MSSInventoryView: React.FC = () => {
                                 <span className="font-bold text-slate-900 text-sm">
                                   {m.brand} {m.model_name}
                                 </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenModelSpecs(m);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors shrink-0"
+                                  title="عرض مواصفات وملاحظات الموديل"
+                                  aria-label={`عرض مواصفات وملاحظات ${m.brand} ${m.model_name}`}
+                                >
+                                  <Info className="w-4 h-4" />
+                                </button>
                                 {m.model_code && (
                                   <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
                                     {m.model_code}
@@ -1210,7 +1469,7 @@ export const MSSInventoryView: React.FC = () => {
                             </td>
 
                             <td className="p-3 text-center">
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1219,6 +1478,17 @@ export const MSSInventoryView: React.FC = () => {
                                   leftIcon={isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                 >
                                   {isExpanded ? 'إخفاء' : `الوحدات (${m.devices.length})`}
+                                </Button>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenStockAdjustment(firstNonSerialized || m.devices[0], m.model_id)}
+                                  className="text-xs h-7 px-2 border-amber-300 text-amber-700 hover:bg-amber-50 font-bold"
+                                  leftIcon={<SlidersHorizontal className="w-3.5 h-3.5" />}
+                                  title="تصحيح رصيد هذا الموديل بالمخزون"
+                                >
+                                  تصحيح الكمية
                                 </Button>
 
                                 {hasNonSerialized && firstNonSerialized && (
@@ -1627,6 +1897,17 @@ export const MSSInventoryView: React.FC = () => {
         onSuccess={() => loadData()}
       />
 
+      <MSSModelSpecsModal
+        isOpen={isModelSpecsModalOpen}
+        onClose={() => {
+          setIsModelSpecsModalOpen(false);
+          setSelectedSpecsModel(null);
+          setSelectedSpecsSummary(null);
+        }}
+        model={selectedSpecsModel}
+        summary={selectedSpecsSummary}
+      />
+
       {/* ========================================================================= */}
       {/* MODAL 2: Edit Existing Device */}
       {/* ========================================================================= */}
@@ -1783,7 +2064,7 @@ export const MSSInventoryView: React.FC = () => {
       <Modal
         isOpen={isTransferModalOpen}
         onClose={() => !isSubmitting && setIsTransferModalOpen(false)}
-        title="نقل جهاز من مخزون لأخر"
+        title="نقل مخزون بين الفروع والمستودعات"
         subtitle=""
         size="md"
         footer={
@@ -1800,10 +2081,10 @@ export const MSSInventoryView: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={handleSaveTransfer}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !transferTargetLocation || transferTargetLocation === selectedDevice?.stock_location}
               leftIcon={isSubmitting ? <Spinner size="sm" /> : <ArrowLeftRight className="w-4 h-4" />}
             >
-              {isSubmitting ? 'جاري  النقل...' : 'تأكيد النقل '}
+              {isSubmitting ? 'جاري النقل...' : 'تأكيد النقل'}
             </Button>
           </div>
         }
@@ -1814,51 +2095,101 @@ export const MSSInventoryView: React.FC = () => {
           )}
 
           {selectedDevice && (
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1.5">
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">الجهاز المراد نقله:</span>
+                <span className="text-xs text-slate-500 font-semibold">العنصر المراد نقله:</span>
                 <span className="font-mono text-xs font-semibold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                  {selectedDevice.serial_number}
+                  {selectedDevice.serial_number || 'مخزون مجمع (بدون سيريال)'}
                 </span>
               </div>
-              <p className="text-xs font-medium text-slate-900">
+              <p className="text-xs font-bold text-slate-900">
                 {selectedDevice.brand} {selectedDevice.model_name}
               </p>
             </div>
           )}
 
-          {/* Transfer Route Visualizer */}
-          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="text-center">
-                <span className="text-[11px] text-slate-500 block mb-1">الموقع الحالي</span>
-                <Badge variant="default">
-                  {selectedDevice?.stock_location || '—'}
-                </Badge>
-              </div>
-
-              <div className="flex flex-col items-center px-4">
-                <ArrowLeftRight className="w-4 h-4 text-slate-500" />
-                <span className="text-[10px] text-slate-500 mt-1">نقل </span>
-              </div>
-
-              <div className="text-center">
-                <span className="text-[11px] text-slate-500 block mb-1">المحل المستلم</span>
-                <Badge variant="default">
-                  {transferTargetLocation || '—'}
-                </Badge>
-              </div>
+          {/* Transfer Route & Available Source Qty */}
+          <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <div>
+              <span className="text-[11px] text-slate-500 block mb-1">الموقع الحالي (المصدر)</span>
+              <Badge variant="default" className="font-bold text-slate-800 bg-white border border-slate-300">
+                {selectedDevice?.stock_location || '—'}
+              </Badge>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-500 block mb-1">الكمية المتوفرة بالمصدر</span>
+              <span className="font-bold text-slate-900 text-xs">
+                {selectedDevice?.is_serialized === false ? (selectedDevice.quantity || 1) : 1} وحدة
+              </span>
             </div>
           </div>
 
+          {/* Destination Selection */}
+          <div className="space-y-1 text-right">
+            <label className="block text-xs font-semibold text-slate-700">
+              المحل أو المخزن المستلم (الهدف) <span className="text-rose-500">*</span>
+            </label>
+            <select
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-medium"
+              value={transferTargetLocation}
+              onChange={e => setTransferTargetLocation(e.target.value as MSSStockLocation)}
+              required
+            >
+              <option value="" disabled>اختر الفرع أو المخزن المستلم</option>
+              {locationOptions
+                .filter(loc => loc !== selectedDevice?.stock_location)
+                .map(loc => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+            </select>
+            {locationOptions.filter(loc => loc !== selectedDevice?.stock_location).length === 0 && (
+              <p className="text-[11px] text-rose-500 mt-1">لا توجد مواقع وفروع أخرى متاحة للتحويل إليها.</p>
+            )}
+          </div>
+
+          {/* Quantity Selector for Bulk items vs Serialized Notification */}
+          {selectedDevice && selectedDevice.is_serialized === false ? (
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                الكمية المراد نقلها <span className="text-rose-500">*</span>
+                <span className="text-[11px] text-slate-500 font-normal mr-1.5">
+                  (الحد الأقصى: {selectedDevice.quantity || 1} وحدة)
+                </span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={selectedDevice.quantity || 1}
+                value={transferQuantity}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  const maxVal = selectedDevice.quantity || 1;
+                  setTransferQuantity(Math.max(1, Math.min(maxVal, isNaN(val) ? 1 : val)));
+                }}
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-mono font-bold"
+                required
+              />
+              <p className="text-[11px] text-slate-500">
+                يمكن تحويل جزء من المخزون أو الكمية بالكامل إلى الفرع الآخر.
+              </p>
+            </div>
+          ) : (
+            <div className="p-2.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-[11px] flex items-center gap-2">
+              <Laptop className="w-4 h-4 shrink-0 text-blue-600" />
+              <span>جهاز مخصص برقم سيريال: يتم نقل الوحدة المحددة بالكامل (الكمية: 1 وحدة).</span>
+            </div>
+          )}
+
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              سبب  النقل  <span className="text-rose-500">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              سبب النقل / ملاحظات <span className="text-rose-500">*</span>
             </label>
             <textarea
               className="w-full px-3 py-2 text-xs border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400 transition-colors"
               rows={2}
-              placeholder=""
+              placeholder="مثال: لتعويض النقص في مخزون الفرع الآخر"
               value={transferNotes}
               onChange={e => setTransferNotes(e.target.value)}
               required
@@ -1866,9 +2197,385 @@ export const MSSInventoryView: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            ملاحظة: يتم حفظ سجل حركة مفصل (Movement Log) بتاريخ النقل وتحديث الموقع الفعلي للجهاز تلقائياً.
+            ملاحظة: يتم حفظ سجل حركة مفصل (Movement Log) بتاريخ النقل والكمية وتحديث الموقع الفعلي للجهاز تلقائياً.
           </p>
         </form>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 8: Safe Stock Quantity Adjustment */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isStockAdjustmentModalOpen}
+        onClose={() => {
+          if (!isAdjusting) {
+            setIsStockAdjustmentModalOpen(false);
+            setIsAdjustmentConfirmOpen(false);
+            setIsModelDropdownOpen(false);
+            setModelSearchTerm('');
+          }
+        }}
+        title="تصحيح كمية المخزون "
+        subtitle="  "
+        size="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isAdjustmentConfirmOpen) {
+                  setIsAdjustmentConfirmOpen(false);
+                } else {
+                  setIsStockAdjustmentModalOpen(false);
+                  setIsModelDropdownOpen(false);
+                  setModelSearchTerm('');
+                }
+              }}
+              disabled={isAdjusting}
+            >
+              {isAdjustmentConfirmOpen ? 'رجوع للتعديل' : 'إلغاء'}
+            </Button>
+
+            {isAdjustmentConfirmOpen ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExecuteStockAdjustment}
+                disabled={isAdjusting}
+                leftIcon={isAdjusting ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+              >
+                {isAdjusting ? 'جاري تطبيق التعديل...' : 'تأكيد وتطبيق التعديل نهائياً'}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExecuteStockAdjustment}
+                disabled={isAdjusting || adjustmentNewQty === '' || adjustmentDelta === 0 || !adjustmentReason.trim()}
+                leftIcon={<SlidersHorizontal className="w-4 h-4" />}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+              >
+                مراجعة وتأكيد التعديل
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          {adjustmentError && (
+            <Alert type="danger" title="خطأ في تصحيح الكمية" message={adjustmentError} />
+          )}
+
+          {isAdjustmentConfirmOpen ? (
+            /* Confirmation Review Step */
+            <div className="space-y-4">
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-amber-900">
+                <div className="flex items-center gap-2 font-bold text-amber-900 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span>تأكيد تعديل رصيد المخزون الفعلي</span>
+                </div>
+
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <span className="text-[11px] text-slate-500 block mb-0.5">الموديل:</span>
+                    <span className="font-bold text-slate-800 text-xs">
+                      {catalogModels.find(m => m.id === adjustmentModelId)?.model_name || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 block mb-0.5">الفرع / المستودع:</span>
+                    <Badge variant="default" className="font-semibold">{adjustmentLocation}</Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center py-2 bg-white rounded-lg border border-slate-200">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block mb-1">الرصيد السابق</span>
+                    <span className="font-mono font-bold text-base text-slate-700">{currentModelStock}</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center">
+                    <ArrowLeft className="w-4 h-4 text-slate-400 mb-0.5" />
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${adjustmentDelta > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      {adjustmentDelta > 0 ? `+${adjustmentDelta}` : adjustmentDelta} وحدة
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block mb-1">الرصيد الجديد المصحح</span>
+                    <span className="font-mono font-bold text-base text-blue-700">{adjustmentNewQty}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <span className="text-[11px] text-slate-500 block mb-1 font-semibold">سبب التصحيح المدخل:</span>
+                  <p className="p-2.5 bg-white border border-slate-200 rounded text-slate-800 font-mono text-[11px]">
+                    {adjustmentReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Adjustment Input Form */
+            <form onSubmit={handleExecuteStockAdjustment} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Model Selection with Searchable Dropdown */}
+                <div className="relative" ref={modelDropdownRef}>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    الموديل المراد تصحيحه <span className="text-rose-500">*</span>
+                  </label>
+
+                  {/* Dropdown Trigger */}
+                  <button
+                    type="button"
+                    disabled={Boolean(adjustmentTargetDevice)}
+                    onClick={() => setIsModelDropdownOpen(prev => !prev)}
+                    className={cn(
+                      "w-full h-[38px] px-3 text-xs border rounded-lg bg-white flex items-center justify-between text-right transition-colors",
+                      isModelDropdownOpen ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-300 hover:border-slate-400",
+                      Boolean(adjustmentTargetDevice) ? "bg-slate-50 text-slate-500 cursor-not-allowed" : "cursor-pointer"
+                    )}
+                  >
+                    <span className="truncate font-medium text-slate-900">
+                      {selectedAdjustmentModel
+                        ? `${selectedAdjustmentModel.brand} - ${selectedAdjustmentModel.model_name}`
+                        : 'اختر الموديل'}
+                    </span>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 shrink-0 mr-1.5 transition-transform duration-150", isModelDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Dropdown Panel */}
+                  {isModelDropdownOpen && !adjustmentTargetDevice && (
+                    <div className="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-300 rounded-lg shadow-xl z-50 overflow-hidden text-xs">
+                      {/* Search Input with Clear Button */}
+                      <div className="p-2 border-b border-slate-200 bg-slate-50">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={modelSearchTerm}
+                            onChange={e => setModelSearchTerm(e.target.value)}
+                            placeholder="ابحث باسم الموديل أو الماركة..."
+                            className="w-full pr-8 pl-7 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                            autoFocus
+                          />
+                          {modelSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setModelSearchTerm('')}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
+                              title="مسح البحث"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Filtered Results List */}
+                      <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                        {filteredAdjustmentModels.length === 0 ? (
+                          <div className="p-4 text-center text-slate-500 text-xs font-medium">
+                            مفيش موديلات مطابقة للبحث
+                          </div>
+                        ) : (
+                          filteredAdjustmentModels.map(m => {
+                            const isSelected = adjustmentModelId === m.id;
+                            return (
+                              <button
+                                type="button"
+                                key={m.id}
+                                onClick={() => {
+                                  setAdjustmentModelId(m.id);
+                                  setIsModelDropdownOpen(false);
+                                }}
+                                className={cn(
+                                  "w-full px-3 py-2 text-right flex items-center justify-between hover:bg-blue-50 transition-colors",
+                                  isSelected ? "bg-blue-50/80 text-blue-900 font-bold" : "text-slate-700"
+                                )}
+                              >
+                                <div className="truncate">
+                                  <span>{m.brand} - {m.model_name}</span>
+                                  {m.category && (
+                                    <span className="text-[10px] text-slate-400 mr-1.5">
+                                      ({m.category})
+                                    </span>
+                                  )}
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0 mr-2" />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Location Selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    الفرع / المخزن <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-medium"
+                    value={adjustmentLocation}
+                    onChange={e => setAdjustmentLocation(e.target.value as MSSStockLocation)}
+                    disabled={Boolean(adjustmentTargetDevice)}
+                    required
+                  >
+                    {locationOptions.map(loc => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Current Quantity and Delta Summary Display */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-center sm:text-right">
+                  <span className="text-[11px] text-slate-500 block mb-0.5">الرصيد المتاح الحالي:</span>
+                  <span className="font-mono font-bold text-base text-slate-800">{currentModelStock} وحدة</span>
+                </div>
+
+                <div className="text-center">
+                  <span className="text-[11px] text-slate-500 block mb-0.5">الرصيد المصحح المدخل:</span>
+                  <span className="font-mono font-bold text-base text-blue-700">
+                    {adjustmentNewQty !== '' ? `${adjustmentNewQty} وحدة` : '—'}
+                  </span>
+                </div>
+
+                <div className="text-center sm:text-left">
+                  <span className="text-[11px] text-slate-500 block mb-0.5">مقدار الفرق :</span>
+                  {adjustmentNewQty !== '' ? (
+                    <span className={`inline-block font-mono font-bold text-sm px-2 py-0.5 rounded ${adjustmentDelta > 0 ? 'bg-emerald-100 text-emerald-800' : adjustmentDelta < 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-slate-700'}`}>
+                      {adjustmentDelta > 0 ? `+${adjustmentDelta}` : adjustmentDelta} وحدة
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Corrected Quantity Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  الكمية الفعلية الصحيحة (الرصيد الجديد) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={adjustmentNewQty}
+                  onChange={e => setAdjustmentNewQty(e.target.value === '' ? '' : Math.max(0, Math.floor(Number(e.target.value))))}
+                  placeholder="مثال: أدخل 7 بدلاً من 70"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-mono font-bold"
+                  required
+                />
+ 
+              </div>
+
+              {/* Mandatory Reason */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  سبب تصحيح الكمية 
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  rows={2.5}
+                  value={adjustmentReason}
+                  onChange={e => setAdjustmentReason(e.target.value)}
+                  placeholder="مثال: تصحيح خطأ إدخال"
+                 
+                />
+              </div>
+            </form>
+          )}
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 9: Stock Adjustment History Modal */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isAdjustmentHistoryModalOpen}
+        onClose={() => setIsAdjustmentHistoryModalOpen(false)}
+        title="سجل تصحيحات رصيد المخزون "
+        subtitle=""
+        size="xl"
+        footer={
+          <Button variant="outline" size="sm" onClick={() => setIsAdjustmentHistoryModalOpen(false)}>
+            إغلاق
+          </Button>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          {isHistoryLoadingState ? (
+            <div className="p-8 text-center space-y-2">
+              <Spinner size="md" />
+              <p className="text-slate-500">جاري تحميل سجل التصحيحات...</p>
+            </div>
+          ) : adjustmentHistory.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <History className="w-8 h-8 text-slate-400 mx-auto" />
+              <p className="font-bold text-slate-700">لا توجد عمليات تصحيح كميات مسجلة حتى الآن</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
+                  <tr>
+                    <th className="p-2.5">التاريخ والوقت</th>
+                    <th className="p-2.5">الموديل والماركة</th>
+                    <th className="p-2.5">الفرع</th>
+                    <th className="p-2.5 text-center">الرصيد السابق</th>
+                    <th className="p-2.5 text-center">الرصيد الجديد</th>
+                    <th className="p-2.5 text-center">الفرق</th>
+                    <th className="p-2.5">سبب التصحيح</th>
+                    <th className="p-2.5">المسؤول</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {adjustmentHistory.map(adj => (
+                    <tr key={adj.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-2.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                        {formatDate(adj.created_at)}
+                      </td>
+                      <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap">
+                        {adj.brand} {adj.model_name}
+                      </td>
+                      <td className="p-2.5">
+                        <Badge variant="default" size="sm">{adj.stock_location}</Badge>
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-slate-700">
+                        {adj.previous_quantity}
+                      </td>
+                      <td className="p-2.5 text-center font-mono font-bold text-blue-700">
+                        {adj.new_quantity}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className={`inline-block px-1.5 py-0.5 rounded font-mono text-[11px] font-bold ${adj.adjustment_amount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                          {adj.adjustment_amount > 0 ? `+${adj.adjustment_amount}` : adj.adjustment_amount}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-slate-700 max-w-xs truncate" title={adj.reason}>
+                        {adj.reason}
+                      </td>
+                      <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">
+                        {adj.actor_username || 'مدير النظام'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* ========================================================================= */}
@@ -2493,7 +3200,7 @@ export const MSSInventoryView: React.FC = () => {
                 <thead className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold sticky top-0 z-10 select-none">
                   <tr>
                     <th className="p-3 text-center w-12 text-slate-600 font-bold">#</th>
-                    <th className="p-3 text-right min-w-[260px] font-bold text-slate-800">الموديل والماركة</th>
+                    <th className="p-3 text-right min-w-[280px] sm:min-w-[320px] font-bold text-slate-800">الموديل والماركة</th>
                     <th className="p-3 text-center w-24 font-bold text-slate-800">التصنيف</th>
                     {locationOptions.map((loc, locIdx) => (
                       <th
@@ -2518,20 +3225,47 @@ export const MSSInventoryView: React.FC = () => {
                     </tr>
                   ) : (
                     crossWarehouseSummaries.map((item, idx) => {
+                      const resolvedModel =
+                        item.model ||
+                        catalogModels.find(cm => cm.id === item.model_id) ||
+                        catalogModels.find(cm => cm.brand === item.brand && cm.model_name === item.model_name) ||
+                        null;
+                      const { specsText, notesText } = formatCompactModelSpecs(
+                        resolvedModel || {
+                          id: item.model_id,
+                          brand: item.brand,
+                          model_name: item.model_name,
+                          category: (item.category as any) || 'أخرى',
+                          specifications: item.specifications,
+                          default_list_price: 0,
+                          created_at: '',
+                          updated_at: '',
+                        }
+                      );
+
                       return (
                         <tr key={item.model_id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-3 text-center text-slate-500 font-mono text-xs">{idx + 1}</td>
                           <td className="p-3 text-right">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-slate-900 text-xs sm:text-sm">{item.brand} {item.model_name}</span>
+                              <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                                {item.brand} {item.model_name}
+                              </span>
                               {item.model_code && (
                                 <span className="font-mono text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 font-semibold">
                                   {item.model_code}
                                 </span>
                               )}
                             </div>
-                            {item.specifications && (
-                              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">{item.specifications}</p>
+                            {specsText && (
+                              <div className="text-xs text-slate-600 font-medium mt-1 leading-snug" dir="auto">
+                                {specsText}
+                              </div>
+                            )}
+                            {notesText && (
+                              <div className="text-[11px] text-slate-500 mt-0.5 leading-snug" dir="auto">
+                                {notesText}
+                              </div>
                             )}
                           </td>
                           <td className="p-3 text-center">
