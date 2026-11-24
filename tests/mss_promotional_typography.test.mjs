@@ -10,8 +10,8 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
   assert.ok(fs.existsSync(servicePath), 'mssPromotionalService.ts must exist');
   assert.ok(fs.existsSync(generatorPath), 'MSSPromotionalGenerator.tsx must exist');
 
-  const serviceContent = fs.readFileSync(servicePath, 'utf8');
-  const generatorContent = fs.readFileSync(generatorPath, 'utf8');
+  const serviceContent = fs.readFileSync(servicePath, 'utf8').replace(/\r\n/g, '\n');
+  const generatorContent = fs.readFileSync(generatorPath, 'utf8').replace(/\r\n/g, '\n');
 
   await t.test('1. Canvas table data rows render with bold (700) and 10-15% increased font sizes', () => {
     // Model: 15px -> 17px (+13.3%)
@@ -46,7 +46,9 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
 
     // Screen: was 600 13px -> bold 15px (+15.4%)
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';\n        ctx.fillStyle = '#1e293b';\n        drawFittedText(ctx, item.screen || '---'`),
+      (serviceContent.includes(`ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';\n        ctx.fillStyle = '#1e293b';\n        drawFittedText(ctx, item.screen || '---'`) ||
+       (serviceContent.includes(`ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';`) &&
+        serviceContent.includes(`drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);`))),
       'Canvas screen text must be bold 15px'
     );
 
@@ -123,6 +125,81 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
     assert.ok(
       generatorContent.includes(`thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400 text-xs"`),
       'DOM header must preserve distinct font-bold text-xs'
+    );
+  });
+
+  await t.test('6. Runtime Canvas rendering: Screen text is rendered with bold 15px font and proper isolation', async () => {
+    const { renderPromotionalToCanvas } = await import('../src/services/mssPromotionalService.ts');
+
+    let capturedScreenFont = null;
+    let capturedScreenText = null;
+
+    const mockCtx = {
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      quadraticCurveTo: () => {},
+      arc: () => {},
+      closePath: () => {},
+      fill: () => {},
+      stroke: () => {},
+      clip: () => {},
+      fillRect: () => {},
+      strokeRect: () => {},
+      clearRect: () => {},
+      fillText: function (text) {
+        if (typeof text === 'string' && text.includes('15.6')) {
+          capturedScreenFont = this.font;
+          capturedScreenText = text;
+        }
+      },
+      measureText: (txt) => ({ width: (txt || '').length * 8 }),
+      _font: '',
+      set font(val) { this._font = val; },
+      get font() { return this._font; },
+      _fillStyle: '',
+      set fillStyle(val) { this._fillStyle = val; },
+      get fillStyle() { return this._fillStyle; },
+      _textAlign: '',
+      set textAlign(val) { this._textAlign = val; },
+      get textAlign() { return this._textAlign; },
+      _textBaseline: '',
+      set textBaseline(val) { this._textBaseline = val; },
+      get textBaseline() { return this._textBaseline; },
+      _direction: '',
+      set direction(val) { this._direction = val; },
+      get direction() { return this._direction; },
+    };
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: () => mockCtx,
+      toDataURL: () => 'data:image/png;base64,mock',
+    };
+
+    const testItem = {
+      brand: 'Dell',
+      model_name: 'Latitude 5420',
+      processor: 'Core i5-1145G7',
+      generation: '11th',
+      ram: '16GB',
+      storage: '512GB SSD',
+      screen: '15.6" FHD IPS',
+      gpu: 'Intel Iris Xe',
+      quantity: 5,
+      price: 18500,
+    };
+
+    renderPromotionalToCanvas([testItem], { showPrice: true, showQuantity: true }, mockCanvas);
+
+    assert.ok(capturedScreenText && capturedScreenText.includes('15.6'), 'Screen text must be rendered by Canvas');
+    assert.strictEqual(
+      capturedScreenFont,
+      'bold 15px "Segoe UI", Cairo, Arial, sans-serif',
+      'Runtime canvas context must be configured with bold 15px when drawing screen text'
     );
   });
 });
