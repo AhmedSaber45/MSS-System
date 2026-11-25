@@ -169,7 +169,7 @@ export default function LoginPage() {
 
           {/* Security Notice */}
           <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-            <span>AS System v1.1.0</span>
+            <span>AS System v1.1.1</span>
             <span>جلسة نشطة 7 أيام</span>
           </div>
         </div>

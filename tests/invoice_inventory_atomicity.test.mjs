@@ -225,7 +225,7 @@ test('Invoice & Inventory Atomicity, Consistency and Zero Fake Data Verification
     const tauriConfPath = path.resolve(process.cwd(), 'src-tauri', 'tauri.conf.json');
     const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf8'));
 
-    assert.strictEqual(tauriConf.version, '1.1.0', 'Tauri config version must be 1.1.0');
+    assert.strictEqual(tauriConf.version, '1.1.1', 'Tauri config version must be 1.1.1');
     const mainWindow = tauriConf.app?.windows?.[0];
     assert.ok(mainWindow, 'Main window must be configured');
     assert.strictEqual(mainWindow.maximized, true, 'Window must have maximized: true for full screen area startup');

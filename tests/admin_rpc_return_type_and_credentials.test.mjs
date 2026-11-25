@@ -269,10 +269,10 @@ test('ADMIN ACCESS CODE RPC: PostgreSQL Return-Type Diagnosis and JSONB Contract
     assert.equal(auditMetadata.targetUsername, 'ahmed_pos');
   });
 
-  // Test 7: Production Safety - Application version is synchronized to 1.1.0
-  await t.test('7. Production Safety: Application version is synchronized to 1.1.0', () => {
+  // Test 7: Production Safety - Application version is synchronized to 1.1.1
+  await t.test('7. Production Safety: Application version is synchronized to 1.1.1', () => {
     const pkgPath = path.resolve('package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    assert.equal(pkg.version, '1.1.0', 'Version must be 1.1.0');
+    assert.equal(pkg.version, '1.1.1', 'Version must be 1.1.1');
   });
 });

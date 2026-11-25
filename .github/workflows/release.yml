@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tagName:
-        description: 'Release Tag Name (e.g. v1.1.0)'
+        description: 'Release Tag Name (e.g. v1.1.1)'
         required: false
-        default: 'v1.1.0'
+        default: 'v1.1.1'
 
 permissions:
   contents: write
@@ -75,12 +75,15 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0-v3' }}
-          releaseName: 'AS System v__VERSION__ — Release 3'
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.1' }}
+          releaseName: 'AS System v__VERSION__'
           releaseBody: |
-            ## AS System v__VERSION__ — Release 3
+            ## AS System v__VERSION__
             - **Promotional Header Image Fitting (MSS & Accessories)**: Fixed promotional header banner sizing across HTML preview, Canvas rendering, and PNG/JPG/PDF exports so images span 100% width proportionally without side gaps or cropping.
             - **Conditional Table Header Gradients (Accessories Only)**: Applied banner-matched gradients strictly to the table column-header row for `Souq` (blue/amber) and `مكة` (teal/emerald/silver) while keeping the table body strictly white and preserving the original `Compu MSS` header.
+            - **Accessories Custom Images Export & Optional GPU**: Exported Accessories promotional images to `Custom images` and made GPU optional on custom promotional items.
+            - **Promotional Image Typography**: Increased table data font sizes by `+5px` while preserving bold weight and 7-row readability layout.
+            - **MSS Stock Quantity Correction**: Made adjustment reason optional (`بدون سبب محدد` when omitted).
             - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false
