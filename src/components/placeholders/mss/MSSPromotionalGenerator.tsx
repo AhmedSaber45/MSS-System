@@ -27,7 +27,7 @@ import {
 } from '@/assets/promotional/promotionalAssets';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
 import {
-  resolvePromotionalTheme,
+  resolvePromotionalHeaderColors,
   type PromotionalThemeId,
 } from '@/services/promotionalThemes';
 import {
@@ -78,21 +78,9 @@ export interface MSSPromotionalGeneratorProps {
  * Provides 100% authentic logos for all Compu MSS supported laptop brands
  * with exact Flaticon 747 icon for Apple, and graceful text fallback for custom test entries.
  */
-const BrandBadgePreview: React.FC<{ brand: string; pillBg?: string | null }> = ({ brand, pillBg }) => {
+const BrandBadgePreview: React.FC<{ brand: string }> = ({ brand }) => {
   const [imgError, setImgError] = useState(false);
   const brandConfig = getBrandLogoConfig(brand);
-
-  const wrapWithPill = (node: React.ReactNode) =>
-    pillBg ? (
-      <div
-        className="inline-flex items-center justify-center rounded-md px-1.5 py-0.5 min-w-[64px] h-8 shadow-2xs"
-        style={{ backgroundColor: pillBg }}
-      >
-        {node}
-      </div>
-    ) : (
-      node
-    );
 
   if (!brandConfig || imgError) {
     const label = brandConfig?.name || (brand || '').trim().slice(0, 8);
@@ -105,7 +93,7 @@ const BrandBadgePreview: React.FC<{ brand: string; pillBg?: string | null }> = (
 
   // 1. Apple: balanced circular badge with Flaticon 747 white Apple logo
   if (brandConfig.key === 'apple') {
-    return wrapWithPill(
+    return (
       <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 shadow-2xs">
         <img
           src={brandConfig.dataUri}
@@ -120,7 +108,7 @@ const BrandBadgePreview: React.FC<{ brand: string; pillBg?: string | null }> = (
 
   // 2. Lenovo: Distinctive official red badge with crisp white wordmark
   if (brandConfig.key === 'lenovo') {
-    return wrapWithPill(
+    return (
       <div className="inline-flex items-center justify-center h-6 max-w-[76px] px-0.5">
         <img
           src={brandConfig.dataUri}
@@ -135,7 +123,7 @@ const BrandBadgePreview: React.FC<{ brand: string; pillBg?: string | null }> = (
 
   // 3. Circular / square badge-friendly icons (Dell, HP, Huawei, LG, Razer, Alienware, Google, Microsoft)
   if (['dell', 'hp', 'huawei', 'lg', 'razer', 'alienware', 'google', 'microsoft'].includes(brandConfig.key)) {
-    return wrapWithPill(
+    return (
       <div className="inline-flex items-center justify-center w-7 h-7">
         <img
           src={brandConfig.dataUri}
@@ -149,7 +137,7 @@ const BrandBadgePreview: React.FC<{ brand: string; pillBg?: string | null }> = (
   }
 
   // 4. Wordmark logos (Asus, Acer, MSI, Samsung, Toshiba, Sony, Fujitsu)
-  return wrapWithPill(
+  return (
     <div className="inline-flex items-center justify-center h-7 max-w-[76px] px-1">
       <img
         src={brandConfig.dataUri}
@@ -180,50 +168,44 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
   className = '',
 }) => {
   const { locations } = useMSSLocations();
-  const theme = resolvePromotionalTheme(displayOptions.themeId, displayOptions.headerImageSrc);
+  const headerColors = resolvePromotionalHeaderColors(
+    displayOptions.themeId,
+    displayOptions.headerImageSrc
+  );
   return (
     <div
       id={id}
-      className={`promotional-poster-container w-[1000px] shrink-0 rounded-xl shadow-2xl border overflow-hidden flex flex-col justify-between ${className}`}
-      style={{
-        minHeight: '960px',
-        backgroundColor: theme.posterBg,
-        borderColor: theme.posterBorder,
-        color: theme.textPrimary,
-      }}
+      className={`promotional-poster-container w-[1000px] shrink-0 bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 flex flex-col justify-between ${className}`}
+      style={{ minHeight: '960px' }}
       dir="rtl"
     >
       <div>
-        {/* 1. Static Commercial Header Banner Section */}
-        <div
-          className="relative text-center overflow-hidden border-b flex items-center justify-center"
-          style={{
-            backgroundColor: theme.headerBackdropBg,
-            borderBottomColor: theme.headerBottomBorder,
-          }}
-        >
+        {/* 1. Static Commercial Header Banner Section (full-width proportional fit, zero side gaps) */}
+        <div className="w-full overflow-hidden">
           <img
             src={displayOptions.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner}
             alt="Promotional Header"
-            className="w-full max-h-[280px] object-contain mx-auto block"
+            className="w-full h-auto block"
             loading="eager"
           />
         </div>
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5" dir="ltr">
-        <table
-          className="w-full text-[20px] text-left border-collapse border font-bold"
-          style={{ borderColor: theme.tableOuterBorder }}
-          dir="ltr"
-        >
+        <table className="w-full text-[20px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
           <thead
-            className="font-bold text-center border-b-2 text-[14px]"
-            style={{
-              backgroundColor: theme.tableHeaderBg,
-              color: theme.tableHeaderText,
-              borderBottomColor: theme.tableHeaderStroke,
-            }}
+            className="font-bold text-center border-b-2 border-slate-400 text-[14px]"
+            style={
+              headerColors.gradientCss
+                ? {
+                    background: headerColors.gradientCss,
+                    color: headerColors.tableHeaderText,
+                  }
+                : {
+                    backgroundColor: headerColors.tableHeaderBg,
+                    color: headerColors.tableHeaderText,
+                  }
+            }
           >
             <tr>
               <th className="py-3 px-2 w-24 text-center">
@@ -285,116 +267,72 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               {displayOptions.showPrice && (
                 <th
                   className="py-3 px-3 w-28 text-center"
-                  style={{ backgroundColor: theme.tableHeaderPriceBg }}
+                  style={{
+                    backgroundColor:
+                      headerColors.tableHeaderPriceOverlay || headerColors.tableHeaderPriceBg,
+                  }}
                 >
                   <div className="flex flex-col items-center gap-1">
                     <img src={PROMOTIONAL_HEADER_ICONS.price} alt="السعر" className="w-4 h-4 object-contain" />
-                    <span style={{ color: theme.tableHeaderPriceText }}>السعر (جنيه)</span>
+                    <span style={{ color: headerColors.tableHeaderPriceText }}>السعر (جنيه)</span>
                   </div>
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="font-bold text-[20px]">
+          <tbody className="divide-y divide-slate-200 font-bold text-[20px]">
             {pageItems.map((item, idx) => {
               const isEven = idx % 2 === 0;
               const gpuUpper = (item.gpu || '').toUpperCase();
               const isNvidia = gpuUpper.includes('NVIDIA') || gpuUpper.includes('RTX') || gpuUpper.includes('GTX');
               const isAmd = gpuUpper.includes('AMD') || gpuUpper.includes('RADEON');
               const isIntel = gpuUpper.includes('INTEL');
-              const gpuColor = isNvidia
-                ? theme.gpuNvidia
-                : isAmd
-                  ? theme.gpuAmd
-                  : isIntel
-                    ? theme.gpuIntel
-                    : theme.gpuDefault;
 
               return (
-                <tr
-                  key={item.id}
-                  className="transition-colors border-b"
-                  style={{
-                    backgroundColor: isEven ? theme.rowEvenBg : theme.rowOddBg,
-                    borderBottomColor: theme.rowBorderBottom,
-                  }}
-                >
-                  <td className="py-3.5 px-2 text-center border-r" style={{ borderRightColor: theme.cellDivider }}>
-                    <BrandBadgePreview brand={item.brand} pillBg={theme.brandBadgePillBg} />
+                <tr key={item.id} className={`transition-colors ${isEven ? 'bg-white' : 'bg-[#f8faff]'}`}>
+                  <td className="py-3.5 px-2 text-center border-r border-slate-200">
+                    <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td
-                    className="py-3.5 px-3 font-bold border-r text-center align-middle text-[20px]"
-                    style={{ color: theme.textPrimary, borderRightColor: theme.cellDivider }}
-                  >
+                  <td className="py-3.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[20px]">
                     <div dir="ltr" className="text-center truncate max-w-full">{item.model_name}</div>
                   </td>
-                  <td
-                    className="py-3.5 px-2 text-center font-bold border-r font-mono text-[20px]"
-                    style={{ color: theme.textSecondary, borderRightColor: theme.cellDivider }}
-                    dir="ltr"
-                  >
+                  <td className="py-3.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[20px]" dir="ltr">
                     {item.processor || '---'}
                   </td>
-                  <td
-                    className="py-3.5 px-2 text-center font-bold border-r text-[20px]"
-                    style={{ color: theme.textMuted, borderRightColor: theme.cellDivider }}
-                  >
+                  <td className="py-3.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 text-[20px]">
                     <bdi>{item.generation || '---'}</bdi>
                   </td>
-                  <td
-                    className="py-3.5 px-2 text-center font-mono font-bold border-r text-[20px]"
-                    style={{ color: theme.textSecondary, borderRightColor: theme.cellDivider }}
-                    dir="ltr"
-                  >
+                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]" dir="ltr">
                     {item.ram || '---'}
                   </td>
-                  <td
-                    className="py-3.5 px-2 text-center font-mono font-bold border-r text-[20px]"
-                    style={{ color: theme.textSecondary, borderRightColor: theme.cellDivider }}
-                    dir="ltr"
-                  >
+                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]" dir="ltr">
                     {item.storage || '---'}
                   </td>
-                  <td
-                    className="py-3.5 px-2 text-center font-mono font-bold border-r text-[19.5px]"
-                    style={{ color: theme.textSecondary, borderRightColor: theme.cellDivider }}
-                    dir="ltr"
-                  >
+                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[19.5px]" dir="ltr">
                     {item.screen || '---'}
                   </td>
                   <td
                     className={`py-3.5 px-2 text-center font-bold text-[20px] ${
-                      displayOptions.showQuantity || displayOptions.showPrice ? 'border-r' : ''
+                      displayOptions.showQuantity || displayOptions.showPrice ? 'border-r border-slate-200' : ''
+                    } ${
+                      isNvidia ? 'text-emerald-700' : isAmd ? 'text-rose-600' : isIntel ? 'text-blue-700' : 'text-slate-700'
                     }`}
-                    style={{
-                      color: gpuColor,
-                      borderRightColor:
-                        displayOptions.showQuantity || displayOptions.showPrice ? theme.cellDivider : undefined,
-                    }}
                     dir="ltr"
                   >
                     {item.gpu || '---'}
                   </td>
                   {displayOptions.showQuantity && (
                     <td
-                      className={`py-3.5 px-2 text-center font-bold text-[20px] ${
-                        displayOptions.showPrice ? 'border-r' : ''
+                      className={`py-3.5 px-2 text-center font-bold text-slate-900 text-[20px] ${
+                        displayOptions.showPrice ? 'border-r border-slate-200' : ''
                       }`}
-                      style={{
-                        color: theme.textPrimary,
-                        borderRightColor: displayOptions.showPrice ? theme.cellDivider : undefined,
-                      }}
                       dir="ltr"
                     >
                       {item.quantity || 1}
                     </td>
                   )}
                   {displayOptions.showPrice && (
-                    <td
-                      className="py-3.5 px-3 text-center font-extrabold text-[22px] tabular-nums"
-                      style={{ color: theme.priceText }}
-                      dir="ltr"
-                    >
+                    <td className="py-3.5 px-3 text-center font-extrabold text-[#0a2558] text-[22px] tabular-nums" dir="ltr">
                       {item.price ? Number(item.price).toLocaleString('en-US') : '---'}
                     </td>
                   )}
@@ -407,21 +345,9 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
       </div>
 
       {/* 3. Poster Footer */}
-      <div
-        className="p-4 border-t text-center space-y-1"
-        style={{
-          backgroundColor: theme.footerBg,
-          borderTopColor: theme.footerBorderTop,
-        }}
-      >
+      <div className="p-4 bg-slate-50 border-t border-slate-200 text-center space-y-1">
         {totalPages > 1 && (
-          <div
-            className="inline-block px-3 py-0.5 rounded-full text-xs font-bold mb-1"
-            style={{
-              backgroundColor: theme.pageBadgeBg,
-              color: theme.pageBadgeText,
-            }}
-          >
+          <div className="inline-block px-3 py-0.5 rounded-full bg-[#0c3582] text-[#facc15] text-xs font-bold mb-1">
             صفحة {pageIndex + 1} من {totalPages}
           </div>
         )}
@@ -852,10 +778,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       const dataUrl = await toPng(targetEl, {
         quality: 1.0,
         pixelRatio: 2,
-        backgroundColor: resolvePromotionalTheme(
-          effectiveDisplayOptions.themeId,
-          effectiveDisplayOptions.headerImageSrc
-        ).posterBg,
+        backgroundColor: '#ffffff',
         cacheBust: true,
       });
 

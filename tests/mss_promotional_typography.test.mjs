@@ -75,22 +75,22 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
 
   await t.test('2. DOM preview table renders all data cells in bold with +5px increased font size', () => {
     assert.ok(
-      generatorContent.includes('w-full text-[20px] text-left border-collapse border font-bold'),
+      generatorContent.includes(`table className="w-full text-[20px] text-left border-collapse border border-slate-300 font-bold"`),
       'Table must have base 20px and font-bold'
     );
     assert.ok(
-      generatorContent.includes('tbody className="font-bold text-[20px]"'),
+      generatorContent.includes(`tbody className="divide-y divide-slate-200 font-bold text-[20px]"`),
       'Tbody must have font-bold and text-[20px]'
     );
 
-    assert.ok(generatorContent.includes('py-3.5 px-3 font-bold border-r text-center align-middle text-[20px]'), 'Model cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-bold border-r font-mono text-[20px]'), 'Processor cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-bold border-r text-[20px]'), 'Generation cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-mono font-bold border-r text-[20px]'), 'RAM & Storage cells must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-mono font-bold border-r text-[19.5px]'), 'Screen cell must be font-bold text-[19.5px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-bold text-[20px]'), 'GPU cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-2 text-center font-bold text-[20px]'), 'Quantity cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('py-3.5 px-3 text-center font-extrabold text-[22px] tabular-nums'), 'Price cell must be font-extrabold text-[22px]');
+    assert.ok(generatorContent.includes('font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[20px]'), 'Model cell must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[20px]'), 'Processor cell must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-bold text-slate-800 border-r border-slate-200 text-[20px]'), 'Generation cell must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]'), 'RAM & Storage cells must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[19.5px]'), 'Screen cell must be font-bold text-[19.5px]');
+    assert.ok(generatorContent.includes('text-center font-bold text-[20px]'), 'GPU cell must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-bold text-slate-900 text-[20px]'), 'Quantity cell must be font-bold text-[20px]');
+    assert.ok(generatorContent.includes('text-center font-extrabold text-[#0a2558] text-[22px] tabular-nums'), 'Price cell must be font-extrabold text-[22px]');
   });
 
   await t.test('3. Text fitting, row density (7 rows max), and boundary protection against overflow', () => {
@@ -118,7 +118,7 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
       'Canvas header font must be bold 17px'
     );
     assert.ok(
-      generatorContent.includes('font-bold text-center border-b-2 text-[14px]'),
+      generatorContent.includes('font-bold text-center border-b-2 border-slate-400 text-[14px]'),
       'DOM header must preserve distinct font-bold text-[14px]'
     );
   });

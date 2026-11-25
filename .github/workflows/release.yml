@@ -75,14 +75,12 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0-v2' }}
-          releaseName: 'AS System v__VERSION__ — Release 2'
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0-v3' }}
+          releaseName: 'AS System v__VERSION__ — Release 3'
           releaseBody: |
-            ## AS System v__VERSION__ — Release 2
-            - **Dynamic Promotional Header Themes (Accessories)**: Added dynamic table color themes synchronized across HTML preview, Canvas rendering, and PNG/JPG/PDF exports for `Compu MSS`, `Souq`, and `مكة` headers.
-            - **Accessories Custom Images Export**: Updated Accessories promotional export subfolder to `Custom images` and made GPU optional on custom promotional items.
-            - **Promotional Image Typography**: Increased table data font sizes by `+5px` while preserving bold weight and 7-row readability layout.
-            - **MSS Stock Quantity Correction**: Made adjustment reason optional (`بدون سبب محدد` when omitted).
+            ## AS System v__VERSION__ — Release 3
+            - **Promotional Header Image Fitting (MSS & Accessories)**: Fixed promotional header banner sizing across HTML preview, Canvas rendering, and PNG/JPG/PDF exports so images span 100% width proportionally without side gaps or cropping.
+            - **Conditional Table Header Gradients (Accessories Only)**: Applied banner-matched gradients strictly to the table column-header row for `Souq` (blue/amber) and `مكة` (teal/emerald/silver) while keeping the table body strictly white and preserving the original `Compu MSS` header.
             - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false

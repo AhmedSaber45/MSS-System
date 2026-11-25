@@ -64,8 +64,8 @@ const {
   ensurePromotionalImageLoaded,
 } = await import('../src/services/mssPromotionalService.ts');
 const {
-  PROMOTIONAL_THEMES,
-  resolvePromotionalTheme,
+  PROMOTIONAL_HEADER_COLORS,
+  resolvePromotionalHeaderColors,
 } = await import('../src/services/promotionalThemes.ts');
 
 test('Accessories Promotional Image: Three Selectable Static Header Designs', async (t) => {
@@ -249,29 +249,31 @@ test('Accessories Promotional Image: Three Selectable Static Header Designs', as
     assert.equal(drawnImages[0], PROMOTIONAL_HEADER_ASSETS.banner, 'MSS must strictly use original Compu MSS banner');
   });
 
-  await t.test('13 & 14. Dynamic Theme Matching: Centralized themes synchronize HTML preview, Canvas, and exports for SOUQ, Makkah, and Compu MSS', () => {
-    // 1. Verify centralized theme resolution by ID and by imageSrc
-    const compuTheme = resolvePromotionalTheme('compu_mss');
-    const souqTheme = resolvePromotionalTheme('souq');
-    const makkahTheme = resolvePromotionalTheme('makkah');
+  await t.test('13 & 14. Dynamic Header Colors: Only table column-header row adapts while table body stays strictly white', () => {
+    // 1. Verify centralized header-only color mapping by ID and by imageSrc
+    const compuHeader = resolvePromotionalHeaderColors('compu_mss');
+    const souqHeader = resolvePromotionalHeaderColors('souq');
+    const makkahHeader = resolvePromotionalHeaderColors('makkah');
 
-    assert.equal(compuTheme.id, 'compu_mss');
-    assert.equal(compuTheme.posterBg, '#ffffff');
-    assert.equal(compuTheme.tableHeaderBg, '#071d49');
-    assert.equal(compuTheme.priceText, '#0a2558');
+    assert.equal(compuHeader.id, 'compu_mss');
+    assert.equal(compuHeader.tableHeaderBg, '#071d49');
+    assert.equal(compuHeader.tableHeaderPriceBg, '#05163b');
 
-    assert.equal(souqTheme.id, 'souq');
-    assert.equal(souqTheme.isDark, true);
-    assert.equal(resolvePromotionalTheme(undefined, '/assets/promotional/promotional-header-souq.jpg').id, 'souq');
+    assert.equal(souqHeader.id, 'souq');
+    assert.equal(souqHeader.tableHeaderBg, '#102a54');
+    assert.equal(resolvePromotionalHeaderColors(undefined, '/assets/promotional/promotional-header-souq.jpg').id, 'souq');
 
-    assert.equal(makkahTheme.id, 'makkah');
-    assert.equal(makkahTheme.isDark, true);
-    assert.equal(resolvePromotionalTheme(undefined, '/assets/promotional/promotional-header-makkah.jpg').id, 'makkah');
+    assert.equal(makkahHeader.id, 'makkah');
+    assert.equal(makkahHeader.tableHeaderBg, '#0b4236');
+    assert.equal(resolvePromotionalHeaderColors(undefined, '/assets/promotional/promotional-header-makkah.jpg').id, 'makkah');
 
-    // 2. Capture Canvas fillStyle & strokeStyle values for each theme
-    const captureCanvasColors = (themeOptions) => {
+    // 2. Capture Canvas fillStyle, strokeStyle, gradient stops, and drawImage bounds
+    const captureCanvasRender = (themeOptions) => {
       const fillStyles = [];
       const strokeStyles = [];
+      const gradientStops = [];
+      const drawnBannerRects = [];
+      let gradientCreated = false;
       const mockCtx = {
         save: () => {},
         restore: () => {},
@@ -281,6 +283,12 @@ test('Accessories Promotional Image: Three Selectable Static Header Designs', as
         quadraticCurveTo: () => {},
         arc: () => {},
         closePath: () => {},
+        createLinearGradient: () => {
+          gradientCreated = true;
+          return {
+            addColorStop: (offset, color) => gradientStops.push({ offset, color }),
+          };
+        },
         fill: () => { fillStyles.push(mockCtx.fillStyle); },
         stroke: () => { strokeStyles.push(mockCtx.strokeStyle); },
         clip: () => {},
@@ -289,7 +297,11 @@ test('Accessories Promotional Image: Three Selectable Static Header Designs', as
         clearRect: () => {},
         fillText: () => { fillStyles.push(mockCtx.fillStyle); },
         measureText: (txt) => ({ width: (txt || '').length * 8 }),
-        drawImage: () => {},
+        drawImage: (img, x, y, w, h) => {
+          if (img?.src && (img.src.includes('promotional-header-') || img.src === PROMOTIONAL_HEADER_ASSETS.banner)) {
+            drawnBannerRects.push({ src: img.src, x, y, w, h });
+          }
+        },
         font: '',
         fillStyle: '',
         strokeStyle: '',
@@ -328,55 +340,78 @@ test('Accessories Promotional Image: Three Selectable Static Header Designs', as
         { showPrice: true, showQuantity: true, ...themeOptions },
         mockCanvas
       );
-      return { fillStyles, strokeStyles };
+      return { fillStyles, strokeStyles, gradientCreated, gradientStops, drawnBannerRects };
     };
 
-    const souqRender = captureCanvasColors({
+    const souqRender = captureCanvasRender({
       themeId: 'souq',
       headerImageSrc: '/assets/promotional/promotional-header-souq.jpg',
     });
-    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.posterBg), 'SOUQ Canvas must use SOUQ posterBg');
-    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.tableHeaderBg), 'SOUQ Canvas must use SOUQ tableHeaderBg');
-    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.rowEvenBg), 'SOUQ Canvas must use SOUQ rowEvenBg');
-    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.rowOddBg), 'SOUQ Canvas must use SOUQ rowOddBg');
-    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.priceText), 'SOUQ Canvas must use SOUQ priceText');
-    assert.ok(souqRender.strokeStyles.includes(PROMOTIONAL_THEMES.souq.tableOuterBorder), 'SOUQ Canvas must use SOUQ tableOuterBorder');
-    assert.ok(!souqRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.rowEvenBg), 'SOUQ Canvas must not use Makkah colors');
+    assert.equal(souqRender.gradientCreated, true, 'SOUQ Canvas must use a linear gradient on the table header');
+    assert.deepEqual(souqRender.gradientStops, PROMOTIONAL_HEADER_COLORS.souq.gradientStops);
+    assert.ok(souqRender.fillStyles.includes(PROMOTIONAL_HEADER_COLORS.souq.tableHeaderPriceOverlay), 'SOUQ Canvas must use SOUQ price header overlay');
+    assert.ok(souqRender.strokeStyles.includes(PROMOTIONAL_HEADER_COLORS.souq.tableHeaderStroke), 'SOUQ Canvas must use SOUQ tableHeaderStroke');
+    assert.deepEqual(souqRender.drawnBannerRects[0], {
+      src: '/assets/promotional/promotional-header-souq.jpg',
+      x: 0,
+      y: 0,
+      w: 1200,
+      h: Math.round(1200 / (1024 / 317)),
+    }, 'SOUQ Canvas header image must fill 100% width with proportional height and zero side gaps');
+    // Body stays strictly white/original
+    assert.ok(souqRender.fillStyles.includes('#ffffff'), 'SOUQ Canvas table body must stay white');
+    assert.ok(souqRender.fillStyles.includes('#f8faff'), 'SOUQ Canvas alternating row must stay #f8faff');
+    assert.ok(souqRender.fillStyles.includes('#0a2558'), 'SOUQ Canvas price text must stay #0a2558');
 
-    const makkahRender = captureCanvasColors({
+    const makkahRender = captureCanvasRender({
       themeId: 'makkah',
       headerImageSrc: '/assets/promotional/promotional-header-makkah.jpg',
     });
-    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.posterBg), 'Makkah Canvas must use Makkah posterBg');
-    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.tableHeaderBg), 'Makkah Canvas must use Makkah tableHeaderBg');
-    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.rowEvenBg), 'Makkah Canvas must use Makkah rowEvenBg');
-    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.rowOddBg), 'Makkah Canvas must use Makkah rowOddBg');
-    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.priceText), 'Makkah Canvas must use Makkah priceText');
-    assert.ok(makkahRender.strokeStyles.includes(PROMOTIONAL_THEMES.makkah.tableOuterBorder), 'Makkah Canvas must use Makkah tableOuterBorder');
-    assert.ok(!makkahRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.rowEvenBg), 'Makkah Canvas must not use SOUQ colors');
+    assert.equal(makkahRender.gradientCreated, true, 'Makkah Canvas must use a linear gradient on the table header');
+    assert.deepEqual(makkahRender.gradientStops, PROMOTIONAL_HEADER_COLORS.makkah.gradientStops);
+    assert.ok(makkahRender.fillStyles.includes(PROMOTIONAL_HEADER_COLORS.makkah.tableHeaderPriceOverlay), 'Makkah Canvas must use Makkah price header overlay');
+    assert.ok(makkahRender.strokeStyles.includes(PROMOTIONAL_HEADER_COLORS.makkah.tableHeaderStroke), 'Makkah Canvas must use Makkah tableHeaderStroke');
+    assert.equal(makkahRender.drawnBannerRects[0].x, 0, 'Makkah Canvas header image must have zero left gap');
+    assert.equal(makkahRender.drawnBannerRects[0].w, 1200, 'Makkah Canvas header image must span 100% width');
+    // Body stays strictly white/original
+    assert.ok(makkahRender.fillStyles.includes('#ffffff'), 'Makkah Canvas table body must stay white');
+    assert.ok(makkahRender.fillStyles.includes('#f8faff'), 'Makkah Canvas alternating row must stay #f8faff');
+    assert.ok(makkahRender.fillStyles.includes('#0a2558'), 'Makkah Canvas price text must stay #0a2558');
 
-    const compuRender = captureCanvasColors({
+    const compuRender = captureCanvasRender({
       themeId: 'compu_mss',
       headerImageSrc: PROMOTIONAL_HEADER_ASSETS.banner,
     });
-    assert.ok(compuRender.fillStyles.includes(PROMOTIONAL_THEMES.compu_mss.posterBg), 'Compu MSS Canvas must preserve white posterBg');
-    assert.ok(compuRender.fillStyles.includes(PROMOTIONAL_THEMES.compu_mss.tableHeaderBg), 'Compu MSS Canvas must preserve #071d49 tableHeaderBg');
-    assert.ok(compuRender.fillStyles.includes(PROMOTIONAL_THEMES.compu_mss.priceText), 'Compu MSS Canvas must preserve #0a2558 priceText');
-    assert.ok(!compuRender.fillStyles.includes(PROMOTIONAL_THEMES.souq.posterBg), 'Compu MSS Canvas must never use SOUQ colors');
-    assert.ok(!compuRender.fillStyles.includes(PROMOTIONAL_THEMES.makkah.posterBg), 'Compu MSS Canvas must never use Makkah colors');
+    assert.equal(compuRender.gradientCreated, false, 'Compu MSS Canvas must NOT apply a gradient');
+    assert.ok(compuRender.fillStyles.includes(PROMOTIONAL_HEADER_COLORS.compu_mss.tableHeaderBg), 'Compu MSS Canvas must preserve #071d49 tableHeaderBg');
+    assert.ok(compuRender.fillStyles.includes(PROMOTIONAL_HEADER_COLORS.compu_mss.tableHeaderPriceBg), 'Compu MSS Canvas must preserve #05163b tableHeaderPriceBg');
+    assert.equal(compuRender.drawnBannerRects[0].x, 0, 'Compu MSS Canvas header image must have zero left gap');
+    assert.equal(compuRender.drawnBannerRects[0].w, 1200, 'Compu MSS Canvas header image must span 100% width');
 
-    // 3. Verify HTML preview & toPng export share resolvePromotionalTheme
+    // 3. Verify HTML preview uses full-width proportional header image and conditional gradient on thead while keeping white table body
     const sharedGen = fs.readFileSync(
       path.resolve('src/components/placeholders/mss/MSSPromotionalGenerator.tsx'),
       'utf8'
     );
     assert.ok(
-      sharedGen.includes('resolvePromotionalTheme(displayOptions.themeId, displayOptions.headerImageSrc)'),
-      'HTML preview must resolve theme via centralized resolvePromotionalTheme'
+      sharedGen.includes('className="w-full h-auto block"') && !sharedGen.includes('max-h-[280px] object-contain'),
+      'HTML preview header image must fit 100% width with natural proportional height and zero side gaps'
     );
     assert.ok(
-      sharedGen.includes('backgroundColor: resolvePromotionalTheme('),
-      'DOM toPng export must use theme.posterBg from resolvePromotionalTheme'
+      sharedGen.includes('resolvePromotionalHeaderColors(') && sharedGen.includes('headerColors.gradientCss'),
+      'HTML preview must apply conditional gradient via resolvePromotionalHeaderColors'
+    );
+    assert.ok(
+      sharedGen.includes("isEven ? 'bg-white' : 'bg-[#f8faff]'"),
+      'HTML preview rows must keep original white / #f8faff alternating backgrounds'
+    );
+    assert.ok(
+      sharedGen.includes('text-[#0a2558]'),
+      'HTML preview price cell must keep original #0a2558 color'
+    );
+    assert.ok(
+      sharedGen.includes("backgroundColor: '#ffffff'"),
+      'DOM toPng export must keep #ffffff poster background'
     );
   });
 });
