@@ -183,9 +183,16 @@ test('Accessories Promotional Image Generator - Complete Reuse & Data Independen
     assert.equal(minimalDev.model_name, 'Custom Laptop');
     assert.equal(minimalDev.brand, '---');
     assert.equal(minimalDev.processor, '---');
+    assert.equal(minimalDev.gpu, '', 'Empty GPU must remain empty without fake GPU string');
     assert.equal(minimalDev.price, undefined, 'Empty price must remain undefined');
     assert.equal(minimalDev.quantity, 1, 'Default quantity should fall back to 1');
     assert.equal(minimalDev.notes, undefined, 'Empty notes should remain undefined');
+
+    const withGpu = createPromotionalItemFromManual({
+      model_name: 'Gaming Laptop',
+      gpu: 'RTX 4060',
+    });
+    assert.equal(withGpu.gpu, 'RTX 4060', 'Provided GPU must be preserved');
   });
 
   await t.test('6. Filtering manually entered devices (brand, price, search)', () => {
@@ -290,13 +297,13 @@ test('Accessories Promotional Image Generator - Complete Reuse & Data Independen
     assert.ok(storageRaw.includes('ROG Strix'), 'Stored data contains manual device');
   });
 
-  await t.test('11. Export Location: All generated Accessories promotional images save inside "<Selected Base Directory>/custom images/"', async () => {
-    assert.equal(EXPORT_FOLDERS.CUSTOM_IMAGES, 'custom images');
-    assert.equal(EXPORT_SUBFOLDERS.custom_images, 'custom images');
+  await t.test('11. Export Location: All generated Accessories promotional images save inside "<Selected Base Directory>/Custom images/"', async () => {
+    assert.equal(EXPORT_FOLDERS.CUSTOM_IMAGES, 'Custom images');
+    assert.equal(EXPORT_SUBFOLDERS.custom_images, 'Custom images');
 
     // Verify expected folder path
     const expectedPath = exportStorageService.getExpectedFolderPath('custom_images');
-    const expectedTarget = path.join(tempBaseDir, 'custom images');
+    const expectedTarget = path.join(tempBaseDir, 'Custom images');
     assert.equal(path.normalize(expectedPath), path.normalize(expectedTarget));
 
     // Save dummy PNG image using exportStorageService
@@ -313,17 +320,41 @@ test('Accessories Promotional Image Generator - Complete Reuse & Data Independen
     assert.ok(saveResult.success, 'Save operation must succeed');
     assert.ok(saveResult.savedToCustomLocation, 'Must save to custom storage location');
 
-    // Verify file actually exists in <Selected Base Directory>/custom images/
-    const targetFolder = path.join(tempBaseDir, 'custom images');
-    assert.ok(fs.existsSync(targetFolder), 'custom images folder must be created on disk');
+    // Verify file actually exists in <Selected Base Directory>/Custom images/
+    const targetFolder = path.join(tempBaseDir, 'Custom images');
+    assert.ok(fs.existsSync(targetFolder), 'Custom images folder must be created on disk');
 
     const filesInCustomImages = fs.readdirSync(targetFolder);
-    assert.ok(filesInCustomImages.length >= 1, 'File must exist inside custom images folder');
+    assert.ok(filesInCustomImages.length >= 1, 'File must exist inside Custom images folder');
     assert.ok(filesInCustomImages[0].includes('عروض_أجهزة_تجريبية'), 'File name must match');
+
+    // Verify collision avoidance when saving same filename again into existing Custom images folder
+    const saveResult2 = await exportStorageService.saveExportedFile({
+      exportType: 'custom_images',
+      filename,
+      data: dummyPngData,
+      mimeType: 'image/png',
+    });
+    assert.ok(saveResult2.success, 'Second save in existing Custom images folder must succeed');
+    assert.equal(fs.readdirSync(targetFolder).length, 2, 'Collision avoidance must keep both files');
+
+    // Verify invalid path produces an error (not false success)
+    exportStorageService.setStorageLocation('Z:\\invalid\0path\\custom_test');
+    const invalidRes = await exportStorageService.saveExportedFile({
+      exportType: 'custom_images',
+      filename,
+      data: dummyPngData,
+      mimeType: 'image/png',
+      interactive: false,
+      skipFallbackDownload: true,
+    });
+    assert.equal(invalidRes.success, false, 'Invalid storage location must fail rather than report success');
+    assert.equal(invalidRes.savedToCustomLocation, false, 'Invalid storage location must not report savedToCustomLocation');
+    exportStorageService.setStorageLocation(tempBaseDir);
 
     // Verify MSS System Files folder was NOT created for custom_images export
     const mssFilesRoot = path.join(tempBaseDir, 'MSS System Files');
-    assert.ok(!fs.existsSync(mssFilesRoot), 'MSS System Files root folder must NOT be created for custom images export');
+    assert.ok(!fs.existsSync(mssFilesRoot), 'MSS System Files root folder must NOT be created for Custom images export');
   });
 
   await t.test('12. MSS Promotional Generator Remains Intact: MSS export retains "MSS System Files/MSS Images"', async () => {

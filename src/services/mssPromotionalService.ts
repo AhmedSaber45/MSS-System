@@ -18,6 +18,7 @@ import {
 } from '../assets/promotional/promotionalAssets.ts';
 import { mssOperationalService } from './mssOperationalService.ts';
 import { exportStorageService } from './exportStorageService.ts';
+import { resolvePromotionalTheme, type PromotionalTableTheme } from './promotionalThemes.ts';
 
 export { PROMOTIONAL_MAX_DEVICES_PER_PAGE };
 
@@ -667,13 +668,20 @@ function drawBrandBadge(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  brand: string
+  brand: string,
+  theme?: PromotionalTableTheme
 ) {
   const brandConfig = getBrandLogoConfig(brand);
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  if (theme?.brandBadgePillBg) {
+    drawRoundedRect(ctx, x - 34, y - 16, 68, 32, 6);
+    ctx.fillStyle = theme.brandBadgePillBg;
+    ctx.fill();
+  }
 
   if (brandConfig) {
     const img = getCachedImage(brandConfig.dataUri);
@@ -790,10 +798,12 @@ export function renderPromotionalToCanvas(
 
   const rowCount = Math.max(pageItems.length, 1);
   const maxRows = itemsPerPage;
-  const rowHeight = 64;
-  const tableHeaderHeight = 66;
+  const rowHeight = 76;
+  const tableHeaderHeight = 70;
   const headerSectionHeight = 280;
   const footerSectionHeight = 90;
+
+  const theme = resolvePromotionalTheme(options.themeId, options.headerImageSrc);
 
   // Use uniform canvas height based on maxRows so every page has identical dimensions across PNG and PDF
   const totalHeight = headerSectionHeight + tableHeaderHeight + maxRows * rowHeight + footerSectionHeight + 40;
@@ -801,13 +811,13 @@ export function renderPromotionalToCanvas(
   canvas.width = width;
   canvas.height = totalHeight;
 
-  // 1. Overall Background: Clean white / deep border container
-  ctx.fillStyle = '#ffffff';
+  // 1. Overall Background: Theme-matched poster container
+  ctx.fillStyle = theme.posterBg;
   ctx.fillRect(0, 0, width, totalHeight);
 
-  // 2. Static Commercial Header Banner Section (Official COMPU MSS Header)
-  // Deep navy background matching banner edge lighting
-  ctx.fillStyle = '#040e24';
+  // 2. Static Commercial Header Banner Section
+  // Backdrop matching selected header edge lighting
+  ctx.fillStyle = theme.headerBackdropBg;
   ctx.fillRect(0, 0, width, headerSectionHeight);
 
   // Draw the static promotional header banner asset, horizontally centered with aspect ratio preserved
@@ -891,9 +901,9 @@ export function renderPromotionalToCanvas(
 
   // Draw Table Header Bar
   drawRoundedRect(ctx, tableX, tableY, tableW, tableHeaderHeight, 8);
-  ctx.fillStyle = '#071d49'; // Dark navy header
+  ctx.fillStyle = theme.tableHeaderBg;
   ctx.fill();
-  ctx.strokeStyle = '#0a2a6b';
+  ctx.strokeStyle = theme.tableHeaderStroke;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
@@ -910,7 +920,7 @@ export function renderPromotionalToCanvas(
 
     // Price column background highlight
     if (col.id === 'price') {
-      ctx.fillStyle = '#05163b';
+      ctx.fillStyle = theme.tableHeaderPriceBg;
       ctx.fillRect(curX, tableY, col.width, tableHeaderHeight);
     }
 
@@ -939,8 +949,8 @@ export function renderPromotionalToCanvas(
     }
 
     if (!iconDrawn) {
-      ctx.strokeStyle = '#38bdf8';
-      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = theme.headerFallbackAccent;
+      ctx.fillStyle = theme.headerFallbackAccent;
       ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.arc(colCenterX, tableY + 17, 5, 0, Math.PI * 2);
@@ -948,14 +958,14 @@ export function renderPromotionalToCanvas(
     }
 
     // Header label text (Arabic with proper RTL text rendering)
-    ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
-    ctx.fillStyle = col.id === 'price' ? '#facc15' : '#ffffff';
+    ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+    ctx.fillStyle = col.id === 'price' ? theme.tableHeaderPriceText : theme.tableHeaderText;
     ctx.direction = 'rtl';
     ctx.fillText(col.label, colCenterX, tableY + 46);
 
     // Column border divider in header (between columns)
     if (cIdx < colWidths.length - 1) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.strokeStyle = theme.tableHeaderDivider;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(curX + col.width, tableY + 8);
@@ -972,12 +982,12 @@ export function renderPromotionalToCanvas(
     const rowY = tableY + tableHeaderHeight + rIdx * rowHeight;
     const isEven = rIdx % 2 === 0;
 
-    // Row Background (Alternating white and soft sky-blue tint)
-    ctx.fillStyle = isEven ? '#ffffff' : '#f8faff';
+    // Row Background
+    ctx.fillStyle = isEven ? theme.rowEvenBg : theme.rowOddBg;
     ctx.fillRect(tableX, rowY, tableW, rowHeight);
 
     // Row bottom border
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = theme.rowBorderBottom;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(tableX, rowY + rowHeight);
@@ -992,7 +1002,7 @@ export function renderPromotionalToCanvas(
 
       // Vertical column divider between cells
       if (cIdx < colWidths.length - 1) {
-        ctx.strokeStyle = '#e2e8f0';
+        ctx.strokeStyle = theme.cellDivider;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(cellX + col.width, rowY);
@@ -1005,73 +1015,73 @@ export function renderPromotionalToCanvas(
 
       if (col.id === 'brand') {
         ctx.textAlign = 'center';
-        drawBrandBadge(ctx, cellCenterX, cellCenterY, item.brand);
+        drawBrandBadge(ctx, cellCenterX, cellCenterY, item.brand, theme);
       } else if (col.id === 'model') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textPrimary;
         drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16);
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textSecondary;
         drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'generation') {
         ctx.textAlign = 'center';
         const genText = item.generation || '---';
         const hasArabic = /[\u0600-\u06FF]/.test(genText);
         ctx.direction = hasArabic ? 'rtl' : 'ltr';
-        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textMuted;
         drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'ram') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textSecondary;
         drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'storage') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textSecondary;
         drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'screen') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textSecondary;
         drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'gpu') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
         const gpuUpper = (item.gpu || '').toUpperCase();
         if (gpuUpper.includes('NVIDIA') || gpuUpper.includes('RTX') || gpuUpper.includes('GTX')) {
-          ctx.fillStyle = '#16a34a'; // NVIDIA Green
+          ctx.fillStyle = theme.gpuNvidia;
         } else if (gpuUpper.includes('AMD') || gpuUpper.includes('RADEON')) {
-          ctx.fillStyle = '#dc2626'; // AMD Red
+          ctx.fillStyle = theme.gpuAmd;
         } else if (gpuUpper.includes('INTEL')) {
-          ctx.fillStyle = '#2563eb'; // Intel Blue
+          ctx.fillStyle = theme.gpuIntel;
         } else {
-          ctx.fillStyle = '#475569';
+          ctx.fillStyle = theme.gpuDefault;
         }
-        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
         drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'quantity') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = theme.textPrimary;
         ctx.fillText(String(item.quantity || 1), cellCenterX, cellCenterY);
       } else if (col.id === 'price') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
         const priceNum = Number(item.price) || 0;
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
-        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-        ctx.fillStyle = '#0a2558'; // Bold dark blue numbers
+        ctx.font = 'bold 27px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = theme.priceText;
         drawFittedText(ctx, priceFormatted, cellCenterX, cellCenterY, col.width - 10);
       }
 
@@ -1082,7 +1092,7 @@ export function renderPromotionalToCanvas(
 
   // Outer border of table
   drawRoundedRect(ctx, tableX, tableY, tableW, tableHeaderHeight + rowCount * rowHeight, 8);
-  ctx.strokeStyle = '#94a3b8';
+  ctx.strokeStyle = theme.tableOuterBorder;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
@@ -1099,19 +1109,19 @@ export function renderPromotionalToCanvas(
     ctx.font = 'bold 14px "Segoe UI", Cairo, Arial, sans-serif';
     const pw = ctx.measureText(pageText).width + 28;
     drawRoundedRect(ctx, (width - pw) / 2, footY - 14, pw, 26, 13);
-    ctx.fillStyle = '#0c3582';
+    ctx.fillStyle = theme.pageBadgeBg;
     ctx.fill();
-    ctx.fillStyle = '#facc15';
+    ctx.fillStyle = theme.pageBadgeText;
     ctx.fillText(pageText, width / 2, footY + 4);
   }
 
   // Slogan & Info
   ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
-  ctx.fillStyle = '#0f172a';
+  ctx.fillStyle = theme.textPrimary;
   ctx.fillText('', width / 2, footY + 34);
 
   ctx.font = '14px "Segoe UI", Cairo, Arial, sans-serif';
-  ctx.fillStyle = '#64748b';
+  ctx.fillStyle = theme.footerBranchText;
   const activeBranches = mssOperationalService.getActiveLocationNamesSync();
   const branchesText = activeBranches.length > 0 ? activeBranches.join(' • ') : '';
   if (branchesText) {
@@ -1242,7 +1252,7 @@ export async function exportPromotionalAsPdf(
             pageDataUrl = await toPng(pageEl, {
               quality: 1.0,
               pixelRatio: 2,
-              backgroundColor: '#ffffff',
+              backgroundColor: resolvePromotionalTheme(options.themeId, options.headerImageSrc).posterBg,
               cacheBust: true,
             });
           } catch (e) {
@@ -1358,7 +1368,7 @@ export async function exportPromotionalAllPagesAsPng(
             pageDataUrl = await toPng(pageEl, {
               quality: 1.0,
               pixelRatio: 2,
-              backgroundColor: '#ffffff',
+              backgroundColor: resolvePromotionalTheme(options.themeId, options.headerImageSrc).posterBg,
               cacheBust: true,
             });
           } catch (e) {

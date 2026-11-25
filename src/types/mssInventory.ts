@@ -94,7 +94,7 @@ export interface MSSStockAdjustment {
   previous_quantity: number;
   new_quantity: number;
   adjustment_amount: number;
-  reason: string;
+  reason?: string | null;
   actor_id?: string;
   actor_username: string;
   created_at: string;
@@ -105,7 +105,7 @@ export interface StockAdjustmentInput {
   model_id: string;
   stock_location: MSSStockLocation;
   new_quantity: number;
-  reason: string;
+  reason?: string | null;
   actor_id?: string;
   actor_username?: string;
   device_id?: string;

@@ -206,18 +206,26 @@ test('Tasks 3 & 4: Inventory Transfer & Stock Quantity Correction Regression Sui
       /الكمية المصححة يجب أن تكون رقماً صحيحاً أكبر من أو يساوي الصفر/
     );
 
-    // Empty reason
-    await assert.rejects(
-      async () => {
-        await mssInventoryService.adjustStockQuantity({
-          model_id: MODEL_SCREEN_ID,
-          stock_location: 'محل 1',
-          new_quantity: 10,
-          reason: '   ',
-        });
-      },
-      /يجب ذكر سبب تصحيح الكمية لأغراض التدقيق والمراجعة/
-    );
+    // Empty / omitted reason is now optional and succeeds, storing null
+    const optionalAdj = await mssInventoryService.adjustStockQuantity({
+      model_id: MODEL_SCREEN_ID,
+      stock_location: 'محل 1',
+      new_quantity: 10,
+      reason: '   ',
+    });
+    assert.equal(optionalAdj.new_quantity, 10);
+    assert.equal(optionalAdj.reason, null, 'Empty/whitespace reason must be stored as null');
+    const histAfterOptional = await mssInventoryService.getStockAdjustments(MODEL_SCREEN_ID);
+    assert.ok(histAfterOptional.some(a => a.id === optionalAdj.id && a.reason === null));
+
+    // Restore back to 7 without providing reason field at all
+    const restoreAdj = await mssInventoryService.adjustStockQuantity({
+      model_id: MODEL_SCREEN_ID,
+      stock_location: 'محل 1',
+      new_quantity: 7,
+    });
+    assert.equal(restoreAdj.new_quantity, 7);
+    assert.equal(restoreAdj.reason, null);
 
     // Zero delta (Current quantity is 7, requesting 7)
     await assert.rejects(

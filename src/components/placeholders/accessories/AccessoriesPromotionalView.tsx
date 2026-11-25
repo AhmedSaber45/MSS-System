@@ -406,7 +406,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* GPU */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  كارت الشاشة 
+                  كارت الشاشة (اختياري)
                 </label>
                 <input
                   type="text"
@@ -570,6 +570,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
         onDeleteItem={handleDeleteItem}
         exportType="custom_images"
         headerImageSrc={selectedHeaderOption.imageSrc}
+        headerId={selectedHeaderOption.id}
       />
 
       <AlertModal

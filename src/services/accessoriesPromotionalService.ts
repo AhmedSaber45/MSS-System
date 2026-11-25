@@ -156,7 +156,7 @@ export function createPromotionalItemFromManual(
     generation: generation || undefined,
     ram: (input.ram || '').trim() || '---',
     storage: (input.storage || '').trim() || '---',
-    gpu: (input.gpu || '').trim() || '---',
+    gpu: (input.gpu || '').trim(),
     screen: (input.screen || '').trim() || '---',
     price: validPrice,
     quantity: validQty,

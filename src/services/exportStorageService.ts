@@ -22,7 +22,7 @@ export const EXPORT_FOLDERS = {
   MSS_EXCEL: 'MSS Exel Sheets',
   MSS_IMAGES: 'MSS Images',
   ACCESSORIES_EXCEL: 'Accessories Exel sheets',
-  CUSTOM_IMAGES: 'custom images',
+  CUSTOM_IMAGES: 'Custom images',
 } as const;
 
 export const EXPORT_SUBFOLDERS: Record<ExportType, string> = {
@@ -39,6 +39,7 @@ export const EXPORT_SUBFOLDERS: Record<ExportType, string> = {
 export const EXPORT_SUBFOLDER_ALIASES: Record<string, string[]> = {
   mss_excel: ['MSS Exel Sheets', 'MSS Excel Sheets'],
   accessories_excel: ['Accessories Exel sheets', 'Accessories Excel sheets'],
+  custom_images: ['Custom images', 'custom images'],
 };
 
 export const EXPORT_STORAGE_LOCATION_KEY = 'mss_export_storage_location_v1';

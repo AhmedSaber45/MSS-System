@@ -731,10 +731,6 @@ export const MSSInventoryView: React.FC = () => {
       setAdjustmentError('الكمية المصححة يجب أن تكون رقماً صحيحاً أكبر من أو يساوي الصفر');
       return;
     }
-    if (!adjustmentReason.trim()) {
-      setAdjustmentError('يرجى كتابة سبب تصحيح الكمية للمراجعة والتدقيق');
-      return;
-    }
     if (adjustmentDelta === 0) {
       setAdjustmentError('الكمية المدخلة مطابقة للرصيد الفعلي الحالي، لا يوجد فرق لتطبيقه');
       return;
@@ -754,7 +750,7 @@ export const MSSInventoryView: React.FC = () => {
         stock_location: adjustmentLocation,
         device_id: adjustmentTargetDevice?.id,
         new_quantity: Number(adjustmentNewQty),
-        reason: adjustmentReason.trim(),
+        reason: adjustmentReason.trim() || null,
         actor_id: user?.id,
         actor_username: user?.username || 'مدير النظام',
       });
@@ -2480,10 +2476,10 @@ export const MSSInventoryView: React.FC = () => {
  
               </div>
 
-              {/* Mandatory Reason */}
+              {/* Optional Reason */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  سبب تصحيح الكمية 
+                  سبب تصحيح الكمية (اختياري)
                 </label>
                 <textarea
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
@@ -2563,8 +2559,8 @@ export const MSSInventoryView: React.FC = () => {
                           {adj.adjustment_amount > 0 ? `+${adj.adjustment_amount}` : adj.adjustment_amount}
                         </span>
                       </td>
-                      <td className="p-2.5 text-slate-700 max-w-xs truncate" title={adj.reason}>
-                        {adj.reason}
+                      <td className="p-2.5 text-slate-700 max-w-xs truncate" title={adj.reason || 'بدون سبب محدد'}>
+                        {adj.reason ? adj.reason : <span className="text-slate-400">بدون سبب محدد</span>}
                       </td>
                       <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">
                         {adj.actor_username || 'مدير النظام'}

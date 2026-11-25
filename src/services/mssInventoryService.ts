@@ -1103,9 +1103,8 @@ export const mssInventoryService = {
     if (typeof input.new_quantity !== 'number' || isNaN(input.new_quantity) || input.new_quantity < 0) {
       throw new Error('الكمية المصححة يجب أن تكون رقماً صحيحاً أكبر من أو يساوي الصفر');
     }
-    if (!input.reason || !input.reason.trim()) {
-      throw new Error('يجب ذكر سبب تصحيح الكمية لأغراض التدقيق والمراجعة');
-    }
+
+    const normalizedReason = input.reason && input.reason.trim() ? input.reason.trim() : null;
 
     const activeLocations = await mssOperationalService.getActiveLocationNames();
     if (!activeLocations.includes(input.stock_location)) {
@@ -1254,7 +1253,7 @@ export const mssInventoryService = {
       previous_quantity: currentAvailableQty,
       new_quantity: targetQty,
       adjustment_amount: delta,
-      reason: input.reason.trim(),
+      reason: normalizedReason,
       actor_id: input.actor_id,
       actor_username: input.actor_username || 'مستخدم النظام',
       created_at: now,
@@ -1285,6 +1284,7 @@ export const mssInventoryService = {
     }
 
     // Log explicit movement for auditing
+    const reasonSuffix = normalizedReason ? `. السبب: ${normalizedReason}` : '';
     const movement: MSSDeviceMovement = {
       id: generateUUID(),
       device_id: adjustment.device_id || adjustment.id,
@@ -1293,7 +1293,7 @@ export const mssInventoryService = {
       to_location: input.stock_location,
       movement_date: now,
       movement_status: 'COMPLETED',
-      notes: `[تصحيح رصيد مخزون]: تعديل الكمية من (${currentAvailableQty}) إلى (${targetQty}) [الفرق: ${delta > 0 ? '+' : ''}${delta}]. السبب: ${input.reason.trim()}`,
+      notes: `[تصحيح رصيد مخزون]: تعديل الكمية من (${currentAvailableQty}) إلى (${targetQty}) [الفرق: ${delta > 0 ? '+' : ''}${delta}]${reasonSuffix}`,
       created_at: now,
       model_name: model.model_name,
       brand: model.brand,
@@ -1316,7 +1316,7 @@ export const mssInventoryService = {
         previousQuantity: currentAvailableQty,
         newQuantity: targetQty,
         delta,
-        reason: input.reason.trim(),
+        reason: normalizedReason,
       },
     });
 

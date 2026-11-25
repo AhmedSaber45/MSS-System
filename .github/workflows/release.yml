@@ -75,15 +75,14 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0' }}
-          releaseName: 'AS System v__VERSION__'
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0-v2' }}
+          releaseName: 'AS System v__VERSION__ — Release 2'
           releaseBody: |
-            ## AS System v__VERSION__ Release Notes
-            - **Accessories Promotional Image Headers**: Added three selectable static header designs (`Compu MSS`, `Souq`, `مكة`) exclusively in Accessories → Promotional Image with live preview and synchronized PNG/PDF export.
-            - **Promotional Image Typography & Readability**: Increased table data font sizes across both MSS and Accessories promotional images while preserving bold weight, centered alignment, and 9-row readability layout.
-            - **MSS Inventory Accuracy**: Unified MSS inventory and branch valuation aggregation so Sales Reports, Unified Dashboard, and Admin Dashboard match MSS Inventory unit counts and bulk quantities accurately.
-            - **MSS Sales UX**: Replaced bulk quantity up/down spinners with clear `+` / `−` buttons and fixed the "Select Displayed" (`تحديد المعروض`) button behavior.
-            - **Program-Wide Alert Standardization**: Replaced remaining browser-native `alert()` / `window.confirm()` dialogs with consistent AS System `AlertModal` and confirmation dialogs, and updated the Accessories Promotional Image icon to `Megaphone`.
+            ## AS System v__VERSION__ — Release 2
+            - **Dynamic Promotional Header Themes (Accessories)**: Added dynamic table color themes synchronized across HTML preview, Canvas rendering, and PNG/JPG/PDF exports for `Compu MSS`, `Souq`, and `مكة` headers.
+            - **Accessories Custom Images Export**: Updated Accessories promotional export subfolder to `Custom images` and made GPU optional on custom promotional items.
+            - **Promotional Image Typography**: Increased table data font sizes by `+5px` while preserving bold weight and 7-row readability layout.
+            - **MSS Stock Quantity Correction**: Made adjustment reason optional (`بدون سبب محدد` when omitted).
             - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false
