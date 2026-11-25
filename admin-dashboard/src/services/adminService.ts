@@ -2020,14 +2020,17 @@ export const adminService = {
         }
       }
 
-      // Approximate device count in Compu MSS
+      // Approximate device count in Compu MSS (respecting bulk quantity)
       let deviceCount = 0;
       try {
-        const { count } = await supabase
+        const { data: storeDevs } = await supabase
           .from('mss_devices')
-          .select('id', { count: 'exact', head: true })
+          .select('quantity')
           .or(`stock_location.eq.${store.name},stock_location.eq.${store.code}`);
-        deviceCount = count || 0;
+        deviceCount = (storeDevs || []).reduce(
+          (sum: number, row: any) => sum + (Number(row.quantity) > 0 ? Number(row.quantity) : 1),
+          0
+        );
       } catch {
         // Non-critical
       }
@@ -3105,21 +3108,31 @@ export const adminService = {
     try {
       const supabase = getServerSupabase();
       const { data: models } = await supabase.from('mss_models').select('id');
-      const { data: devices } = await supabase.from('mss_devices').select('id, status, stock_location');
+      const { data: devices } = await supabase.from('mss_devices').select('id, status, stock_location, quantity');
 
       if (devices && devices.length > 0) {
         const byLoc: Record<string, number> = {};
-        devices.forEach(d => {
-          const loc = d.stock_location || 'غير محدد';
-          byLoc[loc] = (byLoc[loc] || 0) + 1;
+        let devicesCount = 0;
+        let availableCount = 0;
+        let reservedCount = 0;
+        let soldCount = 0;
+
+        devices.forEach((d: any) => {
+          const qty = Number(d.quantity) > 0 ? Number(d.quantity) : 1;
+          const loc = (d.stock_location || '').trim() || 'غير محدد';
+          devicesCount += qty;
+          byLoc[loc] = (byLoc[loc] || 0) + qty;
+          if (d.status === 'AVAILABLE') availableCount += qty;
+          else if (d.status === 'RESERVED') reservedCount += qty;
+          else if (d.status === 'SOLD') soldCount += qty;
         });
 
         return {
           modelsCount: models?.length || 0,
-          devicesCount: devices.length,
-          availableCount: devices.filter(d => d.status === 'AVAILABLE').length,
-          reservedCount: devices.filter(d => d.status === 'RESERVED').length,
-          soldCount: devices.filter(d => d.status === 'SOLD').length,
+          devicesCount,
+          availableCount,
+          reservedCount,
+          soldCount,
           byLocation: byLoc,
         };
       }
@@ -3166,6 +3179,7 @@ export const adminService = {
           physical_condition,
           stock_location,
           status,
+          quantity,
           notes,
           created_at,
           updated_at,
@@ -3195,6 +3209,7 @@ export const adminService = {
             physicalCondition: row.physical_condition || 'فرز أول',
             stockLocation: row.stock_location,
             status: row.status,
+            quantity: Number(row.quantity) > 0 ? Number(row.quantity) : 1,
             notes: row.notes,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -3240,29 +3255,33 @@ export const adminService = {
     let totalRetailVal = 0;
 
     for (const d of allDevices) {
-      const loc = d.stockLocation || 'غير محدد';
+      const qty = Number((d as any).quantity) > 0 ? Number((d as any).quantity) : 1;
+      const loc = (d.stockLocation || '').trim() || 'غير محدد';
       if (!byLocationSummary[loc]) {
         byLocationSummary[loc] = { total: 0, available: 0, reserved: 0, sold: 0, costValue: 0 };
       }
-      byLocationSummary[loc].total += 1;
-      if (d.status === 'AVAILABLE') byLocationSummary[loc].available += 1;
-      if (d.status === 'RESERVED') byLocationSummary[loc].reserved += 1;
-      if (d.status === 'SOLD') byLocationSummary[loc].sold += 1;
-      byLocationSummary[loc].costValue += d.purchaseCost;
+      byLocationSummary[loc].total += qty;
+      if (d.status === 'AVAILABLE') byLocationSummary[loc].available += qty;
+      if (d.status === 'RESERVED') byLocationSummary[loc].reserved += qty;
+      if (d.status === 'SOLD') byLocationSummary[loc].sold += qty;
+      byLocationSummary[loc].costValue += d.purchaseCost * qty;
 
-      totalCostVal += d.purchaseCost;
-      totalRetailVal += d.listPrice;
+      totalCostVal += d.purchaseCost * qty;
+      totalRetailVal += d.listPrice * qty;
     }
 
+    const getSumQty = (arr: InventoryDevice[]) =>
+      arr.reduce((sum, d) => sum + (Number((d as any).quantity) > 0 ? Number((d as any).quantity) : 1), 0);
+
     const summary: InventoryOverviewSummary = {
-      totalCount: summaryBase.length,
-      availableCount: summaryBase.filter(d => d.status === 'AVAILABLE').length,
-      reservedCount: summaryBase.filter(d => d.status === 'RESERVED').length,
-      soldCount: summaryBase.filter(d => d.status === 'SOLD').length,
-      maintenanceCount: summaryBase.filter(d => d.status === 'MAINTENANCE').length,
-      returnedCount: summaryBase.filter(d => d.status === 'RETURNED').length,
-      totalCostValue: summaryBase.reduce((sum, d) => sum + d.purchaseCost, 0),
-      totalRetailValue: summaryBase.reduce((sum, d) => sum + d.listPrice, 0),
+      totalCount: getSumQty(summaryBase),
+      availableCount: getSumQty(summaryBase.filter(d => d.status === 'AVAILABLE')),
+      reservedCount: getSumQty(summaryBase.filter(d => d.status === 'RESERVED')),
+      soldCount: getSumQty(summaryBase.filter(d => d.status === 'SOLD')),
+      maintenanceCount: getSumQty(summaryBase.filter(d => d.status === 'MAINTENANCE')),
+      returnedCount: getSumQty(summaryBase.filter(d => d.status === 'RETURNED')),
+      totalCostValue: summaryBase.reduce((sum, d) => sum + d.purchaseCost * (Number((d as any).quantity) > 0 ? Number((d as any).quantity) : 1), 0),
+      totalRetailValue: summaryBase.reduce((sum, d) => sum + d.listPrice * (Number((d as any).quantity) > 0 ? Number((d as any).quantity) : 1), 0),
       byLocation: byLocationSummary,
     };
 

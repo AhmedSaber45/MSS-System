@@ -126,8 +126,8 @@ test('Contact Modal Unification with Public MSS Inventory Reference', async (t) 
       'Copyright notice must be "© 2026 Ahmed Saber. All rights reserved."'
     );
     assert.ok(
-      desktopContent.includes('{FULL_APP_VERSION}') || desktopContent.includes('AS System v1.0.9'),
-      'Desktop version must be synchronized via FULL_APP_VERSION or AS System v1.0.9'
+      desktopContent.includes('{FULL_APP_VERSION}') || desktopContent.includes('AS System v1.1.0'),
+      'Desktop version must be synchronized via FULL_APP_VERSION or AS System v1.1.0'
     );
     assert.ok(
       !desktopContent.includes('Compu MSS v1.0.5'),

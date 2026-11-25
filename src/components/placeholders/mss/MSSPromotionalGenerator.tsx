@@ -6,6 +6,7 @@ import {
   preparePromotionalItems,
   generatePromotionalArabicFilename,
   renderPromotionalToCanvas,
+  ensurePromotionalImageLoaded,
   exportPromotionalAsPng,
   exportPromotionalAllPagesAsPng,
   exportPromotionalAsPdf,
@@ -62,6 +63,7 @@ export interface MSSPromotionalGeneratorProps {
   onEditItem?: (item: PromotionalLaptopItem) => void;
   onDeleteItem?: (id: string) => void;
   exportType?: import('@/services/exportStorageService').ExportType;
+  headerImageSrc?: string;
 }
 
 /**
@@ -169,11 +171,11 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
       dir="rtl"
     >
       <div>
-        {/* 1. Static Commercial Header Banner Section (Official COMPU MSS Header) laptopLeft laptopRight */}
+        {/* 1. Static Commercial Header Banner Section */}
         <div className="relative bg-[#040e24] text-center overflow-hidden border-b border-sky-400/20 flex items-center justify-center">
           <img
-            src={PROMOTIONAL_HEADER_ASSETS.banner}
-            alt="COMPU MSS Promotional Header"
+            src={displayOptions.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner}
+            alt="Promotional Header"
             className="w-full max-h-[280px] object-contain mx-auto block"
             loading="eager"
           />
@@ -181,8 +183,8 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5" dir="ltr">
-        <table className="w-full text-[13.5px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
-          <thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400 text-xs">
+        <table className="w-full text-[15px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
+          <thead className="bg-[#071d49] text-white font-bold text-center border-b-2 border-slate-400 text-[13px]">
             <tr>
               <th className="py-3 px-2 w-24 text-center">
                 <div className="flex flex-col items-center gap-1">
@@ -250,7 +252,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 font-bold text-[13.5px]">
+          <tbody className="divide-y divide-slate-200 font-bold text-[15px]">
             {pageItems.map((item, idx) => {
               const isEven = idx % 2 === 0;
               const gpuUpper = (item.gpu || '').toUpperCase();
@@ -260,29 +262,29 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
               return (
                 <tr key={item.id} className={`transition-colors ${isEven ? 'bg-white' : 'bg-[#f8faff]'}`}>
-                  <td className="py-2.5 px-2 text-center border-r border-slate-200">
+                  <td className="py-3 px-2 text-center border-r border-slate-200">
                     <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td className="py-2.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[13.5px]">
+                  <td className="py-3 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[15px]">
                     <div dir="ltr" className="text-center truncate max-w-full">{item.model_name}</div>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[13.5px]" dir="ltr">
+                  <td className="py-3 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[15px]" dir="ltr">
                     {item.processor || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 text-[13.5px]">
+                  <td className="py-3 px-2 text-center font-bold text-slate-800 border-r border-slate-200 text-[15px]">
                     <bdi>{item.generation || '---'}</bdi>
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13.5px]" dir="ltr">
+                  <td className="py-3 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[15px]" dir="ltr">
                     {item.ram || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13.5px]" dir="ltr">
+                  <td className="py-3 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[15px]" dir="ltr">
                     {item.storage || '---'}
                   </td>
-                  <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[13px]" dir="ltr">
+                  <td className="py-3 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[14.5px]" dir="ltr">
                     {item.screen || '---'}
                   </td>
                   <td
-                    className={`py-2.5 px-2 text-center font-bold text-[13.5px] ${
+                    className={`py-3 px-2 text-center font-bold text-[15px] ${
                       displayOptions.showQuantity || displayOptions.showPrice ? 'border-r border-slate-200' : ''
                     } ${
                       isNvidia ? 'text-emerald-700' : isAmd ? 'text-rose-600' : isIntel ? 'text-blue-700' : 'text-slate-700'
@@ -293,7 +295,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   </td>
                   {displayOptions.showQuantity && (
                     <td
-                      className={`py-2.5 px-2 text-center font-bold text-slate-900 text-[13.5px] ${
+                      className={`py-3 px-2 text-center font-bold text-slate-900 text-[15px] ${
                         displayOptions.showPrice ? 'border-r border-slate-200' : ''
                       }`}
                       dir="ltr"
@@ -302,7 +304,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                     </td>
                   )}
                   {displayOptions.showPrice && (
-                    <td className="py-2.5 px-3 text-center font-extrabold text-[#0a2558] text-[15.5px] tabular-nums" dir="ltr">
+                    <td className="py-3 px-3 text-center font-extrabold text-[#0a2558] text-[17px] tabular-nums" dir="ltr">
                       {item.price ? Number(item.price).toLocaleString('en-US') : '---'}
                     </td>
                   )}
@@ -336,6 +338,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   onEditItem,
   onDeleteItem,
   exportType = 'mss_images',
+  headerImageSrc,
 }) => {
   const { showNotification } = useNotification();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -556,6 +559,21 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
     itemsPerPage: PROMOTIONAL_MAX_DEVICES_PER_PAGE,
   });
 
+  // Only allow custom headerImageSrc in Accessories mode; MSS always uses the default Compu MSS header.
+  const effectiveDisplayOptions = useMemo<PromotionalDisplayOptions>(
+    () =>
+      mode === 'accessories_manual' && headerImageSrc
+        ? { ...displayOptions, headerImageSrc }
+        : displayOptions,
+    [displayOptions, mode, headerImageSrc]
+  );
+
+  // Preload header image immediately whenever it changes to prevent blank exports
+  useEffect(() => {
+    const src = effectiveDisplayOptions.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner;
+    ensurePromotionalImageLoaded(src);
+  }, [effectiveDisplayOptions.headerImageSrc]);
+
   // 5. Editable Preview Modal State & Pagination
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [previewItems, setPreviewItems] = useState<PromotionalLaptopItem[]>([]);
@@ -720,6 +738,10 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
         })
       );
 
+      await ensurePromotionalImageLoaded(
+        effectiveDisplayOptions.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner
+      );
+
       const dataUrl = await toPng(targetEl, {
         quality: 1.0,
         pixelRatio: 2,
@@ -737,10 +759,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       console.warn('html-to-image failed, falling back to canvas:', err);
       try {
         if (canvasRef.current) {
+          await ensurePromotionalImageLoaded(
+            effectiveDisplayOptions.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner
+          );
           renderPromotionalToCanvas(
             previewItems,
             {
-              ...displayOptions,
+              ...effectiveDisplayOptions,
               pageIndex: currentPageIndex,
               itemsPerPage,
             },
@@ -783,7 +808,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       const result = await exportPromotionalAllPagesAsPng(
         previewItems,
         {
-          ...displayOptions,
+          ...effectiveDisplayOptions,
           itemsPerPage,
           exportType,
         },
@@ -830,7 +855,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
       const result = await exportPromotionalAsPdf(
         previewItems,
         {
-          ...displayOptions,
+          ...effectiveDisplayOptions,
           itemsPerPage,
           filename,
           exportType,
@@ -1155,7 +1180,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                 <tr>
                   <td colSpan={mode === 'accessories_manual' ? 11 : 10} className="py-12 text-center text-slate-500">
                     {mode === 'accessories_manual' && allAvailableItems.length === 0
-                      ? 'لا توجد أجهزة مضافة حتى الآن. استخدم نموذج الإدخال أعلاه لإضافة أول جهاز إلى القائمة الدعائية.'
+                      ? 'لا توجد أجهزة مضافة حتى الآن. '
                       : 'لا توجد أجهزة مطابقة للفلاتر المحددة حالياً.'}
                   </td>
                 </tr>
@@ -1458,7 +1483,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                 pageItems={activePageItems}
                 pageIndex={currentPageIndex}
                 totalPages={totalPages}
-                displayOptions={displayOptions}
+                displayOptions={effectiveDisplayOptions}
               />
             </div>
 
@@ -1491,7 +1516,7 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                       pageItems={pageSlice}
                       pageIndex={p}
                       totalPages={totalPages}
-                      displayOptions={displayOptions}
+                      displayOptions={effectiveDisplayOptions}
                     />
                   </div>
                 );

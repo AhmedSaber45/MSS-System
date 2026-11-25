@@ -5,6 +5,7 @@ import { mssCatalogService } from './mssCatalogService.ts';
 import { mssSyncService } from './mssSyncService.ts';
 import { backupService } from './backupService.ts';
 import { mssOperationalService } from './mssOperationalService.ts';
+import { aggregateInventorySummary } from './mssInventoryAggregation.ts';
 import type {
   MSSDevice,
   NewMSSDeviceInput,
@@ -1475,72 +1476,12 @@ export const mssInventoryService = {
    * Calculate aggregated inventory KPIs
    */
   async getInventorySummary(): Promise<MSSInventorySummary> {
-    const devices = await this.getDevices();
+    const [devices, stores] = await Promise.all([
+      this.getDevices(),
+      mssOperationalService.getActiveStores().catch(() => mssOperationalService.getActiveStoresSync()),
+    ]);
 
-    let available_shop1 = 0;
-    let available_shop2 = 0;
-    let available_total = 0;
-    let available_serialized_total = 0;
-    let available_non_serialized_total = 0;
-    let reserved_total = 0;
-    let sold_total = 0;
-    let maintenance_total = 0;
-    let returned_total = 0;
-    let total_cost_value = 0;
-    let total_retail_value = 0;
-    let total_units = 0;
-    const location_breakdown: Record<string, number> = {};
-
-    devices.forEach(d => {
-      const qty = d.quantity && d.quantity > 0 ? d.quantity : 1;
-      const isSer = Boolean(d.serial_number && d.is_serialized !== false);
-
-      total_units += qty;
-
-      if (d.status === 'AVAILABLE') {
-        available_total += qty;
-        if (isSer) {
-          available_serialized_total += qty;
-        } else {
-          available_non_serialized_total += qty;
-        }
-        if (d.stock_location) {
-          location_breakdown[d.stock_location] = (location_breakdown[d.stock_location] || 0) + qty;
-        }
-        if (d.stock_location === 'محل 1') available_shop1 += qty;
-        if (d.stock_location === 'محل 2') available_shop2 += qty;
-      } else if (d.status === 'RESERVED') {
-        reserved_total += qty;
-      } else if (d.status === 'SOLD') {
-        sold_total += qty;
-      } else if (d.status === 'MAINTENANCE') {
-        maintenance_total += qty;
-      } else if (d.status === 'RETURNED') {
-        returned_total += qty;
-      }
-
-      // Cost and retail value for active physical devices (not sold)
-      if (d.status !== 'SOLD') {
-        total_cost_value += d.purchase_cost * qty;
-        total_retail_value += d.list_price * qty;
-      }
-    });
-
-    return {
-      total_units,
-      available_total,
-      available_serialized_total,
-      available_non_serialized_total,
-      available_shop1,
-      available_shop2,
-      location_breakdown,
-      reserved_total,
-      sold_total,
-      maintenance_total,
-      returned_total,
-      total_cost_value,
-      total_retail_value,
-    };
+    return aggregateInventorySummary(devices, stores);
   },
 
   /**

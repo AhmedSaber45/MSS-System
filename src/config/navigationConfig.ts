@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   ReceiptText,
-  Sparkles,
+  Megaphone,
 } from 'lucide-react';
 
 export const accessoriesNavItems: NavItemConfig[] = [
@@ -75,7 +75,7 @@ export const accessoriesNavItems: NavItemConfig[] = [
     id: 'promotional-image',
     label: 'الصورة الدعائية',
     description: 'إنشاء وتخصيص صور وعروض دعائية للأجهزة بجودة عالية وبشكل مخصص',
-    icon: Sparkles,
+    icon: Megaphone,
   },
   {
     id: 'reports',

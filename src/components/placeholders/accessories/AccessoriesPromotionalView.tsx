@@ -7,7 +7,7 @@ import {
   Trash2,
   Edit3,
   RotateCcw,
-  Sparkles,
+  Megaphone,
   Info,
   ShieldCheck,
   Cpu,
@@ -19,10 +19,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
+import { AlertModal } from '@/components/common/AlertModal';
 import { useNotification } from '@/context/NotificationContext';
 import { MSSPromotionalGenerator } from '@/components/placeholders/mss/MSSPromotionalGenerator';
 import {
   accessoriesPromotionalService,
+  ACCESSORIES_PROMOTIONAL_HEADERS,
+  AccessoriesHeaderOptionId,
   ManualDeviceInput,
 } from '@/services/accessoriesPromotionalService';
 import type { PromotionalLaptopItem } from '@/types/mssPromotional';
@@ -67,6 +70,16 @@ export const AccessoriesPromotionalView: React.FC = () => {
   const [formData, setFormData] = useState<ManualDeviceInput>(INITIAL_FORM);
   const [customBrand, setCustomBrand] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
+  const [selectedHeaderId, setSelectedHeaderId] = useState<AccessoriesHeaderOptionId>(() =>
+    accessoriesPromotionalService.loadSelectedHeaderId()
+  );
+
+  const selectedHeaderOption = accessoriesPromotionalService.getAccessoriesHeaderOption(selectedHeaderId);
+
+  useEffect(() => {
+    accessoriesPromotionalService.saveSelectedHeaderId(selectedHeaderId);
+  }, [selectedHeaderId]);
 
   // Sync to local storage whenever manualItems changes
   useEffect(() => {
@@ -198,18 +211,21 @@ export const AccessoriesPromotionalView: React.FC = () => {
     });
   };
 
-  // Clear all items with confirmation
+  // Clear all items with confirmation modal
   const handleClearAllItems = () => {
     if (manualItems.length === 0) return;
-    if (window.confirm('هل أنت متأكد من رغبتك في مسح كافة الأجهزة من القائمة الدعائية؟')) {
-      setManualItems([]);
-      handleResetForm();
-      showNotification({
-        type: 'info',
-        title: 'تم مسح القائمة الدعائية',
-        message: 'تم إفراغ كافة الأجهزة المدخلة يدوياً.',
-      });
-    }
+    setIsClearConfirmOpen(true);
+  };
+
+  const handleConfirmClearAll = () => {
+    setManualItems([]);
+    handleResetForm();
+    setIsClearConfirmOpen(false);
+    showNotification({
+      type: 'info',
+      title: 'تم مسح القائمة الدعائية',
+      message: 'تم إفراغ كافة الأجهزة المدخلة يدوياً.',
+    });
   };
 
   return (
@@ -218,18 +234,14 @@ export const AccessoriesPromotionalView: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-2xl border border-slate-300 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0">
-            <Sparkles className="w-6 h-6 text-blue-600" />
+            <Megaphone className="w-6 h-6 text-blue-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900">الصورة الدعائية</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                إكسسوارات — إدخال يدوي مخصص
-              </span>
+
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              إنشاء وتخصيص عروض وصور دعائية عالية الدقة للترويج على السوشيال ميديا وقوائم الأسعار بشكل مستقل تماماً.
-            </p>
+  
           </div>
         </div>
 
@@ -275,11 +287,9 @@ export const AccessoriesPromotionalView: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-sm text-slate-900">
-                  {editingId ? 'تعديل بيانات الجهاز المحدد' : 'إضافة جهاز جديد للإعلان الترويجي'}
+                  {editingId ? 'تعديل بيانات الجهاز المحدد' : 'إضافة جهاز جديد  '}
                 </h3>
-                <p className="text-[11px] text-slate-500">
-                  أدخل مواصفات الجهاز يدوياً؛ يتم حفظ البيانات محلياً وبشكل مستقل دون التأثير على المخزون الفعلي.
-                </p>
+  
               </div>
             </div>
 
@@ -323,7 +333,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Model Name */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  اسم الموديل / الجهاز (Model)
+                  اسم الموديل / الجهاز 
                 </label>
                 <input
                   type="text"
@@ -337,7 +347,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Processor / CPU */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  المعالج (Processor / CPU)
+                  المعالج 
                 </label>
                 <input
                   type="text"
@@ -351,7 +361,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Generation */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  الجيل (Generation) <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
+                  الجيل  <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
                 </label>
                 <input
                   type="text"
@@ -368,7 +378,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* RAM */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  الذاكرة العشوائية (RAM)
+                  الرام  
                 </label>
                 <input
                   type="text"
@@ -382,7 +392,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Storage */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  سعة التخزين (Storage)
+                 الهارد
                 </label>
                 <input
                   type="text"
@@ -396,7 +406,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* GPU */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  كارت الشاشة (GPU)
+                  كارت الشاشة 
                 </label>
                 <input
                   type="text"
@@ -410,7 +420,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Screen / Display */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  مقاس ومواصفات الشاشة (Display)
+                    الشاشة 
                 </label>
                 <input
                   type="text"
@@ -427,7 +437,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Price */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  السعر المقترح (Price) <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
+                  السعر  <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
                 </label>
                 <input
                   type="number"
@@ -443,7 +453,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Available Quantity */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  الكمية المتاحة (Quantity)
+                  الكمية المتاحة 
                 </label>
                 <input
                   type="number"
@@ -459,7 +469,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
               {/* Notes */}
               <div className="sm:col-span-2 space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  ملاحظات ومميزات إضافية (Notes) <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
+                  ملاحظات  إضافية  <span className="text-[10px] text-slate-400 font-normal">(اختياري)</span>
                 </label>
                 <input
                   type="text"
@@ -502,6 +512,55 @@ export const AccessoriesPromotionalView: React.FC = () => {
         </div>
       </Card>
 
+      {/* 2.5 Accessories-Only Static Header Design Selector */}
+      <Card className="bg-white border border-slate-300 shadow-2xs overflow-hidden">
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">تصميم الهيدر   </h2>
+    
+          </div>
+
+        </div>
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {ACCESSORIES_PROMOTIONAL_HEADERS.map(option => {
+            const isActive = selectedHeaderOption.id === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedHeaderId(option.id)}
+                aria-pressed={isActive}
+                className={`group flex flex-col gap-2 p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
+                  isActive
+                    ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="w-full h-16 rounded-lg overflow-hidden bg-[#040e24] border border-slate-200 flex items-center justify-center">
+                  <img
+                    src={option.imageSrc}
+                    alt={option.label}
+                    className="w-full h-full object-contain"
+                    loading="eager"
+                  />
+                </div>
+                <div className="flex items-center justify-between w-full px-0.5">
+                  <span className={`text-xs font-bold ${isActive ? 'text-blue-900' : 'text-slate-800'}`}>
+                    {option.label}
+                  </span>
+                  {isActive && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                      <Check className="w-3 h-3" />
+                      مفعّل
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* 3. Reused Full-Featured Promotional Image Generator */}
       <MSSPromotionalGenerator
         mode="accessories_manual"
@@ -510,6 +569,19 @@ export const AccessoriesPromotionalView: React.FC = () => {
         onEditItem={handleEditItem}
         onDeleteItem={handleDeleteItem}
         exportType="custom_images"
+        headerImageSrc={selectedHeaderOption.imageSrc}
+      />
+
+      <AlertModal
+        isOpen={isClearConfirmOpen}
+        onClose={() => setIsClearConfirmOpen(false)}
+        type="confirm"
+        title="تأكيد مسح القائمة "
+        message="هل أنت متأكد من رغبتك في مسح كافة الأجهزة ؟   لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="مسح الكل"
+        cancelLabel="إلغاء"
+        confirmVariant="danger"
+        onConfirm={handleConfirmClearAll}
       />
     </div>
   );

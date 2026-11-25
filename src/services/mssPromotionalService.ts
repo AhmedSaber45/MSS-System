@@ -35,6 +35,30 @@ function getCachedImage(src: string): HTMLImageElement | null {
 }
 
 /**
+ * Ensures an image asset is fully loaded in the browser cache before Canvas drawing or DOM capture,
+ * preventing blank headers or race conditions immediately after switching header selection.
+ */
+export function ensurePromotionalImageLoaded(src: string): Promise<HTMLImageElement | null> {
+  if (typeof window === 'undefined' || typeof Image === 'undefined') {
+    return Promise.resolve(null);
+  }
+  const img = getCachedImage(src);
+  if (!img) return Promise.resolve(null);
+  if (img.complete && img.naturalWidth > 0) {
+    return Promise.resolve(img);
+  }
+  return new Promise(resolve => {
+    const onDone = () => {
+      img.removeEventListener('load', onDone);
+      img.removeEventListener('error', onDone);
+      resolve(img);
+    };
+    img.addEventListener('load', onDone);
+    img.addEventListener('error', onDone);
+  });
+}
+
+/**
  * Arabic names for processor generations (1st through 14th).
  */
 export const ARABIC_GENERATIONS: Record<number, string> = {
@@ -766,8 +790,8 @@ export function renderPromotionalToCanvas(
 
   const rowCount = Math.max(pageItems.length, 1);
   const maxRows = itemsPerPage;
-  const rowHeight = 56;
-  const tableHeaderHeight = 64;
+  const rowHeight = 64;
+  const tableHeaderHeight = 66;
   const headerSectionHeight = 280;
   const footerSectionHeight = 90;
 
@@ -786,8 +810,9 @@ export function renderPromotionalToCanvas(
   ctx.fillStyle = '#040e24';
   ctx.fillRect(0, 0, width, headerSectionHeight);
 
-  // Draw the static COMPU MSS header banner asset, horizontally centered with aspect ratio preserved
-  const bannerImg = getCachedImage(PROMOTIONAL_HEADER_ASSETS.banner);
+  // Draw the static promotional header banner asset, horizontally centered with aspect ratio preserved
+  const bannerSrc = options.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner;
+  const bannerImg = getCachedImage(bannerSrc);
   if (bannerImg && bannerImg.complete && bannerImg.naturalWidth > 0) {
     const imgAspect = bannerImg.naturalWidth / bannerImg.naturalHeight || (1024 / 317);
     let bannerW = width;
@@ -923,7 +948,7 @@ export function renderPromotionalToCanvas(
     }
 
     // Header label text (Arabic with proper RTL text rendering)
-    ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+    ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
     ctx.fillStyle = col.id === 'price' ? '#facc15' : '#ffffff';
     ctx.direction = 'rtl';
     ctx.fillText(col.label, colCenterX, tableY + 46);
@@ -984,13 +1009,13 @@ export function renderPromotionalToCanvas(
       } else if (col.id === 'model') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16);
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'generation') {
@@ -998,25 +1023,25 @@ export function renderPromotionalToCanvas(
         const genText = item.generation || '---';
         const hasArabic = /[\u0600-\u06FF]/.test(genText);
         ctx.direction = hasArabic ? 'rtl' : 'ltr';
-        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
         drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'ram') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
       } else if (col.id === 'storage') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'screen') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 15px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
         drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'gpu') {
@@ -1032,12 +1057,12 @@ export function renderPromotionalToCanvas(
         } else {
           ctx.fillStyle = '#475569';
         }
-        ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 18px "Segoe UI", Cairo, Arial, sans-serif';
         drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
       } else if (col.id === 'quantity') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 19px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         ctx.fillText(String(item.quantity || 1), cellCenterX, cellCenterY);
       } else if (col.id === 'price') {
@@ -1045,7 +1070,7 @@ export function renderPromotionalToCanvas(
         ctx.direction = 'ltr';
         const priceNum = Number(item.price) || 0;
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
-        ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
         ctx.fillStyle = '#0a2558'; // Bold dark blue numbers
         drawFittedText(ctx, priceFormatted, cellCenterX, cellCenterY, col.width - 10);
       }
@@ -1178,6 +1203,9 @@ export async function exportPromotionalAsPdf(
     hotfixes: ['px_scaling'],
   });
 
+  // Ensure the selected header image is loaded before rendering any PDF page
+  await ensurePromotionalImageLoaded(options.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner);
+
   // Batch render and capture loop
   for (let p = 0; p < totalPages; p++) {
     if (options.onProgress) {
@@ -1296,6 +1324,9 @@ export async function exportPromotionalAllPagesAsPng(
   const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
   const generatedFilenames: string[] = [];
 
+  // Ensure the selected header image is loaded before rendering any PNG page
+  await ensurePromotionalImageLoaded(options.headerImageSrc || PROMOTIONAL_HEADER_ASSETS.banner);
+
   for (let p = 0; p < totalPages; p++) {
     if (onProgress) {
       onProgress(p + 1, totalPages);
@@ -1397,6 +1428,7 @@ export const mssPromotionalService = {
   filterPromotionalItems,
   sortPromotionalItems,
   renderPromotionalToCanvas,
+  ensurePromotionalImageLoaded,
   exportPromotionalAsPng,
   exportPromotionalAllPagesAsPng,
   exportPromotionalAsPdf,

@@ -1,7 +1,68 @@
 import type { PromotionalLaptopItem } from '../types/mssPromotional';
 import { extractGenerationAndShortProcessor } from './mssPromotionalService.ts';
+import { PROMOTIONAL_HEADER_ASSETS } from '../assets/promotional/promotionalAssets.ts';
 
 export const ACCESSORIES_PROMOTIONAL_STORAGE_KEY = 'accessories_promotional_devices_v1';
+export const ACCESSORIES_HEADER_STORAGE_KEY = 'shop_accessories_promotional_header_v1';
+
+export type AccessoriesHeaderOptionId = 'compu_mss' | 'souq' | 'makkah';
+
+export interface AccessoriesHeaderOption {
+  id: AccessoriesHeaderOptionId;
+  label: string;
+  imageSrc: string;
+}
+
+export const ACCESSORIES_PROMOTIONAL_HEADERS: AccessoriesHeaderOption[] = [
+  {
+    id: 'compu_mss',
+    label: 'Compu MSS',
+    imageSrc: PROMOTIONAL_HEADER_ASSETS.banner,
+  },
+  {
+    id: 'souq',
+    label: 'Souq',
+    imageSrc: '/assets/promotional/promotional-header-souq.jpg',
+  },
+  {
+    id: 'makkah',
+    label: 'مكة',
+    imageSrc: '/assets/promotional/promotional-header-makkah.jpg',
+  },
+];
+
+export function getAccessoriesHeaderOption(id?: string | null): AccessoriesHeaderOption {
+  return (
+    ACCESSORIES_PROMOTIONAL_HEADERS.find(h => h.id === id) ||
+    ACCESSORIES_PROMOTIONAL_HEADERS[0]
+  );
+}
+
+export function loadSelectedHeaderId(): AccessoriesHeaderOptionId {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return 'compu_mss';
+  }
+  try {
+    const saved = localStorage.getItem(ACCESSORIES_HEADER_STORAGE_KEY);
+    if (saved && ACCESSORIES_PROMOTIONAL_HEADERS.some(h => h.id === saved)) {
+      return saved as AccessoriesHeaderOptionId;
+    }
+  } catch {
+    // Fallback to default
+  }
+  return 'compu_mss';
+}
+
+export function saveSelectedHeaderId(id: AccessoriesHeaderOptionId): void {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  try {
+    localStorage.setItem(ACCESSORIES_HEADER_STORAGE_KEY, id);
+  } catch {
+    // Non-fatal
+  }
+}
 
 export interface ManualDeviceInput {
   brand?: string;
@@ -106,6 +167,11 @@ export function createPromotionalItemFromManual(
 
 export const accessoriesPromotionalService = {
   ACCESSORIES_PROMOTIONAL_STORAGE_KEY,
+  ACCESSORIES_HEADER_STORAGE_KEY,
+  ACCESSORIES_PROMOTIONAL_HEADERS,
+  getAccessoriesHeaderOption,
+  loadSelectedHeaderId,
+  saveSelectedHeaderId,
   loadManualPromotionalDevices,
   saveManualPromotionalDevices,
   createPromotionalItemFromManual,

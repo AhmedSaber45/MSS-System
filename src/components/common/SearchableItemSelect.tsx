@@ -17,6 +17,7 @@ export interface SearchableItemSelectProps<T> {
   getKey: (item: T) => string;
   getSearchableText: (item: T) => string;
   renderItem: (item: T, isSelected: boolean) => React.ReactNode;
+  isItemDisabled?: (item: T) => boolean;
   maxHeight?: string;
   className?: string;
 }
@@ -35,6 +36,7 @@ export function SearchableItemSelect<T>({
   getKey,
   getSearchableText,
   renderItem,
+  isItemDisabled,
   maxHeight = 'max-h-64',
   className = '',
 }: SearchableItemSelectProps<T>): React.ReactElement {
@@ -49,7 +51,26 @@ export function SearchableItemSelect<T>({
     });
   }, [items, searchQuery, getSearchableText]);
 
+  const eligibleFilteredItems = useMemo(() => {
+    return isItemDisabled ? filteredItems.filter(it => !isItemDisabled(it)) : filteredItems;
+  }, [filteredItems, isItemDisabled]);
+
+  const allFilteredSelected = useMemo(() => {
+    if (eligibleFilteredItems.length === 0) return false;
+    const selectedSet = new Set(selectedIds);
+    return eligibleFilteredItems.every(it => selectedSet.has(getKey(it)));
+  }, [eligibleFilteredItems, selectedIds, getKey]);
+
+  const anyFilteredSelected = useMemo(() => {
+    if (filteredItems.length === 0) return false;
+    const selectedSet = new Set(selectedIds);
+    return filteredItems.some(it => selectedSet.has(getKey(it)));
+  }, [filteredItems, selectedIds, getKey]);
+
   const handleToggleMulti = (id: string, item: T) => {
+    if (isItemDisabled && isItemDisabled(item) && !selectedIds.includes(id)) {
+      return;
+    }
     const isCurrentlySelected = selectedIds.includes(id);
     const nextSelected = isCurrentlySelected
       ? selectedIds.filter(x => x !== id)
@@ -64,12 +85,13 @@ export function SearchableItemSelect<T>({
   };
 
   const handleSelectAllFiltered = () => {
-    if (!onMultiSelectChange) return;
-    const filteredKeys = filteredItems.map(getKey);
+    if (eligibleFilteredItems.length === 0) return;
+    const filteredKeys = eligibleFilteredItems.map(getKey);
     const combined = Array.from(new Set([...selectedIds, ...filteredKeys]));
-    onMultiSelectChange(combined);
-    if (onItemToggle) {
-      for (const it of filteredItems) {
+    if (onMultiSelectChange) {
+      onMultiSelectChange(combined);
+    } else if (onItemToggle) {
+      for (const it of eligibleFilteredItems) {
         const k = getKey(it);
         if (!selectedIds.includes(k)) {
           onItemToggle(it, true);
@@ -79,10 +101,11 @@ export function SearchableItemSelect<T>({
   };
 
   const handleDeselectAllFiltered = () => {
-    if (!onMultiSelectChange) return;
+    if (filteredItems.length === 0) return;
     const filteredKeys = new Set(filteredItems.map(getKey));
-    onMultiSelectChange(selectedIds.filter(id => !filteredKeys.has(id)));
-    if (onItemToggle) {
+    if (onMultiSelectChange) {
+      onMultiSelectChange(selectedIds.filter(id => !filteredKeys.has(id)));
+    } else if (onItemToggle) {
       for (const it of filteredItems) {
         const k = getKey(it);
         if (selectedIds.includes(k)) {
@@ -126,15 +149,17 @@ export function SearchableItemSelect<T>({
               <button
                 type="button"
                 onClick={handleSelectAllFiltered}
-                className="text-blue-600 hover:underline font-semibold"
+                disabled={eligibleFilteredItems.length === 0 || allFilteredSelected}
+                className="text-blue-600 hover:underline font-semibold disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
               >
-                تحديد المعروض ({filteredItems.length})
+                تحديد المعروض ({eligibleFilteredItems.length})
               </button>
               <span>|</span>
               <button
                 type="button"
                 onClick={handleDeselectAllFiltered}
-                className="text-rose-600 hover:underline font-semibold"
+                disabled={!anyFilteredSelected}
+                className="text-rose-600 hover:underline font-semibold disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
               >
                 إلغاء المعروض
               </button>

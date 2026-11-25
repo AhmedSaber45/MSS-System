@@ -173,6 +173,55 @@ export const MSSSalesView: React.FC = () => {
     }
   };
 
+  // Handle bulk selection sync (e.g., Select Displayed / Deselect Displayed)
+  const handleMultiSelectDevices = (nextSelectedIds: string[]) => {
+    const nextSet = new Set(nextSelectedIds);
+    const deviceMap = new Map(availableDevices.map(d => [d.id, d]));
+
+    setCartItems(prev => {
+      const kept = prev.filter(it => nextSet.has(it.device_id));
+      const keptIds = new Set(kept.map(it => it.device_id));
+      const added: SaleCartItem[] = [];
+
+      for (const devId of nextSelectedIds) {
+        if (keptIds.has(devId)) continue;
+        const device = deviceMap.get(devId);
+        if (!device || device.status !== 'AVAILABLE') continue;
+        const availableStock = device.quantity && device.quantity > 0 ? device.quantity : 1;
+        if (availableStock <= 0) continue;
+
+        const isSerialized = Boolean(device.is_serialized && device.serial_number);
+        added.push({
+          id: `cart-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          device_id: device.id,
+          device,
+          is_serialized: isSerialized,
+          serial_number: device.serial_number,
+          model_name: device.model_name,
+          brand: device.brand,
+          category: device.category,
+          processor: device.model?.processor,
+          gpu: device.model?.gpu,
+          ram: device.model?.ram,
+          storage: device.model?.storage,
+          screen_size: device.model?.screen_size,
+          physical_condition: device.physical_condition,
+          source_branch: device.stock_location,
+          available_stock: availableStock,
+          quantity: 1,
+          unit_cost: device.purchase_cost,
+          unit_list_price: device.list_price,
+          unit_price: device.list_price,
+          discount: 0,
+          line_total: device.list_price,
+        });
+      }
+
+      return [...kept, ...added];
+    });
+    setItemError('');
+  };
+
   // Update quantity for bulk/non-serialized stock
   const handleUpdateItemQuantity = (deviceId: string, rawVal: string, maxAvailable: number) => {
     if (rawVal === '') {
@@ -441,7 +490,8 @@ export const MSSSalesView: React.FC = () => {
                 items={availableDevices}
                 isMulti={true}
                 selectedIds={cartItems.map(i => i.device_id)}
-                onItemToggle={handleToggleDevice}
+                onMultiSelectChange={handleMultiSelectDevices}
+                isItemDisabled={d => d.status !== 'AVAILABLE' || (d.quantity !== undefined && d.quantity <= 0)}
                 getKey={d => d.id}
                 getSearchableText={d =>
                   `${d.serial_number || ''} ${d.brand || ''} ${d.model_name || ''} ${d.model?.processor || ''} ${d.model?.gpu || ''} ${d.stock_location}`
@@ -481,22 +531,52 @@ export const MSSSalesView: React.FC = () => {
                       <div className="flex items-center gap-2.5 shrink-0">
                         {!isSerialized && isSelected && (
                           <div
-                            className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg border border-blue-200"
+                            className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg border border-blue-200"
                             onClick={e => e.stopPropagation()}
                           >
-                            <label className="text-[11px] font-bold text-blue-900 whitespace-nowrap">
+                            <label className="text-[11px] font-bold text-blue-900 whitespace-nowrap ml-1">
                               الكمية:
                             </label>
+                            <button
+                              type="button"
+                              aria-label="إنقاص الكمية"
+                              onClick={() =>
+                                handleUpdateItemQuantity(
+                                  d.id,
+                                  String(Math.max(1, (Number(cartItem?.quantity) || 1) - 1)),
+                                  maxStock
+                                )
+                              }
+                              disabled={(Number(cartItem?.quantity) || 1) <= 1}
+                              className="w-7 h-7 rounded-md bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 font-bold flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm leading-none transition-colors"
+                            >
+                              −
+                            </button>
                             <input
                               type="number"
                               min="1"
                               max={maxStock}
                               value={cartItem?.quantity ?? 1}
                               onChange={e => handleUpdateItemQuantity(d.id, e.target.value, maxStock)}
-                              className="w-16 h-7 text-center font-mono font-bold text-xs bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white rounded-md border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               title={`أدخل كمية بين 1 و ${maxStock}`}
                             />
-                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                            <button
+                              type="button"
+                              aria-label="زيادة الكمية"
+                              onClick={() =>
+                                handleUpdateItemQuantity(
+                                  d.id,
+                                  String(Math.min(maxStock, (Number(cartItem?.quantity) || 1) + 1)),
+                                  maxStock
+                                )
+                              }
+                              disabled={(Number(cartItem?.quantity) || 1) >= maxStock}
+                              className="w-7 h-7 rounded-md bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 font-bold flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm leading-none transition-colors"
+                            >
+                              +
+                            </button>
+                            <span className="text-[10px] text-slate-500 whitespace-nowrap mr-0.5">
                               / {maxStock}
                             </span>
                           </div>
@@ -609,6 +689,7 @@ export const MSSSalesView: React.FC = () => {
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
+                                    aria-label="إنقاص الكمية"
                                     onClick={() =>
                                       handleUpdateItemQuantity(
                                         item.device_id,
@@ -616,10 +697,10 @@ export const MSSSalesView: React.FC = () => {
                                         item.available_stock
                                       )
                                     }
-                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                    className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm leading-none transition-colors"
                                     disabled={Number(item.quantity) <= 1}
                                   >
-                                    -
+                                    −
                                   </button>
                                   <input
                                     type="number"
@@ -629,10 +710,11 @@ export const MSSSalesView: React.FC = () => {
                                     onChange={e =>
                                       handleUpdateItemQuantity(item.device_id, e.target.value, item.available_stock)
                                     }
-                                    className="w-14 h-7 text-center font-mono font-bold text-xs rounded border border-slate-300 bg-white"
+                                    className="w-12 h-7 text-center font-mono font-bold text-xs rounded-md border border-slate-300 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <button
                                     type="button"
+                                    aria-label="زيادة الكمية"
                                     onClick={() =>
                                       handleUpdateItemQuantity(
                                         item.device_id,
@@ -640,7 +722,7 @@ export const MSSSalesView: React.FC = () => {
                                         item.available_stock
                                       )
                                     }
-                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center cursor-pointer text-xs"
+                                    className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm leading-none transition-colors"
                                     disabled={Number(item.quantity) >= item.available_stock}
                                   >
                                     +

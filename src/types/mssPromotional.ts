@@ -4,7 +4,7 @@
  * 10 * 52px table rows + 90px footer + 40px margins = ~1000px height x 1000px width),
  * yielding an optimal 1:1 square aspect ratio for digital and document distribution.
  */
-export const PROMOTIONAL_MAX_DEVICES_PER_PAGE = 10;
+export const PROMOTIONAL_MAX_DEVICES_PER_PAGE = 9;
 
 export interface PromotionalLaptopItem {
   id: string; // Unique transient identifier for the preview session
@@ -37,6 +37,7 @@ export interface PromotionalDisplayOptions {
   priceSortOrder?: 'asc' | 'desc';
   pageIndex?: number;
   itemsPerPage?: number;
+  headerImageSrc?: string;
 }
 
 export interface PromotionalExportOptions extends PromotionalDisplayOptions {

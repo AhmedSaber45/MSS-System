@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tagName:
-        description: 'Release Tag Name (e.g. v1.0.9)'
+        description: 'Release Tag Name (e.g. v1.1.0)'
         required: false
-        default: 'v1.0.9'
+        default: 'v1.1.0'
 
 permissions:
   contents: write
@@ -75,17 +75,16 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.0.9' }}
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.0' }}
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__ Release Notes
-            - MSS Dynamic Model Form: Form input fields dynamically adapt to selected category (Laptop, Screen/Monitor, Other).
-            - Dedicated Monitor Specifications: Complete fields for Screen Size (inches), Resolution, Panel Type (IPS/VA/TN/OLED), Refresh Rate (Hz), Response Time (ms), Aspect Ratio, Connectivity / Ports, Curved/Flat, Touchscreen Support, Brightness (nits), and Screen Notes.
-            - Hardware Isolation: Hardware fields (CPU, RAM, GPU, storage) are strictly isolated and never contaminate Screen models upon create or update.
-            - Edit Model Support: Existing models load seamlessly into the appropriate form layout with full roundtrip specification parsing and backward compatibility.
-            - Common Fields Integrity: Brand, Model Name, Default List Price, and notes remain preserved across category switching.
-            - Production Data Safety: Real production data untouched with zero mock or fake data pollution.
-            - Transparent auto-updater signed with verified official release keys.
+            - **Accessories Promotional Image Headers**: Added three selectable static header designs (`Compu MSS`, `Souq`, `مكة`) exclusively in Accessories → Promotional Image with live preview and synchronized PNG/PDF export.
+            - **Promotional Image Typography & Readability**: Increased table data font sizes across both MSS and Accessories promotional images while preserving bold weight, centered alignment, and 9-row readability layout.
+            - **MSS Inventory Accuracy**: Unified MSS inventory and branch valuation aggregation so Sales Reports, Unified Dashboard, and Admin Dashboard match MSS Inventory unit counts and bulk quantities accurately.
+            - **MSS Sales UX**: Replaced bulk quantity up/down spinners with clear `+` / `−` buttons and fixed the "Select Displayed" (`تحديد المعروض`) button behavior.
+            - **Program-Wide Alert Standardization**: Replaced remaining browser-native `alert()` / `window.confirm()` dialogs with consistent AS System `AlertModal` and confirmation dialogs, and updated the Accessories Promotional Image icon to `Megaphone`.
+            - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: true

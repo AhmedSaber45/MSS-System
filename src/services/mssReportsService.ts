@@ -3,6 +3,7 @@ import { mssInventoryService } from './mssInventoryService.ts';
 import { mssCatalogService } from './mssCatalogService.ts';
 import { mssOperationalService } from './mssOperationalService.ts';
 import { mssExpensesService } from './mssExpensesService.ts';
+import { aggregateInventoryValuationByLocation } from './mssInventoryAggregation.ts';
 import { validateDateRange } from '../lib/dateValidation.ts';
 import {
   roundMoney,
@@ -166,66 +167,13 @@ export const mssReportsService = {
    * Current physical inventory stock valuation by stock location
    */
   async getInventoryValuationByLocation(): Promise<LocationStockValuation[]> {
-    const devices = await mssInventoryService.getDevices();
+    const [devices, activeLocations, stores] = await Promise.all([
+      mssInventoryService.getDevices(),
+      mssOperationalService.getActiveLocationNames(),
+      mssOperationalService.getActiveStores().catch(() => mssOperationalService.getActiveStoresSync()),
+    ]);
 
-    const activeLocations = await mssOperationalService.getActiveLocationNames();
-    const historicalBranches: string[] = Array.from(
-      new Set(
-        devices
-          .map(d => d.stock_location?.trim())
-          .filter((b): b is string => Boolean(b && !b.includes('تجريبي') && !/\d{10,}/.test(b)))
-      )
-    );
-    const branches: string[] = Array.from(new Set([...activeLocations, ...historicalBranches]));
-
-    const perBranch: LocationStockValuation[] = branches.map(loc => {
-      const branchDevices = devices.filter(
-        d =>
-          d.stock_location === loc &&
-          (d.status === 'AVAILABLE' || d.status === 'RESERVED' || d.status === 'MAINTENANCE')
-      );
-
-      const availableUnits = branchDevices.filter(d => d.status === 'AVAILABLE').length;
-      const reservedUnits = branchDevices.filter(d => d.status === 'RESERVED').length;
-      const maintenanceUnits = branchDevices.filter(d => d.status === 'MAINTENANCE').length;
-      const totalUnits = branchDevices.length;
-
-      const totalCostValue = branchDevices.reduce((sum, d) => sum + (Number(d.purchase_cost) || 0), 0);
-      const totalListValue = branchDevices.reduce((sum, d) => sum + (Number(d.list_price) || 0), 0);
-      const potentialGrossProfit = totalListValue - totalCostValue;
-
-      return {
-        location: loc,
-        availableUnits,
-        reservedUnits,
-        maintenanceUnits,
-        totalUnits,
-        totalCostValue,
-        totalListValue,
-        potentialGrossProfit,
-      };
-    });
-
-    const totalAvailableUnits = perBranch.reduce((sum, b) => sum + b.availableUnits, 0);
-    const totalReservedUnits = perBranch.reduce((sum, b) => sum + b.reservedUnits, 0);
-    const totalMaintenanceUnits = perBranch.reduce((sum, b) => sum + b.maintenanceUnits, 0);
-    const totalUnits = perBranch.reduce((sum, b) => sum + b.totalUnits, 0);
-    const totalCostValue = perBranch.reduce((sum, b) => sum + b.totalCostValue, 0);
-    const totalListValue = perBranch.reduce((sum, b) => sum + b.totalListValue, 0);
-    const potentialGrossProfit = totalListValue - totalCostValue;
-
-    const grandTotal: LocationStockValuation = {
-      location: 'المجموع الكلي',
-      availableUnits: totalAvailableUnits,
-      reservedUnits: totalReservedUnits,
-      maintenanceUnits: totalMaintenanceUnits,
-      totalUnits,
-      totalCostValue,
-      totalListValue,
-      potentialGrossProfit,
-    };
-
-    return [...perBranch, grandTotal];
+    return aggregateInventoryValuationByLocation(devices, activeLocations, stores);
   },
 
   /**

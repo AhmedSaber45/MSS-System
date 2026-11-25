@@ -42,8 +42,10 @@ export const UsersView: React.FC = () => {
   const [isChangeCodeOpen, setIsChangeCodeOpen] = useState(false);
   const [isDisableConfirmOpen, setIsDisableConfirmOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isRevokeConfirmOpen, setIsRevokeConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
+  const [userToRevoke, setUserToRevoke] = useState<AppUser | null>(null);
 
   // Forms state
   const [createForm, setCreateForm] = useState<CreateAppUserInput>({
@@ -228,26 +230,38 @@ export const UsersView: React.FC = () => {
     }
   };
 
-  const handleRevokeSessions = async (user: AppUser) => {
-    if (!window.confirm(`هل أنت متأكد من إبطال كافة الجلسات المفتوحة للمستخدم "${user.displayName}"؟ سيتطلب منه إعادة تسجيل الدخول فور اتصاله بالإنترنت.`)) {
-      return;
-    }
+  const handleRevokeSessions = (user: AppUser) => {
+    setUserToRevoke(user);
+    setActionError(null);
+    setIsRevokeConfirmOpen(true);
+  };
+
+  const handleConfirmRevokeSessions = async () => {
+    if (!userToRevoke) return;
+    setActionLoading(true);
+    setActionError(null);
     try {
       const res = await fetch('/api/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'revoke_sessions',
-          id: user.id,
+          id: userToRevoke.id,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         setSuccessMessage(data.message || 'تم إبطال كافة الجلسات بنجاح.');
+        setIsRevokeConfirmOpen(false);
+        setUserToRevoke(null);
         await fetchData();
+      } else {
+        setActionError(data.error || 'فشل في إبطال الجلسات المفتوحة');
       }
-    } catch {
-      // Handled
+    } catch (err: any) {
+      setActionError(err?.message || 'حدث خطأ أثناء إبطال الجلسات');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1124,6 +1138,59 @@ export const UsersView: React.FC = () => {
               >
                 {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 <span>تأكيد الحذف النهائي</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* MODAL: REVOKE USER SESSIONS CONFIRMATION */}
+      {/* ============================================================================ */}
+      {isRevokeConfirmOpen && userToRevoke && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-[#101625] border border-amber-900/40 rounded-xl p-5 shadow-2xl space-y-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-5 h-5 text-amber-400" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-sm font-bold text-slate-100">تأكيد إبطال كافة الجلسات المفتوحة</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                هل أنت متأكد من إبطال كافة الجلسات المفتوحة للمستخدم{' '}
+                <strong className="text-slate-200">&quot;{userToRevoke.displayName}&quot;</strong>؟
+                سيتطلب منه إعادة تسجيل الدخول فور اتصاله بالإنترنت.
+              </p>
+            </div>
+
+            {actionError && (
+              <div className="p-2.5 bg-rose-950/60 border border-rose-900/60 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => {
+                  setIsRevokeConfirmOpen(false);
+                  setUserToRevoke(null);
+                  setActionError(null);
+                }}
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleConfirmRevokeSessions}
+                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                <span>تأكيد إبطال الجلسات</span>
               </button>
             </div>
           </div>

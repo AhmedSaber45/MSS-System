@@ -666,7 +666,7 @@ fn save_export_storage_location(location: Option<String>) -> Result<(), String> 
             "storageLocation": loc,
             "updatedAt": chrono::Utc::now().to_rfc3339(),
             "appName": "AS System",
-            "version": "1.0.9"
+            "version": "1.1.0"
         });
         std::fs::write(&config_file, json.to_string()).map_err(|e| e.to_string())?;
     } else if config_file.exists() {

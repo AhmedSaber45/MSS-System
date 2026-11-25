@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
+import { AlertModal } from '@/components/common/AlertModal';
 import { Input } from '@/components/common/Input';
 import { Spinner } from '@/components/common/Spinner';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -100,6 +101,7 @@ export const PaymentHistorySection: React.FC<PaymentHistorySectionProps> = ({
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
   const [editableSchedule, setEditableSchedule] = useState<PlannedInstallmentItem[]>([]);
   const [isSavingSchedule, setIsSavingSchedule] = useState<boolean>(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   // Status Badge helper
   const getStatusBadge = (status: string) => {
@@ -180,7 +182,7 @@ export const PaymentHistorySection: React.FC<PaymentHistorySectionProps> = ({
       await onUpdateSchedule(editableSchedule);
       setIsScheduleModalOpen(false);
     } catch (err: any) {
-      alert(err?.message || 'فشل حفظ جدول الأقساط');
+      setScheduleError(err?.message || 'فشل حفظ جدول الأقساط');
     } finally {
       setIsSavingSchedule(false);
     }
@@ -586,6 +588,14 @@ export const PaymentHistorySection: React.FC<PaymentHistorySectionProps> = ({
           </div>
         </Modal>
       )}
+
+      <AlertModal
+        isOpen={Boolean(scheduleError)}
+        onClose={() => setScheduleError(null)}
+        type="error"
+        title="تعذر حفظ جدول الأقساط"
+        message={scheduleError || ''}
+      />
     </div>
   );
 };

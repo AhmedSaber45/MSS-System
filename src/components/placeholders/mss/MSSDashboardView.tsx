@@ -60,9 +60,9 @@ export const MSSDashboardView: React.FC = () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [devices, reservations, models, availMap, invoices, syncSummary, finSummary] =
+      const [invSummary, reservations, models, availMap, invoices, syncSummary, finSummary] =
         await Promise.all([
-          mssInventoryService.getDevices(),
+          mssInventoryService.getInventorySummary(),
           mssCommerceService.getReservations({ status: 'ACTIVE' }),
           mssCatalogService.getModels(),
           mssCatalogService.getAvailabilityMap(),
@@ -71,13 +71,7 @@ export const MSSDashboardView: React.FC = () => {
           mssReportsService.getMSSFinancialSummary(),
         ]);
 
-      const locMap: Record<string, number> = {};
-      devices.forEach(d => {
-        if (d.status === 'AVAILABLE' && d.stock_location) {
-          locMap[d.stock_location] = (locMap[d.stock_location] || 0) + (d.quantity || 1);
-        }
-      });
-      setLocationStockMap(locMap);
+      setLocationStockMap(invSummary.location_breakdown);
       setActiveReservationsCount(reservations.length);
       setSharedProfit(finSummary.grossProfit);
 
