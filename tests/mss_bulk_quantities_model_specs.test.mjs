@@ -301,8 +301,8 @@ test('MSS Bulk Model Quantities - Specifications & Notes Under Model Name Suite'
   });
 
   // Test 11: Application Version and Production Data Safety
-  await t.test('11. Safety Check: Application version is synchronized to 1.1.1, no mock data pollution', () => {
+  await t.test('11. Safety Check: Application version is synchronized to 1.1.2, no mock data pollution', () => {
     const pkgJson = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
-    assert.equal(pkgJson.version, '1.1.1', 'Application version must be 1.1.1');
+    assert.equal(pkgJson.version, '1.1.2', 'Application version must be 1.1.2');
   });
 });

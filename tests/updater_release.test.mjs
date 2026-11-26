@@ -24,9 +24,9 @@ describe('Phase 11 — Automatic Updates & Release Preparation Verification', ()
     updaterService.resetState();
   });
 
-  test('1. Version and configuration: Reports current version v1.1.1 matching tauri.conf.json', () => {
+  test('1. Version and configuration: Reports current version v1.1.2 matching tauri.conf.json', () => {
     const currentVersion = updaterService.getCurrentVersion();
-    assert.strictEqual(currentVersion, '1.1.1');
+    assert.strictEqual(currentVersion, '1.1.2');
 
     const tauriConfig = JSON.parse(
       fs.readFileSync(path.resolve('src-tauri/tauri.conf.json'), 'utf8')
@@ -116,19 +116,19 @@ describe('Phase 11 — Automatic Updates & Release Preparation Verification', ()
     assert.ok(['UP_TO_DATE', 'AVAILABLE', 'CHECKING', 'OFFLINE'].includes(checkRes.status));
 
     // Simulate update availability
-    const simulated = updaterService.simulateUpdateAvailable('1.1.1', 'إصلاحات وتحديثات جديدة');
+    const simulated = updaterService.simulateUpdateAvailable('1.1.2', 'إصلاحات وتحديثات جديدة');
     assert.strictEqual(simulated.status, 'AVAILABLE');
-    assert.strictEqual(simulated.availableVersion, '1.1.1');
+    assert.strictEqual(simulated.availableVersion, '1.1.2');
     assert.ok(simulated.releaseNotes?.includes('إصلاحات وتحديثات'));
 
     const state = updaterService.getState();
     assert.strictEqual(state.status, 'AVAILABLE');
-    assert.strictEqual(state.availableVersion, '1.1.1');
+    assert.strictEqual(state.availableVersion, '1.1.2');
   });
 
   test('5. Pre-update data safeguard: Automatically backs up SQLite database before download/install (Rule 22 & 23)', async () => {
     // Stage an update
-    updaterService.simulateUpdateAvailable('1.1.1', 'تحديث أمان');
+    updaterService.simulateUpdateAvailable('1.1.2', 'تحديث أمان');
 
     const backupsBefore = await backupService.getBackups();
 

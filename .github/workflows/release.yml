@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tagName:
-        description: 'Release Tag Name (e.g. v1.1.1)'
+        description: 'Release Tag Name (e.g. v1.1.2)'
         required: false
-        default: 'v1.1.1'
+        default: 'v1.1.2'
 
 permissions:
   contents: write
@@ -75,7 +75,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.1-v2' }}
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.2' }}
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__
