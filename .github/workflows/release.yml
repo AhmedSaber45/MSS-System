@@ -75,15 +75,14 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.1' }}
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.1-v2' }}
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__
-            - **Promotional Header Image Fitting (MSS & Accessories)**: Fixed promotional header banner sizing across HTML preview, Canvas rendering, and PNG/JPG/PDF exports so images span 100% width proportionally without side gaps or cropping.
-            - **Conditional Table Header Gradients (Accessories Only)**: Applied banner-matched gradients strictly to the table column-header row for `Souq` (blue/amber) and `مكة` (teal/emerald/silver) while keeping the table body strictly white and preserving the original `Compu MSS` header.
-            - **Accessories Custom Images Export & Optional GPU**: Exported Accessories promotional images to `Custom images` and made GPU optional on custom promotional items.
-            - **Promotional Image Typography**: Increased table data font sizes by `+5px` while preserving bold weight and 7-row readability layout.
-            - **MSS Stock Quantity Correction**: Made adjustment reason optional (`بدون سبب محدد` when omitted).
+            - **Optional Full Backup & Restore**: Added Full Backup mode (`Full AS System Backup`) including the complete Accessories SQLite database, MSS local caches/Outbox, application settings/paths, and managed files with SHA-256 integrity verification and external file restore for fresh Windows installations.
+            - **Laptop Specifications Quick-Select**: Added reusable quick-select options for Processor (`CI 3/5/7/9`, `RYZEN 3/5/7`), RAM (`4/8/16/32 GB`), Storage (`SSD 128/256/512 GB`, `HDD 500 GB/1 TB`), Screen (`14.1`, `15.6`), and GPU (`AMD`, `NVIDIA`, `INTEL`) across Accessories and Compu MSS laptop forms.
+            - **Local User Preferences Persistence**: Persisted Accessories Sales page-size selection (default 9), MSS Catalog view mode, and Promotional Image sort/display preferences across restarts.
+            - **Promotional Image Refinements**: Refined table typography and word-boundary wrapping across preview, Canvas, and exports, and added smooth scroll-to-form when editing devices in Accessories Promotional Image.
             - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false

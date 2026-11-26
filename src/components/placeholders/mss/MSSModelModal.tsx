@@ -4,6 +4,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select } from '@/components/common/Select';
 import { Spinner } from '@/components/common/Spinner';
+import { LaptopSpecQuickSelect } from '@/components/common/LaptopSpecQuickSelect';
 import { useNotification } from '@/context/NotificationContext';
 import { mssCatalogService } from '@/services/mssCatalogService';
 import type { MSSCatalogModel, MSSCategory, NewMSSModelInput } from '@/types/mssCatalog';
@@ -296,9 +297,9 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
       title={
         modelToEdit
           ? `تعديل الموديل: ${modelToEdit.brand} ${modelToEdit.model_name}`
-          : 'إضافة موديل جديد إلى الكتالوج'
+          : 'إضافة موديل جديد  '
       }
-      subtitle="تسجيل مواصفات الجهاز والشاشة والمعالج في كتالوج الأجهزة المشترك"
+      subtitle=" "
       size="lg"
       zIndexClassName={zIndexClassName}
       footer={
@@ -381,6 +382,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
                   onChange={e => setProcessor(e.target.value)}
                   className="font-mono"
                 />
+                <LaptopSpecQuickSelect
+                  specType="processor"
+                  value={processor}
+                  onSelect={setProcessor}
+                />
               </div>
 
               <div>
@@ -393,6 +399,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
                   onChange={e => setGpu(e.target.value)}
                   className="font-mono"
                 />
+                <LaptopSpecQuickSelect
+                  specType="gpu"
+                  value={gpu}
+                  onSelect={setGpu}
+                />
               </div>
 
               <div>
@@ -402,6 +413,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
                   value={ram}
                   onChange={e => setRam(e.target.value)}
                   className="font-mono"
+                />
+                <LaptopSpecQuickSelect
+                  specType="ram"
+                  value={ram}
+                  onSelect={setRam}
                 />
               </div>
 
@@ -413,6 +429,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
                   onChange={e => setStorage(e.target.value)}
                   className="font-mono"
                 />
+                <LaptopSpecQuickSelect
+                  specType="storage"
+                  value={storage}
+                  onSelect={setStorage}
+                />
               </div>
 
               <div className="md:col-span-2">
@@ -421,6 +442,11 @@ export const MSSModelModal: React.FC<MSSModelModalProps> = ({
                   placeholder='مثال: 14" FHD IPS, 15.6" 144Hz...'
                   value={screenSize}
                   onChange={e => setScreenSize(e.target.value)}
+                />
+                <LaptopSpecQuickSelect
+                  specType="screen"
+                  value={screenSize}
+                  onSelect={setScreenSize}
                 />
               </div>
             </div>

@@ -1,15 +1,21 @@
 pub mod db;
+pub mod full_backup;
 
 use db::{
-    create_backup_file, execute_multi_destination_backup, execute_stock_adjustment,
+    create_backup_file, execute_multi_destination_backup_with_options, execute_stock_adjustment,
     export_backup_file, fetch_all_invoices, fetch_all_products, fetch_all_purchases,
     fetch_all_returns, fetch_categories, fetch_inventory_movements, fetch_invoice_items,
-    fetch_product_by_id, fetch_purchase_items, fetch_return_items, init_db, insert_product,
-    insert_purchase, insert_return, insert_sale, list_all_backups, restore_db_from_backup,
-    search_products, update_product, validate_destination_path, BackupInfo, DbState,
-    DestinationResult, InventoryMovement, Invoice, InvoiceItem, MultiBackupResult,
-    NewProductInput, NewPurchaseInput, NewReturnInput, NewSaleInput, Product, Purchase,
-    PurchaseItem, ReturnItemRecord, ReturnRecord, StockAdjustmentInput, UpdateProductInput,
+    fetch_product_by_id, fetch_purchase_items, fetch_return_items, get_backups_dir, get_db_path,
+    init_db, insert_product, insert_purchase, insert_return, insert_sale, list_all_backups,
+    resolve_backup_source_path, restore_db_from_backup, search_products, update_product,
+    validate_destination_path, BackupInfo, DbState, DestinationResult, InventoryMovement, Invoice,
+    InvoiceItem, MultiBackupResult, NewProductInput, NewPurchaseInput, NewReturnInput,
+    NewSaleInput, Product, Purchase, PurchaseItem, ReturnItemRecord, ReturnRecord,
+    StockAdjustmentInput, UpdateProductInput,
+};
+use full_backup::{
+    inspect_backup_file_path, restore_full_backup_from_path, BackupInspectionResult,
+    FullBackupFrontendPayload, FullBackupRestoreOutput,
 };
 use std::sync::Mutex;
 use tauri::State;
@@ -182,12 +188,16 @@ fn create_multi_destination_backup(
     destinations: Vec<String>,
     custom_filename: Option<String>,
     retention_count: Option<usize>,
+    full_backup: Option<bool>,
+    full_backup_payload: Option<FullBackupFrontendPayload>,
 ) -> Result<MultiBackupResult, String> {
-    execute_multi_destination_backup(
+    execute_multi_destination_backup_with_options(
         &trigger_type,
         &destinations,
         custom_filename.as_deref(),
         retention_count.unwrap_or(10),
+        full_backup.unwrap_or(false),
+        full_backup_payload.as_ref(),
     )
 }
 
@@ -367,15 +377,51 @@ fn get_accessories_backups() -> Result<Vec<BackupInfo>, String> {
 }
 
 #[tauri::command]
+fn inspect_backup_file(filename_or_path: String) -> Result<BackupInspectionResult, String> {
+    let source_path = resolve_backup_source_path(&filename_or_path)?;
+    inspect_backup_file_path(&source_path)
+}
+
+#[tauri::command]
 fn restore_accessories_backup(
     state: State<DbState>,
     filename: String,
-) -> Result<(), String> {
+) -> Result<FullBackupRestoreOutput, String> {
+    let source_path = resolve_backup_source_path(&filename)?;
+    let inspection = inspect_backup_file_path(&source_path)?;
+    if !inspection.integrity_valid {
+        return Err(inspection.error.unwrap_or_else(|| "ملف النسخة الاحتياطية تالف".to_string()));
+    }
+
     let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
-    restore_db_from_backup(&filename)?;
-    let new_conn = init_db().map_err(|e| e.to_string())?;
-    *conn = new_conn;
-    Ok(())
+    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+    // Release Windows file lock on accessories.db before replacing the file
+    *conn = rusqlite::Connection::open_in_memory().map_err(|e| e.to_string())?;
+
+    let result = if inspection.backup_kind == "full" {
+        restore_full_backup_from_path(&source_path, &get_db_path(), &get_backups_dir())
+    } else {
+        restore_db_from_backup(&filename).map(|_| FullBackupRestoreOutput {
+            backup_kind: "standard".to_string(),
+            filename: inspection.filename.clone(),
+            restored_file_count: 0,
+            unavailable_export_path: None,
+            settings_json: None,
+            mss_state_json: None,
+            manifest: None,
+        })
+    };
+
+    match init_db() {
+        Ok(new_conn) => {
+            *conn = new_conn;
+        }
+        Err(e) => {
+            return Err(format!("تعذر إعادة فتح قاعدة البيانات بعد الاستعادة: {}", e));
+        }
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -730,6 +776,7 @@ pub fn run() {
             create_multi_destination_backup,
             validate_backup_destination,
             get_accessories_backups,
+            inspect_backup_file,
             restore_accessories_backup,
             export_accessories_backup,
             select_backup_folder,

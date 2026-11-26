@@ -376,4 +376,15 @@ test('Accessories Promotional Image Generator - Complete Reuse & Data Independen
     assert.ok(mssSaveResult.success, 'MSS save operation must succeed');
     assert.ok(fs.existsSync(expectedMssTarget), 'MSS Images folder inside MSS System Files must be created');
   });
+
+  await t.test('13. Edit Device Data UX: Clicking Edit loads device data and smoothly scrolls to form across window or scrollable container', () => {
+    const viewPath = path.resolve('src/components/placeholders/accessories/AccessoriesPromotionalView.tsx');
+    const viewContent = fs.readFileSync(viewPath, 'utf8');
+
+    assert.ok(viewContent.includes('const formCardRef = useRef<HTMLDivElement | null>(null);'), 'formCardRef must be defined');
+    assert.ok(viewContent.includes('<div ref={formCardRef} className="scroll-mt-6">'), 'Form container must have ref and top scroll offset');
+    assert.ok(viewContent.includes("formEl.scrollIntoView({ behavior: 'smooth', block: 'start' })"), 'Must scroll form into view smoothly');
+    assert.ok(viewContent.includes("style.overflowY === 'auto' || style.overflowY === 'scroll'"), 'Must support internal scrollable containers');
+    assert.ok(viewContent.includes('window.requestAnimationFrame'), 'Must wait for React render commit before scrolling');
+  });
 });

@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
+import { LaptopSpecQuickSelect } from '@/components/common/LaptopSpecQuickSelect';
 import { Pagination } from '@/components/common/Pagination';
 import { useNotification } from '@/context/NotificationContext';
 import {
@@ -26,6 +27,7 @@ import {
   getBrandLogoConfig,
 } from '@/assets/promotional/promotionalAssets';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
+import { userPreferencesService, PREF_KEYS } from '@/services/userPreferencesService';
 import {
   resolvePromotionalHeaderColors,
   type PromotionalThemeId,
@@ -192,9 +194,9 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5" dir="ltr">
-        <table className="w-full text-[20px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
+        <table className="w-full text-[18.5px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
           <thead
-            className="font-bold text-center border-b-2 border-slate-400 text-[14px]"
+            className="font-bold text-center border-b-2 border-slate-400 text-[13.5px]"
             style={
               headerColors.gradientCss
                 ? {
@@ -280,39 +282,57 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 font-bold text-[20px]">
+          <tbody className="divide-y divide-slate-200 font-bold text-[18.5px]">
             {pageItems.map((item, idx) => {
               const isEven = idx % 2 === 0;
               const gpuUpper = (item.gpu || '').toUpperCase();
               const isNvidia = gpuUpper.includes('NVIDIA') || gpuUpper.includes('RTX') || gpuUpper.includes('GTX');
               const isAmd = gpuUpper.includes('AMD') || gpuUpper.includes('RADEON');
               const isIntel = gpuUpper.includes('INTEL');
+              const singleLineOrWrap = (val: string | undefined, maxSingleChars: number) =>
+                (val || '').trim().length <= maxSingleChars
+                  ? 'whitespace-nowrap'
+                  : 'break-normal [overflow-wrap:normal] leading-snug';
 
               return (
                 <tr key={item.id} className={`transition-colors ${isEven ? 'bg-white' : 'bg-[#f8faff]'}`}>
-                  <td className="py-3.5 px-2 text-center border-r border-slate-200">
+                  <td className="py-3.5 px-2 text-center align-middle border-r border-slate-200">
                     <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td className="py-3.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[20px]">
+                  <td className="py-3.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[18.5px]">
                     <div dir="ltr" className="text-center truncate max-w-full">{item.model_name}</div>
                   </td>
-                  <td className="py-3.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[20px]" dir="ltr">
+                  <td
+                    className={`py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 font-mono text-[18.5px] ${singleLineOrWrap(item.processor, 16)}`}
+                    dir="ltr"
+                  >
                     {item.processor || '---'}
                   </td>
-                  <td className="py-3.5 px-2 text-center font-bold text-slate-800 border-r border-slate-200 text-[20px]">
+                  <td
+                    className={`py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.generation, 20)}`}
+                  >
                     <bdi>{item.generation || '---'}</bdi>
                   </td>
-                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]" dir="ltr">
+                  <td
+                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.ram, 10)}`}
+                    dir="ltr"
+                  >
                     {item.ram || '---'}
                   </td>
-                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]" dir="ltr">
+                  <td
+                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.storage, 16)}`}
+                    dir="ltr"
+                  >
                     {item.storage || '---'}
                   </td>
-                  <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[19.5px]" dir="ltr">
+                  <td
+                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18px] ${singleLineOrWrap(item.screen, 16)}`}
+                    dir="ltr"
+                  >
                     {item.screen || '---'}
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center font-bold text-[20px] ${
+                    className={`py-3.5 px-2 text-center align-middle font-bold text-[18.5px] ${singleLineOrWrap(item.gpu, 15)} ${
                       displayOptions.showQuantity || displayOptions.showPrice ? 'border-r border-slate-200' : ''
                     } ${
                       isNvidia ? 'text-emerald-700' : isAmd ? 'text-rose-600' : isIntel ? 'text-blue-700' : 'text-slate-700'
@@ -323,7 +343,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   </td>
                   {displayOptions.showQuantity && (
                     <td
-                      className={`py-3.5 px-2 text-center font-bold text-slate-900 text-[20px] ${
+                      className={`py-3.5 px-2 text-center align-middle whitespace-nowrap font-bold text-slate-900 text-[18.5px] ${
                         displayOptions.showPrice ? 'border-r border-slate-200' : ''
                       }`}
                       dir="ltr"
@@ -332,7 +352,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                     </td>
                   )}
                   {displayOptions.showPrice && (
-                    <td className="py-3.5 px-3 text-center font-extrabold text-[#0a2558] text-[22px] tabular-nums" dir="ltr">
+                    <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap font-extrabold text-[#0a2558] text-[20.5px] tabular-nums" dir="ltr">
                       {item.price ? Number(item.price).toLocaleString('en-US') : '---'}
                     </td>
                   )}
@@ -387,7 +407,22 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [priceSortOrder, setPriceSortOrder] = useState<'asc' | 'desc'>('asc');
+  const promoSortKey =
+    mode === 'accessories_manual'
+      ? PREF_KEYS.ACCESSORIES_PROMO_SORT_ORDER
+      : PREF_KEYS.MSS_PROMO_SORT_ORDER;
+  const promoShowPriceKey =
+    mode === 'accessories_manual'
+      ? PREF_KEYS.ACCESSORIES_PROMO_SHOW_PRICE
+      : PREF_KEYS.MSS_PROMO_SHOW_PRICE;
+  const promoShowQtyKey =
+    mode === 'accessories_manual'
+      ? PREF_KEYS.ACCESSORIES_PROMO_SHOW_QUANTITY
+      : PREF_KEYS.MSS_PROMO_SHOW_QUANTITY;
+
+  const [priceSortOrder, setPriceSortOrder] = useState<'asc' | 'desc'>(() =>
+    userPreferencesService.getEnum<'asc' | 'desc'>(promoSortKey, 'asc', ['asc', 'desc'])
+  );
 
   // Auto-select all on first load
   useEffect(() => {
@@ -578,15 +613,15 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
   const allVisibleSelected =
     sortedVisibleItems.length > 0 && sortedVisibleItems.every(it => selectedItemIds.has(it.id));
 
-  // 4. Promotional Display Options State
-  const [displayOptions, setDisplayOptions] = useState<PromotionalDisplayOptions>({
-    showPrice: true,
-    showQuantity: false,
+  // 4. Promotional Display Options State (persisted independently per module)
+  const [displayOptions, setDisplayOptions] = useState<PromotionalDisplayOptions>(() => ({
+    showPrice: userPreferencesService.getBoolean(promoShowPriceKey, true),
+    showQuantity: userPreferencesService.getBoolean(promoShowQtyKey, false),
     storeName: 'COMPU MSS',
     headline: 'متوفر بفضل الله',
     subHeadline: 'أعلى جودة بأقل سعر',
     itemsPerPage: PROMOTIONAL_MAX_DEVICES_PER_PAGE,
-  });
+  }));
 
   // Only allow custom headerImageSrc and themeId in Accessories mode; MSS always uses the default Compu MSS header and theme.
   const effectiveDisplayOptions = useMemo<PromotionalDisplayOptions>(
@@ -1129,9 +1164,10 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
               <input
                 type="checkbox"
                 checked={displayOptions.showPrice}
-                onChange={e =>
-                  setDisplayOptions(prev => ({ ...prev, showPrice: e.target.checked }))
-                }
+                onChange={e => {
+                  const checked = userPreferencesService.setBoolean(promoShowPriceKey, e.target.checked);
+                  setDisplayOptions(prev => ({ ...prev, showPrice: checked }));
+                }}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
               <span>إظهار عمود الأسعار في التصميم</span>
@@ -1141,9 +1177,10 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
               <input
                 type="checkbox"
                 checked={displayOptions.showQuantity}
-                onChange={e =>
-                  setDisplayOptions(prev => ({ ...prev, showQuantity: e.target.checked }))
-                }
+                onChange={e => {
+                  const checked = userPreferencesService.setBoolean(promoShowQtyKey, e.target.checked);
+                  setDisplayOptions(prev => ({ ...prev, showQuantity: checked }));
+                }}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
               <span>إظهار عمود الكميات في التصميم</span>
@@ -1155,7 +1192,14 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
             <span className="font-semibold text-slate-700">ترتيب الأسعار:</span>
             <select
               value={priceSortOrder}
-              onChange={e => setPriceSortOrder(e.target.value as 'asc' | 'desc')}
+              onChange={e => {
+                const nextOrder = userPreferencesService.setEnum<'asc' | 'desc'>(
+                  promoSortKey,
+                  e.target.value as 'asc' | 'desc',
+                  ['asc', 'desc']
+                );
+                setPriceSortOrder(nextOrder);
+              }}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 cursor-pointer"
             >
               <option value="asc">من الأقل إلى الأعلى  </option>
@@ -1627,6 +1671,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                                     }
                                     className="w-full px-2 py-1 rounded border border-slate-300 bg-white"
                                   />
+                                  <LaptopSpecQuickSelect
+                                    specType="processor"
+                                    value={editFormData.processor}
+                                    onSelect={val =>
+                                      setEditFormData(prev => ({ ...prev, processor: val }))
+                                    }
+                                  />
                                 </div>
                                 <div>
                                   <label className="text-slate-500 block">الجيل:</label>
@@ -1652,6 +1703,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                                     }
                                     className="w-full px-2 py-1 rounded border border-slate-300 bg-white"
                                   />
+                                  <LaptopSpecQuickSelect
+                                    specType="ram"
+                                    value={editFormData.ram}
+                                    onSelect={val =>
+                                      setEditFormData(prev => ({ ...prev, ram: val }))
+                                    }
+                                  />
                                 </div>
                                 <div>
                                   <label className="text-slate-500 block">الهارد:</label>
@@ -1666,6 +1724,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                                     }
                                     className="w-full px-2 py-1 rounded border border-slate-300 bg-white"
                                   />
+                                  <LaptopSpecQuickSelect
+                                    specType="storage"
+                                    value={editFormData.storage}
+                                    onSelect={val =>
+                                      setEditFormData(prev => ({ ...prev, storage: val }))
+                                    }
+                                  />
                                 </div>
                                 <div>
                                   <label className="text-slate-500 block">كارت الشاشة:</label>
@@ -1676,6 +1741,13 @@ export const MSSPromotionalGenerator: React.FC<MSSPromotionalGeneratorProps> = (
                                       setEditFormData(prev => ({ ...prev, gpu: e.target.value }))
                                     }
                                     className="w-full px-2 py-1 rounded border border-slate-300 bg-white"
+                                  />
+                                  <LaptopSpecQuickSelect
+                                    specType="gpu"
+                                    value={editFormData.gpu}
+                                    onSelect={val =>
+                                      setEditFormData(prev => ({ ...prev, gpu: val }))
+                                    }
                                   />
                                 </div>
                                 <div>

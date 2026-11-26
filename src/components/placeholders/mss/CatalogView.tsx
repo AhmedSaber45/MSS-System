@@ -28,6 +28,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/context/NotificationContext';
 import { usePageRefresh } from '@/context/PageRefreshContext';
 import { mssCatalogService } from '@/services/mssCatalogService.ts';
+import { userPreferencesService, PREF_KEYS } from '@/services/userPreferencesService';
 import { useMSSLocations } from '@/hooks/useMSSLocations';
 import { MSSModelModal } from './MSSModelModal';
 import { MSSDeviceCreationModal } from './MSSDeviceCreationModal';
@@ -54,7 +55,13 @@ export const CatalogView: React.FC = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() =>
+    userPreferencesService.getEnum<'table' | 'cards'>(
+      PREF_KEYS.MSS_CATALOG_VIEW_MODE,
+      'table',
+      ['table', 'cards']
+    )
+  );
 
   // Add / Edit Model Modal state
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -278,7 +285,15 @@ export const CatalogView: React.FC = () => {
           {/* View Mode Toggle */}
           <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-300 gap-1">
             <button
-              onClick={() => setViewMode('table')}
+              onClick={() => {
+                setViewMode(
+                  userPreferencesService.setEnum<'table' | 'cards'>(
+                    PREF_KEYS.MSS_CATALOG_VIEW_MODE,
+                    'table',
+                    ['table', 'cards']
+                  )
+                );
+              }}
               className={`p-1.5 rounded-lg transition-all ${
                 viewMode === 'table' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -287,7 +302,15 @@ export const CatalogView: React.FC = () => {
               <List className="w-4.5 h-4.5" />
             </button>
             <button
-              onClick={() => setViewMode('cards')}
+              onClick={() => {
+                setViewMode(
+                  userPreferencesService.setEnum<'table' | 'cards'>(
+                    PREF_KEYS.MSS_CATALOG_VIEW_MODE,
+                    'cards',
+                    ['table', 'cards']
+                  )
+                );
+              }}
               className={`p-1.5 rounded-lg transition-all ${
                 viewMode === 'cards' ? 'bg-white text-slate-900 shadow-subtle border border-slate-300' : 'text-slate-500 hover:text-slate-800'
               }`}

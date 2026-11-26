@@ -161,17 +161,25 @@ export const BackupView: React.FC = () => {
   // Create Quick Manual Backup to all configured destinations
   const handleCreateQuickBackup = async () => {
     if (isCreatingBackup) return;
+    const isFull = Boolean(backupService.getBackupConfig().fullBackupEnabled);
     setIsCreatingBackup(true);
-    setBackupProgressMsg('جارٍ نسخ وحفظ قاعدة البيانات في جميع الوجهات المحددة...');
+    setBackupProgressMsg(
+      isFull
+        ? 'جارٍ إنشاء النسخة الاحتياطية الكاملة (Full AS System Backup) — قد تستغرق وقتاً أطول لتضمين قواعد البيانات والملفات...'
+        : 'جارٍ إنشاء النسخة الاحتياطية (AS System Backup) وحفظها في جميع الوجهات المحددة...'
+    );
     try {
       const result = await backupService.executeMultiDestinationBackup('manual');
       const successCount = result.destinations.filter(d => d.status === 'success').length;
       const failedCount = result.destinations.filter(d => d.status === 'failed').length;
+      const labelTitle = isFull
+        ? 'تم إنشاء النسخة الاحتياطية الكاملة بنجاح'
+        : 'تم إنشاء النسخة الاحتياطية بنجاح';
 
       if (result.overall_status === 'success') {
         showNotification({
           type: 'success',
-          title: 'تم إنشاء النسخة الاحتياطية بنجاح',
+          title: labelTitle,
           message: `تم حفظ النسخة (${result.filename}) بحجم ${result.size_formatted} واكتمال فحص السلامة في ${successCount} وجهات.`,
         });
       } else if (result.overall_status === 'partial') {
@@ -182,7 +190,7 @@ export const BackupView: React.FC = () => {
         showNotification({
           type: 'warning',
           title: 'نجاح جزئي للنسخ الاحتياطي',
-          message: `تم حفظ النسخة في ${successCount} وجهة، ولكن تعذر الحفظ في: ${failedNames}`,
+          message: `تم حفظ النسخة (${result.filename}) في ${successCount} وجهة، ولكن تعذر الحفظ في: ${failedNames}`,
         });
       } else {
         showNotification({
@@ -311,17 +319,66 @@ export const BackupView: React.FC = () => {
     }));
   };
 
+  // Select external backup file (for fresh Windows installation restore)
+  const handleSelectRestoreFile = async () => {
+    try {
+      const selectedPath = await backupService.selectRestoreBackupFile();
+      if (!selectedPath) return;
+      const inspection = await backupService.inspectBackupFile(selectedPath);
+      if (!inspection.integrityValid) {
+        showNotification({
+          type: 'error',
+          title: 'ملف النسخة الاحتياطية غير صالح',
+          message: inspection.error || 'تعذر التحقق من سلامة ملف النسخة الاحتياطية المحدد.',
+        });
+        return;
+      }
+      setSelectedBackupForRestore({
+        id: inspection.filename,
+        filename: inspection.filename,
+        filepath: inspection.filepath,
+        size_bytes: 0,
+        size_formatted: inspection.backupKind === 'full' ? 'نسخة كاملة (Full)' : 'نسخة عادية',
+        backup_type: 'manual',
+        date: inspection.manifest?.createdAt || new Date().toISOString().slice(0, 19).replace('T', ' '),
+        status: 'سليم ومتحقق منه',
+      });
+    } catch (err: any) {
+      showNotification({
+        type: 'error',
+        title: 'فشل فحص ملف النسخة الاحتياطية',
+        message: err.message || 'تعذر قراءة الملف المحدد',
+      });
+    }
+  };
+
   // Confirm and Execute Restore
   const handleExecuteRestore = async () => {
     if (!selectedBackupForRestore || isRestoring) return;
     setIsRestoring(true);
     try {
-      await backupService.restoreBackup(selectedBackupForRestore.filename);
-      showNotification({
-        type: 'success',
-        title: 'تم استرجاع قاعدة البيانات بنجاح',
-        message: `تمت استعادة البيانات من ${selectedBackupForRestore.filename} بعد إنشاء نسخة حماية للبيانات السابقة.`,
-      });
+      const target =
+        selectedBackupForRestore.filepath && selectedBackupForRestore.filepath !== selectedBackupForRestore.filename
+          ? selectedBackupForRestore.filepath
+          : selectedBackupForRestore.filename;
+      const res = await backupService.restoreBackup(target);
+      setConfig(backupService.getBackupConfig());
+
+      if (res.backupKind === 'full') {
+        showNotification({
+          type: res.unavailableExportPath ? 'warning' : 'success',
+          title: 'تمت استعادة النسخة الاحتياطية الكاملة بنجاح',
+          message: res.unavailableExportPath
+            ? `تمت استعادة قواعد البيانات والإعدادات من ${selectedBackupForRestore.filename}، ولكن مسار التصدير المحفوظ (${res.unavailableExportPath}) غير متاح حالياً على هذا الجهاز؛ يمكنك اختيار مسار جديد من إعدادات التصدير.`
+            : `تمت استعادة قواعد البيانات والإعدادات والملفات (${res.restoredFileCount} ملف) من ${selectedBackupForRestore.filename}.`,
+        });
+      } else {
+        showNotification({
+          type: 'success',
+          title: 'تم استرجاع قاعدة البيانات بنجاح',
+          message: `تمت استعادة البيانات من ${selectedBackupForRestore.filename} بعد إنشاء نسخة حماية للبيانات السابقة.`,
+        });
+      }
       setSelectedBackupForRestore(null);
       await loadBackups();
     } catch (err: any) {
@@ -572,6 +629,15 @@ export const BackupView: React.FC = () => {
               className="border-slate-300 font-semibold"
             >
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={handleSelectRestoreFile}
+              leftIcon={<RotateCcw className="w-4 h-4 text-slate-600" />}
+              className="border-slate-300 font-semibold"
+            >
+              استعادة من ملف...
             </Button>
             <Button
               variant="outline"
@@ -936,6 +1002,26 @@ export const BackupView: React.FC = () => {
                   setTempConfig({ ...tempConfig, autoBackupEnabled: e.target.checked })
                 }
                 className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+            </div>
+
+            {/* Optional Full Backup Mode Toggle */}
+            <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-300 flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="font-bold text-slate-900">
+                  تضمين جميع بيانات وإعدادات البرنامج (Full Backup)
+                </p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  يشمل بيانات البرنامج المحلية وإعداداته وملفاته، بالإضافة إلى محتويات النسخة الاحتياطية العادية.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(tempConfig.fullBackupEnabled)}
+                onChange={e =>
+                  setTempConfig({ ...tempConfig, fullBackupEnabled: e.target.checked })
+                }
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer mt-0.5 shrink-0"
               />
             </div>
 

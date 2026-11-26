@@ -2153,6 +2153,24 @@ pub fn execute_multi_destination_backup(
     custom_filename: Option<&str>,
     retention_count: usize,
 ) -> Result<MultiBackupResult, String> {
+    execute_multi_destination_backup_with_options(
+        trigger_type,
+        destinations,
+        custom_filename,
+        retention_count,
+        false,
+        None,
+    )
+}
+
+pub fn execute_multi_destination_backup_with_options(
+    trigger_type: &str,
+    destinations: &[String],
+    custom_filename: Option<&str>,
+    retention_count: usize,
+    full_backup: bool,
+    full_backup_payload: Option<&crate::full_backup::FullBackupFrontendPayload>,
+) -> Result<MultiBackupResult, String> {
     let db_path = get_db_path();
     if !db_path.exists() {
         return Err("ملف قاعدة البيانات الحالي غير موجود لنسخه احتياطياً".into());
@@ -2169,32 +2187,69 @@ pub fn execute_multi_destination_backup(
         _ => "manual",
     };
 
+    let base_prefix = if full_backup {
+        "Full AS System Backup"
+    } else {
+        "AS System Backup"
+    };
+
     let filename = if let Some(cf) = custom_filename {
         let trimmed = cf.trim();
         if trimmed.is_empty() {
-            format!("MSS_Backup_{}.db", timestamp)
+            format!("{}_{}.db", base_prefix, timestamp)
         } else if trimmed.ends_with(".db") {
             trimmed.to_string()
         } else {
             format!("{}.db", trimmed)
         }
     } else {
-        format!("MSS_Backup_{}.db", timestamp)
+        format!("{}_{}.db", base_prefix, timestamp)
     };
 
     // Staging file in internal backups dir
     let staging_path = default_backups_dir.join(format!(".staging_{}", filename));
+    let snapshot_path = if full_backup {
+        default_backups_dir.join(format!(".snapshot_{}_{}.db", timestamp, std::process::id()))
+    } else {
+        staging_path.clone()
+    };
 
     // Create safe and consistent SQLite backup using VACUUM INTO, with copy fallback
     {
         let conn = init_db().map_err(|e| format!("فشل الاتصال بقاعدة البيانات: {}", e))?;
-        let staging_str = staging_path.to_string_lossy().to_string();
-        if let Err(vac_err) = conn.execute("VACUUM INTO ?1", [&staging_str]) {
+        let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
+        let snapshot_str = snapshot_path.to_string_lossy().to_string();
+        if let Err(vac_err) = conn.execute("VACUUM INTO ?1", [&snapshot_str]) {
             // Fallback to fs::copy if VACUUM INTO is unsupported or fails
-            let _ = fs::copy(&db_path, &staging_path).map_err(|e| {
+            let _ = fs::copy(&db_path, &snapshot_path).map_err(|e| {
                 format!("فشل عمل نسخة احتياطية آمنة لقاعدة البيانات (VACUUM: {}, Copy: {})", vac_err, e)
             })?;
         }
+    }
+
+    if full_backup {
+        let default_payload = crate::full_backup::FullBackupFrontendPayload {
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            settings_json: "{}".to_string(),
+            mss_state_json: "{}".to_string(),
+            export_storage_location: None,
+        };
+        let payload_ref = full_backup_payload.unwrap_or(&default_payload);
+        let mut excluded_dirs: Vec<PathBuf> = vec![default_backups_dir.clone()];
+        for d in destinations {
+            let trimmed = d.trim();
+            if !trimmed.is_empty() {
+                excluded_dirs.push(PathBuf::from(trimmed));
+            }
+        }
+        let build_res = crate::full_backup::build_full_backup_container(
+            &snapshot_path,
+            &staging_path,
+            payload_ref,
+            &excluded_dirs,
+        );
+        let _ = fs::remove_file(&snapshot_path);
+        build_res?;
     }
 
     // Verify staging file
@@ -2405,7 +2460,9 @@ pub fn prune_backups(keep_count: usize) -> Result<(), String> {
         if path.is_file() {
             let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
             let is_auto = (fname.starts_with("accessories_backup_") && fname.contains("_auto.db"))
-                || (fname.starts_with("MSS_Backup_") && !fname.contains("_manual"));
+                || (fname.starts_with("MSS_Backup_") && !fname.contains("_manual"))
+                || ((fname.starts_with("AS System Backup_") || fname.starts_with("Full AS System Backup_"))
+                    && !fname.contains("_manual"));
             if is_auto {
                 if let Ok(meta) = entry.metadata() {
                     if let Ok(modified) = meta.modified() {
@@ -2518,18 +2575,27 @@ pub fn list_all_backups() -> Result<Vec<BackupInfo>, String> {
     Ok(backups)
 }
 
+pub fn resolve_backup_source_path(filename_or_path: &str) -> Result<PathBuf, String> {
+    let clean = filename_or_path.trim();
+    if clean.is_empty() {
+        return Err("اسم أو مسار ملف النسخة الاحتياطية مطلوب".into());
+    }
+    let direct = PathBuf::from(clean);
+    if direct.is_absolute() && direct.exists() {
+        return Ok(direct);
+    }
+    let in_backups = get_backups_dir().join(clean);
+    if in_backups.exists() {
+        return Ok(in_backups);
+    }
+    if direct.exists() {
+        return Ok(direct);
+    }
+    Err(format!("ملف النسخة الاحتياطية '{}' غير موجود", clean))
+}
+
 pub fn restore_db_from_backup(filename: &str) -> Result<(), String> {
-    let clean_fname = filename.trim();
-    if clean_fname.is_empty() {
-        return Err("اسم ملف النسخة الاحتياطية مطلوب".into());
-    }
-
-    let mut source_path = get_backups_dir();
-    source_path.push(clean_fname);
-
-    if !source_path.exists() {
-        return Err(format!("ملف النسخة الاحتياطية '{}' غير موجود", clean_fname));
-    }
+    let source_path = resolve_backup_source_path(filename)?;
 
     // 1. Verify backup SQLite integrity
     let test_conn = Connection::open(&source_path)
@@ -2544,8 +2610,13 @@ pub fn restore_db_from_backup(filename: &str) -> Result<(), String> {
     // 2. Create safeguard backup of current database first
     let _ = create_backup_file("safeguard", None, None);
 
-    // 3. Replace current database with backup
+    // 3. Remove stale WAL/SHM files and replace current database with backup
     let db_path = get_db_path();
+    let wal_path = PathBuf::from(format!("{}-wal", db_path.to_string_lossy()));
+    let shm_path = PathBuf::from(format!("{}-shm", db_path.to_string_lossy()));
+    let _ = fs::remove_file(&wal_path);
+    let _ = fs::remove_file(&shm_path);
+
     fs::copy(&source_path, &db_path)
         .map_err(|e| format!("فشل استرجاع قاعدة البيانات: {}", e))?;
 

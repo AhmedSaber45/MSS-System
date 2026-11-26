@@ -1237,7 +1237,7 @@ export const MSSInventoryView: React.FC = () => {
           const count = summary?.location_breakdown?.[loc] ?? 0;
           return (
             <Card key={loc} className="p-4 bg-white border border-slate-300 shadow-2xs">
-              <p className="text-xs text-slate-600 font-bold mb-1">متوفر بـ {loc}</p>
+              <p className="text-xs text-slate-600 font-bold mb-1">متوفر عند {loc}</p>
               <div className="flex items-baseline justify-between">
                 <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{count}</span>
                 <Store className="w-5 h-5 text-slate-500" />

@@ -1,5 +1,44 @@
 export type BackupTriggerType = 'scheduled' | 'after_operation' | 'manual' | 'safeguard';
 export type BackupOverallStatus = 'success' | 'partial' | 'failed';
+export type BackupKind = 'standard' | 'full';
+
+export interface FullBackupFileEntry {
+  relativePath: string;
+  rootCategory: 'export_root' | 'app_config';
+  sizeBytes: number;
+  sha256: string;
+}
+
+export interface FullBackupManifest {
+  format: 'as-full-backup-v1';
+  formatVersion: number;
+  backupType: 'full';
+  appVersion: string;
+  createdAt: string;
+  components: string[];
+  sqliteSha256: string;
+  mssStateSha256: string;
+  settingsSha256: string;
+  files: FullBackupFileEntry[];
+}
+
+export interface BackupInspectionResult {
+  filename: string;
+  filepath: string;
+  backupKind: BackupKind;
+  manifest?: FullBackupManifest | null;
+  integrityValid: boolean;
+  error?: string;
+}
+
+export interface FullBackupRestoreResult {
+  backupKind: BackupKind;
+  filename: string;
+  restoredFileCount: number;
+  unavailableExportPath?: string | null;
+  unavailableBackupDestinations?: string[];
+  manifest?: FullBackupManifest | null;
+}
 
 export interface BackupDestinationResult {
   path: string;
@@ -38,6 +77,7 @@ export interface BackupConfig {
   destinations: string[]; // List of independent backup destinations (e.g. ["D:\\MSS Backups", "E:\\System Backups"])
   destinationFolder?: string; // Backwards compatibility: legacy single target folder
   retentionCount: number; // e.g. 10
+  fullBackupEnabled?: boolean; // Optional Full Backup mode (default false / OFF)
   lastAutoBackupDate?: string; // YYYY-MM-DD
   lastAutoBackupTimestamp?: string; // ISO string
   nextScheduledBackup?: string; // formatted display string

@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { APP_VERSION } from '../config/appVersion.ts';
+import { exportStorageService, EXPORT_STORAGE_LOCATION_KEY, EXPORT_FILES_REGISTRY_KEY } from './exportStorageService.ts';
 import type {
   BackupItem,
   BackupConfig,
@@ -9,11 +10,16 @@ import type {
   BackupDestinationResult,
   DestinationValidationResult,
   MultiBackupResult,
+  FullBackupManifest,
+  BackupInspectionResult,
+  FullBackupRestoreResult,
 } from '../types/backup.ts';
 
 const BACKUPS_STORAGE_KEY = 'shop_accessories_backups_metadata_v1';
 const BACKUP_DATA_PREFIX = 'shop_accessories_backup_data_';
 const BACKUP_CONFIG_KEY = 'shop_accessories_backup_config_v1';
+const FULL_BACKUP_FORMAT = 'as-full-backup-v1';
+const FULL_BACKUP_FORMAT_VERSION = 1;
 
 const DEFAULT_CONFIG: BackupConfig = {
   autoBackupEnabled: true,
@@ -25,7 +31,102 @@ const DEFAULT_CONFIG: BackupConfig = {
   intervalHours: 6,
   destinations: [],
   retentionCount: 10,
+  fullBackupEnabled: false,
 };
+
+const ACCESSORIES_DATA_KEYS = [
+  'shop_accessories_products_v1',
+  'shop_accessories_purchases_v1',
+  'shop_accessories_purchase_items_v1',
+  'shop_accessories_invoices_v1',
+  'shop_accessories_invoice_items_v1',
+  'shop_accessories_returns_v1',
+  'shop_accessories_return_items_v1',
+  'shop_accessories_movements_v1',
+  'shop_accessories_expenses_v1',
+  'shop_accessories_payments_v1',
+  'shop_accessories_schedules_v1',
+] as const;
+
+const MSS_STATE_KEYS = [
+  'shop_mss_devices_cache_v1',
+  'shop_mss_models_cache_v1',
+  'shop_mss_invoices_cache_v1',
+  'shop_mss_reservations_cache_v1',
+  'shop_mss_returns_cache_v1',
+  'shop_mss_payments_cache_v1',
+  'shop_mss_expenses_v1',
+  'shop_mss_stores_cache_v1',
+  'shop_mss_audit_cache_v1',
+  'shop_mss_transfers_cache_v1',
+  'shop_mss_outbox_v1',
+  'shop_mss_conflicts_v1',
+  'shop_mss_sync_state_v1',
+  'shop_mss_system_stores_v1',
+  'shop_mss_deleted_devices_v1',
+  'shop_mss_deleted_models_v1',
+  'accessories_promotional_devices_v1',
+] as const;
+
+function isExcludedAuthOrBackupKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  if (
+    lower.startsWith(BACKUP_DATA_PREFIX.toLowerCase()) ||
+    lower.startsWith('mss_dest_file_') ||
+    lower.startsWith('sb-') ||
+    lower === 'compu_mss_session_v1' ||
+    lower === 'mss_desktop_session_v1' ||
+    lower === 'shop_management_session' ||
+    lower === 'admin_dashboard_auth_token'
+  ) {
+    return true;
+  }
+  if (
+    (lower.includes('session') ||
+      lower.includes('token') ||
+      lower.includes('password') ||
+      lower.includes('credential') ||
+      lower.includes('access_code') ||
+      lower.includes('auth')) &&
+    !lower.includes('autostart')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isExcludedManagedFilename(name: string): boolean {
+  const lower = name.toLowerCase();
+  return (
+    lower.startsWith('.staging_') ||
+    lower.startsWith('~$') ||
+    lower.endsWith('.tmp') ||
+    lower.endsWith('.temp') ||
+    lower === 'thumbs.db' ||
+    lower === '.ds_store' ||
+    lower === 'session.dpapi' ||
+    lower === 'backups_manifest.json' ||
+    lower.startsWith('as system backup_') ||
+    lower.startsWith('full as system backup_') ||
+    lower.startsWith('mss_backup_') ||
+    lower.startsWith('accessories_backup_')
+  );
+}
+
+async function computeSha256Hex(data: string | Uint8Array): Promise<string> {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    const cryptoMod = await import('node:crypto');
+    return cryptoMod.createHash('sha256').update(bytes).digest('hex');
+  }
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
+    return Array.from(new Uint8Array(digest))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  throw new Error('SHA-256 hashing is unavailable in this environment');
+}
 
 // Concurrency locks & Pending Triggers Queue
 let isBackupInProgress = false;
@@ -314,9 +415,190 @@ export const backupService = {
     return { path: trimmed, valid: true };
   },
 
+  getDefaultBackupFilename(fullBackup: boolean, date: Date = new Date()): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timestampStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(
+      date.getHours()
+    )}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+    return fullBackup ? `Full AS System Backup_${timestampStr}.db` : `AS System Backup_${timestampStr}.db`;
+  },
+
+  collectFullBackupFrontendPayload(): {
+    appVersion: string;
+    settingsJson: string;
+    mssStateJson: string;
+    exportStorageLocation: string | null;
+  } {
+    const settingsEntries: Record<string, string> = {};
+    const mssStateEntries: Record<string, string> = {};
+    const mssKeySet = new Set<string>(MSS_STATE_KEYS);
+    const accKeySet = new Set<string>(ACCESSORIES_DATA_KEYS);
+
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || isExcludedAuthOrBackupKey(key) || key === BACKUPS_STORAGE_KEY) continue;
+        const val = localStorage.getItem(key);
+        if (val === null) continue;
+
+        if (mssKeySet.has(key) || key.startsWith('shop_mss_')) {
+          mssStateEntries[key] = val;
+        } else if (!accKeySet.has(key)) {
+          if (
+            key === BACKUP_CONFIG_KEY ||
+            key === EXPORT_STORAGE_LOCATION_KEY ||
+            key === EXPORT_FILES_REGISTRY_KEY ||
+            key.startsWith('shop_') ||
+            key.startsWith('mss_') ||
+            key.startsWith('accessories_') ||
+            key.startsWith('compu_')
+          ) {
+            settingsEntries[key] = val;
+          }
+        }
+      }
+    }
+
+    const exportLoc = exportStorageService.getStorageLocation();
+    if (exportLoc && !settingsEntries[EXPORT_STORAGE_LOCATION_KEY]) {
+      settingsEntries[EXPORT_STORAGE_LOCATION_KEY] = exportLoc;
+    }
+
+    const settingsPayload = {
+      exportStorageLocation: exportLoc,
+      backupConfig: this.getBackupConfig(),
+      storageEntries: settingsEntries,
+    };
+
+    const mssStatePayload = {
+      storageEntries: mssStateEntries,
+    };
+
+    return {
+      appVersion: APP_VERSION,
+      settingsJson: JSON.stringify(settingsPayload),
+      mssStateJson: JSON.stringify(mssStatePayload),
+      exportStorageLocation: exportLoc,
+    };
+  },
+
+  applyRestoredFullBackupState(settingsJson?: string | null, mssStateJson?: string | null): void {
+    if (typeof localStorage === 'undefined') return;
+
+    if (settingsJson) {
+      try {
+        const parsedSettings = JSON.parse(settingsJson);
+        const entries = parsedSettings?.storageEntries;
+        if (entries && typeof entries === 'object') {
+          for (const [key, val] of Object.entries(entries)) {
+            if (!isExcludedAuthOrBackupKey(key) && typeof val === 'string') {
+              localStorage.setItem(key, val);
+            }
+          }
+        }
+        if (typeof parsedSettings?.exportStorageLocation === 'string' && parsedSettings.exportStorageLocation.trim()) {
+          exportStorageService.setStorageLocation(parsedSettings.exportStorageLocation.trim());
+        }
+        if (parsedSettings?.backupConfig && typeof parsedSettings.backupConfig === 'object') {
+          this.saveBackupConfig(parsedSettings.backupConfig, { recheckScheduler: false });
+        }
+      } catch (err) {
+        console.warn('Failed to parse restored settings JSON:', err);
+      }
+    }
+
+    if (mssStateJson) {
+      try {
+        const parsedMss = JSON.parse(mssStateJson);
+        const entries = parsedMss?.storageEntries;
+        if (entries && typeof entries === 'object') {
+          for (const [key, val] of Object.entries(entries)) {
+            if (!isExcludedAuthOrBackupKey(key) && typeof val === 'string') {
+              localStorage.setItem(key, val);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to parse restored MSS state JSON:', err);
+      }
+    }
+  },
+
+  async selectRestoreBackupFile(): Promise<string | null> {
+    if (isTauri()) {
+      try {
+        const dialogPlugin = await import('@tauri-apps/plugin-dialog');
+        if (dialogPlugin && typeof dialogPlugin.open === 'function') {
+          const selected = await dialogPlugin.open({
+            directory: false,
+            multiple: false,
+            title: 'اختر ملف النسخة الاحتياطية للاستعادة',
+            filters: [
+              { name: 'AS System Backup (*.db)', extensions: ['db'] },
+              { name: 'جميع الملفات (*.*)', extensions: ['*'] },
+            ],
+          });
+          if (typeof selected === 'string' && selected.trim()) {
+            return selected.trim();
+          }
+          if (Array.isArray(selected) && selected.length > 0 && typeof selected[0] === 'string') {
+            return selected[0].trim();
+          }
+          return null;
+        }
+      } catch (err) {
+        console.warn('Tauri selectRestoreBackupFile failed:', err);
+      }
+    }
+    return null;
+  },
+
+  async inspectBackupFile(filenameOrPath: string): Promise<BackupInspectionResult> {
+    if (isTauri()) {
+      return await invoke<BackupInspectionResult>('inspect_backup_file', { filenameOrPath });
+    }
+    let rawData = localStorage.getItem(BACKUP_DATA_PREFIX + filenameOrPath);
+    if (!rawData && typeof process !== 'undefined' && process.versions?.node) {
+      const fsMod = await import('node:fs');
+      if (fsMod.existsSync(filenameOrPath)) {
+        rawData = fsMod.readFileSync(filenameOrPath, 'utf-8');
+      }
+    }
+    if (!rawData) {
+      throw new Error(`ملف النسخة الاحتياطية "${filenameOrPath}" غير موجود`);
+    }
+    const parsed = JSON.parse(rawData);
+    if (parsed?.format === FULL_BACKUP_FORMAT) {
+      if ((parsed?.manifest?.formatVersion ?? parsed?.formatVersion) > FULL_BACKUP_FORMAT_VERSION) {
+        return {
+          filename: filenameOrPath,
+          filepath: filenameOrPath,
+          backupKind: 'full',
+          manifest: parsed.manifest,
+          integrityValid: false,
+          error: 'إصدار تنسيق النسخة الاحتياطية الكاملة غير مدعوم في هذا الإصدار',
+        };
+      }
+      return {
+        filename: filenameOrPath,
+        filepath: filenameOrPath,
+        backupKind: 'full',
+        manifest: parsed.manifest,
+        integrityValid: true,
+      };
+    }
+    return {
+      filename: filenameOrPath,
+      filepath: filenameOrPath,
+      backupKind: 'standard',
+      integrityValid: Boolean(parsed?.data && typeof parsed.data === 'object'),
+    };
+  },
+
   /**
    * Execute backup to multiple destinations simultaneously
    * - Creates clean SQLite backup safely (VACUUM INTO / atomic snapshot)
+   * - When Full Backup is enabled, packages SQLite snapshot + MSS offline/outbox + app settings + managed files
    * - Writes real backup files to every destination
    * - Verifies non-zero size
    * - Continues if one destination fails and reports partial or full results
@@ -327,6 +609,7 @@ export const backupService = {
     options?: {
       destinations?: string[];
       customFilename?: string;
+      fullBackup?: boolean;
     }
   ): Promise<MultiBackupResult> {
     if (isBackupInProgress) {
@@ -337,6 +620,7 @@ export const backupService = {
 
     isBackupInProgress = true;
     const config = this.getBackupConfig();
+    const isFullBackup = options?.fullBackup ?? Boolean(config.fullBackupEnabled);
     const targetDestinations = options?.destinations && options.destinations.length > 0
       ? options.destinations
       : config.destinations.length > 0
@@ -346,11 +630,14 @@ export const backupService = {
     try {
       if (isTauri()) {
         try {
+          const fullBackupPayload = isFullBackup ? this.collectFullBackupFrontendPayload() : null;
           const result = await invoke<MultiBackupResult>('create_multi_destination_backup', {
             triggerType,
             destinations: targetDestinations,
             customFilename: options?.customFilename || null,
             retentionCount: config.retentionCount || 10,
+            fullBackup: isFullBackup,
+            fullBackupPayload,
           });
 
           // Update local backups list cache
@@ -410,25 +697,120 @@ export const backupService = {
       )}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
 
       const filename =
-        options?.customFilename?.trim() || `MSS_Backup_${timestampStr}.db`;
+        options?.customFilename?.trim() || this.getDefaultBackupFilename(isFullBackup, now);
 
       // Capture complete consistent snapshot of local data
-      const snapshot = {
+      const standardData = {
+        products: localStorage.getItem('shop_accessories_products_v1'),
+        purchases: localStorage.getItem('shop_accessories_purchases_v1'),
+        purchase_items: localStorage.getItem('shop_accessories_purchase_items_v1'),
+        invoices: localStorage.getItem('shop_accessories_invoices_v1'),
+        invoice_items: localStorage.getItem('shop_accessories_invoice_items_v1'),
+        returns: localStorage.getItem('shop_accessories_returns_v1'),
+        return_items: localStorage.getItem('shop_accessories_return_items_v1'),
+        movements: localStorage.getItem('shop_accessories_movements_v1'),
+        expenses: localStorage.getItem('shop_accessories_expenses_v1'),
+      };
+
+      let snapshot: any = {
         version: APP_VERSION,
         type: triggerType,
         timestamp: now.toISOString(),
-        data: {
-          products: localStorage.getItem('shop_accessories_products_v1'),
-          purchases: localStorage.getItem('shop_accessories_purchases_v1'),
-          purchase_items: localStorage.getItem('shop_accessories_purchase_items_v1'),
-          invoices: localStorage.getItem('shop_accessories_invoices_v1'),
-          invoice_items: localStorage.getItem('shop_accessories_invoice_items_v1'),
-          returns: localStorage.getItem('shop_accessories_returns_v1'),
-          return_items: localStorage.getItem('shop_accessories_return_items_v1'),
-          movements: localStorage.getItem('shop_accessories_movements_v1'),
-          expenses: localStorage.getItem('shop_accessories_expenses_v1'),
-        },
+        data: standardData,
       };
+
+      if (isFullBackup) {
+        const frontendPayload = this.collectFullBackupFrontendPayload();
+        const extraAccessories: Record<string, string | null> = {};
+        for (const k of ACCESSORIES_DATA_KEYS) {
+          extraAccessories[k] = localStorage.getItem(k);
+        }
+        const sqlitePayloadStr = JSON.stringify({ standardData, extraAccessories });
+
+        const collectedFiles: Array<{
+          relativePath: string;
+          rootCategory: 'export_root' | 'app_config';
+          sizeBytes: number;
+          sha256: string;
+          contentBase64: string;
+        }> = [];
+
+        if (typeof process !== 'undefined' && process.versions?.node && frontendPayload.exportStorageLocation) {
+          const fsMod = await import('node:fs');
+          const pathMod = await import('node:path');
+          const exportRoot = frontendPayload.exportStorageLocation;
+          const excludedDirs = targetDestinations.map(d => pathMod.resolve(d));
+
+          const walkManagedDir = async (dirPath: string) => {
+            const resolvedDir = pathMod.resolve(dirPath);
+            if (excludedDirs.some(ex => resolvedDir === ex || resolvedDir.startsWith(ex + pathMod.sep))) {
+              return;
+            }
+            if (!fsMod.existsSync(resolvedDir)) return;
+            for (const entry of fsMod.readdirSync(resolvedDir, { withFileTypes: true })) {
+              if (isExcludedManagedFilename(entry.name)) continue;
+              const fullEntryPath = pathMod.join(resolvedDir, entry.name);
+              if (entry.isDirectory()) {
+                await walkManagedDir(fullEntryPath);
+              } else if (entry.isFile()) {
+                const rel = pathMod.relative(exportRoot, fullEntryPath).replace(/\\/g, '/');
+                if (seenRelPaths.has(rel.toLowerCase())) continue;
+                seenRelPaths.add(rel.toLowerCase());
+                const buf = fsMod.readFileSync(fullEntryPath);
+                const sha = await computeSha256Hex(new Uint8Array(buf));
+                collectedFiles.push({
+                  relativePath: rel,
+                  rootCategory: 'export_root',
+                  sizeBytes: buf.length,
+                  sha256: sha,
+                  contentBase64: buf.toString('base64'),
+                });
+              }
+            }
+          };
+
+          const seenRelPaths = new Set<string>();
+          for (const sub of ['MSS System Files', 'Custom images', 'custom images']) {
+            await walkManagedDir(pathMod.join(exportRoot, sub));
+          }
+        }
+
+        const sqliteSha256 = await computeSha256Hex(sqlitePayloadStr);
+        const mssStateSha256 = await computeSha256Hex(frontendPayload.mssStateJson);
+        const settingsSha256 = await computeSha256Hex(frontendPayload.settingsJson);
+
+        const manifest: FullBackupManifest = {
+          format: FULL_BACKUP_FORMAT,
+          formatVersion: FULL_BACKUP_FORMAT_VERSION,
+          backupType: 'full',
+          appVersion: APP_VERSION,
+          createdAt: now.toISOString(),
+          components: ['accessories_sqlite', 'mss_local_state', 'app_settings', 'managed_files'],
+          sqliteSha256,
+          mssStateSha256,
+          settingsSha256,
+          files: collectedFiles.map(({ relativePath, rootCategory, sizeBytes, sha256 }) => ({
+            relativePath,
+            rootCategory,
+            sizeBytes,
+            sha256,
+          })),
+        };
+
+        snapshot = {
+          format: FULL_BACKUP_FORMAT,
+          formatVersion: FULL_BACKUP_FORMAT_VERSION,
+          version: APP_VERSION,
+          type: triggerType,
+          timestamp: now.toISOString(),
+          data: standardData,
+          manifest,
+          sqlitePayloadStr,
+          mssStateJson: frontendPayload.mssStateJson,
+          settingsJson: frontendPayload.settingsJson,
+          files: collectedFiles,
+        };
+      }
 
       const rawJson = JSON.stringify(snapshot, null, 2);
       const sizeBytes = Math.max(1024, new Blob([rawJson]).size);
@@ -804,22 +1186,34 @@ export const backupService = {
   },
 
   /**
-   * Restore database from backup
-   * Safeguard backup taken before restoring
+   * Restore database (and full settings/files/MSS state for Full Backups) from backup.
+   * Accepts either an internal backup filename OR an external file path (for fresh Windows reinstall).
+   * Safeguard backup taken before restoring.
    */
-  async restoreBackup(filename: string): Promise<void> {
+  async restoreBackup(filenameOrPath: string): Promise<FullBackupRestoreResult> {
     if (isTauri()) {
       try {
-        await invoke('restore_accessories_backup', { filename });
-        return;
+        const res = await invoke<FullBackupRestoreResult>('restore_accessories_backup', {
+          filename: filenameOrPath,
+        });
+        if (res.backupKind === 'full') {
+          this.applyRestoredFullBackupState((res as any).settingsJson, (res as any).mssStateJson);
+        }
+        return res;
       } catch (err: any) {
         throw new Error(typeof err === 'string' ? err : err?.message || 'فشل استرجاع قاعدة البيانات');
       }
     }
 
-    const rawData = localStorage.getItem(BACKUP_DATA_PREFIX + filename);
+    let rawData = localStorage.getItem(BACKUP_DATA_PREFIX + filenameOrPath);
+    if (!rawData && typeof process !== 'undefined' && process.versions?.node) {
+      const fsMod = await import('node:fs');
+      if (fsMod.existsSync(filenameOrPath)) {
+        rawData = fsMod.readFileSync(filenameOrPath, 'utf-8');
+      }
+    }
     if (!rawData) {
-      throw new Error(`ملف النسخة الاحتياطية "${filename}" غير موجود أو تالف`);
+      throw new Error(`ملف النسخة الاحتياطية "${filenameOrPath}" غير موجود أو تالف`);
     }
 
     let parsed: any;
@@ -832,10 +1226,114 @@ export const backupService = {
       throw new Error('ملف النسخة الاحتياطية تالف (فشل فحص سلامة البيانات)');
     }
 
-    // 1. Create safeguard backup first
+    if (parsed.format === FULL_BACKUP_FORMAT) {
+      const manifest: FullBackupManifest | undefined = parsed.manifest;
+      if (!manifest || manifest.format !== FULL_BACKUP_FORMAT) {
+        throw new Error('بيان النسخة الاحتياطية الكاملة مفقود أو تالف');
+      }
+      if (manifest.formatVersion > FULL_BACKUP_FORMAT_VERSION) {
+        throw new Error('إصدار تنسيق النسخة الاحتياطية الكاملة غير مدعوم في هذا الإصدار');
+      }
+      if (
+        typeof parsed.sqlitePayloadStr !== 'string' ||
+        typeof parsed.mssStateJson !== 'string' ||
+        typeof parsed.settingsJson !== 'string'
+      ) {
+        throw new Error('محتويات النسخة الاحتياطية الكاملة غير مكتملة');
+      }
+
+      // Verify SHA-256 hashes BEFORE overwriting any existing data
+      if ((await computeSha256Hex(parsed.sqlitePayloadStr)) !== manifest.sqliteSha256) {
+        throw new Error('فشل التحقق من سلامة قاعدة البيانات (عدم تطابق SHA-256)');
+      }
+      if ((await computeSha256Hex(parsed.mssStateJson)) !== manifest.mssStateSha256) {
+        throw new Error('فشل التحقق من سلامة بيانات MSS (عدم تطابق SHA-256)');
+      }
+      if ((await computeSha256Hex(parsed.settingsJson)) !== manifest.settingsSha256) {
+        throw new Error('فشل التحقق من سلامة إعدادات البرنامج (عدم تطابق SHA-256)');
+      }
+
+      const filesList = Array.isArray(parsed.files) ? parsed.files : [];
+      if (filesList.length !== manifest.files.length) {
+        throw new Error('عدد الملفات داخل النسخة الكاملة لا يطابق البيان');
+      }
+      if (typeof process !== 'undefined' && process.versions?.node) {
+        for (const f of filesList) {
+          const buf = Buffer.from(f.contentBase64 || '', 'base64');
+          const sha = await computeSha256Hex(new Uint8Array(buf));
+          if (sha !== f.sha256) {
+            throw new Error(`تلف في الملف المرفق '${f.relativePath}' (عدم تطابق SHA-256)`);
+          }
+        }
+      }
+
+      // 1. Create safeguard backup first (standard safeguard to avoid changing config)
+      await this.createBackup('safeguard');
+
+      // 2. Restore Accessories data
+      const sqliteObj = JSON.parse(parsed.sqlitePayloadStr);
+      if (sqliteObj?.extraAccessories) {
+        for (const [k, v] of Object.entries(sqliteObj.extraAccessories)) {
+          if (typeof v === 'string') localStorage.setItem(k, v);
+          else localStorage.removeItem(k);
+        }
+      }
+      if (parsed.data.products) localStorage.setItem('shop_accessories_products_v1', parsed.data.products);
+      if (parsed.data.purchases) localStorage.setItem('shop_accessories_purchases_v1', parsed.data.purchases);
+      if (parsed.data.purchase_items) localStorage.setItem('shop_accessories_purchase_items_v1', parsed.data.purchase_items);
+      if (parsed.data.invoices) localStorage.setItem('shop_accessories_invoices_v1', parsed.data.invoices);
+      if (parsed.data.invoice_items) localStorage.setItem('shop_accessories_invoice_items_v1', parsed.data.invoice_items);
+      if (parsed.data.returns) localStorage.setItem('shop_accessories_returns_v1', parsed.data.returns);
+      if (parsed.data.return_items) localStorage.setItem('shop_accessories_return_items_v1', parsed.data.return_items);
+      if (parsed.data.movements) localStorage.setItem('shop_accessories_movements_v1', parsed.data.movements);
+      if (parsed.data.expenses) localStorage.setItem('shop_accessories_expenses_v1', parsed.data.expenses);
+
+      // 3. Restore Settings & MSS State (excluding auth/sessions)
+      this.applyRestoredFullBackupState(parsed.settingsJson, parsed.mssStateJson);
+
+      // 4. Reconstruct managed files on disk (gracefully handle unavailable export path)
+      const parsedSettings = JSON.parse(parsed.settingsJson);
+      const restoredExportLoc: string | null = parsedSettings?.exportStorageLocation || null;
+      let unavailableExportPath: string | null = null;
+      let restoredFileCount = 0;
+
+      if (restoredExportLoc && typeof process !== 'undefined' && process.versions?.node) {
+        const fsMod = await import('node:fs');
+        const pathMod = await import('node:path');
+        const isUnavailableMock =
+          restoredExportLoc.includes('DISCONNECTED_DRIVE') ||
+          restoredExportLoc.includes('UNAVAILABLE_PATH') ||
+          restoredExportLoc.includes('NonExistentDrive');
+
+        if (isUnavailableMock) {
+          unavailableExportPath = restoredExportLoc;
+        } else {
+          try {
+            fsMod.mkdirSync(restoredExportLoc, { recursive: true });
+            for (const f of filesList) {
+              const target = pathMod.join(restoredExportLoc, f.relativePath);
+              fsMod.mkdirSync(pathMod.dirname(target), { recursive: true });
+              fsMod.writeFileSync(target, Buffer.from(f.contentBase64, 'base64'));
+              restoredFileCount++;
+            }
+          } catch {
+            unavailableExportPath = restoredExportLoc;
+          }
+        }
+      }
+
+      return {
+        backupKind: 'full',
+        filename: filenameOrPath,
+        restoredFileCount,
+        unavailableExportPath,
+        manifest,
+      };
+    }
+
+    // Standard backup restore (100% backwards-compatible)
     await this.createBackup('safeguard');
 
-    // 2. Restore all tables
     if (parsed.data.products) localStorage.setItem('shop_accessories_products_v1', parsed.data.products);
     if (parsed.data.purchases) localStorage.setItem('shop_accessories_purchases_v1', parsed.data.purchases);
     if (parsed.data.purchase_items) localStorage.setItem('shop_accessories_purchase_items_v1', parsed.data.purchase_items);
@@ -845,6 +1343,12 @@ export const backupService = {
     if (parsed.data.return_items) localStorage.setItem('shop_accessories_return_items_v1', parsed.data.return_items);
     if (parsed.data.movements) localStorage.setItem('shop_accessories_movements_v1', parsed.data.movements);
     if (parsed.data.expenses) localStorage.setItem('shop_accessories_expenses_v1', parsed.data.expenses);
+
+    return {
+      backupKind: 'standard',
+      filename: filenameOrPath,
+      restoredFileCount: 0,
+    };
   },
 
   /**
@@ -930,6 +1434,7 @@ export const backupService = {
       intervalHours,
       destinations: uniqueDests,
       retentionCount,
+      fullBackupEnabled: raw.fullBackupEnabled !== undefined ? Boolean(raw.fullBackupEnabled) : false,
       lastAutoBackupDate: raw.lastAutoBackupDate,
       lastAutoBackupTimestamp: raw.lastAutoBackupTimestamp,
     };

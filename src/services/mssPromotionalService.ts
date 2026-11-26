@@ -752,7 +752,8 @@ function drawFittedText(
   text: string,
   x: number,
   y: number,
-  maxWidth: number
+  maxWidth: number,
+  allowWrap: boolean = false
 ): void {
   if (!text) return;
   const metrics = ctx.measureText(text);
@@ -760,6 +761,37 @@ function drawFittedText(
     ctx.fillText(text, x, y);
     return;
   }
+
+  // Prefer natural word-boundary wrapping (max 2 balanced lines) when enabled for long values
+  if (allowWrap) {
+    const words = text.trim().split(/\s+/);
+    if (words.length >= 2) {
+      let bestSplit = -1;
+      let bestDiff = Infinity;
+      for (let i = 1; i < words.length; i++) {
+        const line1 = words.slice(0, i).join(' ');
+        const line2 = words.slice(i).join(' ');
+        const w1 = ctx.measureText(line1).width;
+        const w2 = ctx.measureText(line2).width;
+        if (w1 <= maxWidth && w2 <= maxWidth) {
+          const diff = Math.abs(w1 - w2);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestSplit = i;
+          }
+        }
+      }
+      if (bestSplit > 0) {
+        const line1 = words.slice(0, bestSplit).join(' ');
+        const line2 = words.slice(bestSplit).join(' ');
+        const lineOffset = 11.5;
+        ctx.fillText(line1, x, y - lineOffset);
+        ctx.fillText(line2, x, y + lineOffset);
+        return;
+      }
+    }
+  }
+
   let truncated = text;
   while (truncated.length > 2 && ctx.measureText(truncated + '...').width > maxWidth) {
     truncated = truncated.slice(0, -1);
@@ -954,7 +986,7 @@ export function renderPromotionalToCanvas(
     }
 
     // Header label text (Arabic with proper RTL text rendering)
-    ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';
+    ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';
     ctx.fillStyle = col.id === 'price' ? headerColors.tableHeaderPriceText : headerColors.tableHeaderText;
     ctx.direction = 'rtl';
     ctx.fillText(col.label, colCenterX, tableY + 46);
@@ -1015,41 +1047,41 @@ export function renderPromotionalToCanvas(
       } else if (col.id === 'model') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16);
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);
+        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8, true);
       } else if (col.id === 'generation') {
         ctx.textAlign = 'center';
         const genText = item.generation || '---';
         const hasArabic = /[\u0600-\u06FF]/.test(genText);
         ctx.direction = hasArabic ? 'rtl' : 'ltr';
-        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
-        drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8);
+        drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8, true);
       } else if (col.id === 'ram') {
-        ctx.textAlign = 'center';
-        ctx.direction = 'ltr';
-        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);
-      } else if (col.id === 'storage') {
-        ctx.textAlign = 'center';
-        ctx.direction = 'ltr';
-        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
-        ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);
-      } else if (col.id === 'screen') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
         ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);
+        drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8, true);
+      } else if (col.id === 'storage') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
+        ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = '#1e293b';
+        drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10, true);
+      } else if (col.id === 'screen') {
+        ctx.textAlign = 'center';
+        ctx.direction = 'ltr';
+        ctx.font = 'bold 20px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.fillStyle = '#1e293b';
+        drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10, true);
       } else if (col.id === 'gpu') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
@@ -1063,12 +1095,12 @@ export function renderPromotionalToCanvas(
         } else {
           ctx.fillStyle = '#475569';
         }
-        ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';
-        drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);
+        ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
+        drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10, true);
       } else if (col.id === 'quantity') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
         ctx.fillText(String(item.quantity || 1), cellCenterX, cellCenterY);
       } else if (col.id === 'price') {
@@ -1076,7 +1108,7 @@ export function renderPromotionalToCanvas(
         ctx.direction = 'ltr';
         const priceNum = Number(item.price) || 0;
         const priceFormatted = priceNum > 0 ? priceNum.toLocaleString('en-US') : '---';
-        ctx.font = 'bold 27px "Segoe UI", Arial, sans-serif';
+        ctx.font = 'bold 25px "Segoe UI", Arial, sans-serif';
         ctx.fillStyle = '#0a2558'; // Bold dark blue numbers
         drawFittedText(ctx, priceFormatted, cellCenterX, cellCenterY, col.width - 10);
       }

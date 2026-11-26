@@ -16,47 +16,47 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
   const generatorContent = fs.readFileSync(generatorPath, 'utf8').replace(/\r\n/g, '\n');
   const typesContent = fs.readFileSync(typesPath, 'utf8').replace(/\r\n/g, '\n');
 
-  await t.test('1. Canvas table data rows render with bold (700) and +5px increased font sizes', () => {
-    // Model, Processor, RAM, Quantity: 19px -> 24px (+5px)
+  await t.test('1. Canvas table data rows render with bold (700) and refined font sizes', () => {
+    // Model, Processor, RAM, Quantity: 22px
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 24px "Segoe UI", Cairo, Arial, sans-serif';`),
-      'Canvas model/processor/ram/quantity text must be bold 24px'
+      serviceContent.includes(`ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';`),
+      'Canvas model/processor/ram/quantity text must be bold 22px'
     );
 
-    // Processor fitted text
+    // Processor fitted text with natural word-boundary wrap
     assert.ok(
-      serviceContent.includes(`drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8);`),
+      serviceContent.includes(`drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8, true);`),
       'Processor must draw fitted text'
     );
 
-    // Generation, Storage, GPU: 18px -> 23px (+5px)
+    // Generation, Storage, GPU: 21px
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 23px "Segoe UI", Cairo, Arial, sans-serif';`),
-      'Canvas generation/storage/gpu text must be bold 23px'
+      serviceContent.includes(`ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';`),
+      'Canvas generation/storage/gpu text must be bold 21px'
     );
 
     // RAM fitted text
     assert.ok(
-      serviceContent.includes(`drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8);`),
+      serviceContent.includes(`drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8, true);`),
       'RAM must draw fitted text'
     );
 
     // Storage fitted text
     assert.ok(
-      serviceContent.includes(`drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10);`),
+      serviceContent.includes(`drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10, true);`),
       'Storage must draw fitted text'
     );
 
-    // Screen: 17px -> 22px (+5px)
+    // Screen: 20px
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';`) &&
-      serviceContent.includes(`drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10);`),
-      'Canvas screen text must be bold 22px'
+      serviceContent.includes(`ctx.font = 'bold 20px "Segoe UI", Cairo, Arial, sans-serif';`) &&
+      serviceContent.includes(`drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10, true);`),
+      'Canvas screen text must be bold 20px'
     );
 
     // GPU fitted text
     assert.ok(
-      serviceContent.includes(`drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10);`),
+      serviceContent.includes(`drawFittedText(ctx, item.gpu || '---', cellCenterX, cellCenterY, col.width - 10, true);`),
       'GPU must draw fitted text'
     );
 
@@ -66,31 +66,27 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
       'Quantity must draw centered text'
     );
 
-    // Price: 22px -> 27px (+5px)
+    // Price: 25px
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 27px "Segoe UI", Arial, sans-serif';`),
-      'Canvas price text must be bold 27px'
+      serviceContent.includes(`ctx.font = 'bold 25px "Segoe UI", Arial, sans-serif';`),
+      'Canvas price text must be bold 25px'
     );
   });
 
-  await t.test('2. DOM preview table renders all data cells in bold with +5px increased font size', () => {
+  await t.test('2. DOM preview table renders all data cells in bold with refined font size and single-line/word-boundary wrapping', () => {
     assert.ok(
-      generatorContent.includes(`table className="w-full text-[20px] text-left border-collapse border border-slate-300 font-bold"`),
-      'Table must have base 20px and font-bold'
+      generatorContent.includes(`table className="w-full text-[18.5px] text-left border-collapse border border-slate-300 font-bold"`),
+      'Table must have base 18.5px and font-bold'
     );
     assert.ok(
-      generatorContent.includes(`tbody className="divide-y divide-slate-200 font-bold text-[20px]"`),
-      'Tbody must have font-bold and text-[20px]'
+      generatorContent.includes(`tbody className="divide-y divide-slate-200 font-bold text-[18.5px]"`),
+      'Tbody must have font-bold and text-[18.5px]'
     );
-
-    assert.ok(generatorContent.includes('font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[20px]'), 'Model cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-bold text-slate-800 border-r border-slate-200 font-mono text-[20px]'), 'Processor cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-bold text-slate-800 border-r border-slate-200 text-[20px]'), 'Generation cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[20px]'), 'RAM & Storage cells must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-mono font-bold text-slate-800 border-r border-slate-200 text-[19.5px]'), 'Screen cell must be font-bold text-[19.5px]');
-    assert.ok(generatorContent.includes('text-center font-bold text-[20px]'), 'GPU cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-bold text-slate-900 text-[20px]'), 'Quantity cell must be font-bold text-[20px]');
-    assert.ok(generatorContent.includes('text-center font-extrabold text-[#0a2558] text-[22px] tabular-nums'), 'Price cell must be font-extrabold text-[22px]');
+    assert.ok(generatorContent.includes('whitespace-nowrap'), 'Short/normal spec values must stay on a single line');
+    assert.ok(generatorContent.includes('break-normal [overflow-wrap:normal]'), 'Long values must wrap at natural word boundaries');
+    assert.ok(generatorContent.includes('text-[18.5px]'), 'Standard cells must be text-[18.5px]');
+    assert.ok(generatorContent.includes('text-[18px]'), 'Screen cell must be text-[18px]');
+    assert.ok(generatorContent.includes('text-[20.5px] tabular-nums'), 'Price cell must be font-extrabold text-[20.5px]');
   });
 
   await t.test('3. Text fitting, row density (7 rows max), and boundary protection against overflow', () => {
@@ -114,12 +110,12 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
 
   await t.test('5. Table column headers remain visually balanced', () => {
     assert.ok(
-      serviceContent.includes(`ctx.font = 'bold 17px "Segoe UI", Cairo, Arial, sans-serif';`),
-      'Canvas header font must be bold 17px'
+      serviceContent.includes(`ctx.font = 'bold 16px "Segoe UI", Cairo, Arial, sans-serif';`),
+      'Canvas header font must be bold 16px'
     );
     assert.ok(
-      generatorContent.includes('font-bold text-center border-b-2 border-slate-400 text-[14px]'),
-      'DOM header must preserve distinct font-bold text-[14px]'
+      generatorContent.includes('font-bold text-center border-b-2 border-slate-400 text-[13.5px]'),
+      'DOM header must preserve distinct font-bold text-[13.5px]'
     );
   });
 
@@ -188,10 +184,21 @@ test('MSS Promotional Image Typography Improvements', async (t) => {
 
     renderPromotionalToCanvas([testItem], { showPrice: true, showQuantity: true }, mockCanvas);
 
-    assert.strictEqual(capturedFonts.get('15.6" FHD IPS'), 'bold 22px "Segoe UI", Cairo, Arial, sans-serif');
-    assert.strictEqual(capturedFonts.get('Latitude 5420'), 'bold 24px "Segoe UI", Cairo, Arial, sans-serif');
-    assert.strictEqual(capturedFonts.get('16GB'), 'bold 24px "Segoe UI", Cairo, Arial, sans-serif');
-    assert.strictEqual(capturedFonts.get('512GB SSD'), 'bold 23px "Segoe UI", Cairo, Arial, sans-serif');
-    assert.strictEqual(capturedFonts.get('18,500'), 'bold 27px "Segoe UI", Arial, sans-serif');
+    assert.strictEqual(capturedFonts.get('15.6" FHD IPS'), 'bold 20px "Segoe UI", Cairo, Arial, sans-serif');
+    assert.strictEqual(capturedFonts.get('Latitude 5420'), 'bold 22px "Segoe UI", Cairo, Arial, sans-serif');
+    assert.strictEqual(capturedFonts.get('16GB'), 'bold 22px "Segoe UI", Cairo, Arial, sans-serif');
+    assert.strictEqual(capturedFonts.get('512GB SSD'), 'bold 21px "Segoe UI", Cairo, Arial, sans-serif');
+    assert.strictEqual(capturedFonts.get('18,500'), 'bold 25px "Segoe UI", Arial, sans-serif');
+
+    // Verify natural word-boundary wrapping for extra-long multi-word value
+    capturedFonts.clear();
+    renderPromotionalToCanvas([{
+      ...testItem,
+      storage: '512GB NVMe Gen4',
+    }], { showPrice: true, showQuantity: true }, mockCanvas);
+    assert.ok(
+      !Array.from(capturedFonts.keys()).some(k => k.includes('NVMe Gen4...')),
+      'Multi-word long storage value should wrap cleanly at word boundary instead of mid-word split'
+    );
   });
 });

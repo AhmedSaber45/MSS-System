@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Laptop,
   Plus,
@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { AlertModal } from '@/components/common/AlertModal';
+import { LaptopSpecQuickSelect } from '@/components/common/LaptopSpecQuickSelect';
 import { useNotification } from '@/context/NotificationContext';
 import { MSSPromotionalGenerator } from '@/components/placeholders/mss/MSSPromotionalGenerator';
 import {
@@ -67,6 +68,7 @@ export const AccessoriesPromotionalView: React.FC = () => {
   });
 
   // 2. Form state for adding/editing a promotional device
+  const formCardRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<ManualDeviceInput>(INITIAL_FORM);
   const [customBrand, setCustomBrand] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -193,8 +195,41 @@ export const AccessoriesPromotionalView: React.FC = () => {
     });
     setCustomBrand(isStandardBrand ? '' : item.brand);
 
-    // Scroll up smoothly to the form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Wait for React to commit the loaded device data, then smoothly scroll the form into view
+    // Works across both window scrolling and internal scrollable layout containers.
+    const scrollToForm = () => {
+      const formEl = formCardRef.current;
+      if (formEl) {
+        if (typeof formEl.scrollIntoView === 'function') {
+          formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        let parent: HTMLElement | null = formEl.parentElement;
+        while (parent) {
+          const style = window.getComputedStyle(parent);
+          const isScrollable =
+            (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+            parent.scrollHeight > parent.clientHeight;
+          if (isScrollable) {
+            const parentRect = parent.getBoundingClientRect();
+            const elRect = formEl.getBoundingClientRect();
+            const targetTop = Math.max(0, parent.scrollTop + (elRect.top - parentRect.top) - 24);
+            parent.scrollTo({ top: targetTop, behavior: 'smooth' });
+            break;
+          }
+          parent = parent.parentElement;
+        }
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(scrollToForm);
+      });
+    } else {
+      scrollToForm();
+    }
   };
 
   // Delete an item from the list
@@ -268,7 +303,8 @@ export const AccessoriesPromotionalView: React.FC = () => {
       </div>
 
       {/* 2. Manual Device Entry Form Card */}
-      <Card
+      <div ref={formCardRef} className="scroll-mt-6">
+        <Card
         className={`border transition-all ${
           editingId
             ? 'border-amber-300 ring-2 ring-amber-100 bg-amber-50/20'
@@ -356,6 +392,11 @@ export const AccessoriesPromotionalView: React.FC = () => {
                   onChange={e => handleFieldChange('processor', e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono"
                 />
+                <LaptopSpecQuickSelect
+                  specType="processor"
+                  value={formData.processor}
+                  onSelect={val => handleFieldChange('processor', val)}
+                />
               </div>
 
               {/* Generation */}
@@ -387,6 +428,11 @@ export const AccessoriesPromotionalView: React.FC = () => {
                   onChange={e => handleFieldChange('ram', e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono"
                 />
+                <LaptopSpecQuickSelect
+                  specType="ram"
+                  value={formData.ram}
+                  onSelect={val => handleFieldChange('ram', val)}
+                />
               </div>
 
               {/* Storage */}
@@ -400,6 +446,11 @@ export const AccessoriesPromotionalView: React.FC = () => {
                   value={formData.storage}
                   onChange={e => handleFieldChange('storage', e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+                <LaptopSpecQuickSelect
+                  specType="storage"
+                  value={formData.storage}
+                  onSelect={val => handleFieldChange('storage', val)}
                 />
               </div>
 
@@ -415,6 +466,11 @@ export const AccessoriesPromotionalView: React.FC = () => {
                   onChange={e => handleFieldChange('gpu', e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
                 />
+                <LaptopSpecQuickSelect
+                  specType="gpu"
+                  value={formData.gpu}
+                  onSelect={val => handleFieldChange('gpu', val)}
+                />
               </div>
 
               {/* Screen / Display */}
@@ -428,6 +484,11 @@ export const AccessoriesPromotionalView: React.FC = () => {
                   value={formData.screen}
                   onChange={e => handleFieldChange('screen', e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                />
+                <LaptopSpecQuickSelect
+                  specType="screen"
+                  value={formData.screen}
+                  onSelect={val => handleFieldChange('screen', val)}
                 />
               </div>
             </div>
@@ -510,7 +571,8 @@ export const AccessoriesPromotionalView: React.FC = () => {
             </div>
           </form>
         </div>
-      </Card>
+        </Card>
+      </div>
 
       {/* 2.5 Accessories-Only Static Header Design Selector */}
       <Card className="bg-white border border-slate-300 shadow-2xs overflow-hidden">

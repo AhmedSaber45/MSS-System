@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { userPreferencesService, PREF_KEYS } from '@/services/userPreferencesService';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/common/Card';
@@ -142,8 +143,10 @@ export const SalesView: React.FC = () => {
     });
   }, [products, selectedCategory, searchQuery]);
 
-  // Sub-pages / Pagination state (Default: 9 items per page, 3x3 grid)
-  const [itemsPerPage, setItemsPerPage] = useState<number>(9);
+  // Sub-pages / Pagination state (Default: 9 items per page, 3x3 grid; persisted locally)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() =>
+    userPreferencesService.getNumber(PREF_KEYS.ACCESSORIES_SALES_PAGE_SIZE, 9, [6, 9, 12, 18])
+  );
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Reset to page 1 whenever category or search query changes
@@ -691,7 +694,12 @@ export const SalesView: React.FC = () => {
                     <select
                       value={itemsPerPage}
                       onChange={e => {
-                        setItemsPerPage(Number(e.target.value));
+                        const nextSize = userPreferencesService.setNumber(
+                          PREF_KEYS.ACCESSORIES_SALES_PAGE_SIZE,
+                          Number(e.target.value),
+                          [6, 9, 12, 18]
+                        );
+                        setItemsPerPage(nextSize);
                         setCurrentPage(1);
                       }}
                       className="px-2 py-0.5 text-xs font-bold bg-slate-100 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
