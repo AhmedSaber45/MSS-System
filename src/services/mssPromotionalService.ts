@@ -755,6 +755,80 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
 }
 
 /**
+ * Formats a screen size specification value, ensuring a clean visual separation between
+ * numeric values and descriptors like "تاتش" (e.g. "14تاتش" -> "14 تاتش").
+ */
+export function formatScreenValue(val: string | undefined | null): string {
+  const trimmed = (val || '').trim();
+  if (!trimmed) return '---';
+  return trimmed.replace(/^(\d+(?:\.\d+)?)\s*([\u0600-\u06FF]+)/i, '$1 $2');
+}
+
+/**
+ * Computes a fitted font-size (in px) for single-line text so that it always remains on ONE line
+ * and never overflows the available column width.
+ */
+export function getFittedSingleLineFontSize(
+  text: string,
+  maxWidthPx: number,
+  basePx: number = 17.5,
+  minPx: number = 12.5,
+  fontFace: string = '"Segoe UI", Cairo, Arial, sans-serif'
+): string {
+  const trimmed = (text || '').trim();
+  if (!trimmed || maxWidthPx <= 0) return `${basePx}px`;
+
+  const ctx = getMeasureContext();
+  if (!ctx) {
+    const approxCharWidth = basePx * 0.58;
+    const estWidth = trimmed.length * approxCharWidth;
+    if (estWidth <= maxWidthPx) return `${basePx}px`;
+    const scaled = Math.max(minPx, basePx * (maxWidthPx / estWidth));
+    return `${scaled.toFixed(1)}px`;
+  }
+
+  let size = basePx;
+  ctx.font = `bold ${size}px ${fontFace}`;
+  while (ctx.measureText(trimmed).width > maxWidthPx && size > minPx) {
+    size -= 0.5;
+    ctx.font = `bold ${size}px ${fontFace}`;
+  }
+  return `${size.toFixed(1)}px`;
+}
+
+/**
+ * Draws single-line fitted text on HTML Canvas without wrapping or ellipsis.
+ * If the text exceeds maxWidth, smoothly scales font size down within a sensible minimum.
+ */
+function drawSingleLineFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  baseFont: string,
+  minFontSize: number = 12.5
+): void {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return;
+
+  const originalFont = baseFont || ctx.font;
+  const fontMatch = originalFont.match(/(\d+(?:\.\d+)?)px/);
+  const baseFontSize = fontMatch ? parseFloat(fontMatch[1]) : 20;
+
+  let currentFontSize = baseFontSize;
+  ctx.font = originalFont;
+
+  while (ctx.measureText(trimmed).width > maxWidth && currentFontSize > minFontSize) {
+    currentFontSize -= 0.5;
+    ctx.font = originalFont.replace(/(\d+(?:\.\d+)?)px/, `${currentFontSize}px`);
+  }
+
+  ctx.fillText(trimmed, x, y);
+  ctx.font = originalFont;
+}
+
+/**
  * Splits text into balanced lines at natural word boundaries without truncating or splitting words.
  * Short values that already fit within maxWidth stay on a single line.
  */
@@ -950,51 +1024,51 @@ export function renderPromotionalToCanvas(
 
   if (showPrice && showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 90 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 181 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 85 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 168 },
       { id: 'processor', label: 'المعالج', icon: 'cpu', width: 104 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 120 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 80 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 110 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 115 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 118 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 86 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 126 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 126 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 112 },
       { id: 'quantity', label: 'الكمية', icon: 'box', width: 75 },
       { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 140 },
     ];
   } else if (showPrice && !showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 195 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 90 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 180 },
       { id: 'processor', label: 'المعالج', icon: 'cpu', width: 108 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 132 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 120 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 125 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 135 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 128 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 90 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 138 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 136 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
       { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 145 },
     ];
   } else if (!showPrice && showQty) {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 195 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 115 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 140 },
-      { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 135 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 135 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 145 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 202 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 114 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
+      { id: 'ram', label: 'الرام', icon: 'ram', width: 96 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 138 },
       { id: 'quantity', label: 'الكمية', icon: 'box', width: 80 },
     ];
   } else {
     colWidths = [
-      { id: 'brand', label: 'الماركة', icon: 'tag', width: 105 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 235 },
+      { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 240 },
       { id: 'processor', label: 'المعالج', icon: 'cpu', width: 120 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 150 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
       { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
-      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
-      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 150 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 145 },
+      { id: 'screen', label: 'الشاشة', icon: 'screen', width: 145 },
+      { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 145 },
     ];
   }
 
@@ -1010,11 +1084,6 @@ export function renderPromotionalToCanvas(
       modelColWidth - 16,
       s => ctx.measureText(s).width
     );
-    const processorLines = wrapPromotionalCellText(
-      item.processor || '---',
-      processorColWidth - 16,
-      s => ctx.measureText(s).width
-    );
     ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
     const genLines = wrapPromotionalCellText(
       item.generation || '---',
@@ -1023,7 +1092,7 @@ export function renderPromotionalToCanvas(
     );
     ctx.restore();
 
-    const maxLines = Math.max(modelLines.length, processorLines.length, genLines.length, 1);
+    const maxLines = Math.max(modelLines.length, genLines.length, 1);
     return maxLines <= 1 ? rowHeight : Math.max(rowHeight, 76 + (maxLines - 1) * 18);
   });
 
@@ -1190,9 +1259,16 @@ export function renderPromotionalToCanvas(
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 16, true, true);
+        drawSingleLineFittedText(
+          ctx,
+          item.processor || '---',
+          cellCenterX,
+          cellCenterY,
+          col.width - 16,
+          'bold 21px "Segoe UI", Cairo, Arial, sans-serif',
+          13
+        );
       } else if (col.id === 'generation') {
         ctx.textAlign = 'center';
         const genText = item.generation || '---';
@@ -1204,21 +1280,44 @@ export function renderPromotionalToCanvas(
       } else if (col.id === 'ram') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.ram || '---', cellCenterX, cellCenterY, col.width - 8, true);
+        drawSingleLineFittedText(
+          ctx,
+          item.ram || '---',
+          cellCenterX,
+          cellCenterY,
+          col.width - 16,
+          'bold 21px "Segoe UI", Cairo, Arial, sans-serif',
+          13
+        );
       } else if (col.id === 'storage') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
-        ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.storage || '---', cellCenterX, cellCenterY, col.width - 10, true);
+        drawSingleLineFittedText(
+          ctx,
+          item.storage || '---',
+          cellCenterX,
+          cellCenterY,
+          col.width - 12,
+          'bold 20px "Segoe UI", Cairo, Arial, sans-serif',
+          12.5
+        );
       } else if (col.id === 'screen') {
+        const screenText = formatScreenValue(item.screen);
+        const hasArabic = /[\u0600-\u06FF]/.test(screenText);
         ctx.textAlign = 'center';
-        ctx.direction = 'ltr';
-        ctx.font = 'bold 20px "Segoe UI", Cairo, Arial, sans-serif';
+        ctx.direction = hasArabic ? 'rtl' : 'ltr';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.screen || '---', cellCenterX, cellCenterY, col.width - 10, true);
+        drawSingleLineFittedText(
+          ctx,
+          screenText,
+          cellCenterX,
+          cellCenterY,
+          col.width - 12,
+          'bold 19.5px "Segoe UI", Cairo, Arial, sans-serif',
+          12.5
+        );
       } else if (col.id === 'gpu') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
@@ -1595,6 +1694,8 @@ export async function exportPromotionalAllPagesAsPng(
 export const mssPromotionalService = {
   ARABIC_GENERATIONS,
   PROMOTIONAL_MAX_DEVICES_PER_PAGE,
+  formatScreenValue,
+  getFittedSingleLineFontSize,
   extractShortProcessor,
   extractGenerationAndShortProcessor,
   sanitizeArabicFilename,

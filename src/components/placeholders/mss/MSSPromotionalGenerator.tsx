@@ -13,6 +13,8 @@ import {
   sortPromotionalItems,
   PROMOTIONAL_MAX_DEVICES_PER_PAGE,
   measureAndWrapPromotionalText,
+  getFittedSingleLineFontSize,
+  formatScreenValue,
 } from '@/services/mssPromotionalService.ts';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
@@ -211,7 +213,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
             }
           >
             <tr>
-              <th className="py-3 px-2 w-[74px] text-center">
+              <th className="py-3 px-2 w-[70px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.brand} alt="الماركة" className="w-4 h-4 object-contain" />
                   <span>الماركة</span>
@@ -223,44 +225,44 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                   <span>الموديل</span>
                 </div>
               </th>
-              <th className="py-3 px-2.5 w-[102px] text-center">
+              <th className="py-3 px-2 w-[102px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.processor} alt="المعالج" className="w-4 h-4 object-contain" />
                   <span>المعالج</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-[110px] text-center">
+              <th className="py-3 px-2 w-[106px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.generation} alt="الجيل" className="w-4 h-4 object-contain" />
                   <span>الجيل</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-[64px] text-center">
+              <th className="py-3 px-2 w-[72px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.ram} alt="الرام" className="w-4 h-4 object-contain" />
                   <span>الرام</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-[100px] text-center">
+              <th className="py-3 px-2 w-[116px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.storage} alt="الهارد" className="w-4 h-4 object-contain" />
                   <span>الهارد</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-[92px] text-center">
+              <th className="py-3 px-2 w-[106px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.screen} alt="الشاشة" className="w-4 h-4 object-contain" />
                   <span>الشاشة</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-[106px] text-center">
+              <th className="py-3 px-2 w-[100px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.gpu} alt="كارت الشاشة" className="w-4 h-4 object-contain" />
                   <span>كارت الشاشة</span>
                 </div>
               </th>
               {displayOptions.showQuantity && (
-                <th className="py-3 px-2 w-[60px] text-center">
+                <th className="py-3 px-2 w-[58px] text-center">
                   <div className="flex flex-col items-center gap-1">
                     <img src={PROMOTIONAL_HEADER_ICONS.quantity} alt="الكمية" className="w-4 h-4 object-contain" />
                     <span>الكمية</span>
@@ -299,11 +301,6 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                 124,
                 'bold 18.5px "Segoe UI", Cairo, Arial, sans-serif'
               );
-              const processorLines = measureAndWrapPromotionalText(
-                item.processor || '---',
-                80,
-                'bold 18.5px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-              );
               const generationLines = measureAndWrapPromotionalText(
                 item.generation || '---',
                 94,
@@ -323,14 +320,23 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                     </div>
                   </td>
                   <td
-                    className="py-3.5 px-2.5 text-center align-middle font-bold text-slate-800 border-r border-slate-200 font-mono text-[18.5px] box-border"
+                    className="py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 font-mono text-[18.5px] box-border overflow-hidden"
                     dir="ltr"
                   >
-                    <div className="text-center leading-[1.3] break-normal [overflow-wrap:normal] overflow-hidden max-w-full">
-                      {processorLines.map((line, lineIdx) => (
-                        <div key={lineIdx}>{line}</div>
-                      ))}
-                    </div>
+                    <span
+                      className="whitespace-nowrap font-bold inline-block max-w-full text-center tracking-tight"
+                      style={{
+                        fontSize: getFittedSingleLineFontSize(
+                          item.processor || '---',
+                          86,
+                          18,
+                          12.5,
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                        ),
+                      }}
+                    >
+                      {item.processor || '---'}
+                    </span>
                   </td>
                   <td
                     className="py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 text-[18.5px]"
@@ -344,22 +350,61 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                     </div>
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.ram, 10)}`}
+                    className="py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 box-border overflow-hidden"
                     dir="ltr"
                   >
-                    {item.ram || '---'}
+                    <span
+                      className="whitespace-nowrap font-bold inline-block max-w-full text-center tracking-tight"
+                      style={{
+                        fontSize: getFittedSingleLineFontSize(
+                          item.ram || '---',
+                          56,
+                          18,
+                          12.5,
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                        ),
+                      }}
+                    >
+                      {item.ram || '---'}
+                    </span>
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.storage, 16)}`}
+                    className="py-3.5 px-1.5 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 box-border overflow-hidden"
                     dir="ltr"
                   >
-                    {item.storage || '---'}
+                    <span
+                      className="whitespace-nowrap font-bold inline-block max-w-full text-center tracking-tight"
+                      style={{
+                        fontSize: getFittedSingleLineFontSize(
+                          item.storage || '---',
+                          104,
+                          17.5,
+                          12.5,
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                        ),
+                      }}
+                    >
+                      {item.storage || '---'}
+                    </span>
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18px] ${singleLineOrWrap(item.screen, 16)}`}
-                    dir="ltr"
+                    className="py-3.5 px-1.5 text-center align-middle font-bold text-slate-800 border-r border-slate-200 box-border overflow-hidden"
                   >
-                    {item.screen || '---'}
+                    <span
+                      className="whitespace-nowrap font-bold inline-block max-w-full text-center tracking-tight"
+                      dir="auto"
+                      style={{
+                        fontSize: getFittedSingleLineFontSize(
+                          formatScreenValue(item.screen),
+                          94,
+                          17.5,
+                          12.5,
+                          '"Segoe UI", Cairo, Arial, sans-serif'
+                        ),
+                      }}
+                    >
+                      <bdi>{formatScreenValue(item.screen)}</bdi>
+                    </span>
                   </td>
                   <td
                     className={`py-3.5 px-2 text-center align-middle font-bold text-[18.5px] ${singleLineOrWrap(item.gpu, 15)} ${
