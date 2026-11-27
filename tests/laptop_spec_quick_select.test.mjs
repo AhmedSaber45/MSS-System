@@ -19,9 +19,9 @@ test('Laptop Specifications Quick-Select Component & Application-Wide Integratio
   await t.test('1. Exact quick-select options are defined centrally', () => {
     assert.ok(componentContent.includes("ram: ['4 GB', '8 GB', '16 GB', '32 GB']"));
     assert.ok(componentContent.includes("storage: ['SSD 128 GB', 'SSD 256 GB', 'SSD 512 GB', 'HDD 500 GB', 'HDD 1 TB']"));
-    assert.ok(componentContent.includes("screen: ['14.1', '15.6']"));
+    assert.ok(componentContent.includes("screen: ['13', '14.1', '15.6']"));
     assert.ok(componentContent.includes("processor: ['CI 3', 'CI 5', 'CI 7', 'CI 9', 'RYZEN 3', 'RYZEN 5', 'RYZEN 7']"));
-    assert.ok(componentContent.includes("gpu: ['AMD', 'NVIDIA', 'INTEL']"));
+    assert.ok(componentContent.includes("gpu: ['AMD', 'NVIDIA', 'INTEL', 'INTEL IRIS']"));
     assert.ok(!componentContent.includes('NIVIDA'), 'Must use exact NVIDIA spelling');
   });
 

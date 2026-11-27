@@ -190,7 +190,7 @@ export function extractGenerationAndShortProcessor(
   if (/Ultra\s*([579])/i.test(pStr)) {
     const m = pStr.match(/Ultra\s*([579])/i);
     return {
-      generation: 'سلسلة Ultra',
+      generation: ' Ultra',
       shortProcessor: `Ultra ${m?.[1] || '7'}`,
     };
   }
@@ -204,12 +204,12 @@ export function extractGenerationAndShortProcessor(
     if (genDigit) {
       const gNum = parseInt(genDigit, 10);
       return {
-        generation: ARABIC_GENERATIONS[gNum] || `سلسلة ${gNum}000`,
+        generation: ARABIC_GENERATIONS[gNum] || ` ${gNum}000`,
         shortProcessor: shortProc,
       };
     }
     return {
-      generation: 'سلسلة Ryzen',
+      generation: ' Ryzen',
       shortProcessor: shortProc,
     };
   }
@@ -743,9 +743,95 @@ function drawBrandBadge(
   ctx.restore();
 }
 
+let _measureCanvasCtx: CanvasRenderingContext2D | null = null;
+
+function getMeasureContext(): CanvasRenderingContext2D | null {
+  if (_measureCanvasCtx) return _measureCanvasCtx;
+  if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    const c = document.createElement('canvas');
+    _measureCanvasCtx = c.getContext('2d');
+  }
+  return _measureCanvasCtx;
+}
+
 /**
- * Draws text measured against a maximum width, truncating with ellipsis if it exceeds.
- * Prevents text overlapping across adjacent table columns in HTML Canvas rendering.
+ * Splits text into balanced lines at natural word boundaries without truncating or splitting words.
+ * Short values that already fit within maxWidth stay on a single line.
+ */
+export function wrapPromotionalCellText(
+  text: string,
+  maxWidth: number,
+  measureWidth: (value: string) => number
+): string[] {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return ['---'];
+  if (maxWidth <= 0 || measureWidth(trimmed) <= maxWidth) {
+    return [trimmed];
+  }
+
+  const words = trimmed.split(/\s+/);
+  if (words.length < 2) {
+    return [trimmed];
+  }
+
+  // Prefer balanced 2-line split where both lines fit within maxWidth
+  let bestSplit = -1;
+  let bestDiff = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const line1 = words.slice(0, i).join(' ');
+    const line2 = words.slice(i).join(' ');
+    const w1 = measureWidth(line1);
+    const w2 = measureWidth(line2);
+    if (w1 <= maxWidth && w2 <= maxWidth) {
+      const diff = Math.abs(w1 - w2);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestSplit = i;
+      }
+    }
+  }
+  if (bestSplit > 0) {
+    return [words.slice(0, bestSplit).join(' '), words.slice(bestSplit).join(' ')];
+  }
+
+  // Fallback: greedy word-boundary wrapping (never split a word in the middle)
+  const lines: string[] = [];
+  let currentLine = words[0];
+  for (let i = 1; i < words.length; i++) {
+    const candidate = `${currentLine} ${words[i]}`;
+    if (measureWidth(candidate) <= maxWidth) {
+      currentLine = candidate;
+    } else {
+      lines.push(currentLine);
+      currentLine = words[i];
+    }
+  }
+  lines.push(currentLine);
+  return lines;
+}
+
+/**
+ * Shared measurement & wrapping helper for both DOM preview and Canvas export.
+ */
+export function measureAndWrapPromotionalText(
+  text: string,
+  maxWidthPx: number,
+  font: string = 'bold 18.5px "Segoe UI", Cairo, Arial, sans-serif'
+): string[] {
+  const ctx = getMeasureContext();
+  const measureWidth = ctx
+    ? (val: string) => {
+        ctx.font = font;
+        return ctx.measureText(val).width;
+      }
+    : (val: string) => val.length * 9.5;
+
+  return wrapPromotionalCellText(text, maxWidthPx, measureWidth);
+}
+
+/**
+ * Draws text measured against a maximum width, wrapping at natural word boundaries when enabled.
+ * When noTruncate is true (used for Model and Generation), never truncates with ellipsis.
  */
 function drawFittedText(
   ctx: CanvasRenderingContext2D,
@@ -753,7 +839,8 @@ function drawFittedText(
   x: number,
   y: number,
   maxWidth: number,
-  allowWrap: boolean = false
+  allowWrap: boolean = false,
+  noTruncate: boolean = false
 ): void {
   if (!text) return;
   const metrics = ctx.measureText(text);
@@ -762,34 +849,44 @@ function drawFittedText(
     return;
   }
 
-  // Prefer natural word-boundary wrapping (max 2 balanced lines) when enabled for long values
   if (allowWrap) {
-    const words = text.trim().split(/\s+/);
-    if (words.length >= 2) {
-      let bestSplit = -1;
-      let bestDiff = Infinity;
-      for (let i = 1; i < words.length; i++) {
-        const line1 = words.slice(0, i).join(' ');
-        const line2 = words.slice(i).join(' ');
-        const w1 = ctx.measureText(line1).width;
-        const w2 = ctx.measureText(line2).width;
-        if (w1 <= maxWidth && w2 <= maxWidth) {
-          const diff = Math.abs(w1 - w2);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            bestSplit = i;
-          }
-        }
+    const lines = wrapPromotionalCellText(text, maxWidth, s => ctx.measureText(s).width);
+    const originalFont = ctx.font;
+    const fontMatch = originalFont.match(/(\d+(?:\.\d+)?)px/);
+    let currentFontSize = fontMatch ? parseFloat(fontMatch[1]) : 21;
+
+    if (noTruncate) {
+      const maxLineWidth = () => Math.max(...lines.map(l => ctx.measureText(l).width));
+      while (maxLineWidth() > maxWidth && currentFontSize > 16) {
+        currentFontSize -= 1;
+        ctx.font = originalFont.replace(/(\d+(?:\.\d+)?)px/, `${currentFontSize}px`);
       }
-      if (bestSplit > 0) {
-        const line1 = words.slice(0, bestSplit).join(' ');
-        const line2 = words.slice(bestSplit).join(' ');
-        const lineOffset = 11.5;
-        ctx.fillText(line1, x, y - lineOffset);
-        ctx.fillText(line2, x, y + lineOffset);
+    }
+
+    if (lines.length === 1) {
+      if (noTruncate || ctx.measureText(lines[0]).width <= maxWidth) {
+        ctx.fillText(lines[0], x, y);
+        ctx.font = originalFont;
+        return;
+      }
+    } else if (lines.length >= 2) {
+      const lineSpacing = Math.max(20, Math.round(currentFontSize * 1.12));
+      const startY = y - ((lines.length - 1) * lineSpacing) / 2;
+      const canDrawAll = noTruncate || lines.every(l => ctx.measureText(l).width <= maxWidth);
+      if (canDrawAll) {
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, x, startY + idx * lineSpacing);
+        });
+        ctx.font = originalFont;
         return;
       }
     }
+    ctx.font = originalFont;
+  }
+
+  if (noTruncate) {
+    ctx.fillText(text, x, y);
+    return;
   }
 
   let truncated = text;
@@ -838,24 +935,6 @@ export function renderPromotionalToCanvas(
       : 1024 / 317;
   const headerSectionHeight = Math.round(width / imgAspect);
 
-  // Use uniform canvas height based on maxRows so every page has identical dimensions across PNG and PDF
-  const totalHeight = headerSectionHeight + tableHeaderHeight + maxRows * rowHeight + footerSectionHeight + 40;
-
-  canvas.width = width;
-  canvas.height = totalHeight;
-
-  // 1. Overall Background: Clean white / deep border container
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, totalHeight);
-
-  // 2. Static Commercial Header Banner Section (100% edge-to-edge width, proportional height)
-  if (bannerImg && bannerImg.complete && bannerImg.naturalWidth > 0) {
-    ctx.drawImage(bannerImg, 0, 0, width, headerSectionHeight);
-  } else {
-    ctx.fillStyle = '#040e24';
-    ctx.fillRect(0, 0, width, headerSectionHeight);
-  }
-
   // 3. Structured Specifications Table
   // Table margins: width 1140px, centered (left = 30)
   const tableX = 30;
@@ -872,11 +951,11 @@ export function renderPromotionalToCanvas(
   if (showPrice && showQty) {
     colWidths = [
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 90 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 185 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 90 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 125 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 181 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 104 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 120 },
       { id: 'ram', label: 'الرام', icon: 'ram', width: 80 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 115 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 110 },
       { id: 'screen', label: 'الشاشة', icon: 'screen', width: 115 },
       { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 125 },
       { id: 'quantity', label: 'الكمية', icon: 'box', width: 75 },
@@ -885,11 +964,11 @@ export function renderPromotionalToCanvas(
   } else if (showPrice && !showQty) {
     colWidths = [
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 95 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 95 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 135 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 195 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 108 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 132 },
       { id: 'ram', label: 'الرام', icon: 'ram', width: 85 },
-      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 125 },
+      { id: 'storage', label: 'الهارد', icon: 'hdd', width: 120 },
       { id: 'screen', label: 'الشاشة', icon: 'screen', width: 125 },
       { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 135 },
       { id: 'price', label: 'السعر (جنيه)', icon: 'price', width: 145 },
@@ -897,9 +976,9 @@ export function renderPromotionalToCanvas(
   } else if (!showPrice && showQty) {
     colWidths = [
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 100 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 200 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 105 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 145 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 195 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 115 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 140 },
       { id: 'ram', label: 'الرام', icon: 'ram', width: 95 },
       { id: 'storage', label: 'الهارد', icon: 'hdd', width: 135 },
       { id: 'screen', label: 'الشاشة', icon: 'screen', width: 135 },
@@ -909,14 +988,69 @@ export function renderPromotionalToCanvas(
   } else {
     colWidths = [
       { id: 'brand', label: 'الماركة', icon: 'tag', width: 105 },
-      { id: 'model', label: 'الموديل', icon: 'laptop', width: 240 },
-      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 110 },
-      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 155 },
+      { id: 'model', label: 'الموديل', icon: 'laptop', width: 235 },
+      { id: 'processor', label: 'المعالج', icon: 'cpu', width: 120 },
+      { id: 'generation', label: 'الجيل', icon: 'calendar', width: 150 },
       { id: 'ram', label: 'الرام', icon: 'ram', width: 100 },
       { id: 'storage', label: 'الهارد', icon: 'hdd', width: 140 },
       { id: 'screen', label: 'الشاشة', icon: 'screen', width: 140 },
       { id: 'gpu', label: 'كارت الشاشة', icon: 'gpu', width: 150 },
     ];
+  }
+
+  const modelColWidth = colWidths.find(c => c.id === 'model')?.width || 181;
+  const processorColWidth = colWidths.find(c => c.id === 'processor')?.width || 104;
+  const genColWidth = colWidths.find(c => c.id === 'generation')?.width || 120;
+
+  const rowHeights = pageItems.map(item => {
+    ctx.save();
+    ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
+    const modelLines = wrapPromotionalCellText(
+      item.model_name || '---',
+      modelColWidth - 16,
+      s => ctx.measureText(s).width
+    );
+    const processorLines = wrapPromotionalCellText(
+      item.processor || '---',
+      processorColWidth - 16,
+      s => ctx.measureText(s).width
+    );
+    ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
+    const genLines = wrapPromotionalCellText(
+      item.generation || '---',
+      genColWidth - 10,
+      s => ctx.measureText(s).width
+    );
+    ctx.restore();
+
+    const maxLines = Math.max(modelLines.length, processorLines.length, genLines.length, 1);
+    return maxLines <= 1 ? rowHeight : Math.max(rowHeight, 76 + (maxLines - 1) * 18);
+  });
+
+  const tableBodyHeight = Math.max(
+    rowHeights.reduce((sum, h) => sum + h, 0),
+    rowCount * rowHeight
+  );
+  const totalHeight =
+    headerSectionHeight +
+    tableHeaderHeight +
+    Math.max(tableBodyHeight, maxRows * rowHeight) +
+    footerSectionHeight +
+    40;
+
+  canvas.width = width;
+  canvas.height = totalHeight;
+
+  // 1. Overall Background: Clean white / deep border container
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, totalHeight);
+
+  // 2. Static Commercial Header Banner Section (100% edge-to-edge width, proportional height)
+  if (bannerImg && bannerImg.complete && bannerImg.naturalWidth > 0) {
+    ctx.drawImage(bannerImg, 0, 0, width, headerSectionHeight);
+  } else {
+    ctx.fillStyle = '#040e24';
+    ctx.fillRect(0, 0, width, headerSectionHeight);
   }
 
   // Draw Table Header Bar (conditional gradient for SOUQ/Makkah; exact original solid for Compu MSS)
@@ -1006,27 +1140,30 @@ export function renderPromotionalToCanvas(
   ctx.restore();
 
   // Draw Table Rows
+  let currentRowY = tableY + tableHeaderHeight;
   pageItems.forEach((item, rIdx) => {
-    const rowY = tableY + tableHeaderHeight + rIdx * rowHeight;
+    const itemRowHeight = rowHeights[rIdx] || rowHeight;
+    const rowY = currentRowY;
+    currentRowY += itemRowHeight;
     const isEven = rIdx % 2 === 0;
 
     // Row Background (Alternating white and soft sky-blue tint)
     ctx.fillStyle = isEven ? '#ffffff' : '#f8faff';
-    ctx.fillRect(tableX, rowY, tableW, rowHeight);
+    ctx.fillRect(tableX, rowY, tableW, itemRowHeight);
 
     // Row bottom border
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(tableX, rowY + rowHeight);
-    ctx.lineTo(tableX + tableW, rowY + rowHeight);
+    ctx.moveTo(tableX, rowY + itemRowHeight);
+    ctx.lineTo(tableX + tableW, rowY + itemRowHeight);
     ctx.stroke();
 
     // Render cells in row
     let cellX = tableX;
     colWidths.forEach((col, cIdx) => {
       const cellCenterX = cellX + col.width / 2;
-      const cellCenterY = rowY + rowHeight / 2;
+      const cellCenterY = rowY + itemRowHeight / 2;
 
       // Vertical column divider between cells
       if (cIdx < colWidths.length - 1) {
@@ -1034,7 +1171,7 @@ export function renderPromotionalToCanvas(
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(cellX + col.width, rowY);
-        ctx.lineTo(cellX + col.width, rowY + rowHeight);
+        ctx.lineTo(cellX + col.width, rowY + itemRowHeight);
         ctx.stroke();
       }
 
@@ -1049,13 +1186,13 @@ export function renderPromotionalToCanvas(
         ctx.direction = 'ltr';
         ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#0f172a';
-        drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16);
+        drawFittedText(ctx, item.model_name || '---', cellCenterX, cellCenterY, col.width - 16, true, true);
       } else if (col.id === 'processor') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
         ctx.font = 'bold 22px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#1e293b';
-        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 8, true);
+        drawFittedText(ctx, item.processor || '---', cellCenterX, cellCenterY, col.width - 16, true, true);
       } else if (col.id === 'generation') {
         ctx.textAlign = 'center';
         const genText = item.generation || '---';
@@ -1063,7 +1200,7 @@ export function renderPromotionalToCanvas(
         ctx.direction = hasArabic ? 'rtl' : 'ltr';
         ctx.font = 'bold 21px "Segoe UI", Cairo, Arial, sans-serif';
         ctx.fillStyle = '#334155';
-        drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8, true);
+        drawFittedText(ctx, genText, cellCenterX, cellCenterY, col.width - 8, true, true);
       } else if (col.id === 'ram') {
         ctx.textAlign = 'center';
         ctx.direction = 'ltr';
@@ -1119,7 +1256,7 @@ export function renderPromotionalToCanvas(
   });
 
   // Outer border of table
-  drawRoundedRect(ctx, tableX, tableY, tableW, tableHeaderHeight + rowCount * rowHeight, 8);
+  drawRoundedRect(ctx, tableX, tableY, tableW, tableHeaderHeight + tableBodyHeight, 8);
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1.5;
   ctx.stroke();

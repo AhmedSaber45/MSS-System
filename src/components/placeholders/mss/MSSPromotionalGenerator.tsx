@@ -12,6 +12,7 @@ import {
   exportPromotionalAsPdf,
   sortPromotionalItems,
   PROMOTIONAL_MAX_DEVICES_PER_PAGE,
+  measureAndWrapPromotionalText,
 } from '@/services/mssPromotionalService.ts';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/common/Button';
@@ -194,7 +195,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
 
       {/* 2. Structured Specifications Table */}
       <div className="p-4 sm:p-5" dir="ltr">
-        <table className="w-full text-[18.5px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
+        <table className="w-full table-fixed text-[18.5px] text-left border-collapse border border-slate-300 font-bold" dir="ltr">
           <thead
             className="font-bold text-center border-b-2 border-slate-400 text-[13.5px]"
             style={
@@ -210,56 +211,56 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
             }
           >
             <tr>
-              <th className="py-3 px-2 w-24 text-center">
+              <th className="py-3 px-2 w-[74px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.brand} alt="الماركة" className="w-4 h-4 object-contain" />
                   <span>الماركة</span>
                 </div>
               </th>
-              <th className="py-3 px-3 text-center">
+              <th className="py-3 px-2 text-center">
                 <div className="flex flex-col items-center gap-1 justify-center">
                   <img src={PROMOTIONAL_HEADER_ICONS.model} alt="الموديل" className="w-4 h-4 object-contain" />
                   <span>الموديل</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-20 text-center">
+              <th className="py-3 px-2.5 w-[102px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.processor} alt="المعالج" className="w-4 h-4 object-contain" />
                   <span>المعالج</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28 text-center">
+              <th className="py-3 px-2 w-[110px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.generation} alt="الجيل" className="w-4 h-4 object-contain" />
                   <span>الجيل</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-16 text-center">
+              <th className="py-3 px-2 w-[64px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.ram} alt="الرام" className="w-4 h-4 object-contain" />
                   <span>الرام</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28 text-center">
+              <th className="py-3 px-2 w-[100px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.storage} alt="الهارد" className="w-4 h-4 object-contain" />
                   <span>الهارد</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-24 text-center">
+              <th className="py-3 px-2 w-[92px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.screen} alt="الشاشة" className="w-4 h-4 object-contain" />
                   <span>الشاشة</span>
                 </div>
               </th>
-              <th className="py-3 px-2 w-28 text-center">
+              <th className="py-3 px-2 w-[106px] text-center">
                 <div className="flex flex-col items-center gap-1">
                   <img src={PROMOTIONAL_HEADER_ICONS.gpu} alt="كارت الشاشة" className="w-4 h-4 object-contain" />
                   <span>كارت الشاشة</span>
                 </div>
               </th>
               {displayOptions.showQuantity && (
-                <th className="py-3 px-2 w-16 text-center">
+                <th className="py-3 px-2 w-[60px] text-center">
                   <div className="flex flex-col items-center gap-1">
                     <img src={PROMOTIONAL_HEADER_ICONS.quantity} alt="الكمية" className="w-4 h-4 object-contain" />
                     <span>الكمية</span>
@@ -268,7 +269,7 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
               )}
               {displayOptions.showPrice && (
                 <th
-                  className="py-3 px-3 w-28 text-center"
+                  className="py-3 px-2 w-[110px] text-center"
                   style={{
                     backgroundColor:
                       headerColors.tableHeaderPriceOverlay || headerColors.tableHeaderPriceBg,
@@ -293,25 +294,54 @@ const PromotionalPosterPage: React.FC<PromotionalPosterPageProps> = ({
                 (val || '').trim().length <= maxSingleChars
                   ? 'whitespace-nowrap'
                   : 'break-normal [overflow-wrap:normal] leading-snug';
+              const modelLines = measureAndWrapPromotionalText(
+                item.model_name || '---',
+                124,
+                'bold 18.5px "Segoe UI", Cairo, Arial, sans-serif'
+              );
+              const processorLines = measureAndWrapPromotionalText(
+                item.processor || '---',
+                80,
+                'bold 18.5px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+              );
+              const generationLines = measureAndWrapPromotionalText(
+                item.generation || '---',
+                94,
+                'bold 18.5px "Segoe UI", Cairo, Arial, sans-serif'
+              );
 
               return (
                 <tr key={item.id} className={`transition-colors ${isEven ? 'bg-white' : 'bg-[#f8faff]'}`}>
                   <td className="py-3.5 px-2 text-center align-middle border-r border-slate-200">
                     <BrandBadgePreview brand={item.brand} />
                   </td>
-                  <td className="py-3.5 px-3 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[18.5px]">
-                    <div dir="ltr" className="text-center truncate max-w-full">{item.model_name}</div>
+                  <td className="py-3.5 px-2 font-bold text-slate-900 border-r border-slate-200 text-center align-middle text-[18.5px]">
+                    <div dir="ltr" className="text-center leading-[1.3] break-normal [overflow-wrap:normal]">
+                      {modelLines.map((line, lineIdx) => (
+                        <div key={lineIdx}>{line}</div>
+                      ))}
+                    </div>
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 font-mono text-[18.5px] ${singleLineOrWrap(item.processor, 16)}`}
+                    className="py-3.5 px-2.5 text-center align-middle font-bold text-slate-800 border-r border-slate-200 font-mono text-[18.5px] box-border"
                     dir="ltr"
                   >
-                    {item.processor || '---'}
+                    <div className="text-center leading-[1.3] break-normal [overflow-wrap:normal] overflow-hidden max-w-full">
+                      {processorLines.map((line, lineIdx) => (
+                        <div key={lineIdx}>{line}</div>
+                      ))}
+                    </div>
                   </td>
                   <td
-                    className={`py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.generation, 20)}`}
+                    className="py-3.5 px-2 text-center align-middle font-bold text-slate-800 border-r border-slate-200 text-[18.5px]"
                   >
-                    <bdi>{item.generation || '---'}</bdi>
+                    <div className="text-center leading-[1.3] break-normal [overflow-wrap:normal]">
+                      {generationLines.map((line, lineIdx) => (
+                        <div key={lineIdx}>
+                          <bdi>{line}</bdi>
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td
                     className={`py-3.5 px-2 text-center align-middle font-mono font-bold text-slate-800 border-r border-slate-200 text-[18.5px] ${singleLineOrWrap(item.ram, 10)}`}

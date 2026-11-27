@@ -27,10 +27,10 @@ test('Task 2: Promotional Image - Model Column Centering', async (t) => {
       'Model table cell must have text-center align-middle and font-bold'
     );
 
-    // 3. Check inner Model Name container centering
+    // 3. Check inner Model Name container centering without ellipsis truncation
     assert.ok(
-      content.includes('className="text-center truncate max-w-full"'),
-      'Model name container must be text-center with truncate for long names'
+      content.includes('className="text-center leading-[1.3] break-normal [overflow-wrap:normal]"'),
+      'Model name container must be text-center with natural word-boundary wrapping and no truncation'
     );
   });
 

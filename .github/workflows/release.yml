@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tagName:
-        description: 'Release Tag Name (e.g. v1.1.2)'
+        description: 'Release Tag Name (e.g. v1.1.3)'
         required: false
-        default: 'v1.1.2'
+        default: 'v1.1.3'
 
 permissions:
   contents: write
@@ -75,14 +75,12 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: './'
-          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.2' }}
+          tagName: ${{ inputs.tagName || (github.ref_type == 'tag' && github.ref_name) || 'v1.1.3' }}
           releaseName: 'AS System v__VERSION__'
           releaseBody: |
             ## AS System v__VERSION__
-            - **Optional Full Backup & Restore**: Added Full Backup mode (`Full AS System Backup`) including the complete Accessories SQLite database, MSS local caches/Outbox, application settings/paths, and managed files with SHA-256 integrity verification and external file restore for fresh Windows installations.
-            - **Laptop Specifications Quick-Select**: Added reusable quick-select options for Processor (`CI 3/5/7/9`, `RYZEN 3/5/7`), RAM (`4/8/16/32 GB`), Storage (`SSD 128/256/512 GB`, `HDD 500 GB/1 TB`), Screen (`14.1`, `15.6`), and GPU (`AMD`, `NVIDIA`, `INTEL`) across Accessories and Compu MSS laptop forms.
-            - **Local User Preferences Persistence**: Persisted Accessories Sales page-size selection (default 9), MSS Catalog view mode, and Promotional Image sort/display preferences across restarts.
-            - **Promotional Image Refinements**: Refined table typography and word-boundary wrapping across preview, Canvas, and exports, and added smooth scroll-to-form when editing devices in Accessories Promotional Image.
+            - **Promotional Image Table Wrapping & Containment**: Fixed Model and Generation natural word-boundary wrapping without ellipsis truncation, automatic row-height expansion, and Processor column padding/containment across live preview and exported renders.
+            - **Laptop Specifications Quick-Select**: Added `INTEL IRIS` to GPU quick-selects (`AMD`, `NVIDIA`, `INTEL`, `INTEL IRIS`) and `13` to Screen quick-selects (`13`, `14.1`, `15.6`) across Accessories and Compu MSS laptop forms.
             - **Auto-Updater & Installers**: Signed Windows NSIS (`.exe`) and MSI installers with verified `latest.json` auto-updater manifest.
           releaseDraft: false
           prerelease: false

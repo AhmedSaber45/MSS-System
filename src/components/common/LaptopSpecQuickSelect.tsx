@@ -5,9 +5,9 @@ export type LaptopSpecFieldKind = 'ram' | 'storage' | 'screen' | 'processor' | '
 export const LAPTOP_SPEC_QUICK_OPTIONS: Record<LaptopSpecFieldKind, readonly string[]> = {
   ram: ['4 GB', '8 GB', '16 GB', '32 GB'],
   storage: ['SSD 128 GB', 'SSD 256 GB', 'SSD 512 GB', 'HDD 500 GB', 'HDD 1 TB'],
-  screen: ['14.1', '15.6'],
+  screen: ['13', '14.1', '15.6'],
   processor: ['CI 3', 'CI 5', 'CI 7', 'CI 9', 'RYZEN 3', 'RYZEN 5', 'RYZEN 7'],
-  gpu: ['AMD', 'NVIDIA', 'INTEL'],
+  gpu: ['AMD', 'NVIDIA', 'INTEL', 'INTEL IRIS'],
 };
 
 export interface LaptopSpecQuickSelectProps {
